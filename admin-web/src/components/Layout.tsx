@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import logoMark from "../assets/logo-mark.png";
 
 const navItems = [
   { to: "/users", label: "Пользователи" },
@@ -13,7 +14,8 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside className="flex shrink-0 flex-col border-b border-slate-200 bg-white md:w-56 md:border-b-0 md:border-r">
-        <div className="px-5 py-5">
+        <div className="flex items-center gap-2 px-5 py-5">
+          <img src={logoMark} alt="" className="h-7 w-7" />
           <span className="text-lg font-semibold tracking-tight text-slate-900">
             GuYo Admin
           </span>

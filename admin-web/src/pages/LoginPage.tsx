@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { isAxiosError } from "axios";
+import logoMark from "../assets/logo-mark.png";
 
 export function LoginPage() {
   const { isAuthenticated, login } = useAuth();
@@ -36,6 +37,7 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+        <img src={logoMark} alt="" className="mx-auto mb-3 h-12 w-12" />
         <h1 className="mb-1 text-center text-2xl font-semibold text-slate-900">GuYo Admin</h1>
         <p className="mb-6 text-center text-sm text-slate-500">Вход для администратора</p>
 

@@ -121,12 +121,20 @@ export function DictionaryDetailPage() {
                   </div>
                 </div>
               </div>
-              <button
-                onClick={() => handleDelete(w.id)}
-                className="shrink-0 text-sm text-slate-400 hover:text-red-600"
-              >
-                Удалить
-              </button>
+              <div className="flex shrink-0 items-center gap-4">
+                <Link
+                  to={`/dictionaries/${dictionaryId}/words/${w.id}`}
+                  className="text-sm font-medium text-indigo-600 hover:underline"
+                >
+                  Редактировать
+                </Link>
+                <button
+                  onClick={() => handleDelete(w.id)}
+                  className="text-sm text-slate-400 hover:text-red-600"
+                >
+                  Удалить
+                </button>
+              </div>
             </li>
           ))}
         </ul>

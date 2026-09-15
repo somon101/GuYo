@@ -4,6 +4,14 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+base {
+    // Flutter's own tooling still names the copy it places under
+    // build/app/outputs/flutter-apk/ as app-<buildType>.apk regardless of
+    // this, but it does give the native Gradle-side APK under
+    // android/app/build/outputs/apk/ a friendly name instead of app-*.apk.
+    archivesName.set("GuYo")
+}
+
 android {
     namespace = "com.guyo.guyo_app"
     compileSdk = flutter.compileSdkVersion
