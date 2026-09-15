@@ -1,23 +1,23 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_admin, get_current_principal
+from app.core.deps import Principal, get_current_admin, get_current_principal
 from app.core.languages import is_valid_translation_language
 from app.core.storage import delete_by_key, save_upload, url_for_key
 from app.database import get_db
-from app.models.dictionary import Dictionary, DictionaryLanguage
+from app.models.dictionary import Dictionary
 from app.models.word import Word, WordTranslation
 from app.schemas.word import WordOut, WordTranslationOut
 
 router = APIRouter(tags=["words"])
 
 
-def _default_translation_language(dictionary_language: DictionaryLanguage) -> str:
+def _default_translation_language(dictionary_language: str) -> str:
     """A word's translation language was never asked for explicitly before
     this stage. Default it the same way the data migration inferred it for
     existing rows: Russian, unless the dictionary itself is Russian, in
     which case English."""
-    return "en" if dictionary_language == DictionaryLanguage.RUSSIAN else "ru"
+    return "en" if dictionary_language == "ru" else "ru"
 
 
 def translation_to_out(t: WordTranslation) -> WordTranslationOut:
@@ -43,9 +43,16 @@ def word_to_out(word: Word) -> WordOut:
     )
 
 
-def _get_dictionary_or_404(db: Session, dictionary_id: int) -> Dictionary:
+def _get_dictionary_or_404(
+    db: Session, dictionary_id: int, principal: Principal | None = None
+) -> Dictionary:
     dictionary = db.get(Dictionary, dictionary_id)
     if dictionary is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dictionary not found")
+    # A draft dictionary -- and therefore every Word in it -- is invisible
+    # to anyone but an admin. Reported as a plain 404, same as "doesn't
+    # exist", so a regular user can't even tell a draft is there.
+    if principal is not None and principal.role != "admin" and not dictionary.is_published:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dictionary not found")
     return dictionary
 
@@ -63,8 +70,10 @@ def _require_valid_language(language: str) -> None:
 
 
 @router.get("/dictionaries/{dictionary_id}/words", response_model=list[WordOut])
-def list_words(dictionary_id: int, db: Session = Depends(get_db), _principal=Depends(get_current_principal)):
-    _get_dictionary_or_404(db, dictionary_id)
+def list_words(
+    dictionary_id: int, db: Session = Depends(get_db), principal: Principal = Depends(get_current_principal)
+):
+    _get_dictionary_or_404(db, dictionary_id, principal)
     words = db.query(Word).filter(Word.dictionary_id == dictionary_id).order_by(Word.id).all()
     return [word_to_out(w) for w in words]
 
@@ -117,8 +126,12 @@ def create_word(
 
 
 @router.get("/words/{word_id}", response_model=WordOut)
-def get_word(word_id: int, db: Session = Depends(get_db), _principal=Depends(get_current_principal)):
-    return word_to_out(_get_word_or_404(db, word_id))
+def get_word(
+    word_id: int, db: Session = Depends(get_db), principal: Principal = Depends(get_current_principal)
+):
+    db_word = _get_word_or_404(db, word_id)
+    _get_dictionary_or_404(db, db_word.dictionary_id, principal)
+    return word_to_out(db_word)
 
 
 @router.patch("/words/{word_id}", response_model=WordOut)

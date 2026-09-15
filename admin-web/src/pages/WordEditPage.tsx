@@ -10,7 +10,7 @@ import {
   upsertTranslation,
 } from "../api/endpoints";
 import type { Dictionary, TranslationLanguage, Word } from "../types";
-import { LANGUAGE_LABELS, TRANSLATION_LANGUAGE_LABELS } from "../types";
+import { TRANSLATION_LANGUAGE_LABELS } from "../types";
 
 function mediaUrl(path: string | null): string | null {
   return path ? `${API_URL}${path}` : null;
@@ -221,7 +221,7 @@ export function WordEditPage() {
         <Field label="Язык">
           <input
             className="w-full max-w-xs rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500"
-            value={LANGUAGE_LABELS[dictionary.language]}
+            value={dictionary.name}
             disabled
           />
         </Field>
@@ -261,7 +261,7 @@ export function WordEditPage() {
 
       <Section title="Произношение">
         <AudioBlock
-          languageLabel={LANGUAGE_LABELS[dictionary.language]}
+          languageLabel={dictionary.name}
           text={word.word}
           captionPrefix="Аудио слова"
           stage={wordAudio}

@@ -1,16 +1,16 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { createDictionary, listDictionaries } from "../api/endpoints";
-import type { Dictionary, Language } from "../types";
-import { LANGUAGE_LABELS } from "../types";
-
-const LANGUAGE_OPTIONS: Language[] = ["en", "ru", "zh"];
+import { createDictionary, listDictionaries, setDictionaryPublished } from "../api/endpoints";
+import type { Dictionary } from "../types";
+import { DEFAULT_LANGUAGE_PRESETS } from "../types";
 
 export function DictionariesPage() {
   const [dictionaries, setDictionaries] = useState<Dictionary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [publishingId, setPublishingId] = useState<number | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
 
   async function reload() {
     setIsLoading(true);
@@ -28,6 +28,19 @@ export function DictionariesPage() {
     reload();
   }, []);
 
+  async function handleTogglePublish(dictionary: Dictionary) {
+    setPublishError(null);
+    setPublishingId(dictionary.id);
+    try {
+      const updated = await setDictionaryPublished(dictionary.id, !dictionary.is_published);
+      setDictionaries((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+    } catch {
+      setPublishError("Не удалось изменить статус публикации");
+    } finally {
+      setPublishingId(null);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-6 flex items-center justify-between">
@@ -42,6 +55,7 @@ export function DictionariesPage() {
 
       {isFormOpen && (
         <CreateDictionaryForm
+          existingLanguages={dictionaries.map((d) => d.language)}
           onCreated={() => {
             setIsFormOpen(false);
             reload();
@@ -49,6 +63,8 @@ export function DictionariesPage() {
           onCancel={() => setIsFormOpen(false)}
         />
       )}
+
+      {publishError && <p className="mb-4 text-sm text-red-600">{publishError}</p>}
 
       {isLoading ? (
         <p className="text-sm text-slate-500">Загрузка…</p>
@@ -59,16 +75,48 @@ export function DictionariesPage() {
       ) : (
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {dictionaries.map((d) => (
-            <li key={d.id}>
-              <Link
-                to={`/dictionaries/${d.id}`}
-                className="block rounded-lg border border-slate-200 bg-white p-5 transition-colors hover:border-indigo-300 hover:shadow-sm"
-              >
-                <p className="text-base font-medium text-slate-900" translate="no">{d.name}</p>
-                <p className="mt-1 text-sm text-slate-500">
-                  {LANGUAGE_LABELS[d.language]} · {d.word_count} слов
-                </p>
-              </Link>
+            <li key={d.id} className="rounded-lg border border-slate-200 bg-white p-5">
+              <p className="text-base font-medium text-slate-900" translate="no">
+                {d.name}
+              </p>
+              <p className="mt-1 text-xs text-slate-400">ID: {d.id}</p>
+              <p className="mt-2 text-sm">
+                Статус:{" "}
+                <span
+                  className={
+                    d.is_published
+                      ? "font-medium text-emerald-600"
+                      : "font-medium text-amber-600"
+                  }
+                >
+                  {d.is_published ? "Опубликовано" : "Черновик"}
+                </span>
+              </p>
+              <p className="mt-1 text-xs text-slate-400">{d.word_count} слов</p>
+
+              <div className="mt-4 flex gap-2">
+                <Link
+                  to={`/dictionaries/${d.id}`}
+                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Открыть
+                </Link>
+                <button
+                  onClick={() => handleTogglePublish(d)}
+                  disabled={publishingId === d.id}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium disabled:opacity-60 ${
+                    d.is_published
+                      ? "border border-slate-300 text-slate-700 hover:bg-slate-50"
+                      : "bg-indigo-600 text-white hover:bg-indigo-700"
+                  }`}
+                >
+                  {publishingId === d.id
+                    ? "Сохранение…"
+                    : d.is_published
+                      ? "Снять с публикации"
+                      : "Опубликовать"}
+                </button>
+              </div>
             </li>
           ))}
         </ul>
@@ -77,18 +125,44 @@ export function DictionariesPage() {
   );
 }
 
-function CreateDictionaryForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
-  const [name, setName] = useState("");
-  const [language, setLanguage] = useState<Language>("en");
+function CreateDictionaryForm({
+  existingLanguages,
+  onCreated,
+  onCancel,
+}: {
+  existingLanguages: string[];
+  onCreated: () => void;
+  onCancel: () => void;
+}) {
+  // Offer the 3 built-in presets plus any custom language already in use
+  // by some other dictionary (so it's reusable next time), deduplicated.
+  const presetValues = new Set(DEFAULT_LANGUAGE_PRESETS.map((p) => p.value));
+  const customOptions = existingLanguages
+    .filter((lang, index, all) => !presetValues.has(lang) && all.indexOf(lang) === index)
+    .map((lang) => ({ value: lang, label: lang }));
+  const options = [...DEFAULT_LANGUAGE_PRESETS, ...customOptions];
+
+  const ADD_NEW = "__add_new__";
+  const [selected, setSelected] = useState<string>(options[0]?.value ?? ADD_NEW);
+  const [newLanguageName, setNewLanguageName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isAddingNew = selected === ADD_NEW;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+
+    const language = isAddingNew ? newLanguageName.trim() : selected;
+    if (!language) {
+      setError("Введите название языка");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      await createDictionary(name, language);
+      await createDictionary(language);
       onCreated();
     } catch {
       setError("Не удалось создать словарь");
@@ -100,39 +174,46 @@ function CreateDictionaryForm({ onCreated, onCancel }: { onCreated: () => void; 
   return (
     <form
       onSubmit={handleSubmit}
-      className="mb-6 flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5 sm:flex-row sm:items-end"
+      className="mb-6 flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5"
     >
-      <div className="flex-1">
-        <label className="mb-1 block text-sm font-medium text-slate-700">Название словаря</label>
-        <input
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          autoFocus
-          required
-        />
-      </div>
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Язык</label>
         <select
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-          value={language}
-          onChange={(e) => setLanguage(e.target.value as Language)}
+          className="w-full max-w-xs rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          value={selected}
+          onChange={(e) => setSelected(e.target.value)}
+          autoFocus
         >
-          {LANGUAGE_OPTIONS.map((lang) => (
-            <option key={lang} value={lang}>
-              {LANGUAGE_LABELS[lang]}
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value} translate="no">
+              {opt.label}
             </option>
           ))}
+          <option value={ADD_NEW}>+ Добавить новый язык</option>
         </select>
       </div>
+
+      {isAddingNew && (
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Название языка</label>
+          <input
+            className="w-full max-w-xs rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            value={newLanguageName}
+            onChange={(e) => setNewLanguageName(e.target.value)}
+            placeholder="Тоҷикӣ"
+            autoFocus
+            required
+          />
+        </div>
+      )}
+
       <div className="flex gap-2">
         <button
           type="submit"
           disabled={isSubmitting}
           className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
         >
-          Создать
+          {isSubmitting ? "Создание…" : "Создать"}
         </button>
         <button
           type="button"
@@ -142,7 +223,7 @@ function CreateDictionaryForm({ onCreated, onCancel }: { onCreated: () => void; 
           Отмена
         </button>
       </div>
-      {error && <p className="w-full text-sm text-red-600 sm:mt-2">{error}</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
     </form>
   );
 }

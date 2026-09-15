@@ -3,7 +3,6 @@ import { Link, useParams } from "react-router-dom";
 import { API_URL } from "../api/client";
 import { createWord, deleteWord, getDictionary, listWords } from "../api/endpoints";
 import type { Dictionary, Word } from "../types";
-import { LANGUAGE_LABELS } from "../types";
 
 function mediaUrl(path: string | null): string | null {
   return path ? `${API_URL}${path}` : null;
@@ -63,9 +62,12 @@ export function DictionaryDetailPage() {
 
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">{dictionary.name}</h1>
+          <h1 className="text-xl font-semibold text-slate-900" translate="no">
+            {dictionary.name}
+          </h1>
+          <p className="text-xs text-slate-400">ID: {dictionary.id}</p>
           <p className="text-sm text-slate-500">
-            {LANGUAGE_LABELS[dictionary.language]} · {words.length} слов
+            {dictionary.is_published ? "Опубликовано" : "Черновик"} · {words.length} слов
           </p>
         </div>
         <button
@@ -79,7 +81,7 @@ export function DictionaryDetailPage() {
       {isFormOpen && (
         <AddWordForm
           dictionaryId={dictionaryId}
-          languageLabel={LANGUAGE_LABELS[dictionary.language]}
+          languageLabel={dictionary.name}
           onCreated={() => {
             setIsFormOpen(false);
             reload();

@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { AdminUser, Dictionary, Language, TranslationLanguage, Word, WordTranslation } from "../types";
+import type { AdminUser, Dictionary, TranslationLanguage, Word, WordTranslation } from "../types";
 
 export async function adminLogin(login: string, password: string): Promise<string> {
   const { data } = await api.post("/auth/admin/login", { login, password });
@@ -26,13 +26,18 @@ export async function listDictionaries(): Promise<Dictionary[]> {
   return data;
 }
 
-export async function createDictionary(name: string, language: Language): Promise<Dictionary> {
-  const { data } = await api.post("/dictionaries", { name, language });
+export async function createDictionary(language: string): Promise<Dictionary> {
+  const { data } = await api.post("/dictionaries", { language });
   return data;
 }
 
 export async function getDictionary(id: number): Promise<Dictionary> {
   const { data } = await api.get(`/dictionaries/${id}`);
+  return data;
+}
+
+export async function setDictionaryPublished(id: number, isPublished: boolean): Promise<Dictionary> {
+  const { data } = await api.patch(`/dictionaries/${id}`, { is_published: isPublished });
   return data;
 }
 

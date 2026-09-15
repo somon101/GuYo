@@ -2,24 +2,29 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_admin, get_current_principal
+from app.core.deps import Principal, get_current_admin, get_current_principal
 from app.database import get_db
-from app.models.dictionary import Dictionary
+from app.models.dictionary import Dictionary, resolve_dictionary_language_label
 from app.models.word import Word
-from app.schemas.dictionary import DictionaryCreate, DictionaryOut
+from app.schemas.dictionary import DictionaryCreate, DictionaryOut, DictionaryUpdate
 
 router = APIRouter(prefix="/dictionaries", tags=["dictionaries"])
 
 
+def _visible_to(principal: Principal, dictionary: Dictionary) -> bool:
+    """Admins manage drafts too; a regular user (the Flutter app) must never
+    see a dictionary -- or by extension any Word in it -- until it's
+    published."""
+    return principal.role == "admin" or dictionary.is_published
+
+
 @router.get("", response_model=list[DictionaryOut])
-def list_dictionaries(db: Session = Depends(get_db), _principal=Depends(get_current_principal)):
-    rows = (
-        db.query(Dictionary, func.count(Word.id))
-        .outerjoin(Word, Word.dictionary_id == Dictionary.id)
-        .group_by(Dictionary.id)
-        .order_by(Dictionary.id)
-        .all()
-    )
+def list_dictionaries(db: Session = Depends(get_db), principal: Principal = Depends(get_current_principal)):
+    query = db.query(Dictionary, func.count(Word.id)).outerjoin(Word, Word.dictionary_id == Dictionary.id)
+    if principal.role != "admin":
+        query = query.filter(Dictionary.is_published.is_(True))
+    rows = query.group_by(Dictionary.id).order_by(Dictionary.id).all()
+
     result = []
     for dictionary, word_count in rows:
         out = DictionaryOut.model_validate(dictionary)
@@ -32,7 +37,11 @@ def list_dictionaries(db: Session = Depends(get_db), _principal=Depends(get_curr
 def create_dictionary(
     payload: DictionaryCreate, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
 ):
-    dictionary = Dictionary(name=payload.name, language=payload.language)
+    dictionary = Dictionary(
+        name=resolve_dictionary_language_label(payload.language),
+        language=payload.language,
+        is_published=False,
+    )
     db.add(dictionary)
     db.commit()
     db.refresh(dictionary)
@@ -42,10 +51,36 @@ def create_dictionary(
 
 
 @router.get("/{dictionary_id}", response_model=DictionaryOut)
-def get_dictionary(dictionary_id: int, db: Session = Depends(get_db), _principal=Depends(get_current_principal)):
+def get_dictionary(
+    dictionary_id: int, db: Session = Depends(get_db), principal: Principal = Depends(get_current_principal)
+):
+    dictionary = db.get(Dictionary, dictionary_id)
+    if dictionary is None or not _visible_to(principal, dictionary):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dictionary not found")
+    word_count = db.query(func.count(Word.id)).filter(Word.dictionary_id == dictionary_id).scalar()
+    out = DictionaryOut.model_validate(dictionary)
+    out.word_count = word_count or 0
+    return out
+
+
+@router.patch("/{dictionary_id}", response_model=DictionaryOut)
+def update_dictionary(
+    dictionary_id: int,
+    payload: DictionaryUpdate,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """Publishes or unpublishes the whole dictionary block. There is no
+    separate per-Word publish state: every Word already in the dictionary,
+    and every one added to it afterwards, follows this single flag."""
     dictionary = db.get(Dictionary, dictionary_id)
     if dictionary is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dictionary not found")
+
+    dictionary.is_published = payload.is_published
+    db.commit()
+    db.refresh(dictionary)
+
     word_count = db.query(func.count(Word.id)).filter(Word.dictionary_id == dictionary_id).scalar()
     out = DictionaryOut.model_validate(dictionary)
     out.word_count = word_count or 0

@@ -2,12 +2,16 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.dictionary import DictionaryLanguage
-
 
 class DictionaryCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=128)
-    language: DictionaryLanguage
+    # No `name` field: the admin only picks/types a language, and the
+    # dictionary's display name is derived from that server-side (see
+    # resolve_dictionary_language_label).
+    language: str = Field(min_length=1, max_length=64)
+
+
+class DictionaryUpdate(BaseModel):
+    is_published: bool
 
 
 class DictionaryOut(BaseModel):
@@ -15,6 +19,7 @@ class DictionaryOut(BaseModel):
 
     id: int
     name: str
-    language: DictionaryLanguage
+    language: str
+    is_published: bool
     created_at: datetime
     word_count: int = 0
