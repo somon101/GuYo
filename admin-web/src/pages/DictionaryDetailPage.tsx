@@ -95,9 +95,9 @@ export function DictionaryDetailPage() {
           {words.map((w) => (
             <li
               key={w.id}
-              className="flex items-start justify-between gap-4 rounded-lg border border-slate-200 bg-white p-4"
+              className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 rounded-lg border border-slate-200 bg-white p-4"
             >
-              <div className="flex items-start gap-4">
+              <div className="flex min-w-0 flex-1 items-start gap-4">
                 {mediaUrl(w.image_url) && (
                   <img
                     src={mediaUrl(w.image_url)!}
@@ -105,18 +105,18 @@ export function DictionaryDetailPage() {
                     className="h-14 w-14 shrink-0 rounded-md border border-slate-200 object-cover"
                   />
                 )}
-                <div translate="no">
+                <div translate="no" className="min-w-0">
                   <p className="text-base font-medium text-slate-900">{w.word}</p>
                   {w.transcription && (
                     <p className="text-sm text-slate-400">{w.transcription}</p>
                   )}
                   <p className="text-sm text-slate-600">{w.translation}</p>
-                  <div className="mt-2 flex gap-3">
+                  <div className="mt-2 flex flex-wrap gap-3">
                     {mediaUrl(w.word_audio_url) && (
-                      <audio controls src={mediaUrl(w.word_audio_url)!} className="h-8" />
+                      <audio controls src={mediaUrl(w.word_audio_url)!} className="h-8 max-w-[220px]" />
                     )}
                     {mediaUrl(w.translation_audio_url) && (
-                      <audio controls src={mediaUrl(w.translation_audio_url)!} className="h-8" />
+                      <audio controls src={mediaUrl(w.translation_audio_url)!} className="h-8 max-w-[220px]" />
                     )}
                   </div>
                 </div>
