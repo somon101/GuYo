@@ -86,8 +86,14 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Войти'));
     await tester.pumpAndSettle(const Duration(seconds: 3));
 
+    // There's no manual refresh button by design -- the screen re-checks
+    // what's published on its own whenever the app comes back to the
+    // foreground (WidgetsBindingObserver.didChangeAppLifecycleState). Drive
+    // that exact mechanism here instead of a UI control that doesn't exist.
     Future<void> refresh() async {
-      await tester.tap(find.byTooltip('Обновить'));
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump();
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pumpAndSettle(const Duration(seconds: 2));
     }
 

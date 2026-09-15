@@ -150,11 +150,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               );
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Обновить',
-            onPressed: _reloadDictionaries,
-          ),
           PopupMenuButton<String>(
             tooltip: 'Ещё',
             onSelected: (value) {
