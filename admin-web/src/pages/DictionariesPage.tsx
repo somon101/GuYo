@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { createDictionary, listDictionaries, setDictionaryPublished } from "../api/endpoints";
+import { createDictionary, deleteDictionary, listDictionaries, setDictionaryPublished } from "../api/endpoints";
 import type { Dictionary } from "../types";
 import { DEFAULT_LANGUAGE_PRESETS } from "../types";
 
@@ -11,6 +11,7 @@ export function DictionariesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [publishingId, setPublishingId] = useState<number | null>(null);
   const [publishError, setPublishError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   async function reload() {
     setIsLoading(true);
@@ -38,6 +39,26 @@ export function DictionariesPage() {
       setPublishError("Не удалось изменить статус публикации");
     } finally {
       setPublishingId(null);
+    }
+  }
+
+  async function handleDelete(dictionary: Dictionary) {
+    const confirmed = confirm(
+      dictionary.word_count > 0
+        ? `Удалить словарь «${dictionary.name}» и все ${dictionary.word_count} слов(а) в нём? Это действие нельзя отменить.`
+        : `Удалить словарь «${dictionary.name}»? Это действие нельзя отменить.`,
+    );
+    if (!confirmed) return;
+
+    setPublishError(null);
+    setDeletingId(dictionary.id);
+    try {
+      await deleteDictionary(dictionary.id);
+      setDictionaries((prev) => prev.filter((d) => d.id !== dictionary.id));
+    } catch {
+      setPublishError("Не удалось удалить словарь");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -94,7 +115,7 @@ export function DictionariesPage() {
               </p>
               <p className="mt-1 text-xs text-slate-400">{d.word_count} слов</p>
 
-              <div className="mt-4 flex gap-2">
+              <div className="mt-4 flex flex-wrap items-center gap-2">
                 <Link
                   to={`/dictionaries/${d.id}`}
                   className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
@@ -103,7 +124,7 @@ export function DictionariesPage() {
                 </Link>
                 <button
                   onClick={() => handleTogglePublish(d)}
-                  disabled={publishingId === d.id}
+                  disabled={publishingId === d.id || deletingId === d.id}
                   className={`rounded-md px-3 py-1.5 text-sm font-medium disabled:opacity-60 ${
                     d.is_published
                       ? "border border-slate-300 text-slate-700 hover:bg-slate-50"
@@ -115,6 +136,13 @@ export function DictionariesPage() {
                     : d.is_published
                       ? "Снять с публикации"
                       : "Опубликовать"}
+                </button>
+                <button
+                  onClick={() => handleDelete(d)}
+                  disabled={deletingId === d.id || publishingId === d.id}
+                  className="ml-auto text-sm text-slate-400 hover:text-red-600 disabled:opacity-60"
+                >
+                  {deletingId === d.id ? "Удаление…" : "Удалить"}
                 </button>
               </div>
             </li>

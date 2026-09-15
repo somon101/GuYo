@@ -41,6 +41,10 @@ export async function setDictionaryPublished(id: number, isPublished: boolean): 
   return data;
 }
 
+export async function deleteDictionary(id: number): Promise<void> {
+  await api.delete(`/dictionaries/${id}`);
+}
+
 export async function listWords(dictionaryId: number): Promise<Word[]> {
   const { data } = await api.get(`/dictionaries/${dictionaryId}/words`);
   return data;

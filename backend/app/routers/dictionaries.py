@@ -3,6 +3,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.deps import Principal, get_current_admin, get_current_principal
+from app.core.storage import delete_by_key
 from app.database import get_db
 from app.models.dictionary import Dictionary, resolve_dictionary_language_label
 from app.models.word import Word
@@ -85,3 +86,25 @@ def update_dictionary(
     out = DictionaryOut.model_validate(dictionary)
     out.word_count = word_count or 0
     return out
+
+
+@router.delete("/{dictionary_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_dictionary(dictionary_id: int, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    """Deletes the dictionary block and every Word in it. The database
+    cascade (Word.dictionary_id has ondelete=CASCADE, and the ORM
+    relationship is cascade="all, delete-orphan") already removes the Word
+    and WordTranslation rows; what it can't do is clean up the audio/image
+    files those rows pointed at, so that's done explicitly here first."""
+    dictionary = db.get(Dictionary, dictionary_id)
+    if dictionary is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dictionary not found")
+
+    for word in dictionary.words:
+        delete_by_key(word.word_audio_key)
+        delete_by_key(word.image_key)
+        for translation in word.translations:
+            delete_by_key(translation.audio_key)
+
+    db.delete(dictionary)
+    db.commit()
+    return None
