@@ -13,6 +13,13 @@ import 'matching_screen.dart';
 /// "Словарь" (the existing word list) and "Сопоставление" (the new
 /// matching drill). Logging out is still available, just tucked into the
 /// overflow menu instead of sitting in the main bar.
+///
+/// The switcher's option list is never hardcoded: it's built purely from
+/// whatever GET /dictionaries returns, and the backend is the one and only
+/// place that decides which dictionaries are published -- a regular user's
+/// token never gets a draft back at all (see dictionaries.py's
+/// `_visible_to`), so this screen doesn't need to (and must not try to)
+/// second-guess publish status on its own.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -20,7 +27,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late Future<List<GuyoDictionary>> _dictionariesFuture;
   GuyoDictionary? _selectedDictionary;
   int _tabIndex = 0;
@@ -28,7 +35,25 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _dictionariesFuture = ApiClient.instance.fetchDictionaries();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // An admin can publish/unpublish a dictionary at any time from Admin
+    // Web while this app is just sitting in the background. Re-check what's
+    // published as soon as the user comes back to it, rather than only on
+    // the next cold start.
+    if (state == AppLifecycleState.resumed) {
+      _reloadDictionaries();
+    }
   }
 
   void _reloadDictionaries() {
@@ -60,6 +85,22 @@ class _HomeScreenState extends State<HomeScreen> {
     return options;
   }
 
+  /// Picks which dictionary should be "current" out of the latest set of
+  /// published options: keeps the existing selection if it's still
+  /// available, otherwise falls back to the first option -- e.g. because
+  /// an admin just unpublished the one the user had open. Returns null
+  /// when there's nothing published at all.
+  GuyoDictionary? _resolveSelection(List<GuyoDictionary> options) {
+    if (options.isEmpty) return null;
+    final current = _selectedDictionary;
+    if (current != null) {
+      for (final option in options) {
+        if (option.language == current.language) return option;
+      }
+    }
+    return options.first;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -69,22 +110,26 @@ class _HomeScreenState extends State<HomeScreen> {
           FutureBuilder<List<GuyoDictionary>>(
             future: _dictionariesFuture,
             builder: (context, snapshot) {
-              final dictionaries = snapshot.data;
-              if (dictionaries == null || dictionaries.isEmpty) {
+              final options = _languageOptions(snapshot.data ?? []);
+              final current = _resolveSelection(options);
+              if (current == null) {
+                // Nothing published -- no switcher to show at all, not even
+                // a disabled one with a made-up language in it.
                 return const SizedBox.shrink();
               }
-              final options = _languageOptions(dictionaries);
-              _selectedDictionary ??= options.first;
-              // If the previously selected language disappeared (e.g. data
-              // changed), fall back to the first available one instead of
-              // pointing at a dictionary that's no longer offered.
-              if (!options.any((d) => d.language == _selectedDictionary!.language)) {
-                _selectedDictionary = options.first;
+              _selectedDictionary = current;
+
+              if (options.length == 1) {
+                // Exactly one published language: show it plainly, no
+                // dropdown affordance since there's nothing to switch to.
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Center(
+                    child: Text(current.languageLabel, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                );
               }
-              final current = options.firstWhere(
-                (d) => d.language == _selectedDictionary!.language,
-                orElse: () => options.first,
-              );
+
               return PopupMenuButton<GuyoDictionary>(
                 tooltip: 'Выбрать язык',
                 onSelected: (d) => setState(() => _selectedDictionary = d),
@@ -104,6 +149,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               );
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Обновить',
+            onPressed: _reloadDictionaries,
           ),
           PopupMenuButton<String>(
             tooltip: 'Ещё',
@@ -137,21 +187,26 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             );
           }
-          final dictionaries = snapshot.data ?? [];
-          if (dictionaries.isEmpty) {
-            return const Center(
+          final options = _languageOptions(snapshot.data ?? []);
+          final selected = _resolveSelection(options);
+          if (selected == null) {
+            // No published content at all -- a clean, explicit state, not
+            // an error and not a guess at what might be there.
+            return Center(
               child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('Словарей пока нет', textAlign: TextAlign.center),
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Пока нет доступных словарей', textAlign: TextAlign.center),
+                    const SizedBox(height: 12),
+                    OutlinedButton(onPressed: _reloadDictionaries, child: const Text('Проверить снова')),
+                  ],
+                ),
               ),
             );
           }
-          final options = _languageOptions(dictionaries);
-          _selectedDictionary ??= options.first;
-          final selected = options.firstWhere(
-            (d) => d.language == _selectedDictionary!.language,
-            orElse: () => options.first,
-          );
+          _selectedDictionary = selected;
 
           return IndexedStack(
             index: _tabIndex,
