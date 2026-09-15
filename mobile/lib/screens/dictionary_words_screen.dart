@@ -30,48 +30,48 @@ class _DictionaryWordsScreenState extends State<DictionaryWordsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.dictionary.name)),
-      body: RefreshIndicator(
-        onRefresh: _reload,
-        child: FutureBuilder<List<GuyoWord>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return ListView(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      'Не удалось загрузить слова.\n${snapshot.error}',
-                      textAlign: TextAlign.center,
-                    ),
+    // No Scaffold/AppBar here on purpose: this widget is now embedded as
+    // the "Словарь" tab's content inside HomeScreen, which owns the
+    // surrounding Scaffold (app bar + language switcher + bottom nav).
+    return RefreshIndicator(
+      onRefresh: _reload,
+      child: FutureBuilder<List<GuyoWord>>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return ListView(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    'Не удалось загрузить слова.\n${snapshot.error}',
+                    textAlign: TextAlign.center,
                   ),
-                ],
-              );
-            }
-            final words = snapshot.data ?? [];
-            if (words.isEmpty) {
-              return ListView(
-                children: const [
-                  Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text('В этом словаре пока нет слов', textAlign: TextAlign.center),
-                  ),
-                ],
-              );
-            }
-            return ListView.separated(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: words.length,
-              separatorBuilder: (_, _) => const Divider(height: 1),
-              itemBuilder: (context, index) => _WordTile(word: words[index]),
+                ),
+              ],
             );
-          },
-        ),
+          }
+          final words = snapshot.data ?? [];
+          if (words.isEmpty) {
+            return ListView(
+              children: const [
+                Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text('В этом словаре пока нет слов', textAlign: TextAlign.center),
+                ),
+              ],
+            );
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: words.length,
+            separatorBuilder: (_, _) => const Divider(height: 1),
+            itemBuilder: (context, index) => _WordTile(word: words[index]),
+          );
+        },
       ),
     );
   }
