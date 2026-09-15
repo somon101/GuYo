@@ -197,16 +197,16 @@ export function WordEditPage() {
           Словари
         </Link>
         <span>→</span>
-        <Link to={`/dictionaries/${dictionaryId}`} className="text-indigo-600 hover:underline">
+        <Link to={`/dictionaries/${dictionaryId}`} className="text-indigo-600 hover:underline" translate="no">
           {dictionary.name}
         </Link>
         <span>→</span>
-        <span className="text-slate-700">{word.word}</span>
+        <span className="text-slate-700" translate="no">{word.word}</span>
       </nav>
 
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">{word.word}</h1>
+          <h1 className="text-2xl font-semibold text-slate-900" translate="no">{word.word}</h1>
           <p className="mt-1 text-xs text-slate-400">ID слова: {word.id}</p>
         </div>
         <Link
@@ -435,7 +435,7 @@ function AudioBlock({
   return (
     <div>
       <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{languageLabel}</p>
-      <p className="mb-2 text-sm font-medium text-slate-800">{text}</p>
+      <p className="mb-2 text-sm font-medium text-slate-800" translate="no">{text}</p>
       {preview ? (
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm text-slate-500">{captionPrefix}:</span>

@@ -1,10 +1,18 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="favicon-32.png" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- This page manages word/translation content in several languages at
+         once (English, Russian, Chinese...). The browser's own translate
+         feature can't tell that content apart from the UI chrome and will
+         happily mangle it (e.g. turning the IPA transcription "haʊs" into
+         the Russian word "хаос"). Ask it not to offer translation here;
+         individual dynamic text nodes also carry translate="no" as a
+         second layer of defense. -->
+    <meta name="google" content="notranslate" />
     <title>GuYo Admin</title>
   </head>
   <body>

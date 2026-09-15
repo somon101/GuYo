@@ -105,7 +105,7 @@ export function DictionaryDetailPage() {
                     className="h-14 w-14 shrink-0 rounded-md border border-slate-200 object-cover"
                   />
                 )}
-                <div>
+                <div translate="no">
                   <p className="text-base font-medium text-slate-900">{w.word}</p>
                   {w.transcription && (
                     <p className="text-sm text-slate-400">{w.transcription}</p>

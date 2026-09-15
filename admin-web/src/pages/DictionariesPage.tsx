@@ -64,7 +64,7 @@ export function DictionariesPage() {
                 to={`/dictionaries/${d.id}`}
                 className="block rounded-lg border border-slate-200 bg-white p-5 transition-colors hover:border-indigo-300 hover:shadow-sm"
               >
-                <p className="text-base font-medium text-slate-900">{d.name}</p>
+                <p className="text-base font-medium text-slate-900" translate="no">{d.name}</p>
                 <p className="mt-1 text-sm text-slate-500">
                   {LANGUAGE_LABELS[d.language]} · {d.word_count} слов
                 </p>
