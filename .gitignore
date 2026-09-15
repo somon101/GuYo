@@ -1,0 +1,37 @@
+# --- secrets ---
+# Only the backend .env holds real secrets (DB password, JWT secret).
+# admin-web's .env.development / .env.production only carry a public API
+# base URL and are committed on purpose so CI can build with them.
+backend/.env
+!backend/.env.example
+
+# --- Python / backend ---
+backend/.venv/
+backend/__pycache__/
+**/__pycache__/
+*.pyc
+backend/storage/**
+!backend/storage/.gitkeep
+
+# --- Node / admin-web ---
+admin-web/node_modules/
+admin-web/dist/
+admin-web/.vite/
+
+# --- Flutter / mobile ---
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/build/
+mobile/android/.gradle/
+mobile/android/app/build/
+mobile/android/local.properties
+mobile/ios/Flutter/Flutter.podspec
+mobile/**/Pods/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

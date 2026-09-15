@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Secure by default: only HTTPS is allowed everywhere (base-config below).
+  The one exception is 10.0.2.2, which is how the Android emulator reaches
+  the host machine's localhost, needed so the app can talk to a FastAPI dev
+  server running on the developer's own machine during local testing. The
+  production backend is HTTPS, so this exception is never used in a real
+  deployment.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <!-- 127.0.0.1 is used together with adb reverse tcp:8000 tcp:8000
+             so a real USB connected device can reach the dev machine's
+             localhost backend during development. -->
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>
