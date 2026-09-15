@@ -74,7 +74,7 @@ export function UsersPage() {
               {users.map((u) => (
                 <tr key={u.id}>
                   <td className="px-4 py-3 text-slate-500">{u.id}</td>
-                  <td className="px-4 py-3 font-medium text-slate-900">{u.login}</td>
+                  <td className="px-4 py-3 font-medium text-slate-900" translate="no">{u.login}</td>
                   <td className="px-4 py-3 text-slate-500">{formatDate(u.created_at)}</td>
                 </tr>
               ))}
