@@ -8,6 +8,7 @@ from app.database import get_db
 from app.models.category import Category
 from app.models.dictionary import Dictionary
 from app.models.word import Word, WordForm, WordTranslation
+from app.schemas.bulk import ExportCategory, ExportPayload, ExportWord, ImportPayload, ImportSummary
 from app.schemas.word import WordFormOut, WordOut, WordTranslationOut
 
 router = APIRouter(tags=["words"])
@@ -345,3 +346,134 @@ def delete_form(
     db.delete(db_form)
     db.commit()
     return None
+
+
+@router.post("/dictionaries/{dictionary_id}/import", response_model=ImportSummary)
+def import_words(
+    dictionary_id: int,
+    payload: ImportPayload,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """Bulk-loads words from the fixed categories/words JSON format (see
+    ExportPayload, the exact same shape). A category already present
+    (matched by name) is reused, never duplicated; a word already present
+    in that category (matched by exact word text) is reused too -- its
+    Tajik translation is refreshed and any forms not already there (exact
+    text match, per language) are appended. Re-importing the same file is
+    therefore safe to repeat. Only genuinely new words get a new word_id."""
+    dictionary = _get_dictionary_or_404(db, dictionary_id)
+    _require_valid_language(dictionary.language)
+
+    categories_created = categories_reused = 0
+    words_created = words_reused = 0
+    forms_added = 0
+
+    for cat_data in payload.categories:
+        name = cat_data.name.strip()
+        category = (
+            db.query(Category)
+            .filter(Category.dictionary_id == dictionary_id, Category.name == name)
+            .first()
+        )
+        if category is None:
+            category = Category(dictionary_id=dictionary_id, name=name)
+            db.add(category)
+            db.flush()
+            categories_created += 1
+        else:
+            categories_reused += 1
+
+        for word_data in cat_data.words:
+            word_text = word_data.word.strip()
+            db_word = (
+                db.query(Word)
+                .filter(
+                    Word.dictionary_id == dictionary_id,
+                    Word.category_id == category.id,
+                    Word.word == word_text,
+                )
+                .first()
+            )
+            if db_word is None:
+                db_word = Word(dictionary_id=dictionary_id, category_id=category.id, word=word_text)
+                db.add(db_word)
+                db.flush()
+                words_created += 1
+            else:
+                words_reused += 1
+
+            translation_text = word_data.translation_tg.strip()
+            if translation_text:
+                existing_translation = next((t for t in db_word.translations if t.language == "tg"), None)
+                if existing_translation is None:
+                    db.add(WordTranslation(word_id=db_word.id, language="tg", text=translation_text))
+                else:
+                    existing_translation.text = translation_text
+
+            existing_main_forms = {f.text for f in db_word.forms if f.language == dictionary.language}
+            for form_text in word_data.forms:
+                text = form_text.strip()
+                if text and text not in existing_main_forms:
+                    db.add(WordForm(word_id=db_word.id, language=dictionary.language, text=text))
+                    existing_main_forms.add(text)
+                    forms_added += 1
+
+            existing_tg_forms = {f.text for f in db_word.forms if f.language == "tg"}
+            for form_text in word_data.forms_tg:
+                text = form_text.strip()
+                if text and text not in existing_tg_forms:
+                    db.add(WordForm(word_id=db_word.id, language="tg", text=text))
+                    existing_tg_forms.add(text)
+                    forms_added += 1
+
+    db.commit()
+    return ImportSummary(
+        categories_created=categories_created,
+        categories_reused=categories_reused,
+        words_created=words_created,
+        words_reused=words_reused,
+        forms_added=forms_added,
+    )
+
+
+@router.get("/dictionaries/{dictionary_id}/export", response_model=ExportPayload)
+def export_words(
+    dictionary_id: int,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """The exact inverse of import, in the same fixed JSON shape -- the
+    result can be fed straight back into import. Words with no category
+    are grouped under a plain "Без категории" category, which round-trips
+    like any other named category on the next import."""
+    dictionary = _get_dictionary_or_404(db, dictionary_id)
+
+    def word_out(w: Word) -> ExportWord:
+        tg_translation = next((t.text for t in w.translations if t.language == "tg"), "")
+        return ExportWord(
+            word=w.word,
+            translation_tg=tg_translation,
+            forms=[f.text for f in w.forms if f.language == dictionary.language],
+            forms_tg=[f.text for f in w.forms if f.language == "tg"],
+        )
+
+    categories = db.query(Category).filter(Category.dictionary_id == dictionary_id).order_by(Category.id).all()
+    result = [
+        ExportCategory(
+            name=cat.name,
+            words=[word_out(w) for w in db.query(Word).filter(Word.category_id == cat.id).order_by(Word.id).all()],
+        )
+        for cat in categories
+    ]
+
+    uncategorized = (
+        db.query(Word)
+        .filter(Word.dictionary_id == dictionary_id, Word.category_id.is_(None))
+        .order_by(Word.id)
+        .all()
+    )
+    if uncategorized:
+        result.append(ExportCategory(name="Без категории", words=[word_out(w) for w in uncategorized]))
+
+    return ExportPayload(categories=result)

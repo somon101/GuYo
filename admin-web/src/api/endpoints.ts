@@ -169,3 +169,41 @@ export async function upsertTranslation(
 export async function deleteTranslation(wordId: number, language: TranslationLanguage): Promise<void> {
   await api.delete(`/words/${wordId}/translations/${language}`);
 }
+
+/** The fixed categories/words JSON shape shared by import and export --
+ * see the backend's ImportPayload/ExportPayload for the authoritative
+ * definition. Kept as a loose type here since the admin only ever passes
+ * it straight through (parsed from / serialized to a file). */
+export interface DictionaryBulkWord {
+  word: string;
+  translation_tg: string;
+  forms: string[];
+  forms_tg: string[];
+}
+
+export interface DictionaryBulkCategory {
+  name: string;
+  words: DictionaryBulkWord[];
+}
+
+export interface DictionaryBulkData {
+  categories: DictionaryBulkCategory[];
+}
+
+export interface ImportSummary {
+  categories_created: number;
+  categories_reused: number;
+  words_created: number;
+  words_reused: number;
+  forms_added: number;
+}
+
+export async function importDictionary(dictionaryId: number, payload: DictionaryBulkData): Promise<ImportSummary> {
+  const { data } = await api.post(`/dictionaries/${dictionaryId}/import`, payload);
+  return data;
+}
+
+export async function exportDictionary(dictionaryId: number): Promise<DictionaryBulkData> {
+  const { data } = await api.get(`/dictionaries/${dictionaryId}/export`);
+  return data;
+}
