@@ -3,14 +3,18 @@ import { Link, useParams } from "react-router-dom";
 import { isAxiosError } from "axios";
 import { API_URL } from "../api/client";
 import {
+  addWordForm,
   deleteTranslation,
+  deleteWordForm,
   getDictionary,
   getWord,
+  listCategories,
   updateWord,
   upsertTranslation,
 } from "../api/endpoints";
-import type { Dictionary, TranslationLanguage, Word } from "../types";
+import type { Category, Dictionary, TranslationLanguage, Word, WordForm } from "../types";
 import { TRANSLATION_LANGUAGE_LABELS } from "../types";
+import { Modal } from "../components/Modal";
 
 function mediaUrl(path: string | null): string | null {
   return path ? `${API_URL}${path}` : null;
@@ -54,16 +58,18 @@ export function WordEditPage() {
 
   const [dictionary, setDictionary] = useState<Dictionary | null>(null);
   const [word, setWord] = useState<Word | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // Editable fields, seeded from the loaded word.
   const [wordText, setWordText] = useState("");
   const [transcription, setTranscription] = useState("");
-  const [quizlet, setQuizlet] = useState("");
+  const [categoryId, setCategoryId] = useState<number | null>(null);
   const [image, setImage] = useState<FileStage>(freshStage(null));
   const [wordAudio, setWordAudio] = useState<FileStage>(freshStage(null));
   const [translations, setTranslations] = useState<TranslationRow[]>([]);
+  const [isFormsModalOpen, setIsFormsModalOpen] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -72,7 +78,7 @@ export function WordEditPage() {
   function loadInto(w: Word) {
     setWordText(w.word);
     setTranscription(w.transcription ?? "");
-    setQuizlet(w.quizlet ?? "");
+    setCategoryId(w.category_id);
     setImage(freshStage(w.image_url));
     setWordAudio(freshStage(w.word_audio_url));
     setTranslations(
@@ -90,9 +96,14 @@ export function WordEditPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const [w, d] = await Promise.all([getWord(id), getDictionary(dictionaryId)]);
+      const [w, d, cats] = await Promise.all([
+        getWord(id),
+        getDictionary(dictionaryId),
+        listCategories(dictionaryId),
+      ]);
       setWord(w);
       setDictionary(d);
+      setCategories(cats);
       loadInto(w);
     } catch {
       setLoadError("Не удалось загрузить слово");
@@ -110,10 +121,10 @@ export function WordEditPage() {
     if (!word) return false;
     if (wordText.trim() !== word.word) return true;
     if (transcription.trim() !== (word.transcription ?? "")) return true;
-    if (quizlet.trim() !== (word.quizlet ?? "")) return true;
+    if (categoryId !== word.category_id) return true;
     if (stageChanged(image) || stageChanged(wordAudio)) return true;
     return translations.some((t) => t.text.trim() !== t.originalText || stageChanged(t.audio));
-  }, [word, wordText, transcription, quizlet, image, wordAudio, translations]);
+  }, [word, wordText, transcription, categoryId, image, wordAudio, translations]);
 
   async function handleSave() {
     if (!word) return;
@@ -130,10 +141,9 @@ export function WordEditPage() {
         else wordPatch.removeTranscription = true;
       }
 
-      const trimmedQuizlet = quizlet.trim();
-      if (trimmedQuizlet !== (word.quizlet ?? "")) {
-        if (trimmedQuizlet) wordPatch.quizlet = trimmedQuizlet;
-        else wordPatch.removeQuizlet = true;
+      if (categoryId !== word.category_id) {
+        if (categoryId !== null) wordPatch.categoryId = categoryId;
+        else wordPatch.removeCategory = true;
       }
 
       if (image.newFile) wordPatch.image = image.newFile;
@@ -183,6 +193,16 @@ export function WordEditPage() {
         setSaveError("Не удалось удалить перевод");
       }
     }
+  }
+
+  async function handleAddForm(language: string, text: string) {
+    await addWordForm(id, language, text);
+    await reload();
+  }
+
+  async function handleDeleteForm(formId: number) {
+    await deleteWordForm(id, formId);
+    await reload();
   }
 
   if (isLoading) return <p className="text-sm text-slate-500">Загрузка…</p>;
@@ -253,6 +273,20 @@ export function WordEditPage() {
             placeholder="/ˈæpəl/"
           />
         </Field>
+        <Field label="Категория" hint="необязательно">
+          <select
+            className="w-full max-w-xs rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            value={categoryId ?? ""}
+            onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
+          >
+            <option value="">Без категории</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </Field>
       </Section>
 
       <Section title="Изображение">
@@ -296,16 +330,29 @@ export function WordEditPage() {
         ))}
       </Section>
 
-      <Section title="Другие ресурсы">
-        <Field label="Quizlet" hint="ссылка на набор/карточку, необязательно">
-          <input
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-            value={quizlet}
-            onChange={(e) => setQuizlet(e.target.value)}
-            placeholder="https://quizlet.com/..."
-          />
-        </Field>
+      <Section title="Формы слова">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-slate-600">
+            {word.forms.length === 0 ? "Forms пока нет" : `Forms: ${formsSummary(word.forms)}`}
+          </p>
+          <button
+            type="button"
+            onClick={() => setIsFormsModalOpen(true)}
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+          >
+            Управлять формами
+          </button>
+        </div>
       </Section>
+
+      {isFormsModalOpen && (
+        <FormsModal
+          forms={word.forms}
+          onAdd={handleAddForm}
+          onDelete={handleDeleteForm}
+          onClose={() => setIsFormsModalOpen(false)}
+        />
+      )}
 
       <div className="sticky bottom-4 mt-6 flex items-center gap-3 rounded-lg border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur">
         <button
@@ -322,6 +369,132 @@ export function WordEditPage() {
         )}
       </div>
     </div>
+  );
+}
+
+/** e.g. "EN 5 | TG 4" -- one count per language, in the order each language
+ * first appears among the word's forms. */
+function formsSummary(forms: WordForm[]): string {
+  const order: string[] = [];
+  const counts = new Map<string, number>();
+  for (const f of forms) {
+    if (!counts.has(f.language)) order.push(f.language);
+    counts.set(f.language, (counts.get(f.language) ?? 0) + 1);
+  }
+  return order.map((lang) => `${lang.toUpperCase()} ${counts.get(lang)}`).join(" | ");
+}
+
+function FormsModal({
+  forms,
+  onAdd,
+  onDelete,
+  onClose,
+}: {
+  forms: WordForm[];
+  onAdd: (language: string, text: string) => Promise<void>;
+  onDelete: (formId: number) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [language, setLanguage] = useState<TranslationLanguage>("en");
+  const [text, setText] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, WordForm[]>();
+    for (const f of forms) {
+      const list = map.get(f.language) ?? [];
+      list.push(f);
+      map.set(f.language, list);
+    }
+    return map;
+  }, [forms]);
+
+  async function handleAdd() {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setIsSaving(true);
+    setError(null);
+    try {
+      await onAdd(language, trimmed);
+      setText("");
+    } catch {
+      setError("Не удалось добавить форму");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <Modal title="Формы слова" onClose={onClose}>
+      <div className="mb-4 flex flex-col gap-3">
+        {grouped.size === 0 ? (
+          <p className="text-sm text-slate-500">Forms пока нет</p>
+        ) : (
+          Array.from(grouped.entries()).map(([lang, list]) => (
+            <div key={lang}>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+                {TRANSLATION_LANGUAGE_LABELS[lang as TranslationLanguage] ?? lang.toUpperCase()}
+              </p>
+              <ul className="flex flex-col gap-1">
+                {list.map((f) => (
+                  <li
+                    key={f.id}
+                    className="flex items-center justify-between gap-2 rounded-md border border-slate-200 px-3 py-1.5 text-sm"
+                  >
+                    <span translate="no">{f.text}</span>
+                    <button
+                      type="button"
+                      onClick={() => onDelete(f.id)}
+                      className="shrink-0 text-xs text-slate-400 hover:text-red-600"
+                    >
+                      Удалить
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="border-t border-slate-100 pt-4">
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <select
+            className="rounded-md border border-slate-300 px-2 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            value={language}
+            onChange={(e) => setLanguage(e.target.value as TranslationLanguage)}
+          >
+            {Object.entries(TRANSLATION_LANGUAGE_LABELS).map(([code, label]) => (
+              <option key={code} value={code}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <input
+            className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Новая форма"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAdd();
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={isSaving || !text.trim()}
+            className="shrink-0 rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          >
+            + Добавить ещё
+          </button>
+        </div>
+        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      </div>
+    </Modal>
   );
 }
 

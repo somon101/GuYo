@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { AdminUser, Dictionary, TranslationLanguage, Word, WordTranslation } from "../types";
+import type { AdminUser, Category, Dictionary, TranslationLanguage, Word, WordForm, WordTranslation } from "../types";
 
 export async function adminLogin(login: string, password: string): Promise<string> {
   const { data } = await api.post("/auth/admin/login", { login, password });
@@ -45,8 +45,20 @@ export async function deleteDictionary(id: number): Promise<void> {
   await api.delete(`/dictionaries/${id}`);
 }
 
-export async function listWords(dictionaryId: number): Promise<Word[]> {
-  const { data } = await api.get(`/dictionaries/${dictionaryId}/words`);
+export async function listWords(dictionaryId: number, categoryId?: number): Promise<Word[]> {
+  const { data } = await api.get(`/dictionaries/${dictionaryId}/words`, {
+    params: categoryId !== undefined ? { category_id: categoryId } : undefined,
+  });
+  return data;
+}
+
+export async function listCategories(dictionaryId: number): Promise<Category[]> {
+  const { data } = await api.get(`/dictionaries/${dictionaryId}/categories`);
+  return data;
+}
+
+export async function createCategory(dictionaryId: number, name: string): Promise<Category> {
+  const { data } = await api.post(`/dictionaries/${dictionaryId}/categories`, { name });
   return data;
 }
 
@@ -54,6 +66,7 @@ export interface CreateWordInput {
   word: string;
   translation: string;
   transcription?: string;
+  categoryId?: number | null;
   wordAudio?: File | null;
   translationAudio?: File | null;
   image?: File | null;
@@ -64,6 +77,7 @@ export async function createWord(dictionaryId: number, input: CreateWordInput): 
   form.append("word", input.word);
   form.append("translation", input.translation);
   if (input.transcription) form.append("transcription", input.transcription);
+  if (input.categoryId != null) form.append("category_id", String(input.categoryId));
   if (input.wordAudio) form.append("word_audio", input.wordAudio);
   if (input.translationAudio) form.append("translation_audio", input.translationAudio);
   if (input.image) form.append("image", input.image);
@@ -91,8 +105,8 @@ export interface UpdateWordInput {
   word?: string;
   transcription?: string;
   removeTranscription?: boolean;
-  quizlet?: string;
-  removeQuizlet?: boolean;
+  categoryId?: number;
+  removeCategory?: boolean;
   wordAudio?: File | null;
   removeWordAudio?: boolean;
   image?: File | null;
@@ -104,8 +118,8 @@ export async function updateWord(wordId: number, input: UpdateWordInput): Promis
   if (input.word !== undefined) form.append("word", input.word);
   if (input.transcription !== undefined) form.append("transcription", input.transcription);
   if (input.removeTranscription) form.append("remove_transcription", "true");
-  if (input.quizlet !== undefined) form.append("quizlet", input.quizlet);
-  if (input.removeQuizlet) form.append("remove_quizlet", "true");
+  if (input.categoryId !== undefined) form.append("category_id", String(input.categoryId));
+  if (input.removeCategory) form.append("remove_category", "true");
   if (input.wordAudio) form.append("word_audio", input.wordAudio);
   if (input.removeWordAudio) form.append("remove_word_audio", "true");
   if (input.image) form.append("image", input.image);
@@ -115,6 +129,24 @@ export async function updateWord(wordId: number, input: UpdateWordInput): Promis
     headers: { "Content-Type": "multipart/form-data" },
   });
   return data;
+}
+
+/** Appends one more grammatical form of the word in `language`. Always
+ * creates a new row -- a word may have several forms in the same language,
+ * unlike translations. */
+export async function addWordForm(wordId: number, language: string, text: string): Promise<WordForm> {
+  const form = new FormData();
+  form.append("language", language);
+  form.append("text", text);
+
+  const { data } = await api.post(`/words/${wordId}/forms`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+export async function deleteWordForm(wordId: number, formId: number): Promise<void> {
+  await api.delete(`/words/${wordId}/forms/${formId}`);
 }
 
 /** Creates or updates the word's translation into `language`. */

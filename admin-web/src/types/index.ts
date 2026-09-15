@@ -45,6 +45,20 @@ export interface WordTranslation {
   audio_url: string | null;
 }
 
+export interface WordForm {
+  id: number;
+  language: string;
+  text: string;
+}
+
+export interface Category {
+  id: number;
+  dictionary_id: number;
+  name: string;
+  created_at: string;
+  word_count: number;
+}
+
 export interface Word {
   id: number;
   dictionary_id: number;
@@ -52,11 +66,13 @@ export interface Word {
   transcription: string | null;
   word_audio_url: string | null;
   image_url: string | null;
-  quizlet: string | null;
+  category_id: number | null;
+  category_name: string | null;
   created_at: string;
   updated_at: string;
   // Convenience mirror of translations[0], kept for the word-list card.
   translation: string | null;
   translation_audio_url: string | null;
   translations: WordTranslation[];
+  forms: WordForm[];
 }

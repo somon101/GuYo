@@ -1,33 +1,29 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import { API_URL } from "../api/client";
-import { createWord, deleteWord, getDictionary, listWords } from "../api/endpoints";
-import type { Dictionary, Word } from "../types";
-
-function mediaUrl(path: string | null): string | null {
-  return path ? `${API_URL}${path}` : null;
-}
+import { createCategory, getDictionary, listCategories } from "../api/endpoints";
+import type { Category, Dictionary } from "../types";
+import { Modal } from "../components/Modal";
 
 export function DictionaryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const dictionaryId = Number(id);
 
   const [dictionary, setDictionary] = useState<Dictionary | null>(null);
-  const [words, setWords] = useState<Word[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   async function reload() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const [dict, wordList] = await Promise.all([
+      const [dict, cats] = await Promise.all([
         getDictionary(dictionaryId),
-        listWords(dictionaryId),
+        listCategories(dictionaryId),
       ]);
       setDictionary(dict);
-      setWords(wordList);
+      setCategories(cats);
     } catch {
       setLoadError("Не удалось загрузить словарь");
     } finally {
@@ -39,12 +35,6 @@ export function DictionaryDetailPage() {
     reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dictionaryId]);
-
-  async function handleDelete(wordId: number) {
-    if (!confirm("Удалить это слово?")) return;
-    await deleteWord(wordId);
-    reload();
-  }
 
   if (isLoading) {
     return <p className="text-sm text-slate-500">Загрузка…</p>;
@@ -60,227 +50,128 @@ export function DictionaryDetailPage() {
         ← Все словари
       </Link>
 
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-slate-900" translate="no">
             {dictionary.name}
           </h1>
           <p className="text-xs text-slate-400">ID: {dictionary.id}</p>
           <p className="text-sm text-slate-500">
-            {dictionary.is_published ? "Опубликовано" : "Черновик"} · {words.length} слов
+            {dictionary.is_published ? "Опубликовано" : "Черновик"} · Категорий: {categories.length} ·
+            Всего слов: {dictionary.word_count}
           </p>
         </div>
         <button
-          onClick={() => setIsFormOpen((v) => !v)}
+          onClick={() => setIsModalOpen(true)}
           className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
         >
-          + Добавить слово
+          + Создать категорию
         </button>
       </div>
 
-      {isFormOpen && (
-        <AddWordForm
-          dictionaryId={dictionaryId}
-          languageLabel={dictionary.name}
-          onCreated={() => {
-            setIsFormOpen(false);
-            reload();
-          }}
-          onCancel={() => setIsFormOpen(false)}
-        />
-      )}
+      <Link
+        to={`/dictionaries/${dictionaryId}/words`}
+        className="mb-4 block rounded-lg border border-slate-200 bg-white p-4 text-sm font-medium text-indigo-600 hover:bg-slate-50"
+      >
+        Все слова ({dictionary.word_count}) →
+      </Link>
 
-      {words.length === 0 ? (
-        <p className="text-sm text-slate-500">В этом словаре пока нет слов</p>
+      {categories.length === 0 ? (
+        <p className="text-sm text-slate-500">Категорий пока нет</p>
       ) : (
         <ul className="flex flex-col gap-3">
-          {words.map((w) => (
-            <li
-              key={w.id}
-              className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 rounded-lg border border-slate-200 bg-white p-4"
-            >
-              <div className="flex min-w-0 flex-1 items-start gap-4">
-                {mediaUrl(w.image_url) && (
-                  <img
-                    src={mediaUrl(w.image_url)!}
-                    alt={w.word}
-                    className="h-14 w-14 shrink-0 rounded-md border border-slate-200 object-cover"
-                  />
-                )}
-                <div translate="no" className="min-w-0">
-                  <p className="text-base font-medium text-slate-900">{w.word}</p>
-                  {w.transcription && (
-                    <p className="text-sm text-slate-400">{w.transcription}</p>
-                  )}
-                  <p className="text-sm text-slate-600">{w.translation}</p>
-                  <div className="mt-2 flex flex-wrap gap-3">
-                    {mediaUrl(w.word_audio_url) && (
-                      <audio controls src={mediaUrl(w.word_audio_url)!} className="h-8 max-w-[220px]" />
-                    )}
-                    {mediaUrl(w.translation_audio_url) && (
-                      <audio controls src={mediaUrl(w.translation_audio_url)!} className="h-8 max-w-[220px]" />
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center gap-4">
-                <Link
-                  to={`/dictionaries/${dictionaryId}/words/${w.id}`}
-                  className="text-sm font-medium text-indigo-600 hover:underline"
-                >
-                  Редактировать
-                </Link>
-                <button
-                  onClick={() => handleDelete(w.id)}
-                  className="text-sm text-slate-400 hover:text-red-600"
-                >
-                  Удалить
-                </button>
-              </div>
+          {categories.map((c) => (
+            <li key={c.id}>
+              <Link
+                to={`/dictionaries/${dictionaryId}/categories/${c.id}`}
+                className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4 hover:bg-slate-50"
+              >
+                <span className="font-medium text-slate-900" translate="no">
+                  {c.name}
+                </span>
+                <span className="shrink-0 text-sm text-slate-400">{c.word_count} слов</span>
+              </Link>
             </li>
           ))}
         </ul>
       )}
+
+      {isModalOpen && (
+        <CreateCategoryModal
+          dictionaryId={dictionaryId}
+          onCreated={() => {
+            setIsModalOpen(false);
+            reload();
+          }}
+          onClose={() => setIsModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
 
-function AddWordForm({
+function CreateCategoryModal({
   dictionaryId,
-  languageLabel,
   onCreated,
-  onCancel,
+  onClose,
 }: {
   dictionaryId: number;
-  languageLabel: string;
   onCreated: () => void;
-  onCancel: () => void;
+  onClose: () => void;
 }) {
-  const [word, setWord] = useState("");
-  const [translation, setTranslation] = useState("");
-  const [transcription, setTranscription] = useState("");
-  const [wordAudio, setWordAudio] = useState<File | null>(null);
-  const [translationAudio, setTranslationAudio] = useState<File | null>(null);
-  const [image, setImage] = useState<File | null>(null);
+  const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setIsSaving(true);
     setError(null);
-    setIsSubmitting(true);
     try {
-      await createWord(dictionaryId, {
-        word,
-        translation,
-        transcription: transcription || undefined,
-        wordAudio,
-        translationAudio,
-        image,
-      });
+      await createCategory(dictionaryId, trimmed);
       onCreated();
-    } catch {
-      setError("Не удалось сохранить слово");
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 409) setError("Категория с таким названием уже есть в этом словаре");
+      else setError("Не удалось создать категорию");
     } finally {
-      setIsSubmitting(false);
+      setIsSaving(false);
     }
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="mb-6 flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5"
-    >
-      <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700">Язык</label>
-        <input
-          className="w-full max-w-xs rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500"
-          value={languageLabel}
-          disabled
-        />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <Modal title="Новая категория" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Слово</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Название</label>
           <input
             className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-            value={word}
-            onChange={(e) => setWord(e.target.value)}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             autoFocus
             required
           />
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Перевод</label>
-          <input
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-            value={translation}
-            onChange={(e) => setTranslation(e.target.value)}
-            required
-          />
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+          >
+            {isSaving ? "Сохранение…" : "Создать"}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
+            Отмена
+          </button>
         </div>
-      </div>
-
-      <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700">
-          Транскрипция <span className="font-normal text-slate-400">(необязательно)</span>
-        </label>
-        <input
-          className="w-full max-w-xs rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-          value={transcription}
-          onChange={(e) => setTranscription(e.target.value)}
-          placeholder="/ˈæpəl/"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <FileField label="Аудио слова" accept="audio/*" onChange={setWordAudio} />
-        <FileField label="Аудио перевода" accept="audio/*" onChange={setTranslationAudio} />
-        <FileField label="Изображение" accept="image/*" onChange={setImage} />
-      </div>
-
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-        >
-          {isSubmitting ? "Сохранение…" : "Сохранить"}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-        >
-          Отмена
-        </button>
-      </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-    </form>
-  );
-}
-
-function FileField({
-  label,
-  accept,
-  onChange,
-}: {
-  label: string;
-  accept: string;
-  onChange: (file: File | null) => void;
-}) {
-  return (
-    <div>
-      <label className="mb-1 block text-sm font-medium text-slate-700">
-        {label} <span className="font-normal text-slate-400">(необязательно)</span>
-      </label>
-      <input
-        type="file"
-        accept={accept}
-        onChange={(e) => onChange(e.target.files?.[0] ?? null)}
-        className="w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-200"
-      />
-    </div>
+        {error && <p className="text-sm text-red-600">{error}</p>}
+      </form>
+    </Modal>
   );
 }

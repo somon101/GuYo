@@ -6,6 +6,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { UsersPage } from "./pages/UsersPage";
 import { DictionariesPage } from "./pages/DictionariesPage";
 import { DictionaryDetailPage } from "./pages/DictionaryDetailPage";
+import { WordsListPage } from "./pages/WordsListPage";
 import { WordEditPage } from "./pages/WordEditPage";
 
 // HashRouter is used deliberately: GitHub Pages serves static files with no
@@ -44,6 +45,26 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <DictionaryDetailPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dictionaries/:id/words"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <WordsListPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dictionaries/:id/categories/:categoryId"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <WordsListPage />
                 </Layout>
               </ProtectedRoute>
             }

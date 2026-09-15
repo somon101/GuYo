@@ -1,13 +1,14 @@
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.deps import Principal, get_current_admin, get_current_principal
 from app.core.languages import is_valid_translation_language
 from app.core.storage import delete_by_key, save_upload, url_for_key
 from app.database import get_db
+from app.models.category import Category
 from app.models.dictionary import Dictionary
-from app.models.word import Word, WordTranslation
-from app.schemas.word import WordOut, WordTranslationOut
+from app.models.word import Word, WordForm, WordTranslation
+from app.schemas.word import WordFormOut, WordOut, WordTranslationOut
 
 router = APIRouter(tags=["words"])
 
@@ -24,6 +25,10 @@ def translation_to_out(t: WordTranslation) -> WordTranslationOut:
     return WordTranslationOut(id=t.id, language=t.language, text=t.text, audio_url=url_for_key(t.audio_key))
 
 
+def form_to_out(f: WordForm) -> WordFormOut:
+    return WordFormOut(id=f.id, language=f.language, text=f.text)
+
+
 def word_to_out(word: Word) -> WordOut:
     translations = [translation_to_out(t) for t in word.translations]
     primary = translations[0] if translations else None
@@ -34,12 +39,14 @@ def word_to_out(word: Word) -> WordOut:
         transcription=word.transcription,
         word_audio_url=url_for_key(word.word_audio_key),
         image_url=url_for_key(word.image_key),
-        quizlet=word.quizlet,
+        category_id=word.category_id,
+        category_name=word.category.name if word.category is not None else None,
         created_at=word.created_at,
         updated_at=word.updated_at,
         translation=primary.text if primary else None,
         translation_audio_url=primary.audio_url if primary else None,
         translations=translations,
+        forms=[form_to_out(f) for f in word.forms],
     )
 
 
@@ -69,12 +76,30 @@ def _require_valid_language(language: str) -> None:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unsupported language code")
 
 
+def _resolve_category(db: Session, dictionary_id: int, category_id: int | None) -> Category | None:
+    """A word's category (if any) must belong to the SAME dictionary -- a
+    word can't be filed under a category that lives in a different
+    language's block."""
+    if category_id is None:
+        return None
+    category = db.get(Category, category_id)
+    if category is None or category.dictionary_id != dictionary_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found in this dictionary")
+    return category
+
+
 @router.get("/dictionaries/{dictionary_id}/words", response_model=list[WordOut])
 def list_words(
-    dictionary_id: int, db: Session = Depends(get_db), principal: Principal = Depends(get_current_principal)
+    dictionary_id: int,
+    category_id: int | None = Query(None, description="Filter to a single category; omit for all words."),
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(get_current_principal),
 ):
     _get_dictionary_or_404(db, dictionary_id, principal)
-    words = db.query(Word).filter(Word.dictionary_id == dictionary_id).order_by(Word.id).all()
+    query = db.query(Word).filter(Word.dictionary_id == dictionary_id)
+    if category_id is not None:
+        query = query.filter(Word.category_id == category_id)
+    words = query.order_by(Word.id).all()
     return [word_to_out(w) for w in words]
 
 
@@ -89,6 +114,7 @@ def create_word(
     translation: str = Form(..., min_length=1, max_length=255),
     translation_language: str | None = Form(None),
     transcription: str | None = Form(None),
+    category_id: int | None = Form(None),
     word_audio: UploadFile | None = File(None),
     translation_audio: UploadFile | None = File(None),
     image: UploadFile | None = File(None),
@@ -96,6 +122,7 @@ def create_word(
     _admin=Depends(get_current_admin),
 ):
     dictionary = _get_dictionary_or_404(db, dictionary_id)
+    category = _resolve_category(db, dictionary_id, category_id)
 
     lang = (translation_language or _default_translation_language(dictionary.language)).strip().lower()
     _require_valid_language(lang)
@@ -104,6 +131,7 @@ def create_word(
 
     db_word = Word(
         dictionary_id=dictionary_id,
+        category_id=category.id if category else None,
         word=word.strip(),
         transcription=transcription,
         word_audio_key=save_upload(word_audio, subdir=f"dictionaries/{dictionary_id}/word_audio"),
@@ -140,8 +168,8 @@ def update_word(
     word: str | None = Form(None),
     transcription: str | None = Form(None),
     remove_transcription: bool = Form(False),
-    quizlet: str | None = Form(None),
-    remove_quizlet: bool = Form(False),
+    category_id: int | None = Form(None),
+    remove_category: bool = Form(False),
     word_audio: UploadFile | None = File(None),
     remove_word_audio: bool = Form(False),
     image: UploadFile | None = File(None),
@@ -150,10 +178,10 @@ def update_word(
     _admin=Depends(get_current_admin),
 ):
     """Updates the Word itself: its text, transcription, own pronunciation,
-    image and Quizlet link. Never touches other words, and changing one
-    field here never clears the others -- each field/file is only replaced
-    or removed when explicitly asked for. Translations are managed through
-    the dedicated /words/{id}/translations/{language} endpoints below."""
+    image and category. Never touches other words, and changing one field
+    here never clears the others -- each field/file is only replaced or
+    removed when explicitly asked for. Translations and Forms are managed
+    through their own dedicated endpoints below."""
     db_word = _get_word_or_404(db, word_id)
 
     if word is not None and word.strip():
@@ -164,10 +192,11 @@ def update_word(
     elif transcription is not None and transcription.strip():
         db_word.transcription = transcription.strip()
 
-    if remove_quizlet:
-        db_word.quizlet = None
-    elif quizlet is not None and quizlet.strip():
-        db_word.quizlet = quizlet.strip()
+    if remove_category:
+        db_word.category_id = None
+    elif category_id is not None:
+        category = _resolve_category(db, db_word.dictionary_id, category_id)
+        db_word.category_id = category.id if category else None
 
     has_new_word_audio = word_audio is not None and word_audio.filename
     if has_new_word_audio:
@@ -275,5 +304,44 @@ def delete_translation(
 
     delete_by_key(existing.audio_key)
     db.delete(existing)
+    db.commit()
+    return None
+
+
+@router.post("/words/{word_id}/forms", response_model=WordFormOut, status_code=status.HTTP_201_CREATED)
+def add_form(
+    word_id: int,
+    language: str = Form(...),
+    text: str = Form(..., min_length=1, max_length=255),
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """Appends one more grammatical form of this word, in `language`. Unlike
+    translations, a word can have any number of forms in the same
+    language -- this always adds a new row, never overwrites an existing
+    one. Order is preserved as insertion order (ascending id)."""
+    language = language.strip().lower()
+    _require_valid_language(language)
+    _get_word_or_404(db, word_id)
+
+    db_form = WordForm(word_id=word_id, language=language, text=text.strip())
+    db.add(db_form)
+    db.commit()
+    db.refresh(db_form)
+    return form_to_out(db_form)
+
+
+@router.delete("/words/{word_id}/forms/{form_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_form(
+    word_id: int,
+    form_id: int,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    db_form = db.get(WordForm, form_id)
+    if db_form is None or db_form.word_id != word_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Form not found")
+
+    db.delete(db_form)
     db.commit()
     return None

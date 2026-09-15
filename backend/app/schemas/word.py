@@ -12,6 +12,14 @@ class WordTranslationOut(BaseModel):
     audio_url: str | None
 
 
+class WordFormOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    language: str
+    text: str
+
+
 class WordOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -21,7 +29,8 @@ class WordOut(BaseModel):
     transcription: str | None
     word_audio_url: str | None
     image_url: str | None
-    quizlet: str | None
+    category_id: int | None
+    category_name: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -33,3 +42,7 @@ class WordOut(BaseModel):
 
     # Full set of translations, one per language, for the admin editor.
     translations: list[WordTranslationOut]
+
+    # Grammatical forms, in insertion order, one list mixing all languages
+    # -- the admin editor groups them by `language` for display.
+    forms: list[WordFormOut]

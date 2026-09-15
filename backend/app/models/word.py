@@ -16,13 +16,21 @@ class Word(Base):
     Everything here is specific to the word itself, in the dictionary's own
     language: the word text, its transcription and its own pronunciation.
     Translations (which may exist in several other languages) live on
-    WordTranslation instead -- see that class for why."""
+    WordTranslation instead -- see that class for why. Grammatical forms
+    live on WordForm for the same reason: a word can have any number of
+    forms, in more than one language, without a hardcoded column per
+    language or per form slot."""
 
     __tablename__ = "words"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     dictionary_id: Mapped[int] = mapped_column(
         ForeignKey("dictionaries.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # Optional grouping for the dictionary's category view. Never required,
+    # never changes word_id, never duplicates the Word.
+    category_id: Mapped[int | None] = mapped_column(
+        ForeignKey("categories.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
     word: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -32,19 +40,18 @@ class Word(Base):
     word_audio_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_key: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Free-form external study-resource link (e.g. a Quizlet set/card URL).
-    # A single field is enough for now -- nothing today asks for more than
-    # one per word.
-    quizlet: Mapped[str | None] = mapped_column(String(500), nullable=True)
-
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
     dictionary: Mapped["Dictionary"] = relationship(back_populates="words")
+    category: Mapped["Category | None"] = relationship(back_populates="words")
     translations: Mapped[list["WordTranslation"]] = relationship(
         back_populates="word", cascade="all, delete-orphan", order_by="WordTranslation.id"
+    )
+    forms: Mapped[list["WordForm"]] = relationship(
+        back_populates="word", cascade="all, delete-orphan", order_by="WordForm.id"
     )
 
 
@@ -75,3 +82,25 @@ class WordTranslation(Base):
     )
 
     word: Mapped["Word"] = relationship(back_populates="translations")
+
+
+class WordForm(Base):
+    """One grammatical/inflected form of a Word, in a given language (e.g.
+    the "go / goes / went / gone / going" forms of "go" in English, or its
+    Tajik forms). Deliberately unbounded and unconstrained per language --
+    unlike WordTranslation there is no uniqueness constraint here, since a
+    word legitimately has *several* forms in the same language. Order is
+    the insertion order (ascending id), matching how forms are only ever
+    appended via "Добавить ещё", never reordered."""
+
+    __tablename__ = "word_forms"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    word_id: Mapped[int] = mapped_column(ForeignKey("words.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    language: Mapped[str] = mapped_column(String(8), nullable=False)
+    text: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    word: Mapped["Word"] = relationship(back_populates="forms")

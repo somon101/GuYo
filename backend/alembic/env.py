@@ -5,7 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 from app.config import get_settings
 from app.database import Base
-from app.models import Admin, Dictionary, User, Word  # noqa: F401  (registers metadata)
+from app.models import Admin, Category, Dictionary, User, Word, WordForm, WordTranslation  # noqa: F401
 
 config = context.config
 settings = get_settings()
