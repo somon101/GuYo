@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { API_URL } from "../api/client";
 import {
+  addWordForm,
   createWord,
   deleteWord,
   getDictionary,
@@ -109,6 +110,7 @@ export function WordsListPage() {
         <AddWordForm
           dictionaryId={dictionaryId}
           languageLabel={dictionary.name}
+          dictionaryLanguage={dictionary.language}
           categories={categories}
           defaultCategoryId={categoryId ?? null}
           onCreated={() => {
@@ -184,6 +186,7 @@ export function WordsListPage() {
 function AddWordForm({
   dictionaryId,
   languageLabel,
+  dictionaryLanguage,
   categories,
   defaultCategoryId,
   onCreated,
@@ -191,6 +194,7 @@ function AddWordForm({
 }: {
   dictionaryId: number;
   languageLabel: string;
+  dictionaryLanguage: string;
   categories: Category[];
   defaultCategoryId: number | null;
   onCreated: () => void;
@@ -200,6 +204,8 @@ function AddWordForm({
   const [translation, setTranslation] = useState("");
   const [transcription, setTranscription] = useState("");
   const [categoryId, setCategoryId] = useState<number | null>(defaultCategoryId);
+  const [mainForms, setMainForms] = useState<string[]>([""]);
+  const [tajikForms, setTajikForms] = useState<string[]>([""]);
   const [wordAudio, setWordAudio] = useState<File | null>(null);
   const [translationAudio, setTranslationAudio] = useState<File | null>(null);
   const [image, setImage] = useState<File | null>(null);
@@ -211,7 +217,7 @@ function AddWordForm({
     setError(null);
     setIsSubmitting(true);
     try {
-      await createWord(dictionaryId, {
+      const newWord = await createWord(dictionaryId, {
         word,
         translation,
         transcription: transcription || undefined,
@@ -220,6 +226,18 @@ function AddWordForm({
         translationAudio,
         image,
       });
+
+      const formRequests: Promise<unknown>[] = [];
+      for (const text of mainForms) {
+        const trimmed = text.trim();
+        if (trimmed) formRequests.push(addWordForm(newWord.id, dictionaryLanguage, trimmed));
+      }
+      for (const text of tajikForms) {
+        const trimmed = text.trim();
+        if (trimmed) formRequests.push(addWordForm(newWord.id, "tg", trimmed));
+      }
+      await Promise.all(formRequests);
+
       onCreated();
     } catch {
       setError("Не удалось сохранить слово");
@@ -295,6 +313,11 @@ function AddWordForm({
         />
       </div>
 
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <FormsRows label={languageLabel} values={mainForms} onChange={setMainForms} />
+        <FormsRows label="Тоҷикӣ" values={tajikForms} onChange={setTajikForms} />
+      </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <FileField label="Аудио слова" accept="audio/*" onChange={setWordAudio} />
         <FileField label="Аудио перевода" accept="audio/*" onChange={setTranslationAudio} />
@@ -319,6 +342,54 @@ function AddWordForm({
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
     </form>
+  );
+}
+
+/** Rows of forms for one fixed language (the dictionary's own language, or
+ * Tajik) -- staged locally since the word doesn't exist yet. Sent to the
+ * server only after the word is created, via addWordForm. */
+function FormsRows({
+  label,
+  values,
+  onChange,
+}: {
+  label: string;
+  values: string[];
+  onChange: (values: string[]) => void;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-sm font-medium text-slate-700">
+        Формы ({label}) <span className="font-normal text-slate-400">(необязательно)</span>
+      </label>
+      <div className="flex flex-col gap-2">
+        {values.map((v, i) => (
+          <div key={i} className="flex gap-2">
+            <input
+              className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              value={v}
+              onChange={(e) => onChange(values.map((x, j) => (j === i ? e.target.value : x)))}
+            />
+            {values.length > 1 && (
+              <button
+                type="button"
+                onClick={() => onChange(values.filter((_, j) => j !== i))}
+                className="shrink-0 rounded-md border border-slate-300 px-2 text-sm text-slate-400 hover:bg-red-50 hover:text-red-600"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange([...values, ""])}
+        className="mt-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+      >
+        + Добавить форму
+      </button>
+    </div>
   );
 }
 

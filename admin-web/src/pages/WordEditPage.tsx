@@ -14,7 +14,6 @@ import {
 } from "../api/endpoints";
 import type { Category, Dictionary, TranslationLanguage, Word, WordForm } from "../types";
 import { TRANSLATION_LANGUAGE_LABELS } from "../types";
-import { Modal } from "../components/Modal";
 
 function mediaUrl(path: string | null): string | null {
   return path ? `${API_URL}${path}` : null;
@@ -69,7 +68,6 @@ export function WordEditPage() {
   const [image, setImage] = useState<FileStage>(freshStage(null));
   const [wordAudio, setWordAudio] = useState<FileStage>(freshStage(null));
   const [translations, setTranslations] = useState<TranslationRow[]>([]);
-  const [isFormsModalOpen, setIsFormsModalOpen] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -330,29 +328,21 @@ export function WordEditPage() {
         ))}
       </Section>
 
-      <Section title="Формы слова">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-slate-600">
-            {word.forms.length === 0 ? "Forms пока нет" : `Forms: ${formsSummary(word.forms)}`}
-          </p>
-          <button
-            type="button"
-            onClick={() => setIsFormsModalOpen(true)}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
-          >
-            Управлять формами
-          </button>
-        </div>
+      <Section title={`Формы (${dictionary.name})`}>
+        <FormsGroup
+          forms={word.forms.filter((f) => f.language === dictionary.language)}
+          onAdd={(text) => handleAddForm(dictionary.language, text)}
+          onDelete={handleDeleteForm}
+        />
       </Section>
 
-      {isFormsModalOpen && (
-        <FormsModal
-          forms={word.forms}
-          onAdd={handleAddForm}
+      <Section title="Формы (Тоҷикӣ)">
+        <FormsGroup
+          forms={word.forms.filter((f) => f.language === "tg")}
+          onAdd={(text) => handleAddForm("tg", text)}
           onDelete={handleDeleteForm}
-          onClose={() => setIsFormsModalOpen(false)}
         />
-      )}
+      </Section>
 
       <div className="sticky bottom-4 mt-6 flex items-center gap-3 rounded-lg border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur">
         <button
@@ -372,43 +362,22 @@ export function WordEditPage() {
   );
 }
 
-/** e.g. "EN 5 | TG 4" -- one count per language, in the order each language
- * first appears among the word's forms. */
-function formsSummary(forms: WordForm[]): string {
-  const order: string[] = [];
-  const counts = new Map<string, number>();
-  for (const f of forms) {
-    if (!counts.has(f.language)) order.push(f.language);
-    counts.set(f.language, (counts.get(f.language) ?? 0) + 1);
-  }
-  return order.map((lang) => `${lang.toUpperCase()} ${counts.get(lang)}`).join(" | ");
-}
-
-function FormsModal({
+/** One fixed-language group of Forms: existing forms (with delete) plus a
+ * single-text-field "+ Добавить форму" that saves immediately. The language
+ * itself is never chosen here -- it's fixed by the caller (the dictionary's
+ * own language, or Tajik), per the block-language rule. */
+function FormsGroup({
   forms,
   onAdd,
   onDelete,
-  onClose,
 }: {
   forms: WordForm[];
-  onAdd: (language: string, text: string) => Promise<void>;
+  onAdd: (text: string) => Promise<void>;
   onDelete: (formId: number) => Promise<void>;
-  onClose: () => void;
 }) {
-  const [language, setLanguage] = useState<TranslationLanguage>("en");
   const [text, setText] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const grouped = useMemo(() => {
-    const map = new Map<string, WordForm[]>();
-    for (const f of forms) {
-      const list = map.get(f.language) ?? [];
-      list.push(f);
-      map.set(f.language, list);
-    }
-    return map;
-  }, [forms]);
 
   async function handleAdd() {
     const trimmed = text.trim();
@@ -416,7 +385,7 @@ function FormsModal({
     setIsSaving(true);
     setError(null);
     try {
-      await onAdd(language, trimmed);
+      await onAdd(trimmed);
       setText("");
     } catch {
       setError("Не удалось добавить форму");
@@ -426,75 +395,52 @@ function FormsModal({
   }
 
   return (
-    <Modal title="Формы слова" onClose={onClose}>
-      <div className="mb-4 flex flex-col gap-3">
-        {grouped.size === 0 ? (
-          <p className="text-sm text-slate-500">Forms пока нет</p>
-        ) : (
-          Array.from(grouped.entries()).map(([lang, list]) => (
-            <div key={lang}>
-              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
-                {TRANSLATION_LANGUAGE_LABELS[lang as TranslationLanguage] ?? lang.toUpperCase()}
-              </p>
-              <ul className="flex flex-col gap-1">
-                {list.map((f) => (
-                  <li
-                    key={f.id}
-                    className="flex items-center justify-between gap-2 rounded-md border border-slate-200 px-3 py-1.5 text-sm"
-                  >
-                    <span translate="no">{f.text}</span>
-                    <button
-                      type="button"
-                      onClick={() => onDelete(f.id)}
-                      className="shrink-0 text-xs text-slate-400 hover:text-red-600"
-                    >
-                      Удалить
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))
-        )}
+    <div>
+      {forms.length === 0 ? (
+        <p className="mb-3 text-sm text-slate-500">Forms пока нет</p>
+      ) : (
+        <ul className="mb-3 flex flex-col gap-1">
+          {forms.map((f) => (
+            <li
+              key={f.id}
+              className="flex items-center justify-between gap-2 rounded-md border border-slate-200 px-3 py-1.5 text-sm"
+            >
+              <span translate="no">{f.text}</span>
+              <button
+                type="button"
+                onClick={() => onDelete(f.id)}
+                className="shrink-0 text-xs text-slate-400 hover:text-red-600"
+              >
+                Удалить
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <input
+          className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Новая форма"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleAdd();
+            }
+          }}
+        />
+        <button
+          type="button"
+          onClick={handleAdd}
+          disabled={isSaving || !text.trim()}
+          className="shrink-0 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+        >
+          + Добавить форму
+        </button>
       </div>
-
-      <div className="border-t border-slate-100 pt-4">
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <select
-            className="rounded-md border border-slate-300 px-2 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-            value={language}
-            onChange={(e) => setLanguage(e.target.value as TranslationLanguage)}
-          >
-            {Object.entries(TRANSLATION_LANGUAGE_LABELS).map(([code, label]) => (
-              <option key={code} value={code}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <input
-            className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Новая форма"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                handleAdd();
-              }
-            }}
-          />
-          <button
-            type="button"
-            onClick={handleAdd}
-            disabled={isSaving || !text.trim()}
-            className="shrink-0 rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-          >
-            + Добавить ещё
-          </button>
-        </div>
-        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-      </div>
-    </Modal>
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+    </div>
   );
 }
 
