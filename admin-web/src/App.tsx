@@ -8,6 +8,9 @@ import { DictionariesPage } from "./pages/DictionariesPage";
 import { DictionaryDetailPage } from "./pages/DictionaryDetailPage";
 import { WordsListPage } from "./pages/WordsListPage";
 import { WordEditPage } from "./pages/WordEditPage";
+import { PhraseCategoriesPage } from "./pages/PhraseCategoriesPage";
+import { PhrasesListPage } from "./pages/PhrasesListPage";
+import { PhraseEditPage } from "./pages/PhraseEditPage";
 
 // HashRouter is used deliberately: GitHub Pages serves static files with no
 // server-side rewrites, so a BrowserRouter route like /dictionaries/3 would
@@ -75,6 +78,46 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <WordEditPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dictionaries/:id/phrases"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <PhraseCategoriesPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dictionaries/:id/phrases/all"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <PhrasesListPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dictionaries/:id/phrases/categories/:categoryId"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <PhrasesListPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dictionaries/:dictId/phrases/:phraseId"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <PhraseEditPage />
                 </Layout>
               </ProtectedRoute>
             }

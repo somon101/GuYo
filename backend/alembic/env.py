@@ -5,7 +5,17 @@ from sqlalchemy import engine_from_config, pool
 
 from app.config import get_settings
 from app.database import Base
-from app.models import Admin, Category, Dictionary, User, Word, WordForm, WordTranslation  # noqa: F401
+from app.models import (  # noqa: F401
+    Admin,
+    Category,
+    Dictionary,
+    Phrase,
+    PhraseCategory,
+    User,
+    Word,
+    WordForm,
+    WordTranslation,
+)
 
 config = context.config
 settings = get_settings()

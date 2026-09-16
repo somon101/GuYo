@@ -1,5 +1,15 @@
 import { api } from "./client";
-import type { AdminUser, Category, Dictionary, TranslationLanguage, Word, WordForm, WordTranslation } from "../types";
+import type {
+  AdminUser,
+  Category,
+  Dictionary,
+  Phrase,
+  PhraseCategory,
+  TranslationLanguage,
+  Word,
+  WordForm,
+  WordTranslation,
+} from "../types";
 
 export async function adminLogin(login: string, password: string): Promise<string> {
   const { data } = await api.post("/auth/admin/login", { login, password });
@@ -206,4 +216,90 @@ export async function importDictionary(dictionaryId: number, payload: Dictionary
 export async function exportDictionary(dictionaryId: number): Promise<DictionaryBulkData> {
   const { data } = await api.get(`/dictionaries/${dictionaryId}/export`);
   return data;
+}
+
+// --- Phrases -----------------------------------------------------------
+// Separate entity from Word, own id (phrase_id) and own category
+// namespace (PhraseCategory), same CRUD shape as Words/Categories.
+
+export async function listPhraseCategories(dictionaryId: number): Promise<PhraseCategory[]> {
+  const { data } = await api.get(`/dictionaries/${dictionaryId}/phrase-categories`);
+  return data;
+}
+
+export async function createPhraseCategory(dictionaryId: number, name: string): Promise<PhraseCategory> {
+  const { data } = await api.post(`/dictionaries/${dictionaryId}/phrase-categories`, { name });
+  return data;
+}
+
+export async function listPhrases(dictionaryId: number, categoryId?: number): Promise<Phrase[]> {
+  const { data } = await api.get(`/dictionaries/${dictionaryId}/phrases`, {
+    params: categoryId !== undefined ? { category_id: categoryId } : undefined,
+  });
+  return data;
+}
+
+export interface CreatePhraseInput {
+  original: string;
+  translationTg: string;
+  transcription?: string;
+  categoryId?: number | null;
+  originalAudio?: File | null;
+  translationAudio?: File | null;
+}
+
+export async function createPhrase(dictionaryId: number, input: CreatePhraseInput): Promise<Phrase> {
+  const form = new FormData();
+  form.append("original", input.original);
+  form.append("translation_tg", input.translationTg);
+  if (input.transcription) form.append("transcription", input.transcription);
+  if (input.categoryId != null) form.append("category_id", String(input.categoryId));
+  if (input.originalAudio) form.append("original_audio", input.originalAudio);
+  if (input.translationAudio) form.append("translation_audio", input.translationAudio);
+
+  const { data } = await api.post(`/dictionaries/${dictionaryId}/phrases`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+export async function getPhrase(phraseId: number): Promise<Phrase> {
+  const { data } = await api.get(`/phrases/${phraseId}`);
+  return data;
+}
+
+export interface UpdatePhraseInput {
+  original?: string;
+  transcription?: string;
+  removeTranscription?: boolean;
+  translationTg?: string;
+  categoryId?: number;
+  removeCategory?: boolean;
+  originalAudio?: File | null;
+  removeOriginalAudio?: boolean;
+  translationAudio?: File | null;
+  removeTranslationAudio?: boolean;
+}
+
+export async function updatePhrase(phraseId: number, input: UpdatePhraseInput): Promise<Phrase> {
+  const form = new FormData();
+  if (input.original !== undefined) form.append("original", input.original);
+  if (input.transcription !== undefined) form.append("transcription", input.transcription);
+  if (input.removeTranscription) form.append("remove_transcription", "true");
+  if (input.translationTg !== undefined) form.append("translation_tg", input.translationTg);
+  if (input.categoryId !== undefined) form.append("category_id", String(input.categoryId));
+  if (input.removeCategory) form.append("remove_category", "true");
+  if (input.originalAudio) form.append("original_audio", input.originalAudio);
+  if (input.removeOriginalAudio) form.append("remove_original_audio", "true");
+  if (input.translationAudio) form.append("translation_audio", input.translationAudio);
+  if (input.removeTranslationAudio) form.append("remove_translation_audio", "true");
+
+  const { data } = await api.patch(`/phrases/${phraseId}`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+export async function deletePhrase(phraseId: number): Promise<void> {
+  await api.delete(`/phrases/${phraseId}`);
 }

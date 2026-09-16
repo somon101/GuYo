@@ -1,31 +1,23 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import {
-  createCategory,
-  exportDictionary,
-  getDictionary,
-  importDictionary,
-  listCategories,
-  type DictionaryBulkData,
-  type ImportSummary,
-} from "../api/endpoints";
-import type { Category, Dictionary } from "../types";
+import { createPhraseCategory, getDictionary, listPhraseCategories } from "../api/endpoints";
+import type { Dictionary, PhraseCategory } from "../types";
 import { Modal } from "../components/Modal";
 import { LanguageSectionTabs } from "../components/LanguageSectionTabs";
 
-export function DictionaryDetailPage() {
+/** Category overview for Фразы -- the exact same shape as the word category
+ * overview (DictionaryDetailPage), just pointed at the phrase-category API
+ * instead. Phrases and words have fully independent category lists, even
+ * within the same language block. */
+export function PhraseCategoriesPage() {
   const { id } = useParams<{ id: string }>();
   const dictionaryId = Number(id);
 
   const [dictionary, setDictionary] = useState<Dictionary | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<PhraseCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const importInputRef = useRef<HTMLInputElement>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const [importNotice, setImportNotice] = useState<string | null>(null);
-  const [importError, setImportError] = useState<string | null>(null);
 
   async function reload() {
     setIsLoading(true);
@@ -33,7 +25,7 @@ export function DictionaryDetailPage() {
     try {
       const [dict, cats] = await Promise.all([
         getDictionary(dictionaryId),
-        listCategories(dictionaryId),
+        listPhraseCategories(dictionaryId),
       ]);
       setDictionary(dict);
       setCategories(cats);
@@ -49,42 +41,6 @@ export function DictionaryDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dictionaryId]);
 
-  async function handleExport() {
-    const data = await exportDictionary(dictionaryId);
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${dictionary?.name ?? "dictionary"}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function summaryText(s: ImportSummary): string {
-    return (
-      `Категорий создано: ${s.categories_created} (переиспользовано: ${s.categories_reused}) · ` +
-      `Слов создано: ${s.words_created} (переиспользовано: ${s.words_reused}) · ` +
-      `Форм добавлено: ${s.forms_added}`
-    );
-  }
-
-  async function handleImportFile(file: File) {
-    setImportError(null);
-    setImportNotice(null);
-    setIsImporting(true);
-    try {
-      const text = await file.text();
-      const payload = JSON.parse(text) as DictionaryBulkData;
-      const summary = await importDictionary(dictionaryId, payload);
-      setImportNotice(summaryText(summary));
-      await reload();
-    } catch {
-      setImportError("Не удалось импортировать файл. Проверьте формат JSON.");
-    } finally {
-      setIsImporting(false);
-    }
-  }
-
   if (isLoading) {
     return <p className="text-sm text-slate-500">Загрузка…</p>;
   }
@@ -93,70 +49,40 @@ export function DictionaryDetailPage() {
     return <p className="text-sm text-red-600">{loadError ?? "Язык не найден"}</p>;
   }
 
+  const totalPhrases = categories.reduce((sum, c) => sum + c.phrase_count, 0);
+
   return (
     <div className="mx-auto max-w-3xl">
       <Link to="/dictionaries" className="mb-4 inline-block text-sm text-indigo-600 hover:underline">
         ← Все языки
       </Link>
 
-      <LanguageSectionTabs dictionaryId={dictionaryId} active="words" />
+      <LanguageSectionTabs dictionaryId={dictionaryId} active="phrases" />
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-slate-900" translate="no">
-            {dictionary.name}
+            {dictionary.name} · Фразы
           </h1>
           <p className="text-xs text-slate-400">ID: {dictionary.id}</p>
           <p className="text-sm text-slate-500">
             {dictionary.is_published ? "Опубликовано" : "Черновик"} · Категорий: {categories.length} ·
-            Всего слов: {dictionary.word_count}
+            Всего фраз: {totalPhrases}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={handleExport}
-            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-          >
-            Экспорт
-          </button>
-          <button
-            onClick={() => importInputRef.current?.click()}
-            disabled={isImporting}
-            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-          >
-            {isImporting ? "Импорт…" : "Импорт"}
-          </button>
-          <input
-            ref={importInputRef}
-            type="file"
-            accept="application/json"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0] ?? null;
-              if (file) handleImportFile(file);
-              e.target.value = "";
-            }}
-          />
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-          >
-            + Создать категорию
-          </button>
-        </div>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+        >
+          + Создать категорию
+        </button>
       </div>
 
-      {(importNotice || importError) && (
-        <p className={`mb-4 text-sm ${importError ? "text-red-600" : "text-emerald-600"}`}>
-          {importError ?? importNotice}
-        </p>
-      )}
-
       <Link
-        to={`/dictionaries/${dictionaryId}/words`}
+        to={`/dictionaries/${dictionaryId}/phrases/all`}
         className="mb-4 block rounded-lg border border-slate-200 bg-white p-4 text-sm font-medium text-indigo-600 hover:bg-slate-50"
       >
-        Все слова ({dictionary.word_count}) →
+        Все фразы ({totalPhrases}) →
       </Link>
 
       {categories.length === 0 ? (
@@ -166,13 +92,13 @@ export function DictionaryDetailPage() {
           {categories.map((c) => (
             <li key={c.id}>
               <Link
-                to={`/dictionaries/${dictionaryId}/categories/${c.id}`}
+                to={`/dictionaries/${dictionaryId}/phrases/categories/${c.id}`}
                 className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4 hover:bg-slate-50"
               >
                 <span className="font-medium text-slate-900" translate="no">
                   {c.name}
                 </span>
-                <span className="shrink-0 text-sm text-slate-400">{c.word_count} слов</span>
+                <span className="shrink-0 text-sm text-slate-400">{c.phrase_count} фраз</span>
               </Link>
             </li>
           ))}
@@ -180,7 +106,7 @@ export function DictionaryDetailPage() {
       )}
 
       {isModalOpen && (
-        <CreateCategoryModal
+        <CreatePhraseCategoryModal
           dictionaryId={dictionaryId}
           onCreated={() => {
             setIsModalOpen(false);
@@ -193,7 +119,7 @@ export function DictionaryDetailPage() {
   );
 }
 
-function CreateCategoryModal({
+function CreatePhraseCategoryModal({
   dictionaryId,
   onCreated,
   onClose,
@@ -213,11 +139,11 @@ function CreateCategoryModal({
     setIsSaving(true);
     setError(null);
     try {
-      await createCategory(dictionaryId, trimmed);
+      await createPhraseCategory(dictionaryId, trimmed);
       onCreated();
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status;
-      if (status === 409) setError("Категория с таким названием уже есть в этом словаре");
+      if (status === 409) setError("Категория с таким названием уже есть в этом языке");
       else setError("Не удалось создать категорию");
     } finally {
       setIsSaving(false);
@@ -225,7 +151,7 @@ function CreateCategoryModal({
   }
 
   return (
-    <Modal title="Новая категория" onClose={onClose}>
+    <Modal title="Новая категория фраз" onClose={onClose}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Название</label>

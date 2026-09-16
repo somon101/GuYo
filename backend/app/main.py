@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
-from app.routers import auth, categories, dictionaries, users, words
+from app.routers import auth, categories, dictionaries, phrase_categories, phrases, users, words
 
 settings = get_settings()
 
@@ -32,6 +32,8 @@ app.include_router(users.router)
 app.include_router(dictionaries.router)
 app.include_router(words.router)
 app.include_router(categories.router)
+app.include_router(phrases.router)
+app.include_router(phrase_categories.router)
 
 
 @app.get("/health")

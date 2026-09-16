@@ -212,7 +212,7 @@ export function WordEditPage() {
     <div className="mx-auto max-w-2xl pb-24">
       <nav className="mb-4 flex flex-wrap items-center gap-1 text-sm text-slate-500">
         <Link to="/dictionaries" className="text-indigo-600 hover:underline">
-          Словари
+          Языки
         </Link>
         <span>→</span>
         <Link to={`/dictionaries/${dictionaryId}`} className="text-indigo-600 hover:underline" translate="no">

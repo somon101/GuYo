@@ -5,7 +5,7 @@ import logoMark from "../assets/logo-mark.png";
 
 const navItems = [
   { to: "/users", label: "Пользователи" },
-  { to: "/dictionaries", label: "Словари" },
+  { to: "/dictionaries", label: "Языки" },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {

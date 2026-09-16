@@ -76,3 +76,30 @@ export interface Word {
   translations: WordTranslation[];
   forms: WordForm[];
 }
+
+// Phrases are a separate entity from Word (own phrase_id, own category
+// namespace) built on the same principle: one id, independently readable
+// fields, reusable everywhere without duplication. Unlike Word there is
+// only ever one fixed translation (Tajik), so it's a plain field rather
+// than a child table.
+export interface PhraseCategory {
+  id: number;
+  dictionary_id: number;
+  name: string;
+  created_at: string;
+  phrase_count: number;
+}
+
+export interface Phrase {
+  id: number;
+  dictionary_id: number;
+  category_id: number | null;
+  category_name: string | null;
+  original: string;
+  transcription: string | null;
+  translation_tg: string;
+  original_audio_url: string | null;
+  translation_audio_url: string | null;
+  created_at: string;
+  updated_at: string;
+}

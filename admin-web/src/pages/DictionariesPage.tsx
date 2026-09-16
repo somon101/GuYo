@@ -19,7 +19,7 @@ export function DictionariesPage() {
     try {
       setDictionaries(await listDictionaries());
     } catch {
-      setLoadError("Не удалось загрузить словари");
+      setLoadError("Не удалось загрузить языки");
     } finally {
       setIsLoading(false);
     }
@@ -45,8 +45,8 @@ export function DictionariesPage() {
   async function handleDelete(dictionary: Dictionary) {
     const confirmed = confirm(
       dictionary.word_count > 0
-        ? `Удалить словарь «${dictionary.name}» и все ${dictionary.word_count} слов(а) в нём? Это действие нельзя отменить.`
-        : `Удалить словарь «${dictionary.name}»? Это действие нельзя отменить.`,
+        ? `Удалить язык «${dictionary.name}» и все ${dictionary.word_count} слов(а) в нём? Это действие нельзя отменить.`
+        : `Удалить язык «${dictionary.name}»? Это действие нельзя отменить.`,
     );
     if (!confirmed) return;
 
@@ -56,7 +56,7 @@ export function DictionariesPage() {
       await deleteDictionary(dictionary.id);
       setDictionaries((prev) => prev.filter((d) => d.id !== dictionary.id));
     } catch {
-      setPublishError("Не удалось удалить словарь");
+      setPublishError("Не удалось удалить язык");
     } finally {
       setDeletingId(null);
     }
@@ -65,12 +65,12 @@ export function DictionariesPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-900">Словари</h1>
+        <h1 className="text-xl font-semibold text-slate-900">Языки</h1>
         <button
           onClick={() => setIsFormOpen((v) => !v)}
           className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
         >
-          + Создать словарь
+          + Добавить язык
         </button>
       </div>
 
@@ -92,7 +92,7 @@ export function DictionariesPage() {
       ) : loadError ? (
         <p className="text-sm text-red-600">{loadError}</p>
       ) : dictionaries.length === 0 ? (
-        <p className="text-sm text-slate-500">Словарей пока нет</p>
+        <p className="text-sm text-slate-500">Языков пока нет</p>
       ) : (
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {dictionaries.map((d) => (
@@ -193,7 +193,7 @@ function CreateDictionaryForm({
       await createDictionary(language);
       onCreated();
     } catch {
-      setError("Не удалось создать словарь");
+      setError("Не удалось создать язык");
     } finally {
       setIsSubmitting(false);
     }
