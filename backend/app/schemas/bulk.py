@@ -37,3 +37,39 @@ ExportCategory = ImportCategory
 
 class ExportPayload(BaseModel):
     categories: list[ExportCategory] = Field(default_factory=list)
+
+
+# --- Phrases -------------------------------------------------------------
+# Same import/export principle as Words above, but Phrase has no forms and
+# always carries its Tajik translation directly (translation_tg is a
+# required, non-null column on Phrase itself, not an optional child row),
+# so it's required here too -- unlike ImportWord.translation_tg.
+
+
+class ImportPhrase(BaseModel):
+    sentence: str = Field(min_length=1, max_length=1000)
+    translation_tg: str = Field(min_length=1, max_length=1000)
+
+
+class ImportPhraseCategory(BaseModel):
+    name: str = Field(min_length=1, max_length=128)
+    phrases: list[ImportPhrase] = Field(default_factory=list)
+
+
+class ImportPhrasePayload(BaseModel):
+    categories: list[ImportPhraseCategory] = Field(default_factory=list)
+
+
+class ImportPhraseSummary(BaseModel):
+    categories_created: int
+    categories_reused: int
+    phrases_created: int
+    phrases_reused: int
+
+
+ExportPhrase = ImportPhrase
+ExportPhraseCategory = ImportPhraseCategory
+
+
+class ExportPhrasePayload(BaseModel):
+    categories: list[ExportPhraseCategory] = Field(default_factory=list)

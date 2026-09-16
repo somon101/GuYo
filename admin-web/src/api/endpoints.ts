@@ -303,3 +303,38 @@ export async function updatePhrase(phraseId: number, input: UpdatePhraseInput): 
 export async function deletePhrase(phraseId: number): Promise<void> {
   await api.delete(`/phrases/${phraseId}`);
 }
+
+// The fixed categories/phrases JSON shape shared by phrase import/export --
+// see the backend's ImportPhrasePayload/ExportPhrasePayload. Same principle
+// as DictionaryBulkData for Words, with sentence/translation_tg instead of
+// word/translation_tg/forms/forms_tg.
+export interface PhraseBulkPhrase {
+  sentence: string;
+  translation_tg: string;
+}
+
+export interface PhraseBulkCategory {
+  name: string;
+  phrases: PhraseBulkPhrase[];
+}
+
+export interface PhraseBulkData {
+  categories: PhraseBulkCategory[];
+}
+
+export interface ImportPhraseSummary {
+  categories_created: number;
+  categories_reused: number;
+  phrases_created: number;
+  phrases_reused: number;
+}
+
+export async function importPhrases(dictionaryId: number, payload: PhraseBulkData): Promise<ImportPhraseSummary> {
+  const { data } = await api.post(`/dictionaries/${dictionaryId}/phrases/import`, payload);
+  return data;
+}
+
+export async function exportPhrases(dictionaryId: number): Promise<PhraseBulkData> {
+  const { data } = await api.get(`/dictionaries/${dictionaryId}/phrases/export`);
+  return data;
+}

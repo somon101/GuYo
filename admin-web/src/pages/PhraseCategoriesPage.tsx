@@ -1,6 +1,14 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import { createPhraseCategory, getDictionary, listPhraseCategories } from "../api/endpoints";
+import {
+  createPhraseCategory,
+  exportPhrases,
+  getDictionary,
+  importPhrases,
+  listPhraseCategories,
+  type ImportPhraseSummary,
+  type PhraseBulkData,
+} from "../api/endpoints";
 import type { Dictionary, PhraseCategory } from "../types";
 import { Modal } from "../components/Modal";
 import { LanguageSectionTabs } from "../components/LanguageSectionTabs";
@@ -18,6 +26,10 @@ export function PhraseCategoriesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importNotice, setImportNotice] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
 
   async function reload() {
     setIsLoading(true);
@@ -40,6 +52,41 @@ export function PhraseCategoriesPage() {
     reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dictionaryId]);
+
+  async function handleExport() {
+    const data = await exportPhrases(dictionaryId);
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${dictionary?.name ?? "phrases"}-phrases.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function summaryText(s: ImportPhraseSummary): string {
+    return (
+      `Категорий создано: ${s.categories_created} (переиспользовано: ${s.categories_reused}) · ` +
+      `Фраз создано: ${s.phrases_created} (переиспользовано: ${s.phrases_reused})`
+    );
+  }
+
+  async function handleImportFile(file: File) {
+    setImportError(null);
+    setImportNotice(null);
+    setIsImporting(true);
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text) as PhraseBulkData;
+      const summary = await importPhrases(dictionaryId, payload);
+      setImportNotice(summaryText(summary));
+      await reload();
+    } catch {
+      setImportError("Не удалось импортировать файл. Проверьте формат JSON.");
+    } finally {
+      setIsImporting(false);
+    }
+  }
 
   if (isLoading) {
     return <p className="text-sm text-slate-500">Загрузка…</p>;
@@ -70,13 +117,45 @@ export function PhraseCategoriesPage() {
             Всего фраз: {totalPhrases}
           </p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-        >
-          + Создать категорию
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleExport}
+            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
+            Экспорт
+          </button>
+          <button
+            onClick={() => importInputRef.current?.click()}
+            disabled={isImporting}
+            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          >
+            {isImporting ? "Импорт…" : "Импорт"}
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0] ?? null;
+              if (file) handleImportFile(file);
+              e.target.value = "";
+            }}
+          />
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            + Создать категорию
+          </button>
+        </div>
       </div>
+
+      {(importNotice || importError) && (
+        <p className={`mb-4 text-sm ${importError ? "text-red-600" : "text-emerald-600"}`}>
+          {importError ?? importNotice}
+        </p>
+      )}
 
       <Link
         to={`/dictionaries/${dictionaryId}/phrases/all`}

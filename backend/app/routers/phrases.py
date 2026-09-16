@@ -6,6 +6,13 @@ from app.core.storage import delete_by_key, save_upload, url_for_key
 from app.database import get_db
 from app.models.dictionary import Dictionary
 from app.models.phrase import Phrase, PhraseCategory
+from app.schemas.bulk import (
+    ExportPhrase,
+    ExportPhraseCategory,
+    ExportPhrasePayload,
+    ImportPhrasePayload,
+    ImportPhraseSummary,
+)
 from app.schemas.phrase import PhraseOut
 
 router = APIRouter(tags=["phrases"])
@@ -195,3 +202,108 @@ def delete_phrase(phrase_id: int, db: Session = Depends(get_db), _admin=Depends(
     db.delete(db_phrase)
     db.commit()
     return None
+
+
+@router.post("/dictionaries/{dictionary_id}/phrases/import", response_model=ImportPhraseSummary)
+def import_phrases(
+    dictionary_id: int,
+    payload: ImportPhrasePayload,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """Bulk-loads phrases from the fixed categories/phrases JSON format (see
+    ExportPhrasePayload, the exact same shape) -- the phrase counterpart of
+    import_words in words.py, same rules: a category already present
+    (matched by name) is reused, never duplicated; a phrase already present
+    in that category (matched by exact `sentence` text) is reused too --
+    its Tajik translation is refreshed rather than duplicated. Only
+    genuinely new phrases get a new phrase_id."""
+    _get_dictionary_or_404(db, dictionary_id)
+
+    categories_created = categories_reused = 0
+    phrases_created = phrases_reused = 0
+
+    for cat_data in payload.categories:
+        name = cat_data.name.strip()
+        category = (
+            db.query(PhraseCategory)
+            .filter(PhraseCategory.dictionary_id == dictionary_id, PhraseCategory.name == name)
+            .first()
+        )
+        if category is None:
+            category = PhraseCategory(dictionary_id=dictionary_id, name=name)
+            db.add(category)
+            db.flush()
+            categories_created += 1
+        else:
+            categories_reused += 1
+
+        for phrase_data in cat_data.phrases:
+            sentence = phrase_data.sentence.strip()
+            db_phrase = (
+                db.query(Phrase)
+                .filter(
+                    Phrase.dictionary_id == dictionary_id,
+                    Phrase.category_id == category.id,
+                    Phrase.original == sentence,
+                )
+                .first()
+            )
+            if db_phrase is None:
+                db_phrase = Phrase(
+                    dictionary_id=dictionary_id,
+                    category_id=category.id,
+                    original=sentence,
+                    translation_tg=phrase_data.translation_tg.strip(),
+                )
+                db.add(db_phrase)
+                phrases_created += 1
+            else:
+                db_phrase.translation_tg = phrase_data.translation_tg.strip()
+                phrases_reused += 1
+
+    db.commit()
+    return ImportPhraseSummary(
+        categories_created=categories_created,
+        categories_reused=categories_reused,
+        phrases_created=phrases_created,
+        phrases_reused=phrases_reused,
+    )
+
+
+@router.get("/dictionaries/{dictionary_id}/phrases/export", response_model=ExportPhrasePayload)
+def export_phrases(
+    dictionary_id: int,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """The exact inverse of import_phrases, in the same fixed JSON shape --
+    the result can be fed straight back into import. Phrases with no
+    category are grouped under a plain "Без категории" category, same
+    convention as export_words."""
+    _get_dictionary_or_404(db, dictionary_id)
+
+    def phrase_out(p: Phrase) -> ExportPhrase:
+        return ExportPhrase(sentence=p.original, translation_tg=p.translation_tg)
+
+    categories = (
+        db.query(PhraseCategory).filter(PhraseCategory.dictionary_id == dictionary_id).order_by(PhraseCategory.id).all()
+    )
+    result = [
+        ExportPhraseCategory(
+            name=cat.name,
+            phrases=[phrase_out(p) for p in db.query(Phrase).filter(Phrase.category_id == cat.id).order_by(Phrase.id).all()],
+        )
+        for cat in categories
+    ]
+
+    uncategorized = (
+        db.query(Phrase)
+        .filter(Phrase.dictionary_id == dictionary_id, Phrase.category_id.is_(None))
+        .order_by(Phrase.id)
+        .all()
+    )
+    if uncategorized:
+        result.append(ExportPhraseCategory(name="Без категории", phrases=[phrase_out(p) for p in uncategorized]))
+
+    return ExportPhrasePayload(categories=result)
