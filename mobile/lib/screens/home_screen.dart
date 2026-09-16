@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import 'dictionary_words_screen.dart';
+import 'learning_screen.dart';
 import 'login_screen.dart';
 import 'matching_screen.dart';
 
@@ -211,6 +212,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               // changes, without needing to touch that screen's internals.
               DictionaryWordsScreen(key: ValueKey('words-${selected.id}'), dictionary: selected),
               MatchingScreen(key: ValueKey('matching-${selected.id}'), dictionary: selected),
+              LearningScreen(key: ValueKey('learning-${selected.id}'), dictionary: selected),
             ],
           );
         },
@@ -221,6 +223,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.menu_book_outlined), label: 'Словарь'),
           NavigationDestination(icon: Icon(Icons.extension_outlined), label: 'Сопоставление'),
+          NavigationDestination(icon: Icon(Icons.school_outlined), label: 'Изучение'),
         ],
       ),
     );

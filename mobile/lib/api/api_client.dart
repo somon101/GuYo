@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../config.dart';
 import '../models/dictionary.dart';
+import '../models/learning.dart';
 import '../models/word.dart';
 
 class ApiException implements Exception {
@@ -99,5 +100,100 @@ class ApiClient {
     if (res.statusCode >= 400) {
       throw ApiException('Ошибка сервера (${res.statusCode})', statusCode: res.statusCode);
     }
+  }
+
+  /// Like [_throwIfUnauthorized], but for endpoints where the backend's
+  /// `detail` message is meant to be shown to the user as-is (e.g. "Все
+  /// доступные слова уже изучены") -- the backend is the source of truth
+  /// for that wording, not a client-side copy of it.
+  void _throwWithDetail(http.Response res) {
+    if (res.statusCode == 401 || res.statusCode == 403) {
+      throw ApiException('Сессия истекла, войдите снова', statusCode: res.statusCode);
+    }
+    if (res.statusCode >= 400) {
+      String message = 'Ошибка сервера (${res.statusCode})';
+      try {
+        final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+        final detail = body['detail'];
+        if (detail is String && detail.isNotEmpty) message = detail;
+      } catch (_) {
+        // Keep the generic message if the body isn't the expected shape.
+      }
+      throw ApiException(message, statusCode: res.statusCode);
+    }
+  }
+
+  // --- Изучение слов ("Learning Words") ---------------------------------
+  // Every method here just forwards to the backend, which is the sole
+  // source of truth for session state -- nothing about the queue, random
+  // selection or completion is decided on-device.
+
+  /// Returns the current active (unfinished) learning session for this
+  /// dictionary, or null if there isn't one -- distinct from an error.
+  Future<LearningSession?> fetchActiveLearningSession(int dictionaryId) async {
+    final res = await http.get(
+      _uri('/learning/sessions/active?dictionary_id=$dictionaryId'),
+      headers: await _authHeaders(),
+    );
+    if (res.statusCode == 404) return null;
+    _throwIfUnauthorized(res);
+    return LearningSession.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  Future<LearningSession> createLearningSession(int dictionaryId, int count) async {
+    final res = await http.post(
+      _uri('/learning/sessions'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'dictionary_id': dictionaryId, 'count': count}),
+    );
+    _throwWithDetail(res);
+    return LearningSession.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  Future<LearningSession> markWordLearned(int sessionId, int wordId) async {
+    final res = await http.post(
+      _uri('/learning/sessions/$sessionId/words/$wordId/learned'),
+      headers: await _authHeaders(),
+    );
+    _throwWithDetail(res);
+    return LearningSession.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  Future<LearningSession> markWordForReview(int sessionId, int wordId) async {
+    final res = await http.post(
+      _uri('/learning/sessions/$sessionId/words/$wordId/review'),
+      headers: await _authHeaders(),
+    );
+    _throwWithDetail(res);
+    return LearningSession.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  Future<List<LearnedCategory>> fetchLearnedCategories(int dictionaryId) async {
+    final res = await http.get(
+      _uri('/learned-words/categories?dictionary_id=$dictionaryId'),
+      headers: await _authHeaders(),
+    );
+    _throwIfUnauthorized(res);
+    final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
+    return list.map((e) => LearnedCategory.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// Pass exactly one of [categoryId] or [uncategorized]; pass neither for
+  /// every learned word in the dictionary regardless of category.
+  Future<List<GuyoWord>> fetchLearnedWords(
+    int dictionaryId, {
+    int? categoryId,
+    bool uncategorized = false,
+  }) async {
+    final params = {
+      'dictionary_id': '$dictionaryId',
+      if (categoryId != null) 'category_id': '$categoryId',
+      if (uncategorized) 'uncategorized': 'true',
+    };
+    final uri = _uri('/learned-words').replace(queryParameters: params);
+    final res = await http.get(uri, headers: await _authHeaders());
+    _throwIfUnauthorized(res);
+    final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
+    return list.map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
   }
 }
