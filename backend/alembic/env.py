@@ -9,6 +9,7 @@ from app.models import (  # noqa: F401
     Admin,
     Category,
     Dictionary,
+    ExerciseSettings,
     LearnedWord,
     LearningSession,
     LearningSessionItem,

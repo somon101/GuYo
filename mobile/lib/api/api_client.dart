@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../config.dart';
 import '../models/dictionary.dart';
+import '../models/exercise.dart';
 import '../models/learning.dart';
 import '../models/word.dart';
 
@@ -211,5 +212,18 @@ class ApiClient {
     await _throwIfUnauthorized(res);
     final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
     return list.map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  // --- Упражнения ("Exercises") ------------------------------------------
+  // Word selection (learned-only) and the true/false decision are both
+  // decided entirely on the backend -- this just fetches a ready round.
+
+  Future<TrueOrFalseRound> fetchTrueOrFalseRound(int dictionaryId) async {
+    final res = await http.get(
+      _uri('/dictionaries/$dictionaryId/exercises/true-or-false'),
+      headers: await _authHeaders(),
+    );
+    await _throwIfUnauthorized(res);
+    return TrueOrFalseRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 }

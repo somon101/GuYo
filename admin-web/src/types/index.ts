@@ -103,3 +103,11 @@ export interface Phrase {
   created_at: string;
   updated_at: string;
 }
+
+// Per-exercise admin setting: how many words one run uses. Keyed by a
+// plain string so a future exercise (or "Сопоставление" adopting the same
+// knob) is just a new key here, not a new type/table.
+export interface ExerciseSettings {
+  exercise_key: string;
+  word_count: number;
+}

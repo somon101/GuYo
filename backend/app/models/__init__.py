@@ -1,6 +1,7 @@
 from app.models.admin import Admin
 from app.models.category import Category
 from app.models.dictionary import Dictionary
+from app.models.exercise import ExerciseSettings
 from app.models.learning import LearnedWord, LearningSession, LearningSessionItem
 from app.models.phrase import Phrase, PhraseCategory
 from app.models.user import User
@@ -19,4 +20,5 @@ __all__ = [
     "LearnedWord",
     "LearningSession",
     "LearningSessionItem",
+    "ExerciseSettings",
 ]

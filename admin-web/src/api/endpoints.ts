@@ -3,6 +3,7 @@ import type {
   AdminUser,
   Category,
   Dictionary,
+  ExerciseSettings,
   Phrase,
   PhraseCategory,
   TranslationLanguage,
@@ -336,5 +337,17 @@ export async function importPhrases(dictionaryId: number, payload: PhraseBulkDat
 
 export async function exportPhrases(dictionaryId: number): Promise<PhraseBulkData> {
   const { data } = await api.get(`/dictionaries/${dictionaryId}/phrases/export`);
+  return data;
+}
+
+// --- Exercise settings ---------------------------------------------------
+
+export async function getExerciseSettings(exerciseKey: string): Promise<ExerciseSettings> {
+  const { data } = await api.get(`/exercise-settings/${exerciseKey}`);
+  return data;
+}
+
+export async function setExerciseSettings(exerciseKey: string, wordCount: number): Promise<ExerciseSettings> {
+  const { data } = await api.put(`/exercise-settings/${exerciseKey}`, { word_count: wordCount });
   return data;
 }

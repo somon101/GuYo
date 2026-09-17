@@ -3,6 +3,7 @@ import '../models/dictionary.dart';
 import 'dictionary_words_screen.dart';
 import 'learning_screen.dart';
 import 'matching_screen.dart';
+import 'true_or_false_screen.dart';
 
 /// Temporary central hub for every currently-available feature.
 ///
@@ -37,6 +38,11 @@ class MainMenuScreen extends StatelessWidget {
           icon: Icons.extension_outlined,
           label: 'Сопоставление',
           builder: (_) => MatchingScreen(dictionary: dictionary),
+        ),
+        _MenuItem(
+          icon: Icons.rule_outlined,
+          label: 'Правда или ложь',
+          builder: (_) => TrueOrFalseScreen(dictionary: dictionary),
         ),
       ];
 
