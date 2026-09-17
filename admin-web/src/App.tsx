@@ -12,6 +12,9 @@ import { PhraseCategoriesPage } from "./pages/PhraseCategoriesPage";
 import { PhrasesListPage } from "./pages/PhrasesListPage";
 import { PhraseEditPage } from "./pages/PhraseEditPage";
 import { ExercisesPage } from "./pages/ExercisesPage";
+import { TrueOrFalseSettingsPage } from "./pages/exercises/TrueOrFalseSettingsPage";
+import { MatchingSettingsPage } from "./pages/exercises/MatchingSettingsPage";
+import { BuildWordSettingsPage } from "./pages/exercises/BuildWordSettingsPage";
 
 // HashRouter is used deliberately: GitHub Pages serves static files with no
 // server-side rewrites, so a BrowserRouter route like /dictionaries/3 would
@@ -129,6 +132,36 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <ExercisesPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/exercises/true_or_false"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <TrueOrFalseSettingsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/exercises/matching"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <MatchingSettingsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/exercises/build_word"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <BuildWordSettingsPage />
                 </Layout>
               </ProtectedRoute>
             }
