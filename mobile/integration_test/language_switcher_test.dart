@@ -74,7 +74,7 @@ void main() {
     // storage) across every testWidgets case, so a session left behind by
     // an earlier run/file would otherwise skip straight past the login
     // screen here. Start from a clean, logged-out state.
-    if (find.byType(NavigationBar).evaluate().isNotEmpty) {
+    if (find.text('Главная').evaluate().isNotEmpty) {
       await tester.tap(find.byIcon(Icons.more_vert));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Выйти'));

@@ -26,11 +26,10 @@ import 'package:guyo_app/screens/matching_screen.dart';
 
 Finder get _languageSwitcher => find.byType(PopupMenuButton<GuyoDictionary>);
 
-// IndexedStack builds BOTH tabs eagerly (only one is painted, but both
-// exist in the widget tree at all times), so a word that's short enough to
-// fit a matching round -- true for every word in this dev dataset -- shows
-// up under both DictionaryWordsScreen and MatchingScreen simultaneously.
-// Every lookup below is scoped to the tab it actually means to check.
+// Each feature is reached by tapping its card on the main menu, which
+// pushes it as its own screen -- only one of DictionaryWordsScreen/
+// MatchingScreen is ever in the tree at a time. Scoping lookups to the
+// screen type is kept anyway: cheap, and still correct.
 Finder _inMatching(Finder matching) =>
     find.descendant(of: find.byType(MatchingScreen), matching: matching);
 Finder _inWordList(Finder matching) =>
@@ -72,7 +71,7 @@ Future<void> _login(WidgetTester tester) async {
   // storage) across every testWidgets case in this file, so a session left
   // behind by a previous test would otherwise skip straight past the login
   // screen here. Start each test from a clean, logged-out state.
-  if (find.byType(NavigationBar).evaluate().isNotEmpty) {
+  if (find.text('Главная').evaluate().isNotEmpty) {
     await tester.tap(find.byIcon(Icons.more_vert));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Выйти'));
@@ -86,7 +85,7 @@ Future<void> _login(WidgetTester tester) async {
   await tester.tap(find.widgetWithText(FilledButton, 'Войти'));
   await tester.pumpAndSettle(const Duration(seconds: 3));
 
-  expect(find.byType(NavigationBar), findsOneWidget, reason: 'should reach the home screen with tabs');
+  expect(find.text('Главная'), findsOneWidget, reason: 'should reach the home screen (main menu)');
 }
 
 void main() {
@@ -95,11 +94,17 @@ void main() {
   testWidgets('login, language switch changes the word list, no crash', (tester) async {
     await _login(tester);
 
-    // Default tab is "Словарь"; default language is whichever dictionary
-    // came first from the API (English in the seed data) -- its words
-    // should be visible without any extra taps.
+    // Lands on the main menu; default language is whichever dictionary
+    // came first from the API (English in the seed data). Open "Словарь".
+    await tester.tap(find.text('Словарь'));
+    await tester.pumpAndSettle();
     expect(_inWordList(find.text('apple')), findsOneWidget);
     expect(_inWordList(find.text('яблочко')), findsOneWidget);
+
+    // The language switcher lives on the menu's app bar, not inside a
+    // pushed feature -- back out to it first.
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
     // Switch language to Русский via the switcher that replaced "Выйти".
     expect(find.byIcon(Icons.logout), findsNothing, reason: '"Выйти" must not sit in the main bar anymore');
@@ -112,10 +117,15 @@ void main() {
     // The Russian dictionary has 0 words in this dev environment -- the
     // word list must say so cleanly, not crash and not still show English
     // words.
+    await tester.tap(find.text('Словарь'));
+    await tester.pumpAndSettle();
     expect(find.text('apple'), findsNothing);
     expect(_inWordList(find.text('В этом словаре пока нет слов')), findsOneWidget);
 
-    // Logout is still reachable, just tucked into the overflow menu.
+    // Back to the menu; logout is still reachable, just tucked into the
+    // overflow menu.
+    await tester.pageBack();
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.more_vert));
     await tester.pumpAndSettle();
     expect(find.text('Выйти'), findsOneWidget);
@@ -135,7 +145,7 @@ void main() {
 
     await _login(tester);
 
-    // English is selected by default; open the Сопоставление tab.
+    // English is selected by default; open "Сопоставление" from the menu.
     await tester.tap(find.text('Сопоставление'));
     await tester.pumpAndSettle();
 

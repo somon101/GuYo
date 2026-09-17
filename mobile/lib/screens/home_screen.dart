@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
-import 'dictionary_words_screen.dart';
-import 'learning_screen.dart';
 import 'login_screen.dart';
-import 'matching_screen.dart';
+import 'main_menu_screen.dart';
 
 /// The app's main hub, reached right after login.
 ///
 /// Replaces the old "Выйти" button in the top bar with a language switcher:
 /// picking a language selects the matching Dictionary (by `Dictionary.
-/// language`), and that selection drives every section below -- currently
-/// "Словарь" (the existing word list) and "Сопоставление" (the new
-/// matching drill). Logging out is still available, just tucked into the
+/// language`), and that selection drives every feature reachable from the
+/// main menu below. Logging out is still available, just tucked into the
 /// overflow menu instead of sitting in the main bar.
 ///
 /// The switcher's option list is never hardcoded: it's built purely from
@@ -21,6 +18,10 @@ import 'matching_screen.dart';
 /// token never gets a draft back at all (see dictionaries.py's
 /// `_visible_to`), so this screen doesn't need to (and must not try to)
 /// second-guess publish status on its own.
+///
+/// Bottom nav is deliberately just one "Главная" destination for now --
+/// a temporary structure (see MainMenuScreen) while every feature still
+/// lives behind a single entry point rather than its own tab.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -31,7 +32,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late Future<List<GuyoDictionary>> _dictionariesFuture;
   GuyoDictionary? _selectedDictionary;
-  int _tabIndex = 0;
 
   @override
   void initState() {
@@ -217,27 +217,56 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           }
           _selectedDictionary = selected;
 
-          return IndexedStack(
-            index: _tabIndex,
-            children: [
-              // Keying by dictionary id makes each tab remount (and refetch
-              // its own words from scratch) whenever the selected language
-              // changes, without needing to touch that screen's internals.
-              DictionaryWordsScreen(key: ValueKey('words-${selected.id}'), dictionary: selected),
-              MatchingScreen(key: ValueKey('matching-${selected.id}'), dictionary: selected),
-              LearningScreen(key: ValueKey('learning-${selected.id}'), dictionary: selected),
-            ],
-          );
+          // Keying by dictionary id makes the menu (and whatever feature
+          // gets pushed from it) rebuild fresh whenever the selected
+          // language changes.
+          return MainMenuScreen(key: ValueKey('menu-${selected.id}'), dictionary: selected);
         },
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tabIndex,
-        onDestinationSelected: (i) => setState(() => _tabIndex = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.menu_book_outlined), label: 'Словарь'),
-          NavigationDestination(icon: Icon(Icons.extension_outlined), label: 'Сопоставление'),
-          NavigationDestination(icon: Icon(Icons.school_outlined), label: 'Изучение'),
-        ],
+      // Flutter's NavigationBar/BottomNavigationBar both require at least
+      // two destinations (an assertion, not a style choice) -- with only
+      // one "Главная" entry for this temporary structure, a plain custom
+      // bar is simpler than working around that restriction.
+      bottomNavigationBar: _SingleDestinationBottomBar(
+        icon: Icons.home_outlined,
+        label: 'Главная',
+      ),
+    );
+  }
+}
+
+/// A minimal stand-in for [NavigationBar] with exactly one, always-selected
+/// destination -- kept only because the real NavigationBar widget refuses
+/// to render with fewer than two. Visually matches it closely enough
+/// (surface background, primary-colored icon+label) without pulling in any
+/// navigation behavior of its own; there's nothing to switch to yet.
+class _SingleDestinationBottomBar extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _SingleDestinationBottomBar({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.primary;
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      elevation: 3,
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 64,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: color),
+                const SizedBox(height: 2),
+                Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

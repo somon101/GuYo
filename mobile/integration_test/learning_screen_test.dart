@@ -27,7 +27,7 @@ Future<void> _login(WidgetTester tester) async {
   await tester.pumpWidget(const GuyoApp());
   await tester.pumpAndSettle(const Duration(seconds: 2));
 
-  if (find.byType(NavigationBar).evaluate().isNotEmpty) {
+  if (find.text('Главная').evaluate().isNotEmpty) {
     await tester.tap(find.byIcon(Icons.more_vert));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Выйти'));
@@ -41,11 +41,13 @@ Future<void> _login(WidgetTester tester) async {
   await tester.tap(find.widgetWithText(FilledButton, 'Войти'));
   await tester.pumpAndSettle(const Duration(seconds: 3));
 
-  expect(find.byType(NavigationBar), findsOneWidget, reason: 'should reach the home screen with tabs');
+  expect(find.text('Главная'), findsOneWidget, reason: 'should reach the home screen (main menu)');
 }
 
 Future<void> _openLearningTab(WidgetTester tester) async {
-  await tester.tap(find.text('Изучение'));
+  // "Изучение слов" is reached from the main menu now, not a bottom-nav
+  // tab -- tapping its card pushes LearningScreen as its own screen.
+  await tester.tap(find.text('Изучение слов'));
   await tester.pumpAndSettle();
 }
 
@@ -80,7 +82,9 @@ void main() {
     await _login(tester);
     await _openLearningTab(tester);
 
-    expect(find.text('Изучение слов'), findsOneWidget);
+    // Both the pushed screen's app bar title and its own "no session yet"
+    // heading read "Изучение слов" -- two matches is the correct state.
+    expect(find.text('Изучение слов'), findsWidgets);
     await _pickCountAndStart(tester, 3);
 
     expect(find.textContaining('Изучено 0 из 3'), findsOneWidget);
@@ -123,9 +127,17 @@ void main() {
 
     // Relaunch the app (fresh widget tree, same backend session/token) --
     // the active session must come back exactly as it was, not reset.
+    // A second pumpWidget(GuyoApp()) alone isn't enough: Flutter reconciles
+    // a structurally-compatible tree instead of discarding it, so the old
+    // Navigator (and whatever was pushed, e.g. this very screen) would
+    // otherwise survive -- not a faithful stand-in for a real cold start.
+    // Pumping something structurally incompatible first forces a full
+    // teardown, so the next GuyoApp() truly starts over from _StartupGate.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
     await tester.pumpWidget(const GuyoApp());
     await tester.pumpAndSettle(const Duration(seconds: 2));
-    expect(find.byType(NavigationBar), findsOneWidget, reason: 'still logged in after relaunch');
+    expect(find.text('Главная'), findsOneWidget, reason: 'still logged in after relaunch');
     await _openLearningTab(tester);
     expect(find.textContaining('Изучено 0 из 3'), findsOneWidget, reason: 'same session resumed, not restarted');
 
