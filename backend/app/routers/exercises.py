@@ -24,9 +24,11 @@ from app.models.exercise import ExerciseSettings
 from app.models.learning import LearnedWord
 from app.models.user import User
 from app.models.word import Word
+from app.routers.words import word_to_out
 from app.schemas.exercise import (
     ExerciseSettingsIn,
     ExerciseSettingsOut,
+    ExerciseWordsOut,
     TrueOrFalseItemOut,
     TrueOrFalseRoundOut,
 )
@@ -34,6 +36,7 @@ from app.schemas.exercise import (
 router = APIRouter(tags=["exercises"])
 
 TRUE_OR_FALSE_KEY = "true_or_false"
+MATCHING_KEY = "matching"
 DEFAULT_WORD_COUNT = 10
 
 
@@ -47,6 +50,31 @@ def _get_published_dictionary_or_404(db: Session, dictionary_id: int) -> Diction
 def _get_word_count(db: Session, exercise_key: str) -> int:
     settings = db.query(ExerciseSettings).filter(ExerciseSettings.exercise_key == exercise_key).first()
     return settings.word_count if settings is not None else DEFAULT_WORD_COUNT
+
+
+def _get_usable_learned_words(db: Session, user_id: int, dictionary_id: int) -> list[Word]:
+    """Every Word the user has learned in this dictionary that actually has
+    a translation to quiz/match against -- the ONE shared word source every
+    exercise built on "learned words only" is meant to read from, never
+    Word.dictionary_id directly."""
+    learned_words = (
+        db.query(Word)
+        .join(LearnedWord, LearnedWord.word_id == Word.id)
+        .filter(LearnedWord.user_id == user_id, Word.dictionary_id == dictionary_id)
+        .all()
+    )
+    return [w for w in learned_words if w.translations]
+
+
+def _pick_round_words(db: Session, usable_words: list[Word], exercise_key: str) -> list[Word]:
+    """Randomly picks up to `exercise_key`'s admin-configured word_count
+    words out of the already-usable pool -- the one place "how many, and
+    which ones" is decided for any exercise built this way."""
+    available_count = len(usable_words)
+    if available_count == 0:
+        return []
+    word_count = _get_word_count(db, exercise_key)
+    return random.sample(usable_words, k=min(word_count, available_count))
 
 
 @router.get("/exercise-settings/{exercise_key}", response_model=ExerciseSettingsOut)
@@ -94,22 +122,11 @@ def get_true_or_false_round(
     that's meant to hold for every exercise, this one included."""
     _get_published_dictionary_or_404(db, dictionary_id)
 
-    learned_words = (
-        db.query(Word)
-        .join(LearnedWord, LearnedWord.word_id == Word.id)
-        .filter(LearnedWord.user_id == user.id, Word.dictionary_id == dictionary_id)
-        .all()
-    )
-    # A word with no translation at all can't be quizzed either way (no
-    # correct answer to construct) -- excluded defensively, same as
-    # MatchingScreen already does client-side for the same reason.
-    usable_words = [w for w in learned_words if w.translations]
+    usable_words = _get_usable_learned_words(db, user.id, dictionary_id)
     available_count = len(usable_words)
-    if available_count == 0:
-        return TrueOrFalseRoundOut(dictionary_id=dictionary_id, available_count=0, items=[])
-
-    word_count = _get_word_count(db, TRUE_OR_FALSE_KEY)
-    selected = random.sample(usable_words, k=min(word_count, available_count))
+    selected = _pick_round_words(db, usable_words, TRUE_OR_FALSE_KEY)
+    if not selected:
+        return TrueOrFalseRoundOut(dictionary_id=dictionary_id, available_count=available_count, items=[])
 
     def primary_text(word: Word) -> str:
         return word.translations[0].text
@@ -153,3 +170,34 @@ def get_true_or_false_round(
         )
 
     return TrueOrFalseRoundOut(dictionary_id=dictionary_id, available_count=available_count, items=items)
+
+
+@router.get(
+    "/dictionaries/{dictionary_id}/exercises/{exercise_key}/learned-words",
+    response_model=ExerciseWordsOut,
+)
+def get_exercise_learned_words(
+    dictionary_id: int,
+    exercise_key: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """The generic building block for an exercise that just needs N random
+    already-learned words and does its own thing with them -- no per-item
+    decision like True/False's real-or-fake translation choice.
+
+    "Сопоставление" is the first consumer: its shuffle-into-two-columns and
+    tap-to-match logic is entirely unchanged, only the word SOURCE changes
+    from every word in the dictionary to this -- learned words, capped at
+    this exercise's own admin-configured count. Any future exercise with
+    the same "just give me some learned words" need can reuse this
+    unmodified by picking its own `exercise_key`."""
+    _get_published_dictionary_or_404(db, dictionary_id)
+    usable_words = _get_usable_learned_words(db, user.id, dictionary_id)
+    selected = _pick_round_words(db, usable_words, exercise_key)
+    return ExerciseWordsOut(
+        dictionary_id=dictionary_id,
+        exercise_key=exercise_key,
+        available_count=len(usable_words),
+        words=[word_to_out(w) for w in selected],
+    )

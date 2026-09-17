@@ -10,7 +10,10 @@
 //   - user testuser/123456
 //   - an English dictionary with words including a duplicate translation
 //     (this repo's dev data already has "doggo" and "dog" both -> "собака")
-//   - a Russian dictionary with 0 words (to exercise "not enough words")
+//   - a Russian dictionary testuser hasn't learned any words in (to
+//     exercise "not enough words" -- "Сопоставление" now draws from
+//     LEARNED words only, never the raw dictionary, so this holds
+//     trivially as long as no Russian word has been learned)
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -44,7 +47,7 @@ Finder _inWordList(Finder matching) =>
 Finder _leftCard(int wordId) => find.byKey(ValueKey('match-left-$wordId'));
 Finder _rightCard(int wordId) => find.byKey(ValueKey('match-right-$wordId'));
 
-Future<Map<String, int>> _fetchEnglishWordIdsByText() async {
+Future<(int dictionaryId, Map<String, int> wordIdsByText)> _fetchEnglishWordIdsByText() async {
   final loginRes = await http.post(
     Uri.parse('$apiBaseUrl/auth/login'),
     headers: {'Content-Type': 'application/json'},
@@ -60,7 +63,65 @@ Future<Map<String, int>> _fetchEnglishWordIdsByText() async {
   final wordsRes =
       await http.get(Uri.parse('$apiBaseUrl/dictionaries/$englishId/words'), headers: authHeader);
   final words = jsonDecode(wordsRes.body) as List;
-  return {for (final w in words) w['word'] as String: w['id'] as int};
+  return (englishId, {for (final w in words) w['word'] as String: w['id'] as int});
+}
+
+/// "Сопоставление" now draws only from testuser's LEARNED words (see
+/// matching_screen.dart) -- drives the real "Изучение слов" API (never a
+/// raw DB write) until every word in [wordIds] is learned, so the drill
+/// test below has the same 6-word English round it always did.
+Future<void> _ensureWordsLearned(int dictionaryId, List<int> wordIds) async {
+  final loginRes = await http.post(
+    Uri.parse('$apiBaseUrl/auth/login'),
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({'login': 'testuser', 'password': '123456'}),
+  );
+  final token = (jsonDecode(loginRes.body) as Map)['access_token'] as String;
+  final h = {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'};
+
+  Future<Set<int>> learnedIds() async {
+    final res = await http.get(
+      Uri.parse('$apiBaseUrl/learned-words?dictionary_id=$dictionaryId'),
+      headers: h,
+    );
+    return (jsonDecode(res.body) as List).map((w) => w['id'] as int).toSet();
+  }
+
+  // A handful of passes covers any leftover partial session from an
+  // earlier test run; for this small, fixed dev dataset one pass is
+  // normally enough.
+  for (var attempt = 0; attempt < 3; attempt++) {
+    if ((await learnedIds()).containsAll(wordIds)) return;
+
+    Map<String, dynamic> session;
+    final activeRes = await http.get(
+      Uri.parse('$apiBaseUrl/learning/sessions/active?dictionary_id=$dictionaryId'),
+      headers: h,
+    );
+    if (activeRes.statusCode == 200) {
+      session = jsonDecode(activeRes.body) as Map<String, dynamic>;
+    } else {
+      final createRes = await http.post(
+        Uri.parse('$apiBaseUrl/learning/sessions'),
+        headers: h,
+        body: jsonEncode({'dictionary_id': dictionaryId, 'count': 20}),
+      );
+      session = jsonDecode(createRes.body) as Map<String, dynamic>;
+    }
+
+    var current = session['current_word'] as Map<String, dynamic>?;
+    while (current != null) {
+      final res = await http.post(
+        Uri.parse('$apiBaseUrl/learning/sessions/${session['id']}/words/${current['id']}/learned'),
+        headers: h,
+      );
+      session = jsonDecode(res.body) as Map<String, dynamic>;
+      current = session['current_word'] as Map<String, dynamic>?;
+    }
+  }
+
+  final finalLearned = await learnedIds();
+  assert(finalLearned.containsAll(wordIds), 'expected all of $wordIds to be learned, got $finalLearned');
 }
 
 Future<void> _login(WidgetTester tester) async {
@@ -135,13 +196,14 @@ void main() {
   });
 
   testWidgets('matching drill: correct/incorrect feedback, duplicate translations, completion, replay', (tester) async {
-    final ids = await _fetchEnglishWordIdsByText();
+    final (englishId, ids) = await _fetchEnglishWordIdsByText();
     final appleId = ids['apple']!;
     final bookId = ids['book']!;
     final houseId = ids['house']!;
     final catId = ids['cat']!;
     final dogId = ids['dog']!;
     final doggoId = ids['doggo']!;
+    await _ensureWordsLearned(englishId, ids.values.toList());
 
     await _login(tester);
 
@@ -149,8 +211,9 @@ void main() {
     await tester.tap(find.text('Сопоставление'));
     await tester.pumpAndSettle();
 
-    // English dictionary here has 6 words (fewer than the round size of
-    // 10) -- the round must gracefully use all 6 rather than error.
+    // All 6 English words are learned and the admin-configured "matching"
+    // count defaults to 10 (> 6) -- the round must gracefully use all 6
+    // available learned words rather than error or pad with anything else.
     expect(_inMatching(find.textContaining('Правильно: 0/6')), findsOneWidget);
     expect(_leftCard(appleId), findsOneWidget);
     expect(_rightCard(appleId), findsOneWidget);
@@ -218,7 +281,7 @@ void main() {
     expect(_leftCard(appleId), findsOneWidget);
   });
 
-  testWidgets('matching drill shows a clean message when a dictionary has too few words', (tester) async {
+  testWidgets('matching drill shows a clean message when too few words are learned', (tester) async {
     await _login(tester);
 
     await tester.tap(_languageSwitcher);
@@ -229,7 +292,10 @@ void main() {
     await tester.tap(find.text('Сопоставление'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('недостаточно слов'), findsOneWidget);
+    // testuser has learned 0 Russian words -- "Сопоставление" draws only
+    // from learned words, so this is the same empty state regardless of
+    // how many words the Russian dictionary itself actually has.
+    expect(find.textContaining('нужно изучить'), findsOneWidget);
     // No crash, no stray "Правильно: x/y" counter for an empty round.
     expect(find.textContaining('Правильно:'), findsNothing);
   });

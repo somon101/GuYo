@@ -1,5 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.word import WordOut
+
 
 class ExerciseSettingsOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -34,3 +36,16 @@ class TrueOrFalseRoundOut(BaseModel):
     # configured" apart from "the configured count in full".
     available_count: int
     items: list[TrueOrFalseItemOut]
+
+
+class ExerciseWordsOut(BaseModel):
+    """The generic shape for any exercise that just needs N already-learned
+    Word rows and does its own thing with them client-side (e.g.
+    "Сопоставление", which only needs the words themselves to shuffle into
+    two columns) -- no per-item decision like True/False's real-or-fake
+    translation choice."""
+
+    dictionary_id: int
+    exercise_key: str
+    available_count: int
+    words: list[WordOut]

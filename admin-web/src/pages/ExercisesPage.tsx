@@ -11,6 +11,11 @@ const EXERCISES: { key: string; label: string; description: string }[] = [
     label: "Правда или ложь",
     description: "Сколько изученных пользователем слов используется в одном запуске упражнения",
   },
+  {
+    key: "matching",
+    label: "Сопоставление",
+    description: "Сколько изученных пользователем слов используется в одном раунде упражнения",
+  },
 ];
 
 export function ExercisesPage() {

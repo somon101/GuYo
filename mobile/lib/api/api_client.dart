@@ -226,4 +226,20 @@ class ApiClient {
     await _throwIfUnauthorized(res);
     return TrueOrFalseRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
+
+  /// The generic "N random already-learned words" round, capped by
+  /// [exerciseKey]'s admin-configured count on the backend. Used by
+  /// "Сопоставление" (exerciseKey "matching") in place of the old
+  /// fetchWords(dictionaryId) call -- everything downstream of the word
+  /// list (shuffling into two columns, tap-to-match) is unchanged.
+  Future<List<GuyoWord>> fetchExerciseLearnedWords(int dictionaryId, String exerciseKey) async {
+    final res = await http.get(
+      _uri('/dictionaries/$dictionaryId/exercises/$exerciseKey/learned-words'),
+      headers: await _authHeaders(),
+    );
+    await _throwIfUnauthorized(res);
+    final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    final list = body['words'] as List<dynamic>;
+    return list.map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
+  }
 }

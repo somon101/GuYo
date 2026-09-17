@@ -5,8 +5,9 @@ import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../models/word.dart';
 
-/// How many words make up one round. Fixed for this stage, per spec.
-const int _roundSize = 10;
+/// exercise_key for this screen's admin-configurable word count (Admin
+/// Web's "Упражнения" page) -- same mechanism "Правда или ложь" uses.
+const String _exerciseKey = 'matching';
 
 /// Below this many usable words, a round can't be built meaningfully.
 const int _minWordsForRound = 2;
@@ -14,15 +15,18 @@ const int _minWordsForRound = 2;
 /// A drag-free "tap word, then tap its translation" matching drill.
 ///
 /// This screen never creates, copies, or persists any Word/translation --
-/// it only calls the existing GET /dictionaries/{id}/words endpoint (via
-/// ApiClient.fetchWords, already used by the "Словарь" tab) and keeps a
-/// purely in-memory round: which existing word_ids were drawn, their two
-/// independently shuffled display orders, which ones are matched, and a
-/// mistake count. A correct match is decided by comparing `Word.id`
-/// (word_id) between the tapped left and right card, never by comparing
-/// the translation text -- so two different words that happen to share a
-/// translation (e.g. "big" and "large" both -> "большой") are still
-/// distinguished correctly.
+/// it only calls GET /dictionaries/{id}/exercises/matching/learned-words
+/// (via ApiClient.fetchExerciseLearnedWords), which already returns just
+/// this user's LEARNED words, capped at the admin-configured count for
+/// "matching" -- never the full dictionary. Word selection and the count
+/// cap are entirely the backend's decision; this screen only shuffles the
+/// already-chosen round into two independently-ordered display columns
+/// and tracks a purely in-memory round: which of the given word_ids are
+/// matched, and a mistake count. A correct match is decided by comparing
+/// `Word.id` (word_id) between the tapped left and right card, never by
+/// comparing the translation text -- so two different words that happen
+/// to share a translation (e.g. "big" and "large" both -> "большой") are
+/// still distinguished correctly.
 class MatchingScreen extends StatefulWidget {
   final GuyoDictionary dictionary;
   const MatchingScreen({super.key, required this.dictionary});
@@ -34,7 +38,7 @@ class MatchingScreen extends StatefulWidget {
 class _MatchingScreenState extends State<MatchingScreen> {
   bool _isLoading = true;
   String? _errorMessage;
-  List<GuyoWord> _usableWords = [];
+  int _availableCount = 0; // how many learned+usable words exist in total
 
   List<GuyoWord>? _left; // word_id order for the left ("word") column
   List<GuyoWord>? _right; // word_id order for the right ("translation") column
@@ -50,24 +54,27 @@ class _MatchingScreenState extends State<MatchingScreen> {
     _load();
   }
 
+  /// Fetches a fresh round from the backend -- called on first open AND on
+  /// every "Играть ещё раз", so a replay is a genuinely new random
+  /// selection (same as every other exercise built on learned words),
+  /// not just a client-side reshuffle of a stale list.
   Future<void> _load() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
     try {
-      final words = await ApiClient.instance.fetchWords(widget.dictionary.id);
+      final words = await ApiClient.instance.fetchExerciseLearnedWords(widget.dictionary.id, _exerciseKey);
       // A word with no translation can't be matched to anything; the
-      // backend guarantees every word keeps at least one translation, but
-      // this stays defensive rather than assuming that holds forever.
+      // backend already excludes these, but this stays defensive rather
+      // than assuming that holds forever.
       final usable = words.where((w) => w.translation.trim().isNotEmpty).toList();
       if (!mounted) return;
-      setState(() {
-        _usableWords = usable;
-        _isLoading = false;
-      });
+      setState(() => _availableCount = usable.length);
       if (usable.length >= _minWordsForRound) {
-        _startRound();
+        _startRound(usable);
+      } else {
+        setState(() => _isLoading = false);
       }
     } catch (_) {
       if (!mounted) return;
@@ -78,11 +85,8 @@ class _MatchingScreenState extends State<MatchingScreen> {
     }
   }
 
-  void _startRound() {
+  void _startRound(List<GuyoWord> selected) {
     final random = Random();
-    final pool = List<GuyoWord>.from(_usableWords)..shuffle(random);
-    final selected = pool.take(_roundSize).toList();
-
     // Independent shuffles: the left (word) order and right (translation)
     // order must not line up, otherwise position alone would give the
     // answer away.
@@ -97,6 +101,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
       _selectedRightId = null;
       _mistakes = 0;
       _awaitingMismatchClear = false;
+      _isLoading = false;
     });
   }
 
@@ -176,13 +181,13 @@ class _MatchingScreenState extends State<MatchingScreen> {
         ),
       );
     }
-    if (_usableWords.length < _minWordsForRound) {
+    if (_availableCount < _minWordsForRound) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            'В словаре «${widget.dictionary.name}» пока недостаточно слов '
-            'для тренажёра «Сопоставление».\nДобавьте больше слов в Admin Web.',
+            'Для тренажёра «Сопоставление» нужно изучить хотя бы $_minWordsForRound слова.\n'
+            'Изучите слова в разделе «Изучение слов», чтобы начать.',
             textAlign: TextAlign.center,
           ),
         ),
@@ -208,7 +213,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
           ),
           const SizedBox(height: 12),
           if (isRoundComplete)
-            Expanded(child: _RoundCompleteView(onPlayAgain: _startRound, mistakes: _mistakes))
+            Expanded(child: _RoundCompleteView(onPlayAgain: _load, mistakes: _mistakes))
           else
             Expanded(
               child: Row(
