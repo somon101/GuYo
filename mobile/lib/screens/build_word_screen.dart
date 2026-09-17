@@ -118,9 +118,10 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
     });
   }
 
-  /// Runs only when "Проверить" is pressed -- filling the last letter no
-  /// longer checks automatically, so the player always sees a deliberate
-  /// check-then-result-then-next step, matching a normal answer flow.
+  /// Runs only when "Проверить" is pressed -- one attempt per word. The
+  /// result (colored per letter) always shows, then the round always moves
+  /// on to the next word, whether this attempt was right or wrong; only
+  /// `_correctCount` depends on the outcome.
   void _evaluate() {
     if (_slots.contains(null) || _hasChecked || _isLocked) return;
     final item = _round!.items[_currentIndex];
@@ -137,18 +138,13 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
     setState(() {
       _slotColors = colors;
       _hasChecked = true;
+      _isLocked = true;
+      if (allCorrect) _correctCount++;
     });
-
-    if (allCorrect) {
-      setState(() {
-        _isLocked = true;
-        _correctCount++;
-      });
-      Future.delayed(const Duration(milliseconds: 700), () {
-        if (!mounted) return;
-        _advance();
-      });
-    }
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (!mounted) return;
+      _advance();
+    });
   }
 
   void _advance() {

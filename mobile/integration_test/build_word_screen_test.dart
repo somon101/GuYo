@@ -4,12 +4,14 @@
 //   - tapping a letter moves it into the assembly area and removes that
 //     specific button from the pool -- including tapping each of two
 //     identical letters (e.g. doggo's two g's) independently;
-//   - tapping a placed letter removes it back to the pool (undo);
-//   - a correct answer colors every slot green and auto-advances;
-//   - a wrong answer colors mismatched slots red and lets the player fix
-//     it by removing/replacing letters, without ending the round;
-//   - the round only completes once every word has been correctly built,
-//     and "Играть ещё раз" starts a fresh round.
+//   - tapping a placed letter removes it back to the pool (undo), but only
+//     before "Проверить" is pressed;
+//   - pressing "Проверить" checks the word once -- colors every slot
+//     green/red, then ALWAYS advances to the next word (right or wrong,
+//     one attempt per word, no retry);
+//   - the round always completes after all words have been attempted, with
+//     the correct-count reflecting only the right ones, and "Играть ещё
+//     раз" starts a fresh round.
 //
 // Run with:
 //   flutter test integration_test/build_word_screen_test.dart -d windows --dart-define=API_BASE_URL=http://127.0.0.1:8000
@@ -171,7 +173,7 @@ Future<void> _buildWord(WidgetTester tester, String word) async {
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('build words correctly, undo, wrong-answer coloring, completion, replay', (tester) async {
+  testWidgets('one attempt per word, always advances, completion, replay', (tester) async {
     final dictionaryId = await _englishDictionaryId();
     await _configureBuildWord(dictionaryId);
     await _learnAllWords(dictionaryId);
@@ -184,34 +186,40 @@ void main() {
 
     final seenWords = <String>{};
 
-    // --- Word 1: build it WRONG on purpose, check red coloring, then fix it ---
+    // --- Word 1: place one letter, then undo it before checking (still
+    // allowed pre-check), then build it WRONG on purpose. ---
     final word1 = _readCurrentCorrectWord(tester);
     seenWords.add(word1);
     expect(word1.length >= 3, isTrue, reason: 'min_word_length=3 should exclude nothing shorter than this');
 
-    // Tap letters in REVERSE order first (guaranteed wrong for any word
-    // with length > 1 and not a palindrome of itself under reversal --
-    // true for every word in this dev dataset).
+    final firstLetterButton = find.descendant(of: _poolArea, matching: find.text(word1[0])).first;
+    await tester.tap(firstLetterButton);
+    await tester.pump(const Duration(milliseconds: 80));
+    // Tap it back out of the slot -- undoing a placed letter must still
+    // work before the check button has been pressed.
+    final placedInSlot = find.descendant(of: _slotsArea, matching: find.text(word1[0])).first;
+    await tester.tap(placedInSlot);
+    await tester.pump(const Duration(milliseconds: 80));
+    expect(
+      find.descendant(of: _slotsArea, matching: find.text(word1[0])),
+      findsNothing,
+      reason: 'tapping a placed letter before checking must return it to the pool',
+    );
+
+    // Now build it WRONG on purpose (reversed order -- guaranteed wrong for
+    // any word with length > 1 that is not its own reversal, true for
+    // every word in this dev dataset), and confirm a wrong answer STILL
+    // advances -- one attempt per word, no retry.
     final reversed = word1.split('').reversed.join();
     await _buildWord(tester, reversed);
-    await tester.pumpAndSettle(const Duration(milliseconds: 200));
-
-    // Still on the same word -- a wrong answer must not advance or complete.
-    expect(find.textContaining('Слово 1 из 6'), findsOneWidget, reason: 'wrong answer must not advance');
-    expect(_readCurrentCorrectWord(tester), word1, reason: 'wrong answer must not replace the current item');
-
-    // Fix it: remove every placed letter (tap each slot) and rebuild correctly.
-    for (var i = 0; i < word1.length; i++) {
-      final anySlotLetter = find.descendant(of: _slotsArea, matching: find.textContaining(RegExp(r'.')));
-      await tester.tap(anySlotLetter.first);
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-    await _buildWord(tester, word1);
     await tester.pumpAndSettle(const Duration(seconds: 1));
 
-    // --- Words 2..6: build each correctly on the first try ---
+    expect(find.textContaining('Слово 2 из 6'), findsOneWidget, reason: 'a wrong answer must still advance');
+    expect(find.textContaining('Правильно'), findsNothing, reason: 'the wrong word-1 attempt must not be counted');
+
+    // --- Words 2..6: build each correctly ---
     for (var i = 2; i <= 6; i++) {
-      expect(find.textContaining('Слово $i из 6'), findsOneWidget, reason: 'should have advanced to word $i');
+      expect(find.textContaining('Слово $i из 6'), findsOneWidget, reason: 'should be on word $i');
       final word = _readCurrentCorrectWord(tester);
       expect(seenWords.contains(word), isFalse, reason: 'each word in the round must be distinct: $word');
       seenWords.add(word);
@@ -223,9 +231,9 @@ void main() {
       await tester.pumpAndSettle(const Duration(seconds: 1));
     }
 
-    // --- Round complete ---
+    // --- Round complete: 5 correct out of 6 (word 1 was wrong) ---
     expect(find.text('Упражнение завершено!'), findsOneWidget);
-    expect(find.textContaining('Собрано слов: 6 из 6'), findsOneWidget);
+    expect(find.textContaining('Собрано слов: 5 из 6'), findsOneWidget);
     expect(seenWords.length, 6, reason: 'all 6 distinct dev words must have appeared exactly once');
 
     // --- Replay: a fresh round starts from word 1 again ---
