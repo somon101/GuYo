@@ -8,10 +8,18 @@ class ExerciseSettingsOut(BaseModel):
 
     exercise_key: str
     word_count: int
+    # Only meaningful for exercises that use them (currently "build_word");
+    # null for every other exercise_key.
+    wrong_letter_count: int | None = None
+    min_word_length: int | None = None
+    case_sensitive: bool | None = None
 
 
 class ExerciseSettingsIn(BaseModel):
     word_count: int = Field(ge=1, le=100)
+    wrong_letter_count: int | None = Field(default=None, ge=0, le=20)
+    min_word_length: int | None = Field(default=None, ge=1, le=50)
+    case_sensitive: bool | None = None
 
 
 class TrueOrFalseItemOut(BaseModel):
@@ -49,3 +57,30 @@ class ExerciseWordsOut(BaseModel):
     exercise_key: str
     available_count: int
     words: list[WordOut]
+
+
+class BuildWordItemOut(BaseModel):
+    word_id: int
+    translation: str
+    # The word to build, exactly as stored (real casing/duplicates
+    # preserved) -- the client compares the assembled letters against this
+    # position by position; whether that comparison is case-sensitive is
+    # `BuildWordRoundOut.case_sensitive`, not decided per item.
+    correct_word: str
+    # Every letter the player can tap: the word's own letters (with their
+    # real multiplicity) plus the configured number of wrong distractor
+    # letters, already shuffled together. Never fewer distractors than
+    # configured only because the alphabet couldn't supply enough distinct
+    # ones -- see get_build_word_round.
+    letters: list[str]
+    transcription: str | None
+    image_url: str | None
+    word_audio_url: str | None
+    translation_audio_url: str | None
+
+
+class BuildWordRoundOut(BaseModel):
+    dictionary_id: int
+    available_count: int
+    case_sensitive: bool
+    items: list[BuildWordItemOut]

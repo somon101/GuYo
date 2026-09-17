@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/dictionary.dart';
+import 'build_word_screen.dart';
 import 'dictionary_words_screen.dart';
 import 'learning_screen.dart';
 import 'matching_screen.dart';
@@ -43,6 +44,11 @@ class MainMenuScreen extends StatelessWidget {
           icon: Icons.rule_outlined,
           label: 'Правда или ложь',
           builder: (_) => TrueOrFalseScreen(dictionary: dictionary),
+        ),
+        _MenuItem(
+          icon: Icons.abc_outlined,
+          label: 'Собери слово',
+          builder: (_) => BuildWordScreen(dictionary: dictionary),
         ),
       ];
 

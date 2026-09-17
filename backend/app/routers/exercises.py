@@ -26,6 +26,8 @@ from app.models.user import User
 from app.models.word import Word
 from app.routers.words import word_to_out
 from app.schemas.exercise import (
+    BuildWordItemOut,
+    BuildWordRoundOut,
     ExerciseSettingsIn,
     ExerciseSettingsOut,
     ExerciseWordsOut,
@@ -37,7 +39,11 @@ router = APIRouter(tags=["exercises"])
 
 TRUE_OR_FALSE_KEY = "true_or_false"
 MATCHING_KEY = "matching"
+BUILD_WORD_KEY = "build_word"
 DEFAULT_WORD_COUNT = 10
+DEFAULT_WRONG_LETTER_COUNT = 3
+DEFAULT_MIN_WORD_LENGTH = 3
+DEFAULT_CASE_SENSITIVE = False
 
 
 def _get_published_dictionary_or_404(db: Session, dictionary_id: int) -> Dictionary:
@@ -50,6 +56,23 @@ def _get_published_dictionary_or_404(db: Session, dictionary_id: int) -> Diction
 def _get_word_count(db: Session, exercise_key: str) -> int:
     settings = db.query(ExerciseSettings).filter(ExerciseSettings.exercise_key == exercise_key).first()
     return settings.word_count if settings is not None else DEFAULT_WORD_COUNT
+
+
+def _get_build_word_settings(db: Session) -> tuple[int, int, bool]:
+    """(wrong_letter_count, min_word_length, case_sensitive) for
+    "build_word", each independently falling back to its own default when
+    unset -- an admin can set word_count without having touched these yet."""
+    settings = db.query(ExerciseSettings).filter(ExerciseSettings.exercise_key == BUILD_WORD_KEY).first()
+    wrong_letter_count = (
+        settings.wrong_letter_count if settings and settings.wrong_letter_count is not None else DEFAULT_WRONG_LETTER_COUNT
+    )
+    min_word_length = (
+        settings.min_word_length if settings and settings.min_word_length is not None else DEFAULT_MIN_WORD_LENGTH
+    )
+    case_sensitive = (
+        settings.case_sensitive if settings and settings.case_sensitive is not None else DEFAULT_CASE_SENSITIVE
+    )
+    return wrong_letter_count, min_word_length, case_sensitive
 
 
 def _get_usable_learned_words(db: Session, user_id: int, dictionary_id: int) -> list[Word]:
@@ -81,10 +104,19 @@ def _pick_round_words(db: Session, usable_words: list[Word], exercise_key: str) 
 def get_exercise_settings(
     exercise_key: str, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
 ):
-    """Admin Web reads this to show the current word count -- falls back to
-    DEFAULT_WORD_COUNT (never a 404) so an exercise works out of the box
-    before an admin ever visits the settings page."""
-    return ExerciseSettingsOut(exercise_key=exercise_key, word_count=_get_word_count(db, exercise_key))
+    """Admin Web reads this to show the current settings -- falls back to
+    each field's own default (never a 404) so an exercise works out of the
+    box before an admin ever visits the settings page. The extra fields
+    (wrong_letter_count/min_word_length/case_sensitive) are only ever
+    non-null for exercise_keys that actually use them."""
+    settings = db.query(ExerciseSettings).filter(ExerciseSettings.exercise_key == exercise_key).first()
+    return ExerciseSettingsOut(
+        exercise_key=exercise_key,
+        word_count=settings.word_count if settings else DEFAULT_WORD_COUNT,
+        wrong_letter_count=settings.wrong_letter_count if settings else None,
+        min_word_length=settings.min_word_length if settings else None,
+        case_sensitive=settings.case_sensitive if settings else None,
+    )
 
 
 @router.put("/exercise-settings/{exercise_key}", response_model=ExerciseSettingsOut)
@@ -100,8 +132,17 @@ def set_exercise_settings(
         db.add(settings)
     else:
         settings.word_count = payload.word_count
+    settings.wrong_letter_count = payload.wrong_letter_count
+    settings.min_word_length = payload.min_word_length
+    settings.case_sensitive = payload.case_sensitive
     db.commit()
-    return ExerciseSettingsOut(exercise_key=exercise_key, word_count=payload.word_count)
+    return ExerciseSettingsOut(
+        exercise_key=exercise_key,
+        word_count=payload.word_count,
+        wrong_letter_count=payload.wrong_letter_count,
+        min_word_length=payload.min_word_length,
+        case_sensitive=payload.case_sensitive,
+    )
 
 
 @router.get("/dictionaries/{dictionary_id}/exercises/true-or-false", response_model=TrueOrFalseRoundOut)
@@ -200,4 +241,80 @@ def get_exercise_learned_words(
         exercise_key=exercise_key,
         available_count=len(usable_words),
         words=[word_to_out(w) for w in selected],
+    )
+
+
+def _build_word_item(word: Word, alphabet: str, wrong_letter_count: int) -> BuildWordItemOut:
+    """One "Собери слово" task: the real letters of `word.word`, in their
+    real order and multiplicity (so e.g. HELLO's two L's are both present),
+    plus up to `wrong_letter_count` distractor letters drawn from the
+    dictionary's own alphabet, then everything shuffled together.
+
+    Distractors prefer letters that don't appear in the word at all, so
+    they never accidentally inflate a letter's count beyond what the real
+    word actually has; if the alphabet can't supply enough distinct ones,
+    whatever's available is used instead (never padded with duplicates)."""
+    correct_word = word.word
+    correct_letters = list(correct_word)
+    correct_letters_lower = {c.lower() for c in correct_letters}
+
+    candidates = [c for c in alphabet if c.lower() not in correct_letters_lower]
+    seen: set[str] = set()
+    unique_candidates = []
+    for c in candidates:
+        key = c.lower()
+        if key not in seen:
+            seen.add(key)
+            unique_candidates.append(c)
+    random.shuffle(unique_candidates)
+    wrong_letters = unique_candidates[:wrong_letter_count]
+
+    all_letters = correct_letters + wrong_letters
+    random.shuffle(all_letters)
+
+    primary_translation = word.translations[0]
+    return BuildWordItemOut(
+        word_id=word.id,
+        translation=primary_translation.text,
+        correct_word=correct_word,
+        letters=all_letters,
+        transcription=word.transcription,
+        image_url=url_for_key(word.image_key),
+        word_audio_url=url_for_key(word.word_audio_key),
+        translation_audio_url=url_for_key(primary_translation.audio_key),
+    )
+
+
+@router.get("/dictionaries/{dictionary_id}/exercises/build-word", response_model=BuildWordRoundOut)
+def get_build_word_round(
+    dictionary_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """"Собери слово": same learned-word source and admin-configured
+    word_count as every other exercise here, plus its own extra knobs
+    (wrong_letter_count, min_word_length, case_sensitive) and the
+    dictionary's own alphabet for distractor letters -- never a hardcoded
+    English/Russian alphabet.
+
+    Words shorter than `min_word_length` are excluded from the pool
+    entirely (there's no meaningful task to build from them), the same way
+    True/False excludes words with no translation -- both are "can't build
+    a valid task from this word" filters, not an availability cap."""
+    dictionary = _get_published_dictionary_or_404(db, dictionary_id)
+    wrong_letter_count, min_word_length, case_sensitive = _get_build_word_settings(db)
+
+    usable_words = _get_usable_learned_words(db, user.id, dictionary_id)
+    usable_words = [w for w in usable_words if len(w.word) >= min_word_length]
+    available_count = len(usable_words)
+
+    selected = _pick_round_words(db, usable_words, BUILD_WORD_KEY)
+    alphabet = dictionary.alphabet or ""
+
+    items = [_build_word_item(w, alphabet, wrong_letter_count) for w in selected]
+    return BuildWordRoundOut(
+        dictionary_id=dictionary_id,
+        available_count=available_count,
+        case_sensitive=case_sensitive,
+        items=items,
     )

@@ -34,6 +34,10 @@ export interface Dictionary {
   name: string;
   language: string;
   is_published: boolean;
+  // Every distinct letter of this language, as one string (e.g.
+  // "abcdefghijklmnopqrstuvwxyz") -- used by exercises that need
+  // distractor letters (e.g. "Собери слово"). Null until an admin sets it.
+  alphabet: string | null;
   created_at: string;
   word_count: number;
 }
@@ -110,4 +114,9 @@ export interface Phrase {
 export interface ExerciseSettings {
   exercise_key: string;
   word_count: number;
+  // Only meaningful for exercises that use them (currently "build_word");
+  // null for every other exercise_key.
+  wrong_letter_count: number | null;
+  min_word_length: number | null;
+  case_sensitive: boolean | null;
 }

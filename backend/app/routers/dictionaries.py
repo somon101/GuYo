@@ -42,6 +42,7 @@ def create_dictionary(
         name=resolve_dictionary_language_label(payload.language),
         language=payload.language,
         is_published=False,
+        alphabet=payload.alphabet.strip() if payload.alphabet and payload.alphabet.strip() else None,
     )
     db.add(dictionary)
     db.commit()
@@ -71,14 +72,18 @@ def update_dictionary(
     db: Session = Depends(get_db),
     _admin=Depends(get_current_admin),
 ):
-    """Publishes or unpublishes the whole dictionary block. There is no
+    """Publishes/unpublishes the dictionary block and/or updates its
+    alphabet -- whichever field(s) the request actually sends. There is no
     separate per-Word publish state: every Word already in the dictionary,
     and every one added to it afterwards, follows this single flag."""
     dictionary = db.get(Dictionary, dictionary_id)
     if dictionary is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dictionary not found")
 
-    dictionary.is_published = payload.is_published
+    if payload.is_published is not None:
+        dictionary.is_published = payload.is_published
+    if payload.alphabet is not None:
+        dictionary.alphabet = payload.alphabet.strip() or None
     db.commit()
     db.refresh(dictionary)
 

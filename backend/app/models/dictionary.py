@@ -36,6 +36,12 @@ class Dictionary(Base):
     # Publication is a single flag for the whole dictionary (and therefore
     # every Word in it) -- there is deliberately no per-Word publish state.
     is_published: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false", default=False)
+    # Every distinct letter of this language, as one plain string (e.g.
+    # "abcdefghijklmnopqrstuvwxyz") -- nullable since not every existing
+    # dictionary has one set yet. Exercises that need distractor letters
+    # (e.g. "Собери слово") read this directly; nothing about any specific
+    # language's alphabet is ever hardcoded into an exercise.
+    alphabet: Mapped[str | None] = mapped_column(String(256), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     words: Mapped[list["Word"]] = relationship(

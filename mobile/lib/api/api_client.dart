@@ -242,4 +242,13 @@ class ApiClient {
     final list = body['words'] as List<dynamic>;
     return list.map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
   }
+
+  Future<BuildWordRound> fetchBuildWordRound(int dictionaryId) async {
+    final res = await http.get(
+      _uri('/dictionaries/$dictionaryId/exercises/build-word'),
+      headers: await _authHeaders(),
+    );
+    await _throwIfUnauthorized(res);
+    return BuildWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
 }

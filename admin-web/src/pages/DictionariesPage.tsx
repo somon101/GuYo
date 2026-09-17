@@ -1,6 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { createDictionary, deleteDictionary, listDictionaries, setDictionaryPublished } from "../api/endpoints";
+import {
+  createDictionary,
+  deleteDictionary,
+  listDictionaries,
+  setDictionaryAlphabet,
+  setDictionaryPublished,
+} from "../api/endpoints";
 import type { Dictionary } from "../types";
 import { DEFAULT_LANGUAGE_PRESETS } from "../types";
 
@@ -40,6 +46,11 @@ export function DictionariesPage() {
     } finally {
       setPublishingId(null);
     }
+  }
+
+  async function handleSaveAlphabet(dictionaryId: number, alphabet: string) {
+    const updated = await setDictionaryAlphabet(dictionaryId, alphabet);
+    setDictionaries((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
   }
 
   async function handleDelete(dictionary: Dictionary) {
@@ -115,6 +126,8 @@ export function DictionariesPage() {
               </p>
               <p className="mt-1 text-xs text-slate-400">{d.word_count} слов</p>
 
+              <AlphabetEditor dictionary={d} onSave={(alphabet) => handleSaveAlphabet(d.id, alphabet)} />
+
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <Link
                   to={`/dictionaries/${d.id}`}
@@ -153,6 +166,66 @@ export function DictionariesPage() {
   );
 }
 
+/** Inline "Алфавит" field on each language card -- used by exercises that
+ * need distractor letters (e.g. "Собери слово"). Never a hardcoded
+ * per-language alphabet anywhere else: this is the one place it's set. */
+function AlphabetEditor({
+  dictionary,
+  onSave,
+}: {
+  dictionary: Dictionary;
+  onSave: (alphabet: string) => Promise<void>;
+}) {
+  const [value, setValue] = useState(dictionary.alphabet ?? "");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [savedNotice, setSavedNotice] = useState(false);
+
+  const isDirty = value !== (dictionary.alphabet ?? "");
+
+  async function handleSave() {
+    setIsSaving(true);
+    setError(null);
+    setSavedNotice(false);
+    try {
+      await onSave(value.trim());
+      setSavedNotice(true);
+      setTimeout(() => setSavedNotice(false), 3000);
+    } catch {
+      setError("Не удалось сохранить алфавит");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <div className="mt-3">
+      <label className="mb-1 block text-xs font-medium text-slate-500" htmlFor={`alphabet-${dictionary.id}`}>
+        Алфавит (для упражнений с буквами)
+      </label>
+      <div className="flex items-center gap-2">
+        <input
+          id={`alphabet-${dictionary.id}`}
+          className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="abcdefghijklmnopqrstuvwxyz"
+          translate="no"
+        />
+        <button
+          onClick={handleSave}
+          disabled={isSaving || !isDirty}
+          className="shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+        >
+          {isSaving ? "…" : "Сохранить"}
+        </button>
+      </div>
+      {savedNotice && <p className="mt-1 text-xs text-emerald-600">Сохранено</p>}
+      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+    </div>
+  );
+}
+
 function CreateDictionaryForm({
   existingLanguages,
   onCreated,
@@ -173,6 +246,7 @@ function CreateDictionaryForm({
   const ADD_NEW = "__add_new__";
   const [selected, setSelected] = useState<string>(options[0]?.value ?? ADD_NEW);
   const [newLanguageName, setNewLanguageName] = useState("");
+  const [alphabet, setAlphabet] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -190,7 +264,7 @@ function CreateDictionaryForm({
 
     setIsSubmitting(true);
     try {
-      await createDictionary(language);
+      await createDictionary(language, alphabet.trim() || undefined);
       onCreated();
     } catch {
       setError("Не удалось создать язык");
@@ -234,6 +308,19 @@ function CreateDictionaryForm({
           />
         </div>
       )}
+
+      <div>
+        <label className="mb-1 block text-sm font-medium text-slate-700">
+          Алфавит <span className="font-normal text-slate-400">(необязательно, можно задать позже)</span>
+        </label>
+        <input
+          className="w-full max-w-xs rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          value={alphabet}
+          onChange={(e) => setAlphabet(e.target.value)}
+          placeholder="abcdefghijklmnopqrstuvwxyz"
+          translate="no"
+        />
+      </div>
 
       <div className="flex gap-2">
         <button

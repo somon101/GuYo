@@ -37,8 +37,8 @@ export async function listDictionaries(): Promise<Dictionary[]> {
   return data;
 }
 
-export async function createDictionary(language: string): Promise<Dictionary> {
-  const { data } = await api.post("/dictionaries", { language });
+export async function createDictionary(language: string, alphabet?: string): Promise<Dictionary> {
+  const { data } = await api.post("/dictionaries", { language, alphabet: alphabet || undefined });
   return data;
 }
 
@@ -49,6 +49,11 @@ export async function getDictionary(id: number): Promise<Dictionary> {
 
 export async function setDictionaryPublished(id: number, isPublished: boolean): Promise<Dictionary> {
   const { data } = await api.patch(`/dictionaries/${id}`, { is_published: isPublished });
+  return data;
+}
+
+export async function setDictionaryAlphabet(id: number, alphabet: string): Promise<Dictionary> {
+  const { data } = await api.patch(`/dictionaries/${id}`, { alphabet });
   return data;
 }
 
@@ -347,7 +352,24 @@ export async function getExerciseSettings(exerciseKey: string): Promise<Exercise
   return data;
 }
 
-export async function setExerciseSettings(exerciseKey: string, wordCount: number): Promise<ExerciseSettings> {
-  const { data } = await api.put(`/exercise-settings/${exerciseKey}`, { word_count: wordCount });
+export interface ExerciseSettingsInput {
+  wordCount: number;
+  // Only "Собери слово" uses these today; omit them for exercises that
+  // only have a word count.
+  wrongLetterCount?: number | null;
+  minWordLength?: number | null;
+  caseSensitive?: boolean | null;
+}
+
+export async function setExerciseSettings(
+  exerciseKey: string,
+  input: ExerciseSettingsInput,
+): Promise<ExerciseSettings> {
+  const { data } = await api.put(`/exercise-settings/${exerciseKey}`, {
+    word_count: input.wordCount,
+    wrong_letter_count: input.wrongLetterCount ?? null,
+    min_word_length: input.minWordLength ?? null,
+    case_sensitive: input.caseSensitive ?? null,
+  });
   return data;
 }
