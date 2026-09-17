@@ -78,7 +78,7 @@ class ApiClient {
 
   Future<List<GuyoDictionary>> fetchDictionaries() async {
     final res = await http.get(_uri('/dictionaries'), headers: await _authHeaders());
-    _throwIfUnauthorized(res);
+    await _throwIfUnauthorized(res);
     final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
     return list.map((e) => GuyoDictionary.fromJson(e as Map<String, dynamic>)).toList();
   }
@@ -88,13 +88,25 @@ class ApiClient {
       _uri('/dictionaries/$dictionaryId/words'),
       headers: await _authHeaders(),
     );
-    _throwIfUnauthorized(res);
+    await _throwIfUnauthorized(res);
     final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
     return list.map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  void _throwIfUnauthorized(http.Response res) {
-    if (res.statusCode == 401 || res.statusCode == 403) {
+  /// A 401 means this specific token is invalid/expired/for a deleted user
+  /// -- never just a transient network hiccup. Left in secure storage, it
+  /// would keep `isLoggedIn` reporting true forever (e.g. a token saved by
+  /// an earlier debug build against a different backend), silently
+  /// skipping the login screen on every future launch while every actual
+  /// request keeps failing. Clearing it here means the very next app start
+  /// -- or the explicit "Войти заново" this throws towards -- lands back
+  /// on a real login instead of a dead retry loop.
+  Future<void> _throwIfUnauthorized(http.Response res) async {
+    if (res.statusCode == 401) {
+      await clearToken();
+      throw ApiException('Сессия истекла, войдите снова', statusCode: res.statusCode);
+    }
+    if (res.statusCode == 403) {
       throw ApiException('Сессия истекла, войдите снова', statusCode: res.statusCode);
     }
     if (res.statusCode >= 400) {
@@ -106,8 +118,12 @@ class ApiClient {
   /// `detail` message is meant to be shown to the user as-is (e.g. "Все
   /// доступные слова уже изучены") -- the backend is the source of truth
   /// for that wording, not a client-side copy of it.
-  void _throwWithDetail(http.Response res) {
-    if (res.statusCode == 401 || res.statusCode == 403) {
+  Future<void> _throwWithDetail(http.Response res) async {
+    if (res.statusCode == 401) {
+      await clearToken();
+      throw ApiException('Сессия истекла, войдите снова', statusCode: res.statusCode);
+    }
+    if (res.statusCode == 403) {
       throw ApiException('Сессия истекла, войдите снова', statusCode: res.statusCode);
     }
     if (res.statusCode >= 400) {
@@ -136,7 +152,7 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     if (res.statusCode == 404) return null;
-    _throwIfUnauthorized(res);
+    await _throwIfUnauthorized(res);
     return LearningSession.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
@@ -146,7 +162,7 @@ class ApiClient {
       headers: await _authHeaders(),
       body: jsonEncode({'dictionary_id': dictionaryId, 'count': count}),
     );
-    _throwWithDetail(res);
+    await _throwWithDetail(res);
     return LearningSession.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
@@ -155,7 +171,7 @@ class ApiClient {
       _uri('/learning/sessions/$sessionId/words/$wordId/learned'),
       headers: await _authHeaders(),
     );
-    _throwWithDetail(res);
+    await _throwWithDetail(res);
     return LearningSession.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
@@ -164,7 +180,7 @@ class ApiClient {
       _uri('/learning/sessions/$sessionId/words/$wordId/review'),
       headers: await _authHeaders(),
     );
-    _throwWithDetail(res);
+    await _throwWithDetail(res);
     return LearningSession.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
@@ -173,7 +189,7 @@ class ApiClient {
       _uri('/learned-words/categories?dictionary_id=$dictionaryId'),
       headers: await _authHeaders(),
     );
-    _throwIfUnauthorized(res);
+    await _throwIfUnauthorized(res);
     final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
     return list.map((e) => LearnedCategory.fromJson(e as Map<String, dynamic>)).toList();
   }
@@ -192,7 +208,7 @@ class ApiClient {
     };
     final uri = _uri('/learned-words').replace(queryParameters: params);
     final res = await http.get(uri, headers: await _authHeaders());
-    _throwIfUnauthorized(res);
+    await _throwIfUnauthorized(res);
     final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
     return list.map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
   }

@@ -169,15 +169,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
+            // A 401 means the stored token itself is dead (expired, or left
+            // over from a different backend/build) -- ApiClient has already
+            // cleared it by this point, so retrying the same request would
+            // just 401 again forever. Send the user back to a real login
+            // instead of trapping them in that loop.
+            final error = snapshot.error;
+            final sessionExpired = error is ApiException && error.statusCode == 401;
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('Не удалось загрузить словари', textAlign: TextAlign.center),
+                    Text(
+                      sessionExpired ? 'Сессия истекла' : 'Не удалось загрузить словари',
+                      textAlign: TextAlign.center,
+                    ),
                     const SizedBox(height: 12),
-                    FilledButton(onPressed: _reloadDictionaries, child: const Text('Повторить')),
+                    FilledButton(
+                      onPressed: sessionExpired ? _logout : _reloadDictionaries,
+                      child: Text(sessionExpired ? 'Войти заново' : 'Повторить'),
+                    ),
                   ],
                 ),
               ),
