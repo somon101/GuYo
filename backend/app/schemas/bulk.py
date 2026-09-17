@@ -10,6 +10,14 @@ class ImportWord(BaseModel):
     translation_tg: str = Field(default="", max_length=255)
     forms: list[str] = Field(default_factory=list)
     forms_tg: list[str] = Field(default_factory=list)
+    # Paths (relative to the dictionary ZIP root, e.g.
+    # "audio/original/<file>.mp3") to this word's own pronunciation and to
+    # its Tajik translation's pronunciation -- never language-suffixed
+    # (no audio_ru/audio_en/...): `audio` always means "pronunciation in
+    # this dictionary's own language", whatever that language is. Optional
+    # since not every word has recorded audio.
+    audio: str | None = Field(default=None, max_length=512)
+    audio_tg: str | None = Field(default=None, max_length=512)
 
 
 class ImportCategory(BaseModel):

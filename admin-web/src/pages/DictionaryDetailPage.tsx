@@ -6,7 +6,6 @@ import {
   getDictionary,
   importDictionary,
   listCategories,
-  type DictionaryBulkData,
   type ImportSummary,
 } from "../api/endpoints";
 import type { Category, Dictionary } from "../types";
@@ -50,12 +49,11 @@ export function DictionaryDetailPage() {
   }, [dictionaryId]);
 
   async function handleExport() {
-    const data = await exportDictionary(dictionaryId);
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const blob = await exportDictionary(dictionaryId);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${dictionary?.name ?? "dictionary"}.json`;
+    a.download = `${dictionary?.name ?? "dictionary"}.zip`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -73,13 +71,11 @@ export function DictionaryDetailPage() {
     setImportNotice(null);
     setIsImporting(true);
     try {
-      const text = await file.text();
-      const payload = JSON.parse(text) as DictionaryBulkData;
-      const summary = await importDictionary(dictionaryId, payload);
+      const summary = await importDictionary(dictionaryId, file);
       setImportNotice(summaryText(summary));
       await reload();
     } catch {
-      setImportError("Не удалось импортировать файл. Проверьте формат JSON.");
+      setImportError("Не удалось импортировать файл. Проверьте формат ZIP-архива.");
     } finally {
       setIsImporting(false);
     }
@@ -129,7 +125,7 @@ export function DictionaryDetailPage() {
           <input
             ref={importInputRef}
             type="file"
-            accept="application/json"
+            accept=".zip,application/zip"
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0] ?? null;

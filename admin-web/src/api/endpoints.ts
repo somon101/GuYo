@@ -186,26 +186,6 @@ export async function deleteTranslation(wordId: number, language: TranslationLan
   await api.delete(`/words/${wordId}/translations/${language}`);
 }
 
-/** The fixed categories/words JSON shape shared by import and export --
- * see the backend's ImportPayload/ExportPayload for the authoritative
- * definition. Kept as a loose type here since the admin only ever passes
- * it straight through (parsed from / serialized to a file). */
-export interface DictionaryBulkWord {
-  word: string;
-  translation_tg: string;
-  forms: string[];
-  forms_tg: string[];
-}
-
-export interface DictionaryBulkCategory {
-  name: string;
-  words: DictionaryBulkWord[];
-}
-
-export interface DictionaryBulkData {
-  categories: DictionaryBulkCategory[];
-}
-
 export interface ImportSummary {
   categories_created: number;
   categories_reused: number;
@@ -214,13 +194,21 @@ export interface ImportSummary {
   forms_added: number;
 }
 
-export async function importDictionary(dictionaryId: number, payload: DictionaryBulkData): Promise<ImportSummary> {
-  const { data } = await api.post(`/dictionaries/${dictionaryId}/import`, payload);
+/** Dictionary import/export now moves as a ZIP archive (dictionary.json --
+ * same fixed categories/words shape as before, now with optional `audio`/
+ * `audio_tg` paths per word -- plus the audio files themselves under
+ * audio/original/ and audio/tg/, see the backend's ImportPayload for the
+ * authoritative shape). The admin only ever passes the archive through as
+ * an opaque file/blob, never parses it client-side. */
+export async function importDictionary(dictionaryId: number, file: File): Promise<ImportSummary> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const { data } = await api.post(`/dictionaries/${dictionaryId}/import`, formData);
   return data;
 }
 
-export async function exportDictionary(dictionaryId: number): Promise<DictionaryBulkData> {
-  const { data } = await api.get(`/dictionaries/${dictionaryId}/export`);
+export async function exportDictionary(dictionaryId: number): Promise<Blob> {
+  const { data } = await api.get(`/dictionaries/${dictionaryId}/export`, { responseType: "blob" });
   return data;
 }
 
@@ -311,9 +299,9 @@ export async function deletePhrase(phraseId: number): Promise<void> {
 }
 
 // The fixed categories/phrases JSON shape shared by phrase import/export --
-// see the backend's ImportPhrasePayload/ExportPhrasePayload. Same principle
-// as DictionaryBulkData for Words, with sentence/translation_tg instead of
-// word/translation_tg/forms/forms_tg.
+// see the backend's ImportPhrasePayload/ExportPhrasePayload. Phrases still
+// move as plain JSON (unlike the Word dictionary's ZIP format above), with
+// sentence/translation_tg instead of word/translation_tg/forms/forms_tg.
 export interface PhraseBulkPhrase {
   sentence: string;
   translation_tg: string;

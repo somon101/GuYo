@@ -29,16 +29,23 @@ def save_upload(upload: UploadFile | None, *, subdir: str) -> str | None:
     """Persist an uploaded file, returning its storage key, or None if no file given."""
     if upload is None or not upload.filename:
         return None
+    return save_bytes(upload.file.read(), subdir=subdir, filename_hint=upload.filename)
 
+
+def save_bytes(data: bytes, *, subdir: str, filename_hint: str) -> str:
+    """Same storage layout/naming as `save_upload` (uuid4 filename, original
+    extension kept), for bytes that didn't arrive as a multipart UploadFile
+    -- e.g. one audio file read out of an imported ZIP archive."""
     target_dir = MEDIA_ROOT / subdir
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    filename = f"{uuid.uuid4().hex}{_ext_for(upload)}"
+    suffix = Path(filename_hint or "").suffix
+    filename = f"{uuid.uuid4().hex}{suffix}"
     key = f"{subdir}/{filename}"
     dest = MEDIA_ROOT / key
 
     with dest.open("wb") as f:
-        f.write(upload.file.read())
+        f.write(data)
 
     return key
 

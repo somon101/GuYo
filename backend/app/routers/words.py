@@ -1,9 +1,13 @@
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+import io
+import json
+import zipfile
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.deps import Principal, get_current_admin, get_current_principal
 from app.core.languages import is_valid_translation_language
-from app.core.storage import delete_by_key, save_upload, url_for_key
+from app.core.storage import MEDIA_ROOT, delete_by_key, save_bytes, save_upload, url_for_key
 from app.database import get_db
 from app.models.category import Category
 from app.models.dictionary import Dictionary
@@ -348,22 +352,50 @@ def delete_form(
     return None
 
 
+def _read_zip_audio(zf: zipfile.ZipFile, path: str | None) -> bytes | None:
+    """Best-effort read of one audio entry out of the dictionary ZIP by the
+    relative path given in dictionary.json -- a missing entry (absent path,
+    null, or just not actually in the archive) must never abort the rest
+    of the import, only skip that one audio file."""
+    if not path:
+        return None
+    try:
+        return zf.read(path)
+    except KeyError:
+        return None
+
+
 @router.post("/dictionaries/{dictionary_id}/import", response_model=ImportSummary)
 def import_words(
     dictionary_id: int,
-    payload: ImportPayload,
+    file: UploadFile = File(...),
     db: Session = Depends(get_db),
     _admin=Depends(get_current_admin),
 ):
-    """Bulk-loads words from the fixed categories/words JSON format (see
-    ExportPayload, the exact same shape). A category already present
+    """Bulk-loads words from a dictionary ZIP archive: a `dictionary.json`
+    in the same fixed categories/words shape as before (see ExportPayload),
+    plus this word's own-language pronunciation and Tajik-translation
+    pronunciation as audio files referenced by relative path inside the
+    ZIP (see ImportWord.audio/audio_tg). A category already present
     (matched by name) is reused, never duplicated; a word already present
     in that category (matched by exact word text) is reused too -- its
-    Tajik translation is refreshed and any forms not already there (exact
-    text match, per language) are appended. Re-importing the same file is
-    therefore safe to repeat. Only genuinely new words get a new word_id."""
+    Tajik translation is refreshed, any forms not already there (exact
+    text match, per language) are appended, and audio is attached only
+    where the word/translation doesn't already have one (never clobbers
+    existing audio). Re-importing the same file is therefore safe to
+    repeat. Only genuinely new words get a new word_id."""
     dictionary = _get_dictionary_or_404(db, dictionary_id)
     _require_valid_language(dictionary.language)
+
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(file.file.read()))
+        payload_data = json.loads(zf.read("dictionary.json"))
+    except (zipfile.BadZipFile, KeyError, json.JSONDecodeError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid dictionary ZIP archive: expected a dictionary.json at its root",
+        ) from exc
+    payload = ImportPayload.model_validate(payload_data)
 
     categories_created = categories_reused = 0
     words_created = words_reused = 0
@@ -403,13 +435,37 @@ def import_words(
             else:
                 words_reused += 1
 
+            # The word's own pronunciation, in the dictionary's own
+            # language -- never touched if it already has one.
+            if db_word.word_audio_key is None:
+                audio_bytes = _read_zip_audio(zf, word_data.audio)
+                if audio_bytes is not None:
+                    db_word.word_audio_key = save_bytes(
+                        audio_bytes,
+                        subdir=f"dictionaries/{dictionary_id}/word_audio",
+                        filename_hint=word_data.audio,
+                    )
+
             translation_text = word_data.translation_tg.strip()
+            existing_translation = next((t for t in db_word.translations if t.language == "tg"), None)
             if translation_text:
-                existing_translation = next((t for t in db_word.translations if t.language == "tg"), None)
                 if existing_translation is None:
-                    db.add(WordTranslation(word_id=db_word.id, language="tg", text=translation_text))
+                    existing_translation = WordTranslation(word_id=db_word.id, language="tg", text=translation_text)
+                    db.add(existing_translation)
                 else:
                     existing_translation.text = translation_text
+
+            # The Tajik translation's own pronunciation -- attaches only to
+            # an actual "tg" translation row, and only if it doesn't
+            # already have audio.
+            if existing_translation is not None and existing_translation.audio_key is None:
+                audio_tg_bytes = _read_zip_audio(zf, word_data.audio_tg)
+                if audio_tg_bytes is not None:
+                    existing_translation.audio_key = save_bytes(
+                        audio_tg_bytes,
+                        subdir=f"dictionaries/{dictionary_id}/translation_audio/tg",
+                        filename_hint=word_data.audio_tg,
+                    )
 
             existing_main_forms = {f.text for f in db_word.forms if f.language == dictionary.language}
             for form_text in word_data.forms:
@@ -437,43 +493,80 @@ def import_words(
     )
 
 
-@router.get("/dictionaries/{dictionary_id}/export", response_model=ExportPayload)
+def _add_audio_to_zip(zf: zipfile.ZipFile, storage_key: str | None, zip_subdir: str) -> str | None:
+    """Copies one already-stored audio file (by its storage key) into the
+    export ZIP under `zip_subdir` ("audio/original" or "audio/tg"),
+    returning the path to reference from dictionary.json -- or None if
+    there's no audio, or the file is somehow missing from disk. The
+    storage key's own filename (already a unique uuid4-based name, see
+    app.core.storage) is reused as the ZIP entry name, so it can never
+    collide with another word's audio in the same archive."""
+    if not storage_key:
+        return None
+    file_path = MEDIA_ROOT / storage_key
+    if not file_path.is_file():
+        return None
+    entry_name = f"{zip_subdir}/{file_path.name}"
+    zf.write(file_path, entry_name)
+    return entry_name
+
+
+@router.get("/dictionaries/{dictionary_id}/export")
 def export_words(
     dictionary_id: int,
     db: Session = Depends(get_db),
     _admin=Depends(get_current_admin),
 ):
-    """The exact inverse of import, in the same fixed JSON shape -- the
-    result can be fed straight back into import. Words with no category
-    are grouped under a plain "Без категории" category, which round-trips
-    like any other named category on the next import."""
+    """The exact inverse of import: a ZIP archive containing dictionary.json
+    (same fixed categories/words shape, plus this word's own-language and
+    Tajik-translation audio paths when they exist) and the referenced audio
+    files themselves under audio/original/ and audio/tg/ -- the result can
+    be fed straight back into import. Words with no category are grouped
+    under a plain "Без категории" category, which round-trips like any
+    other named category on the next import."""
     dictionary = _get_dictionary_or_404(db, dictionary_id)
 
-    def word_out(w: Word) -> ExportWord:
-        tg_translation = next((t.text for t in w.translations if t.language == "tg"), "")
-        return ExportWord(
-            word=w.word,
-            translation_tg=tg_translation,
-            forms=[f.text for f in w.forms if f.language == dictionary.language],
-            forms_tg=[f.text for f in w.forms if f.language == "tg"],
-        )
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
 
-    categories = db.query(Category).filter(Category.dictionary_id == dictionary_id).order_by(Category.id).all()
-    result = [
-        ExportCategory(
-            name=cat.name,
-            words=[word_out(w) for w in db.query(Word).filter(Word.category_id == cat.id).order_by(Word.id).all()],
-        )
-        for cat in categories
-    ]
+        def word_out(w: Word) -> ExportWord:
+            tg_translation = next((t for t in w.translations if t.language == "tg"), None)
+            return ExportWord(
+                word=w.word,
+                translation_tg=tg_translation.text if tg_translation is not None else "",
+                forms=[f.text for f in w.forms if f.language == dictionary.language],
+                forms_tg=[f.text for f in w.forms if f.language == "tg"],
+                audio=_add_audio_to_zip(zf, w.word_audio_key, "audio/original"),
+                audio_tg=_add_audio_to_zip(
+                    zf, tg_translation.audio_key if tg_translation is not None else None, "audio/tg"
+                ),
+            )
 
-    uncategorized = (
-        db.query(Word)
-        .filter(Word.dictionary_id == dictionary_id, Word.category_id.is_(None))
-        .order_by(Word.id)
-        .all()
+        categories = db.query(Category).filter(Category.dictionary_id == dictionary_id).order_by(Category.id).all()
+        result = [
+            ExportCategory(
+                name=cat.name,
+                words=[
+                    word_out(w) for w in db.query(Word).filter(Word.category_id == cat.id).order_by(Word.id).all()
+                ],
+            )
+            for cat in categories
+        ]
+
+        uncategorized = (
+            db.query(Word)
+            .filter(Word.dictionary_id == dictionary_id, Word.category_id.is_(None))
+            .order_by(Word.id)
+            .all()
+        )
+        if uncategorized:
+            result.append(ExportCategory(name="Без категории", words=[word_out(w) for w in uncategorized]))
+
+        payload = ExportPayload(categories=result)
+        zf.writestr("dictionary.json", payload.model_dump_json(indent=2))
+
+    return Response(
+        content=zip_buffer.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="dictionary.zip"'},
     )
-    if uncategorized:
-        result.append(ExportCategory(name="Без категории", words=[word_out(w) for w in uncategorized]))
-
-    return ExportPayload(categories=result)
