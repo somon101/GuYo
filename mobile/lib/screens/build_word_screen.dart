@@ -197,64 +197,74 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
 
     final item = round.items[_currentIndex];
 
-    return Padding(
-      // Carries the current item's correct word for integration tests to
-      // read (a Key has no visual/behavioral effect) -- otherwise a test
-      // would have no way to know the target word without racing the
-      // backend's own random selection with a second, separate call.
-      key: ValueKey('build-word-active-${item.wordId}-${item.correctWord}'),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          Text(
-            'Слово ${_currentIndex + 1} из ${round.items.length}'
-            '${_correctCount > 0 ? '  ·  Правильно: $_correctCount' : ''}',
-            style: const TextStyle(fontSize: 14, color: Colors.black54),
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(12),
+    // SafeArea(bottom) keeps the letter pool clear of the phone's own
+    // on-screen navigation buttons; the slots sit inside Expanded+Center
+    // so they float in the middle of the remaining space instead of being
+    // shoved all the way down against the pool by a bare Spacer.
+    return SafeArea(
+      top: false,
+      child: Padding(
+        // Carries the current item's correct word for integration tests to
+        // read (a Key has no visual/behavioral effect) -- otherwise a test
+        // would have no way to know the target word without racing the
+        // backend's own random selection with a second, separate call.
+        key: ValueKey('build-word-active-${item.wordId}-${item.correctWord}'),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Text(
+              'Слово ${_currentIndex + 1} из ${round.items.length}'
+              '${_correctCount > 0 ? '  ·  Правильно: $_correctCount' : ''}',
+              style: const TextStyle(fontSize: 14, color: Colors.black54),
             ),
-            child: Text(
-              item.translation,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-              textAlign: TextAlign.center,
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                item.translation,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
-          const Spacer(),
-          Container(
-            key: const ValueKey('build-word-slots'),
-            child: Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (var i = 0; i < _slots.length; i++)
-                  _LetterSlot(
-                    letter: _slots[i]?.letter,
-                    color: _slotColors[i],
-                    onTap: () => _tapSlotTile(i),
+            Expanded(
+              child: Center(
+                child: Container(
+                  key: const ValueKey('build-word-slots'),
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (var i = 0; i < _slots.length; i++)
+                        _LetterSlot(
+                          letter: _slots[i]?.letter,
+                          color: _slotColors[i],
+                          onTap: () => _tapSlotTile(i),
+                        ),
+                    ],
                   ),
-              ],
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 32),
-          Container(
-            key: const ValueKey('build-word-pool'),
-            child: Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final tile in _pool)
-                  _LetterButton(key: ValueKey(tile.id), letter: tile.letter, onTap: () => _tapPoolTile(tile)),
-              ],
+            Container(
+              key: const ValueKey('build-word-pool'),
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final tile in _pool)
+                    _LetterButton(key: ValueKey(tile.id), letter: tile.letter, onTap: () => _tapPoolTile(tile)),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
