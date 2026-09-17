@@ -16,6 +16,13 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _error;
 
   Future<void> _submit() async {
+    // Submitting from the password field's IME action leaves that field's
+    // FocusNode holding focus while this whole screen gets replaced -- on
+    // some Android keyboards that leaves the system keyboard visibly
+    // "stuck" open and docked over every screen afterward, since nothing
+    // ever told it to close. Unfocusing before navigating away is what
+    // actually dismisses it.
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
       _isSubmitting = true;
       _error = null;
