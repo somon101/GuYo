@@ -155,13 +155,17 @@ Finder get _slotsArea => find.byKey(const ValueKey('build-word-slots'));
 
 /// Taps pool letters, in order, to spell [word] -- tapping the first
 /// still-available pool button with each required letter, so duplicate
-/// letters (each independently tappable) are handled correctly too.
+/// letters (each independently tappable) are handled correctly too -- then
+/// presses "Проверить", since checking is no longer automatic on the last
+/// letter.
 Future<void> _buildWord(WidgetTester tester, String word) async {
   for (final letter in word.split('')) {
     final button = find.descendant(of: _poolArea, matching: find.text(letter)).first;
     await tester.tap(button);
     await tester.pump(const Duration(milliseconds: 80));
   }
+  await tester.tap(find.byKey(const ValueKey('build-word-check-button')));
+  await tester.pump(const Duration(milliseconds: 80));
 }
 
 void main() {

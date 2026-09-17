@@ -44,6 +44,7 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
   List<_Tile?> _slots = [];
   List<Color?> _slotColors = [];
   bool _isLocked = false; // true briefly while a correct answer celebrates before advancing
+  bool _hasChecked = false; // true once "Проверить" has been pressed for the current letters
 
   @override
   void initState() {
@@ -89,6 +90,7 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
       _slots = List<_Tile?>.filled(item.correctWord.length, null);
       _slotColors = List<Color?>.filled(item.correctWord.length, null);
       _isLocked = false;
+      _hasChecked = false;
     });
   }
 
@@ -100,10 +102,8 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
       _slots[emptyIndex] = tile;
       _pool = _pool.where((t) => t.id != tile.id).toList();
       _slotColors = List<Color?>.filled(_slots.length, null);
+      _hasChecked = false;
     });
-    if (!_slots.contains(null)) {
-      _evaluate();
-    }
   }
 
   void _tapSlotTile(int slotIndex) {
@@ -114,10 +114,15 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
       _slots[slotIndex] = null;
       _pool = [..._pool, tile];
       _slotColors = List<Color?>.filled(_slots.length, null);
+      _hasChecked = false;
     });
   }
 
+  /// Runs only when "Проверить" is pressed -- filling the last letter no
+  /// longer checks automatically, so the player always sees a deliberate
+  /// check-then-result-then-next step, matching a normal answer flow.
   void _evaluate() {
+    if (_slots.contains(null) || _hasChecked || _isLocked) return;
     final item = _round!.items[_currentIndex];
     final caseSensitive = _round!.caseSensitive;
     var allCorrect = true;
@@ -129,7 +134,10 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
       colors.add(matches ? Colors.green.shade600 : Colors.red.shade600);
       if (!matches) allCorrect = false;
     }
-    setState(() => _slotColors = colors);
+    setState(() {
+      _slotColors = colors;
+      _hasChecked = true;
+    });
 
     if (allCorrect) {
       setState(() {
@@ -250,6 +258,15 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
                 ),
               ),
             ),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                key: const ValueKey('build-word-check-button'),
+                onPressed: (!_slots.contains(null) && !_hasChecked && !_isLocked) ? _evaluate : null,
+                child: const Text('Проверить'),
+              ),
+            ),
+            const SizedBox(height: 12),
             Container(
               key: const ValueKey('build-word-pool'),
               padding: const EdgeInsets.only(bottom: 12),
