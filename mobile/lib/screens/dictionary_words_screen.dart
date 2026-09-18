@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../models/word.dart';
+import '../widgets/audio_button.dart';
 
 class DictionaryWordsScreen extends StatefulWidget {
   final GuyoDictionary dictionary;
@@ -122,7 +122,7 @@ class _WordTile extends StatelessWidget {
                     ),
                     if (hasWordAudio) ...[
                       const SizedBox(width: 6),
-                      _AudioButton(url: ApiClient.instance.mediaUrl(word.wordAudioUrl!)),
+                      AudioButton(url: ApiClient.instance.mediaUrl(word.wordAudioUrl!)),
                     ],
                   ],
                 ),
@@ -141,7 +141,7 @@ class _WordTile extends StatelessWidget {
                       Text(word.translation, style: const TextStyle(fontSize: 16)),
                       if (hasTranslationAudio) ...[
                         const SizedBox(width: 6),
-                        _AudioButton(url: ApiClient.instance.mediaUrl(word.translationAudioUrl!)),
+                        AudioButton(url: ApiClient.instance.mediaUrl(word.translationAudioUrl!)),
                       ],
                     ],
                   ),
@@ -150,58 +150,6 @@ class _WordTile extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _AudioButton extends StatefulWidget {
-  final String url;
-  const _AudioButton({required this.url});
-
-  @override
-  State<_AudioButton> createState() => _AudioButtonState();
-}
-
-class _AudioButtonState extends State<_AudioButton> {
-  final _player = AudioPlayer();
-  bool _isPlaying = false;
-
-  @override
-  void dispose() {
-    _player.dispose();
-    super.dispose();
-  }
-
-  Future<void> _toggle() async {
-    if (_isPlaying) {
-      await _player.stop();
-      setState(() => _isPlaying = false);
-      return;
-    }
-    setState(() => _isPlaying = true);
-    try {
-      await _player.play(UrlSource(widget.url));
-      _player.onPlayerComplete.first.then((_) {
-        if (mounted) setState(() => _isPlaying = false);
-      });
-    } catch (_) {
-      if (mounted) setState(() => _isPlaying = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: _toggle,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.all(2),
-        child: Icon(
-          _isPlaying ? Icons.stop_circle : Icons.volume_up,
-          size: 20,
-          color: Theme.of(context).colorScheme.primary,
-        ),
       ),
     );
   }

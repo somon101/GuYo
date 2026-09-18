@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../models/exercise.dart';
+import '../widgets/audio_button.dart';
 
 /// One letter button/slot's contents, with a unique instance id so two
 /// identical letters (e.g. HELLO's two L's) are always distinguishable and
@@ -228,10 +229,21 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
                 border: Border.all(color: Colors.grey.shade300),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Text(
-                item.translation,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                textAlign: TextAlign.center,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Text(
+                      item.translation,
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  if (item.translationAudioUrl != null && item.translationAudioUrl!.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    AudioButton(url: ApiClient.instance.mediaUrl(item.translationAudioUrl!)),
+                  ],
+                ],
               ),
             ),
             Expanded(

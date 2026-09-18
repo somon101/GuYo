@@ -3,6 +3,7 @@ import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../models/learning.dart';
 import '../models/word.dart';
+import '../widgets/audio_button.dart';
 
 /// "Мои изученные слова": every Word (by word_id, no copies) the user has
 /// marked "Изучил" in the current language, grouped by the same Category
@@ -196,12 +197,22 @@ class _LearnedWordTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasTranscription = word.transcription != null && word.transcription!.isNotEmpty;
+    final hasWordAudio = word.wordAudioUrl != null && word.wordAudioUrl!.isNotEmpty;
+    final hasTranslationAudio = word.translationAudioUrl != null && word.translationAudioUrl!.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(word.word, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+          Row(
+            children: [
+              Text(word.word, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+              if (hasWordAudio) ...[
+                const SizedBox(width: 6),
+                AudioButton(url: ApiClient.instance.mediaUrl(word.wordAudioUrl!)),
+              ],
+            ],
+          ),
           if (hasTranscription)
             Padding(
               padding: const EdgeInsets.only(top: 2),
@@ -209,7 +220,15 @@ class _LearnedWordTile extends StatelessWidget {
             ),
           Padding(
             padding: const EdgeInsets.only(top: 4),
-            child: Text(word.translation, style: const TextStyle(fontSize: 15)),
+            child: Row(
+              children: [
+                Text(word.translation, style: const TextStyle(fontSize: 15)),
+                if (hasTranslationAudio) ...[
+                  const SizedBox(width: 6),
+                  AudioButton(url: ApiClient.instance.mediaUrl(word.translationAudioUrl!)),
+                ],
+              ],
+            ),
           ),
         ],
       ),

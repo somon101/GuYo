@@ -378,12 +378,14 @@ def import_words(
     pronunciation as audio files referenced by relative path inside the
     ZIP (see ImportWord.audio/audio_tg). A category already present
     (matched by name) is reused, never duplicated; a word already present
-    in that category (matched by exact word text) is reused too -- its
-    Tajik translation is refreshed, any forms not already there (exact
-    text match, per language) are appended, and audio is attached only
-    where the word/translation doesn't already have one (never clobbers
-    existing audio). Re-importing the same file is therefore safe to
-    repeat. Only genuinely new words get a new word_id."""
+    in that category (matched by exact word text) is reused too -- it's
+    synced, not overwritten: its Tajik translation text is refreshed, any
+    forms not already there (exact text match, per language) are appended
+    (existing forms are never removed just because this file doesn't list
+    them), and audio (word + Tajik translation) is added or replaced
+    whenever the ZIP actually references a real audio file, but left
+    exactly as-is when it doesn't. Re-importing the same file is therefore
+    safe to repeat. Only genuinely new words get a new word_id."""
     dictionary = _get_dictionary_or_404(db, dictionary_id)
     _require_valid_language(dictionary.language)
 
@@ -436,15 +438,20 @@ def import_words(
                 words_reused += 1
 
             # The word's own pronunciation, in the dictionary's own
-            # language -- never touched if it already has one.
-            if db_word.word_audio_key is None:
-                audio_bytes = _read_zip_audio(zf, word_data.audio)
-                if audio_bytes is not None:
-                    db_word.word_audio_key = save_bytes(
-                        audio_bytes,
-                        subdir=f"dictionaries/{dictionary_id}/word_audio",
-                        filename_hint=word_data.audio,
-                    )
+            # language. A ZIP that references real audio always wins (added
+            # if there was none, replaced if there already was one); a ZIP
+            # with no audio for this word (missing path, null, or the file
+            # just isn't in the archive) leaves whatever audio is already
+            # there alone -- sync never deletes data the new file is simply
+            # silent about.
+            audio_bytes = _read_zip_audio(zf, word_data.audio)
+            if audio_bytes is not None:
+                delete_by_key(db_word.word_audio_key)
+                db_word.word_audio_key = save_bytes(
+                    audio_bytes,
+                    subdir=f"dictionaries/{dictionary_id}/word_audio",
+                    filename_hint=word_data.audio,
+                )
 
             translation_text = word_data.translation_tg.strip()
             existing_translation = next((t for t in db_word.translations if t.language == "tg"), None)
@@ -456,11 +463,13 @@ def import_words(
                     existing_translation.text = translation_text
 
             # The Tajik translation's own pronunciation -- attaches only to
-            # an actual "tg" translation row, and only if it doesn't
-            # already have audio.
-            if existing_translation is not None and existing_translation.audio_key is None:
+            # an actual "tg" translation row. Same add-or-replace sync rule
+            # as the word's own audio above: real audio in the ZIP always
+            # wins, no audio referenced leaves the existing one alone.
+            if existing_translation is not None:
                 audio_tg_bytes = _read_zip_audio(zf, word_data.audio_tg)
                 if audio_tg_bytes is not None:
+                    delete_by_key(existing_translation.audio_key)
                     existing_translation.audio_key = save_bytes(
                         audio_tg_bytes,
                         subdir=f"dictionaries/{dictionary_id}/translation_audio/tg",

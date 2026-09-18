@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../models/exercise.dart';
+import '../widgets/audio_button.dart';
 
 /// "Правда или ложь": the backend hands back a ready round (which learned
 /// words, and for each one whether the shown translation is real or
@@ -225,7 +225,7 @@ class _TrueOrFalseCard extends StatelessWidget {
               ),
               if (hasWordAudio) ...[
                 const SizedBox(width: 8),
-                _ExerciseAudioButton(url: ApiClient.instance.mediaUrl(item.wordAudioUrl!)),
+                AudioButton(url: ApiClient.instance.mediaUrl(item.wordAudioUrl!), size: 22),
               ],
             ],
           ),
@@ -247,7 +247,7 @@ class _TrueOrFalseCard extends StatelessWidget {
               ),
               if (hasTranslationAudio) ...[
                 const SizedBox(width: 8),
-                _ExerciseAudioButton(url: ApiClient.instance.mediaUrl(item.shownTranslationAudioUrl!)),
+                AudioButton(url: ApiClient.instance.mediaUrl(item.shownTranslationAudioUrl!), size: 22),
               ],
             ],
           ),
@@ -282,58 +282,6 @@ class _RoundCompleteView extends StatelessWidget {
             label: const Text('Играть ещё раз'),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ExerciseAudioButton extends StatefulWidget {
-  final String url;
-  const _ExerciseAudioButton({required this.url});
-
-  @override
-  State<_ExerciseAudioButton> createState() => _ExerciseAudioButtonState();
-}
-
-class _ExerciseAudioButtonState extends State<_ExerciseAudioButton> {
-  final _player = AudioPlayer();
-  bool _isPlaying = false;
-
-  @override
-  void dispose() {
-    _player.dispose();
-    super.dispose();
-  }
-
-  Future<void> _toggle() async {
-    if (_isPlaying) {
-      await _player.stop();
-      if (mounted) setState(() => _isPlaying = false);
-      return;
-    }
-    setState(() => _isPlaying = true);
-    try {
-      await _player.play(UrlSource(widget.url));
-      _player.onPlayerComplete.first.then((_) {
-        if (mounted) setState(() => _isPlaying = false);
-      });
-    } catch (_) {
-      if (mounted) setState(() => _isPlaying = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: _toggle,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.all(2),
-        child: Icon(
-          _isPlaying ? Icons.stop_circle : Icons.volume_up,
-          size: 22,
-          color: Theme.of(context).colorScheme.primary,
-        ),
       ),
     );
   }

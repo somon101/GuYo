@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../models/word.dart';
+import '../widgets/audio_button.dart';
 
 /// exercise_key for this screen's admin-configurable word count (Admin
 /// Web's "Упражнения" page) -- same mechanism "Правда или ложь" uses.
@@ -225,6 +226,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
                       matchedIds: _matchedIds,
                       selectedId: _selectedLeftId,
                       labelOf: (w) => w.word,
+                      audioUrlOf: (w) => w.wordAudioUrl,
                       onTap: _tapLeft,
                       columnKeyPrefix: 'left',
                     ),
@@ -236,6 +238,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
                       matchedIds: _matchedIds,
                       selectedId: _selectedRightId,
                       labelOf: (w) => w.translation,
+                      audioUrlOf: (w) => w.translationAudioUrl,
                       onTap: _tapRight,
                       columnKeyPrefix: 'right',
                     ),
@@ -254,6 +257,7 @@ class _MatchColumn extends StatelessWidget {
   final Set<int> matchedIds;
   final int? selectedId;
   final String Function(GuyoWord) labelOf;
+  final String? Function(GuyoWord) audioUrlOf;
   final void Function(int wordId) onTap;
   // Distinguishes the left ("word") column from the right ("translation")
   // one in each card's Key, purely so widget/integration tests can target
@@ -267,6 +271,7 @@ class _MatchColumn extends StatelessWidget {
     required this.matchedIds,
     required this.selectedId,
     required this.labelOf,
+    required this.audioUrlOf,
     required this.onTap,
     required this.columnKeyPrefix,
   });
@@ -279,11 +284,13 @@ class _MatchColumn extends StatelessWidget {
         final word = words[index];
         final isMatched = matchedIds.contains(word.id);
         final isSelected = selectedId == word.id;
+        final audioUrl = audioUrlOf(word);
         return Padding(
           key: ValueKey('match-$columnKeyPrefix-${word.id}'),
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: _MatchCard(
             label: labelOf(word),
+            audioUrl: audioUrl != null && audioUrl.isNotEmpty ? ApiClient.instance.mediaUrl(audioUrl) : null,
             isMatched: isMatched,
             isSelected: isSelected,
             onTap: isMatched ? null : () => onTap(word.id),
@@ -296,12 +303,14 @@ class _MatchColumn extends StatelessWidget {
 
 class _MatchCard extends StatelessWidget {
   final String label;
+  final String? audioUrl;
   final bool isMatched;
   final bool isSelected;
   final VoidCallback? onTap;
 
   const _MatchCard({
     required this.label,
+    required this.audioUrl,
     required this.isMatched,
     required this.isSelected,
     required this.onTap,
@@ -335,14 +344,24 @@ class _MatchCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: border),
           ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              decoration: isMatched ? TextDecoration.lineThrough : null,
-              color: isMatched ? Colors.green.shade700 : null,
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    decoration: isMatched ? TextDecoration.lineThrough : null,
+                    color: isMatched ? Colors.green.shade700 : null,
+                  ),
+                ),
+              ),
+              if (audioUrl != null) ...[
+                const SizedBox(width: 4),
+                AudioButton(url: audioUrl!, size: 18),
+              ],
+            ],
           ),
         ),
       ),
