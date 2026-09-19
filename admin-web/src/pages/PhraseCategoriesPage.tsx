@@ -1,17 +1,29 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   createPhraseCategory,
   exportPhrases,
   getDictionary,
-  importPhrases,
+  getPhraseImportJob,
   listPhraseCategories,
-  type ImportPhraseSummary,
-  type PhraseBulkData,
+  startPhraseImport,
+  type ImportJob,
 } from "../api/endpoints";
 import type { Dictionary, PhraseCategory } from "../types";
 import { Modal } from "../components/Modal";
 import { LanguageSectionTabs } from "../components/LanguageSectionTabs";
+
+const IMPORT_JOB_POLL_MS = 1500;
+
+// Same reasoning as DictionaryDetailPage's importJobStorageKey: the import
+// itself runs on the backend as a job, independent of this component's
+// lifetime, so the job_id is kept in localStorage (keyed separately from
+// the word-dictionary job, per dictionary) rather than only in memory --
+// navigating away and back resumes polling instead of losing the result.
+function phraseImportJobStorageKey(dictionaryId: number): string {
+  return `guyo_phrase_import_job_${dictionaryId}`;
+}
 
 /** Category overview for Фразы -- the exact same shape as the word category
  * overview (DictionaryDetailPage), just pointed at the phrase-category API
@@ -27,9 +39,8 @@ export function PhraseCategoriesPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const [importNotice, setImportNotice] = useState<string | null>(null);
-  const [importError, setImportError] = useState<string | null>(null);
+  const [importJob, setImportJob] = useState<ImportJob | null>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function reload() {
     setIsLoading(true);
@@ -48,45 +59,87 @@ export function PhraseCategoriesPage() {
     }
   }
 
+  const pollImportJob = useCallback(
+    (jobId: string) => {
+      getPhraseImportJob(dictionaryId, jobId)
+        .then((job) => {
+          setImportJob(job);
+          if (job.status === "pending" || job.status === "processing") {
+            pollTimeoutRef.current = setTimeout(() => pollImportJob(jobId), IMPORT_JOB_POLL_MS);
+            return;
+          }
+          // Terminal state (completed or failed): the job's result is now
+          // shown from this response, so there's nothing left to resume
+          // from storage next time this page loads.
+          localStorage.removeItem(phraseImportJobStorageKey(dictionaryId));
+          if (job.status === "completed") {
+            reload();
+          }
+        })
+        .catch(() => {
+          // A transient network hiccup while polling must not make the
+          // import look "lost" -- the job keeps running server-side
+          // regardless, so just try again shortly.
+          pollTimeoutRef.current = setTimeout(() => pollImportJob(jobId), IMPORT_JOB_POLL_MS);
+        });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dictionaryId],
+  );
+
   useEffect(() => {
     reload();
+    const storedJobId = localStorage.getItem(phraseImportJobStorageKey(dictionaryId));
+    if (storedJobId) {
+      pollImportJob(storedJobId);
+    }
+    return () => {
+      if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dictionaryId]);
 
   async function handleExport() {
-    const data = await exportPhrases(dictionaryId);
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const blob = await exportPhrases(dictionaryId);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${dictionary?.name ?? "phrases"}-phrases.json`;
+    a.download = `${dictionary?.name ?? "phrases"}.zip`;
     a.click();
     URL.revokeObjectURL(url);
   }
 
-  function summaryText(s: ImportPhraseSummary): string {
+  function summaryText(job: ImportJob): string {
     return (
-      `Категорий создано: ${s.categories_created} (переиспользовано: ${s.categories_reused}) · ` +
-      `Фраз создано: ${s.phrases_created} (переиспользовано: ${s.phrases_reused})`
+      `Категорий создано: ${job.categories_created} (переиспользовано: ${job.categories_reused}) · ` +
+      `Фраз создано: ${job.phrases_created} (переиспользовано: ${job.phrases_reused})`
     );
   }
 
   async function handleImportFile(file: File) {
-    setImportError(null);
-    setImportNotice(null);
-    setIsImporting(true);
+    setImportJob(null);
     try {
-      const text = await file.text();
-      const payload = JSON.parse(text) as PhraseBulkData;
-      const summary = await importPhrases(dictionaryId, payload);
-      setImportNotice(summaryText(summary));
-      await reload();
+      const job = await startPhraseImport(dictionaryId, file);
+      localStorage.setItem(phraseImportJobStorageKey(dictionaryId), job.job_id);
+      setImportJob(job);
+      pollImportJob(job.job_id);
     } catch {
-      setImportError("Не удалось импортировать файл. Проверьте формат JSON.");
-    } finally {
-      setIsImporting(false);
+      setImportJob({
+        job_id: "",
+        status: "failed",
+        error_message: "Не удалось отправить файл на сервер. Проверьте соединение и повторите попытку.",
+        categories_created: null,
+        categories_reused: null,
+        words_created: null,
+        words_reused: null,
+        forms_added: null,
+        phrases_created: null,
+        phrases_reused: null,
+      });
     }
   }
+
+  const isImporting = importJob?.status === "pending" || importJob?.status === "processing";
 
   if (isLoading) {
     return <p className="text-sm text-slate-500">Загрузка…</p>;
@@ -134,7 +187,7 @@ export function PhraseCategoriesPage() {
           <input
             ref={importInputRef}
             type="file"
-            accept="application/json"
+            accept=".zip,application/zip"
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0] ?? null;
@@ -151,9 +204,20 @@ export function PhraseCategoriesPage() {
         </div>
       </div>
 
-      {(importNotice || importError) && (
-        <p className={`mb-4 text-sm ${importError ? "text-red-600" : "text-emerald-600"}`}>
-          {importError ?? importNotice}
+      {importJob && (
+        <p
+          className={`mb-4 text-sm ${
+            importJob.status === "failed"
+              ? "text-red-600"
+              : importJob.status === "completed"
+                ? "text-emerald-600"
+                : "text-slate-500"
+          }`}
+        >
+          {importJob.status === "failed" && (importJob.error_message ?? "Не удалось импортировать файл.")}
+          {importJob.status === "completed" && summaryText(importJob)}
+          {(importJob.status === "pending" || importJob.status === "processing") &&
+            "Импорт выполняется на сервере… Можно уйти со страницы — прогресс сохранится, и результат будет здесь при возврате."}
         </p>
       )}
 

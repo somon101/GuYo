@@ -38,14 +38,16 @@ class ImportSummary(BaseModel):
 
 
 class ImportJobOut(BaseModel):
-    """Server-tracked state of one ZIP import -- Admin Web polls this by
-    job_id instead of holding the operation's progress/result in its own
+    """Server-tracked state of one ZIP import -- either a dictionary (words)
+    ZIP or a phrases ZIP, both sharing this same shape. Admin Web polls this
+    by job_id instead of holding the operation's progress/result in its own
     component state, so a slow import keeps running (and its result stays
     retrievable) no matter what the admin's browser does in the meantime.
     `error_message` is only set once `status == "failed"`, and is a
-    specific reason (which word/category/path or JSON problem), never a
-    generic "invalid format" string; the count fields are only set once
-    `status == "completed"`."""
+    specific reason (which word/phrase/category/path or JSON problem),
+    never a generic "invalid format" string; the count fields are only set
+    once `status == "completed"`, and only the pair matching what this job
+    actually imported (words_*/forms_added, or phrases_*) is non-null."""
 
     job_id: str
     status: str  # "pending" | "processing" | "completed" | "failed"
@@ -55,6 +57,8 @@ class ImportJobOut(BaseModel):
     words_created: int | None = None
     words_reused: int | None = None
     forms_added: int | None = None
+    phrases_created: int | None = None
+    phrases_reused: int | None = None
 
 
 # Export uses the exact same shape as import, so a re-exported file can be
@@ -68,15 +72,22 @@ class ExportPayload(BaseModel):
 
 
 # --- Phrases -------------------------------------------------------------
-# Same import/export principle as Words above, but Phrase has no forms and
-# always carries its Tajik translation directly (translation_tg is a
-# required, non-null column on Phrase itself, not an optional child row),
-# so it's required here too -- unlike ImportWord.translation_tg.
+# Same import/export principle as Words above (including the ZIP+audio
+# shape), but Phrase has no forms and always carries its Tajik translation
+# directly (translation_tg is a required, non-null column on Phrase itself,
+# not an optional child row), so it's required here too -- unlike
+# ImportWord.translation_tg.
 
 
 class ImportPhrase(BaseModel):
     sentence: str = Field(min_length=1, max_length=1000)
     translation_tg: str = Field(min_length=1, max_length=1000)
+    # Paths (relative to the phrases ZIP root, e.g.
+    # "audio/phrases/original/<file>.mp3") to this phrase's own recording
+    # and to its Tajik translation's recording -- same optional,
+    # never-language-suffixed convention as ImportWord.audio/audio_tg.
+    audio: str | None = Field(default=None, max_length=512)
+    audio_tg: str | None = Field(default=None, max_length=512)
 
 
 class ImportPhraseCategory(BaseModel):

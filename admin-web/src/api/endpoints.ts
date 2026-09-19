@@ -187,14 +187,16 @@ export async function deleteTranslation(wordId: number, language: TranslationLan
   await api.delete(`/words/${wordId}/translations/${language}`);
 }
 
-/** Server-tracked state of one dictionary ZIP import (see the backend's
+/** Server-tracked state of one ZIP import -- either a dictionary (words)
+ * ZIP or a phrases ZIP, both sharing this same shape (see the backend's
  * ImportJobOut). The browser never parses the ZIP or decides whether it's
  * valid -- it only starts the job and polls this by job_id, so a slow
  * import keeps running on the backend (and its result stays retrievable)
  * no matter what the admin's tab does in the meantime. `error_message` is
- * a specific reason (which word/category/path, or which JSON problem),
- * only set once `status === "failed"`; the count fields are only set once
- * `status === "completed"`. */
+ * a specific reason (which word/phrase/category/path, or which JSON
+ * problem), only set once `status === "failed"`; the count fields are only
+ * set once `status === "completed"`, and only the pair matching what this
+ * job actually imported (words + forms, or phrases) is non-null. */
 export interface ImportJob {
   job_id: string;
   status: "pending" | "processing" | "completed" | "failed";
@@ -204,6 +206,8 @@ export interface ImportJob {
   words_created: number | null;
   words_reused: number | null;
   forms_added: number | null;
+  phrases_created: number | null;
+  phrases_reused: number | null;
 }
 
 /** Dictionary import/export moves as a ZIP archive (dictionary.json --
@@ -317,38 +321,29 @@ export async function deletePhrase(phraseId: number): Promise<void> {
   await api.delete(`/phrases/${phraseId}`);
 }
 
-// The fixed categories/phrases JSON shape shared by phrase import/export --
-// see the backend's ImportPhrasePayload/ExportPhrasePayload. Phrases still
-// move as plain JSON (unlike the Word dictionary's ZIP format above), with
-// sentence/translation_tg instead of word/translation_tg/forms/forms_tg.
-export interface PhraseBulkPhrase {
-  sentence: string;
-  translation_tg: string;
-}
-
-export interface PhraseBulkCategory {
-  name: string;
-  phrases: PhraseBulkPhrase[];
-}
-
-export interface PhraseBulkData {
-  categories: PhraseBulkCategory[];
-}
-
-export interface ImportPhraseSummary {
-  categories_created: number;
-  categories_reused: number;
-  phrases_created: number;
-  phrases_reused: number;
-}
-
-export async function importPhrases(dictionaryId: number, payload: PhraseBulkData): Promise<ImportPhraseSummary> {
-  const { data } = await api.post(`/dictionaries/${dictionaryId}/phrases/import`, payload);
+/** Phrase import/export moves as a ZIP archive (phrases.json -- fixed
+ * categories/phrases shape, each phrase optionally carrying `audio`/
+ * `audio_tg` paths -- plus the audio files themselves under
+ * audio/phrases/original/ and audio/phrases/tg/, see the backend's
+ * ImportPhrasePayload for the authoritative shape), same principle as the
+ * Word dictionary ZIP above. The admin only ever passes the archive through
+ * as an opaque file/blob, never parses it client-side. Starting an import
+ * only hands the file to the backend and gets a job_id back immediately;
+ * use `getPhraseImportJob` to poll for its actual result. */
+export async function startPhraseImport(dictionaryId: number, file: File): Promise<ImportJob> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const { data } = await api.post(`/dictionaries/${dictionaryId}/phrases/import`, formData);
   return data;
 }
 
-export async function exportPhrases(dictionaryId: number): Promise<PhraseBulkData> {
-  const { data } = await api.get(`/dictionaries/${dictionaryId}/phrases/export`);
+export async function getPhraseImportJob(dictionaryId: number, jobId: string): Promise<ImportJob> {
+  const { data } = await api.get(`/dictionaries/${dictionaryId}/phrases/import/${jobId}`);
+  return data;
+}
+
+export async function exportPhrases(dictionaryId: number): Promise<Blob> {
+  const { data } = await api.get(`/dictionaries/${dictionaryId}/phrases/export`, { responseType: "blob" });
   return data;
 }
 

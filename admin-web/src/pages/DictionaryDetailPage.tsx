@@ -130,6 +130,8 @@ export function DictionaryDetailPage() {
         words_created: null,
         words_reused: null,
         forms_added: null,
+        phrases_created: null,
+        phrases_reused: null,
       });
     }
   }

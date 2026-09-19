@@ -1,15 +1,26 @@
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+import io
+import json
+import os
+import tempfile
+import uuid
+import zipfile
+
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
+from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.orm import Session
 
 from app.core.deps import Principal, get_current_admin, get_current_principal
-from app.core.storage import delete_by_key, save_upload, url_for_key
-from app.database import get_db
+from app.core.storage import MEDIA_ROOT, delete_by_key, save_bytes, save_upload, url_for_key
+from app.database import SessionLocal, get_db
 from app.models.dictionary import Dictionary
+from app.models.import_job import ImportJob
 from app.models.phrase import Phrase, PhraseCategory
+from app.routers.words import _add_audio_to_zip, _read_zip_audio
 from app.schemas.bulk import (
     ExportPhrase,
     ExportPhraseCategory,
     ExportPhrasePayload,
+    ImportJobOut,
     ImportPhrasePayload,
     ImportPhraseSummary,
 )
@@ -204,22 +215,92 @@ def delete_phrase(phrase_id: int, db: Session = Depends(get_db), _admin=Depends(
     return None
 
 
-@router.post("/dictionaries/{dictionary_id}/phrases/import", response_model=ImportPhraseSummary)
-def import_phrases(
-    dictionary_id: int,
-    payload: ImportPhrasePayload,
-    db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
-):
-    """Bulk-loads phrases from the fixed categories/phrases JSON format (see
-    ExportPhrasePayload, the exact same shape) -- the phrase counterpart of
-    import_words in words.py, same rules: a category already present
-    (matched by name) is reused, never duplicated; a phrase already present
-    in that category (matched by exact `sentence` text) is reused too --
-    its Tajik translation is refreshed rather than duplicated. Only
-    genuinely new phrases get a new phrase_id."""
-    _get_dictionary_or_404(db, dictionary_id)
+def _validate_import_phrase_zip(zf: zipfile.ZipFile, payload: ImportPhrasePayload) -> None:
+    """Everything about the phrases ZIP that Pydantic's field types alone
+    can't check: each audio/audio_tg path (when present at all -- both
+    fields stay fully optional) must actually point at a real entry inside
+    this same archive, under the right audio/phrases/original/ or
+    audio/phrases/tg/ folder, and never escape the archive via "..".
+    Raises ValueError with a specific, human-readable reason (which phrase,
+    which category, which field) -- never a generic "invalid format" --
+    and runs to completion over the WHOLE payload before the import is
+    allowed to touch the database, so a problem anywhere in a large file
+    never produces a partial import. Mirrors words.py's
+    `_validate_import_zip`."""
+    zip_names = set(zf.namelist())
+    for cat in payload.categories:
+        cat_name = cat.name.strip()
+        if not cat_name:
+            raise ValueError("Найдена категория с пустым названием.")
+        for phrase in cat.phrases:
+            sentence = phrase.sentence.strip()
+            if not sentence:
+                raise ValueError(f"В категории «{cat_name}» найдена фраза с пустым текстом.")
+            for field_name, path, expected_prefix in (
+                ("audio", phrase.audio, "audio/phrases/original/"),
+                ("audio_tg", phrase.audio_tg, "audio/phrases/tg/"),
+            ):
+                if path is None:
+                    continue
+                if not path or path.startswith("/") or ".." in path.split("/"):
+                    raise ValueError(
+                        f"Фраза «{sentence}» ({cat_name}): недопустимый путь в поле {field_name}: {path!r}"
+                    )
+                if not path.startswith(expected_prefix):
+                    raise ValueError(
+                        f"Фраза «{sentence}» ({cat_name}): поле {field_name} должно начинаться с "
+                        f"{expected_prefix!r}, получено {path!r}"
+                    )
+                if path not in zip_names:
+                    raise ValueError(
+                        f"Фраза «{sentence}» ({cat_name}): файл {path!r}, указанный в поле {field_name}, "
+                        f"отсутствует в архиве"
+                    )
 
+
+def _open_and_validate_phrase_zip(zip_path: str) -> tuple[zipfile.ZipFile, ImportPhrasePayload]:
+    """The full pre-DB validation pass for a phrases ZIP: a real ZIP, a
+    phrases.json at its root, valid JSON, the fixed categories/phrases
+    shape, and every referenced audio file actually present. Mirrors
+    words.py's `_open_and_validate_zip`."""
+    try:
+        zf = zipfile.ZipFile(zip_path)
+    except zipfile.BadZipFile as exc:
+        raise ValueError("ZIP-архив повреждён или не является ZIP-файлом.") from exc
+
+    try:
+        raw = zf.read("phrases.json")
+    except KeyError as exc:
+        raise ValueError("В архиве отсутствует файл phrases.json.") from exc
+
+    try:
+        payload_data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"phrases.json содержит некорректный JSON: {exc}") from exc
+
+    try:
+        payload = ImportPhrasePayload.model_validate(payload_data)
+    except PydanticValidationError as exc:
+        first = exc.errors()[0]
+        loc = ".".join(str(part) for part in first["loc"]) or "categories"
+        raise ValueError(f"phrases.json не соответствует формату (поле {loc}): {first['msg']}") from exc
+
+    _validate_import_phrase_zip(zf, payload)
+    return zf, payload
+
+
+def _merge_import_phrase_payload(
+    db: Session, dictionary_id: int, zf: zipfile.ZipFile, payload: ImportPhrasePayload
+) -> ImportPhraseSummary:
+    """The actual merge, run only after `_open_and_validate_phrase_zip`
+    already passed: a category already present (matched by name) is reused,
+    never duplicated; a phrase already present in that category (matched by
+    exact `sentence` text) is reused too -- it's synced, not overwritten:
+    its Tajik translation text is refreshed, and audio (original + Tajik
+    translation) is added or replaced whenever the ZIP actually references a
+    real audio file, but left exactly as-is when it doesn't. Re-importing
+    the same file is therefore safe to repeat. Mirrors words.py's
+    `_merge_import_payload`."""
     categories_created = categories_reused = 0
     phrases_created = phrases_reused = 0
 
@@ -257,12 +338,34 @@ def import_phrases(
                     translation_tg=phrase_data.translation_tg.strip(),
                 )
                 db.add(db_phrase)
+                db.flush()
                 phrases_created += 1
             else:
                 db_phrase.translation_tg = phrase_data.translation_tg.strip()
                 phrases_reused += 1
 
-    db.commit()
+            # Same add-or-replace sync rule as words: real audio in the ZIP
+            # always wins (added if there was none, replaced if there
+            # already was one); no audio referenced leaves whatever's
+            # already there alone.
+            audio_bytes = _read_zip_audio(zf, phrase_data.audio)
+            if audio_bytes is not None:
+                delete_by_key(db_phrase.original_audio_key)
+                db_phrase.original_audio_key = save_bytes(
+                    audio_bytes,
+                    subdir=f"dictionaries/{dictionary_id}/phrase_original_audio",
+                    filename_hint=phrase_data.audio,
+                )
+
+            audio_tg_bytes = _read_zip_audio(zf, phrase_data.audio_tg)
+            if audio_tg_bytes is not None:
+                delete_by_key(db_phrase.translation_audio_key)
+                db_phrase.translation_audio_key = save_bytes(
+                    audio_tg_bytes,
+                    subdir=f"dictionaries/{dictionary_id}/phrase_translation_audio",
+                    filename_hint=phrase_data.audio_tg,
+                )
+
     return ImportPhraseSummary(
         categories_created=categories_created,
         categories_reused=categories_reused,
@@ -271,39 +374,171 @@ def import_phrases(
     )
 
 
-@router.get("/dictionaries/{dictionary_id}/phrases/export", response_model=ExportPhrasePayload)
+def _run_import_phrase_job(job_id: str, dictionary_id: int, zip_path: str) -> None:
+    """The actual import work, run entirely outside the HTTP request that
+    started it -- same reasoning and shape as words.py's `_run_import_job`:
+    its own DB session, no FastAPI Depends() involved, keeps going (and
+    stays retrievable by job_id) no matter what Admin Web's browser does in
+    the meantime."""
+    db = SessionLocal()
+    try:
+        job = db.get(ImportJob, job_id)
+        if job is None:
+            return
+        job.status = "processing"
+        db.commit()
+
+        try:
+            dictionary = db.get(Dictionary, dictionary_id)
+            if dictionary is None:
+                raise ValueError("Словарь не найден.")
+
+            zf, payload = _open_and_validate_phrase_zip(zip_path)
+            try:
+                summary = _merge_import_phrase_payload(db, dictionary_id, zf, payload)
+                db.commit()
+            finally:
+                zf.close()
+
+            job = db.get(ImportJob, job_id)
+            job.status = "completed"
+            job.categories_created = summary.categories_created
+            job.categories_reused = summary.categories_reused
+            job.phrases_created = summary.phrases_created
+            job.phrases_reused = summary.phrases_reused
+            db.commit()
+        except ValueError as exc:
+            db.rollback()
+            job = db.get(ImportJob, job_id)
+            job.status = "failed"
+            job.error_message = str(exc)
+            db.commit()
+        except Exception as exc:  # noqa: BLE001 -- an import job must always reach a terminal state
+            db.rollback()
+            job = db.get(ImportJob, job_id)
+            job.status = "failed"
+            job.error_message = f"Непредвиденная ошибка при импорте: {exc}"
+            db.commit()
+    finally:
+        db.close()
+        try:
+            os.remove(zip_path)
+        except OSError:
+            pass
+
+
+@router.post(
+    "/dictionaries/{dictionary_id}/phrases/import",
+    response_model=ImportJobOut,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def import_phrases(
+    dictionary_id: int,
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """Starts a phrases ZIP import as a server-tracked background job -- the
+    phrase counterpart of import_words in words.py, same shape: Admin Web
+    only uploads the file and gets back a job_id; the actual parsing,
+    validation and database merge happen in `_run_import_phrase_job` after
+    this request already returned. Polling GET
+    .../phrases/import/{job_id} is the only way the result is meant to be
+    observed."""
+    _get_dictionary_or_404(db, dictionary_id)
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
+        tmp.write(file.file.read())
+        zip_path = tmp.name
+
+    job = ImportJob(id=uuid.uuid4().hex, dictionary_id=dictionary_id, status="pending")
+    db.add(job)
+    db.commit()
+
+    background_tasks.add_task(_run_import_phrase_job, job.id, dictionary_id, zip_path)
+
+    return ImportJobOut(job_id=job.id, status=job.status)
+
+
+@router.get("/dictionaries/{dictionary_id}/phrases/import/{job_id}", response_model=ImportJobOut)
+def get_phrase_import_job(
+    dictionary_id: int,
+    job_id: str,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    job = db.get(ImportJob, job_id)
+    if job is None or job.dictionary_id != dictionary_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Import job not found")
+    return ImportJobOut(
+        job_id=job.id,
+        status=job.status,
+        error_message=job.error_message,
+        categories_created=job.categories_created,
+        categories_reused=job.categories_reused,
+        phrases_created=job.phrases_created,
+        phrases_reused=job.phrases_reused,
+    )
+
+
+@router.get("/dictionaries/{dictionary_id}/phrases/export")
 def export_phrases(
     dictionary_id: int,
     db: Session = Depends(get_db),
     _admin=Depends(get_current_admin),
 ):
-    """The exact inverse of import_phrases, in the same fixed JSON shape --
-    the result can be fed straight back into import. Phrases with no
-    category are grouped under a plain "Без категории" category, same
-    convention as export_words."""
+    """The exact inverse of import_phrases: a ZIP archive containing
+    phrases.json (same fixed categories/phrases shape, plus this phrase's
+    own and Tajik-translation audio paths when they exist) and the
+    referenced audio files themselves under audio/phrases/original/ and
+    audio/phrases/tg/ -- the result can be fed straight back into import.
+    Phrases with no category are grouped under a plain "Без категории"
+    category, same convention as export_words."""
     _get_dictionary_or_404(db, dictionary_id)
 
-    def phrase_out(p: Phrase) -> ExportPhrase:
-        return ExportPhrase(sentence=p.original, translation_tg=p.translation_tg)
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
 
-    categories = (
-        db.query(PhraseCategory).filter(PhraseCategory.dictionary_id == dictionary_id).order_by(PhraseCategory.id).all()
-    )
-    result = [
-        ExportPhraseCategory(
-            name=cat.name,
-            phrases=[phrase_out(p) for p in db.query(Phrase).filter(Phrase.category_id == cat.id).order_by(Phrase.id).all()],
+        def phrase_out(p: Phrase) -> ExportPhrase:
+            return ExportPhrase(
+                sentence=p.original,
+                translation_tg=p.translation_tg,
+                audio=_add_audio_to_zip(zf, p.original_audio_key, "audio/phrases/original"),
+                audio_tg=_add_audio_to_zip(zf, p.translation_audio_key, "audio/phrases/tg"),
+            )
+
+        categories = (
+            db.query(PhraseCategory)
+            .filter(PhraseCategory.dictionary_id == dictionary_id)
+            .order_by(PhraseCategory.id)
+            .all()
         )
-        for cat in categories
-    ]
+        result = [
+            ExportPhraseCategory(
+                name=cat.name,
+                phrases=[
+                    phrase_out(p)
+                    for p in db.query(Phrase).filter(Phrase.category_id == cat.id).order_by(Phrase.id).all()
+                ],
+            )
+            for cat in categories
+        ]
 
-    uncategorized = (
-        db.query(Phrase)
-        .filter(Phrase.dictionary_id == dictionary_id, Phrase.category_id.is_(None))
-        .order_by(Phrase.id)
-        .all()
+        uncategorized = (
+            db.query(Phrase)
+            .filter(Phrase.dictionary_id == dictionary_id, Phrase.category_id.is_(None))
+            .order_by(Phrase.id)
+            .all()
+        )
+        if uncategorized:
+            result.append(ExportPhraseCategory(name="Без категории", phrases=[phrase_out(p) for p in uncategorized]))
+
+        payload = ExportPhrasePayload(categories=result)
+        zf.writestr("phrases.json", payload.model_dump_json(indent=2))
+
+    return Response(
+        content=zip_buffer.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="phrases.zip"'},
     )
-    if uncategorized:
-        result.append(ExportPhraseCategory(name="Без категории", phrases=[phrase_out(p) for p in uncategorized]))
-
-    return ExportPhrasePayload(categories=result)

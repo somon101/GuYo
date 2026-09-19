@@ -7,8 +7,9 @@ from app.database import Base
 
 
 class ImportJob(Base):
-    """One dictionary ZIP import, tracked on the server rather than only in
-    the admin's browser tab. A slow upload/merge (large ZIP, many audio
+    """One ZIP import -- either a dictionary (words) ZIP or a phrases ZIP,
+    both sharing this same table -- tracked on the server rather than only
+    in the admin's browser tab. A slow upload/merge (large ZIP, many audio
     files) keeps running here regardless of whether the admin navigates
     away, closes the tab, or comes back later -- Admin Web only ever polls
     this row by `id` (the job_id handed back when the import was started)
@@ -31,12 +32,19 @@ class ImportJob(Base):
     # "invalid format" message.
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Set only when status == "completed" -- mirrors ImportSummary.
+    # Set only when status == "completed" -- mirrors ImportSummary (a word
+    # dictionary job) or ImportPhraseSummary (a phrase job): each job sets
+    # only the pair of fields matching what it actually imported (words_*
+    # for a dictionary ZIP, phrases_* for a phrases ZIP) and leaves the
+    # other pair null -- categories_created/reused is shared by both, since
+    # "how many categories" means the same thing either way.
     categories_created: Mapped[int | None] = mapped_column(Integer, nullable=True)
     categories_reused: Mapped[int | None] = mapped_column(Integer, nullable=True)
     words_created: Mapped[int | None] = mapped_column(Integer, nullable=True)
     words_reused: Mapped[int | None] = mapped_column(Integer, nullable=True)
     forms_added: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    phrases_created: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    phrases_reused: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
