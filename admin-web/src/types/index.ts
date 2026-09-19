@@ -119,4 +119,16 @@ export interface ExerciseSettings {
   wrong_letter_count: number | null;
   min_word_length: number | null;
   case_sensitive: boolean | null;
+  // How much a right/wrong answer to this exercise moves a word's score
+  // within a lesson (see the "Уроки" system) -- null means "use this
+  // exercise's own built-in default".
+  correct_points: number | null;
+  incorrect_points: number | null;
+}
+
+// The single admin-configured value that isn't specific to any one
+// exercise: the score (0-100) a word's WordProgress needs to reach before
+// it counts as learned.
+export interface LearningSettings {
+  threshold_score: number;
 }

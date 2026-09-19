@@ -4,6 +4,7 @@ import type {
   Category,
   Dictionary,
   ExerciseSettings,
+  LearningSettings,
   Phrase,
   PhraseCategory,
   TranslationLanguage,
@@ -365,6 +366,11 @@ export interface ExerciseSettingsInput {
   wrongLetterCount?: number | null;
   minWordLength?: number | null;
   caseSensitive?: boolean | null;
+  // How many points a right/wrong answer moves a word's score within a
+  // lesson -- every exercise has these. Omit to fall back to that
+  // exercise's own built-in default.
+  correctPoints?: number | null;
+  incorrectPoints?: number | null;
 }
 
 export async function setExerciseSettings(
@@ -376,6 +382,22 @@ export async function setExerciseSettings(
     wrong_letter_count: input.wrongLetterCount ?? null,
     min_word_length: input.minWordLength ?? null,
     case_sensitive: input.caseSensitive ?? null,
+    correct_points: input.correctPoints ?? null,
+    incorrect_points: input.incorrectPoints ?? null,
   });
+  return data;
+}
+
+// --- Уроки ("Lessons") --------------------------------------------------
+// The one setting that isn't specific to any exercise: the score
+// threshold a word needs to reach before it counts as learned.
+
+export async function getLearningSettings(): Promise<LearningSettings> {
+  const { data } = await api.get("/learning-settings");
+  return data;
+}
+
+export async function setLearningSettings(thresholdScore: number): Promise<LearningSettings> {
+  const { data } = await api.put("/learning-settings", { threshold_score: thresholdScore });
   return data;
 }

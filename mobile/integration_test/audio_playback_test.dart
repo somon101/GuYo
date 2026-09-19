@@ -9,6 +9,11 @@
 // ZIP through the same backend endpoint Admin Web uses -- this file only
 // drives the UI, it never builds the ZIP itself.
 //
+// Only covers "Словарь" -- "Сопоставление" now lives inside a lesson (see
+// lessons_screen.dart) rather than being reachable directly from the main
+// menu, and driving a full lesson creation here would test the Уроки flow
+// rather than audio rendering, which is this file's one job.
+//
 // Run with:
 //   python .../prepare_audio_test_word.py
 //   flutter test integration_test/audio_playback_test.dart -d windows --dart-define=API_BASE_URL=http://127.0.0.1:8000
@@ -22,7 +27,6 @@ import 'package:integration_test/integration_test.dart';
 import 'package:guyo_app/config.dart';
 import 'package:guyo_app/main.dart';
 import 'package:guyo_app/screens/dictionary_words_screen.dart';
-import 'package:guyo_app/screens/matching_screen.dart';
 import 'package:guyo_app/widgets/audio_button.dart';
 
 const _word = 'audiotestword';
@@ -74,7 +78,7 @@ Future<void> _login(WidgetTester tester) async {
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('audio buttons render for a ZIP-imported word in Словарь and Сопоставление', (tester) async {
+  testWidgets('audio buttons render for a ZIP-imported word in Словарь', (tester) async {
     try {
       await _login(tester);
 
@@ -102,23 +106,6 @@ void main() {
       // the real one (Android). Real playback is verified on-device via the
       // built APK; this test's job is confirming the button itself renders
       // wherever a Word's audio exists.
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-
-      // --- Сопоставление: since the word is now learned, it appears in a
-      // matching round with its own audio button on the left (word) card. ---
-      await tester.tap(find.text('Сопоставление'));
-      await tester.pumpAndSettle();
-
-      final audioButtonsInMatching = find.descendant(
-        of: find.byType(MatchingScreen),
-        matching: find.byType(AudioButton),
-      );
-      expect(
-        audioButtonsInMatching,
-        findsAtLeastNWidgets(1),
-        reason: 'at least one match card (this word, learned) should show an audio button',
-      );
     } finally {
       await _cleanupTestWord();
     }

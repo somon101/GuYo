@@ -4,9 +4,12 @@ from app.models.dictionary import Dictionary
 from app.models.exercise import ExerciseSettings
 from app.models.import_job import ImportJob
 from app.models.learning import LearnedWord, LearningSession, LearningSessionItem
+from app.models.learning_settings import LearningSettings
+from app.models.lesson import Lesson, LessonExercise, LessonWord
 from app.models.phrase import Phrase, PhraseCategory
 from app.models.user import User
 from app.models.word import Word, WordForm, WordTranslation
+from app.models.word_progress import WordProgress
 
 __all__ = [
     "Admin",
@@ -23,4 +26,9 @@ __all__ = [
     "LearningSessionItem",
     "ExerciseSettings",
     "ImportJob",
+    "Lesson",
+    "LessonWord",
+    "LessonExercise",
+    "WordProgress",
+    "LearningSettings",
 ]

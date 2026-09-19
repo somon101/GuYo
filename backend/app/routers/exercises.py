@@ -116,6 +116,8 @@ def get_exercise_settings(
         wrong_letter_count=settings.wrong_letter_count if settings else None,
         min_word_length=settings.min_word_length if settings else None,
         case_sensitive=settings.case_sensitive if settings else None,
+        correct_points=settings.correct_points if settings else None,
+        incorrect_points=settings.incorrect_points if settings else None,
     )
 
 
@@ -135,6 +137,8 @@ def set_exercise_settings(
     settings.wrong_letter_count = payload.wrong_letter_count
     settings.min_word_length = payload.min_word_length
     settings.case_sensitive = payload.case_sensitive
+    settings.correct_points = payload.correct_points
+    settings.incorrect_points = payload.incorrect_points
     db.commit()
     return ExerciseSettingsOut(
         exercise_key=exercise_key,
@@ -142,6 +146,8 @@ def set_exercise_settings(
         wrong_letter_count=payload.wrong_letter_count,
         min_word_length=payload.min_word_length,
         case_sensitive=payload.case_sensitive,
+        correct_points=payload.correct_points,
+        incorrect_points=payload.incorrect_points,
     )
 
 

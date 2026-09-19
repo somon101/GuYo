@@ -7,6 +7,11 @@ class GuyoWord {
   final String? wordAudioUrl;
   final String? translationAudioUrl;
   final String? imageUrl;
+  // Only populated by endpoints whose backend WordOut includes them (e.g.
+  // the lesson candidate-words list, used to group the manual picker by
+  // category) -- absent/null wherever a caller doesn't need it.
+  final int? categoryId;
+  final String? categoryName;
 
   GuyoWord({
     required this.id,
@@ -17,6 +22,8 @@ class GuyoWord {
     this.wordAudioUrl,
     this.translationAudioUrl,
     this.imageUrl,
+    this.categoryId,
+    this.categoryName,
   });
 
   factory GuyoWord.fromJson(Map<String, dynamic> json) {
@@ -31,6 +38,8 @@ class GuyoWord {
       wordAudioUrl: json['word_audio_url'] as String?,
       translationAudioUrl: json['translation_audio_url'] as String?,
       imageUrl: json['image_url'] as String?,
+      categoryId: json['category_id'] as int?,
+      categoryName: json['category_name'] as String?,
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
+import 'lessons_screen.dart';
 import 'login_screen.dart';
 import 'main_menu_screen.dart';
 
@@ -19,9 +20,11 @@ import 'main_menu_screen.dart';
 /// `_visible_to`), so this screen doesn't need to (and must not try to)
 /// second-guess publish status on its own.
 ///
-/// Bottom nav is deliberately just one "Главная" destination for now --
-/// a temporary structure (see MainMenuScreen) while every feature still
-/// lives behind a single entry point rather than its own tab.
+/// Bottom nav has two destinations: "Главная" (MainMenuScreen -- whatever
+/// doesn't have its own tab, currently just "Словарь") and "Уроки"
+/// (LessonsScreen -- the new primary progress system). Switching tabs never
+/// touches the language selection above; both tabs just render against
+/// whichever dictionary is currently selected.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -32,6 +35,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late Future<List<GuyoDictionary>> _dictionariesFuture;
   GuyoDictionary? _selectedDictionary;
+  int _selectedTabIndex = 0;
 
   @override
   void initState() {
@@ -217,56 +221,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           }
           _selectedDictionary = selected;
 
-          // Keying by dictionary id makes the menu (and whatever feature
-          // gets pushed from it) rebuild fresh whenever the selected
-          // language changes.
-          return MainMenuScreen(key: ValueKey('menu-${selected.id}'), dictionary: selected);
+          // Keying by dictionary id makes each tab's content rebuild fresh
+          // whenever the selected language changes. IndexedStack (not a
+          // simple `_selectedTabIndex == 0 ? … : …`) keeps both tabs' state
+          // alive across switches, so leaving "Уроки" mid-round and coming
+          // back to it doesn't lose anything.
+          return IndexedStack(
+            index: _selectedTabIndex,
+            children: [
+              MainMenuScreen(key: ValueKey('menu-${selected.id}'), dictionary: selected),
+              LessonsScreen(key: ValueKey('lessons-${selected.id}'), dictionary: selected),
+            ],
+          );
         },
       ),
-      // Flutter's NavigationBar/BottomNavigationBar both require at least
-      // two destinations (an assertion, not a style choice) -- with only
-      // one "Главная" entry for this temporary structure, a plain custom
-      // bar is simpler than working around that restriction.
-      bottomNavigationBar: _SingleDestinationBottomBar(
-        icon: Icons.home_outlined,
-        label: 'Главная',
-      ),
-    );
-  }
-}
-
-/// A minimal stand-in for [NavigationBar] with exactly one, always-selected
-/// destination -- kept only because the real NavigationBar widget refuses
-/// to render with fewer than two. Visually matches it closely enough
-/// (surface background, primary-colored icon+label) without pulling in any
-/// navigation behavior of its own; there's nothing to switch to yet.
-class _SingleDestinationBottomBar extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _SingleDestinationBottomBar({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.primary;
-    return Material(
-      color: Theme.of(context).colorScheme.surface,
-      elevation: 3,
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 64,
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, color: color),
-                const SizedBox(height: 2),
-                Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
-              ],
-            ),
-          ),
-        ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedTabIndex,
+        onDestinationSelected: (index) => setState(() => _selectedTabIndex = index),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Главная'),
+          NavigationDestination(icon: Icon(Icons.auto_stories_outlined), label: 'Уроки'),
+        ],
       ),
     );
   }

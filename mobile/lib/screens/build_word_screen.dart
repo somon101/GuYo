@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
-import '../models/dictionary.dart';
 import '../models/exercise.dart';
 import '../widgets/audio_button.dart';
 
@@ -13,22 +12,24 @@ class _Tile {
   const _Tile(this.id, this.letter);
 }
 
-/// "Собери слово": shows a learned word's translation, then the player
-/// taps individual letter buttons (this word's own letters, plus a few
-/// wrong ones -- both already decided by the backend) to build the
-/// original word one letter at a time, tapping a placed letter to undo it.
+/// "Собери слово", as one of a Lesson's exercises: shows a lesson word's
+/// translation, then the player taps individual letter buttons (this word's
+/// own letters, plus a few wrong ones -- both already decided by the
+/// backend) to build the original word one letter at a time, tapping a
+/// placed letter to undo it.
 ///
-/// This screen never creates, copies, or persists any Word -- it only
-/// calls GET /dictionaries/{id}/exercises/build-word (via
-/// ApiClient.fetchBuildWordRound), which already returns just this user's
-/// learned words, capped at the admin-configured count, each with its
-/// letters pre-shuffled. Correctness (which letter belongs at which
-/// position) is a small, UI-independent comparison against
+/// This screen never creates, copies, or persists any Word -- it only calls
+/// GET /lessons/{id}/exercises/build-word (via ApiClient.
+/// fetchLessonBuildWordRound), which returns exactly this lesson's fixed
+/// word set, each with its letters pre-shuffled. Correctness (which letter
+/// belongs at which position) is a small, UI-independent comparison against
 /// BuildWordItem.correctWord -- nothing here is tied to where the letter
-/// buttons happen to sit on screen.
+/// buttons happen to sit on screen. Every attempt's outcome is reported to
+/// the backend via submitLessonAnswer, which is the ONLY place a word's
+/// score actually changes.
 class BuildWordScreen extends StatefulWidget {
-  final GuyoDictionary dictionary;
-  const BuildWordScreen({super.key, required this.dictionary});
+  final int lessonId;
+  const BuildWordScreen({super.key, required this.lessonId});
 
   @override
   State<BuildWordScreen> createState() => _BuildWordScreenState();
@@ -46,6 +47,7 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
   List<Color?> _slotColors = [];
   bool _isLocked = false; // true briefly while a correct answer celebrates before advancing
   bool _hasChecked = false; // true once "Проверить" has been pressed for the current letters
+  bool _lessonCompleted = false;
 
   @override
   void initState() {
@@ -62,7 +64,7 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
       _correctCount = 0;
     });
     try {
-      final round = await ApiClient.instance.fetchBuildWordRound(widget.dictionary.id);
+      final round = await ApiClient.instance.fetchLessonBuildWordRound(widget.lessonId);
       if (!mounted) return;
       setState(() {
         _round = round;
@@ -123,7 +125,7 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
   /// result (colored per letter) always shows, then the round always moves
   /// on to the next word, whether this attempt was right or wrong; only
   /// `_correctCount` depends on the outcome.
-  void _evaluate() {
+  Future<void> _evaluate() async {
     if (_slots.contains(null) || _hasChecked || _isLocked) return;
     final item = _round!.items[_currentIndex];
     final caseSensitive = _round!.caseSensitive;
@@ -142,10 +144,25 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
       _isLocked = true;
       if (allCorrect) _correctCount++;
     });
-    Future.delayed(const Duration(milliseconds: 700), () {
-      if (!mounted) return;
-      _advance();
+
+    // Awaited (not fire-and-forget) alongside the celebratory delay: the
+    // LAST item's submission deciding `lesson_completed` must be known
+    // before this word's turn ends, otherwise a round that completes the
+    // whole lesson on its final word could render "Упражнение завершено!"
+    // without "Урок пройден!" simply because the network call hadn't
+    // resolved yet.
+    final submit = ApiClient.instance
+        .submitLessonAnswer(widget.lessonId, 'build_word', wordId: item.wordId, isCorrect: allCorrect)
+        .then((result) {
+      if (result.lessonCompleted) _lessonCompleted = true;
+    }).catchError((_) {
+      // The score update failed to save -- the round still advances; there's
+      // nothing actionable to show mid-round for a single failed save.
     });
+    await Future.wait([submit, Future.delayed(const Duration(milliseconds: 700))]);
+
+    if (!mounted) return;
+    _advance();
   }
 
   void _advance() {
@@ -180,14 +197,10 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
 
     final round = _round;
     if (round == null || round.items.isEmpty) {
-      return Center(
+      return const Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            'Для упражнения «Собери слово» нужно сначала изучить слова.\n'
-            'Изучите слова в разделе «Изучение слов», чтобы начать.',
-            textAlign: TextAlign.center,
-          ),
+          padding: EdgeInsets.all(24),
+          child: Text('Для этого упражнения пока нет слов', textAlign: TextAlign.center),
         ),
       );
     }
@@ -196,7 +209,9 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
       return _RoundCompleteView(
         correctCount: _correctCount,
         total: round.items.length,
+        lessonCompleted: _lessonCompleted,
         onPlayAgain: _load,
+        onBackToLesson: () => Navigator.of(context).pop(_lessonCompleted),
       );
     }
 
@@ -356,8 +371,16 @@ class _LetterButton extends StatelessWidget {
 class _RoundCompleteView extends StatelessWidget {
   final int correctCount;
   final int total;
+  final bool lessonCompleted;
   final VoidCallback onPlayAgain;
-  const _RoundCompleteView({required this.correctCount, required this.total, required this.onPlayAgain});
+  final VoidCallback onBackToLesson;
+  const _RoundCompleteView({
+    required this.correctCount,
+    required this.total,
+    required this.lessonCompleted,
+    required this.onPlayAgain,
+    required this.onBackToLesson,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -370,12 +393,23 @@ class _RoundCompleteView extends StatelessWidget {
           const Text('Упражнение завершено!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
           Text('Собрано слов: $correctCount из $total', style: const TextStyle(color: Colors.black54)),
+          if (lessonCompleted) ...[
+            const SizedBox(height: 8),
+            const Text('Урок пройден!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600)),
+          ],
           const SizedBox(height: 20),
           FilledButton.icon(
-            onPressed: onPlayAgain,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Играть ещё раз'),
+            onPressed: onBackToLesson,
+            icon: const Icon(Icons.arrow_back),
+            label: const Text('К уроку'),
           ),
+          const SizedBox(height: 8),
+          if (!lessonCompleted)
+            OutlinedButton.icon(
+              onPressed: onPlayAgain,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Играть ещё раз'),
+            ),
         ],
       ),
     );

@@ -19,6 +19,8 @@ from app.models.dictionary import Dictionary
 from app.models.learning import LearnedWord, LearningSession, LearningSessionItem
 from app.models.user import User
 from app.models.word import Word
+from app.models.word_progress import WordProgress
+from app.routers.lessons import _get_threshold
 from app.routers.words import word_to_out
 from app.schemas.learning import CreateLearningSessionIn, LearnedCategoryOut, LearningSessionOut
 from app.schemas.word import WordOut
@@ -259,14 +261,19 @@ def list_learned_word_categories(
 ):
     """Only categories the user has at least one learned word in -- a
     category with zero learned words simply never appears, and a brand new
-    one shows up the moment its first word is learned, since this is a
-    live count, not a stored list."""
+    one shows up the moment its first word crosses the threshold, since
+    this is a live count, not a stored list.
+
+    "Learned" now means WordProgress.score >= the admin's configured
+    threshold (see app/routers/lessons.py) -- the old LearnedWord flag from
+    the removed flashcard flow is no longer read here at all."""
     _get_published_dictionary_or_404(db, dictionary_id)
+    threshold = _get_threshold(db)
     rows = (
-        db.query(Word.category_id, Category.name, func.count(LearnedWord.id))
-        .join(LearnedWord, LearnedWord.word_id == Word.id)
+        db.query(Word.category_id, Category.name, func.count(WordProgress.id))
+        .join(WordProgress, WordProgress.word_id == Word.id)
         .outerjoin(Category, Category.id == Word.category_id)
-        .filter(LearnedWord.user_id == user.id, Word.dictionary_id == dictionary_id)
+        .filter(WordProgress.user_id == user.id, WordProgress.score >= threshold, Word.dictionary_id == dictionary_id)
         .group_by(Word.category_id, Category.name)
         .order_by(Category.name)
         .all()
@@ -285,11 +292,14 @@ def list_learned_words(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    """Same threshold-based "learned" definition as the categories endpoint
+    above -- see its docstring."""
     _get_published_dictionary_or_404(db, dictionary_id)
+    threshold = _get_threshold(db)
     query = (
         db.query(Word)
-        .join(LearnedWord, LearnedWord.word_id == Word.id)
-        .filter(LearnedWord.user_id == user.id, Word.dictionary_id == dictionary_id)
+        .join(WordProgress, WordProgress.word_id == Word.id)
+        .filter(WordProgress.user_id == user.id, WordProgress.score >= threshold, Word.dictionary_id == dictionary_id)
     )
     if uncategorized:
         query = query.filter(Word.category_id.is_(None))

@@ -13,6 +13,12 @@ class ExerciseSettingsOut(BaseModel):
     wrong_letter_count: int | None = None
     min_word_length: int | None = None
     case_sensitive: bool | None = None
+    # How much a right/wrong answer to this exercise moves a word's
+    # WordProgress.score (see app/models/word_progress.py). Null means "use
+    # this exercise_key's own code-level default" (see lessons.py's
+    # DEFAULT_POINTS), same fallback pattern as the fields above.
+    correct_points: int | None = None
+    incorrect_points: int | None = None
 
 
 class ExerciseSettingsIn(BaseModel):
@@ -20,6 +26,8 @@ class ExerciseSettingsIn(BaseModel):
     wrong_letter_count: int | None = Field(default=None, ge=0, le=20)
     min_word_length: int | None = Field(default=None, ge=1, le=50)
     case_sensitive: bool | None = None
+    correct_points: int | None = Field(default=None, ge=0, le=100)
+    incorrect_points: int | None = Field(default=None, ge=0, le=100)
 
 
 class TrueOrFalseItemOut(BaseModel):

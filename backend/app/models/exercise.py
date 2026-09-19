@@ -21,7 +21,14 @@ class ExerciseSettings(Base):
     wrong distractor letters, the shortest word it'll pick, whether
     comparison is case-sensitive) -- left null and ignored by every other
     exercise_key, same as any other exercise-specific setting a future one
-    might need."""
+    might need.
+
+    `correct_points`/`incorrect_points` are how much a right/wrong answer
+    to this exercise moves a word's WordProgress.score (see
+    app/models/word_progress.py) -- e.g. Сопоставление +20/-10, Правда или
+    ложь +10/-5. Nullable with a code-level default per exercise_key (see
+    app/routers/lessons.py), same reasoning as the three columns above:
+    an admin can leave these unset and the exercise still works."""
 
     __tablename__ = "exercise_settings"
 
@@ -31,6 +38,8 @@ class ExerciseSettings(Base):
     wrong_letter_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     min_word_length: Mapped[int | None] = mapped_column(Integer, nullable=True)
     case_sensitive: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    correct_points: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    incorrect_points: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

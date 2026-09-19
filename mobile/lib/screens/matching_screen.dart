@@ -2,35 +2,34 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
-import '../models/dictionary.dart';
 import '../models/word.dart';
 import '../widgets/audio_button.dart';
 
-/// exercise_key for this screen's admin-configurable word count (Admin
-/// Web's "Упражнения" page) -- same mechanism "Правда или ложь" uses.
-const String _exerciseKey = 'matching';
-
-/// Below this many usable words, a round can't be built meaningfully.
-const int _minWordsForRound = 2;
-
-/// A drag-free "tap word, then tap its translation" matching drill.
+/// A drag-free "tap word, then tap its translation" matching drill, as one
+/// of a Lesson's exercises.
 ///
 /// This screen never creates, copies, or persists any Word/translation --
-/// it only calls GET /dictionaries/{id}/exercises/matching/learned-words
-/// (via ApiClient.fetchExerciseLearnedWords), which already returns just
-/// this user's LEARNED words, capped at the admin-configured count for
-/// "matching" -- never the full dictionary. Word selection and the count
-/// cap are entirely the backend's decision; this screen only shuffles the
-/// already-chosen round into two independently-ordered display columns
-/// and tracks a purely in-memory round: which of the given word_ids are
-/// matched, and a mistake count. A correct match is decided by comparing
-/// `Word.id` (word_id) between the tapped left and right card, never by
-/// comparing the translation text -- so two different words that happen
-/// to share a translation (e.g. "big" and "large" both -> "большой") are
-/// still distinguished correctly.
+/// it only calls GET /lessons/{id}/exercises/matching (via ApiClient.
+/// fetchLessonMatchingWords), which returns exactly this lesson's fixed
+/// word set. Word selection was already decided once, at lesson creation;
+/// this screen only shuffles that fixed list into two independently-ordered
+/// display columns and tracks a purely in-memory round: which of the given
+/// word_ids are matched, and a mistake count. A correct match is decided by
+/// comparing `Word.id` (word_id) between the tapped left and right card,
+/// never by comparing the translation text -- so two different words that
+/// happen to share a translation (e.g. "big" and "large" both -> "большой")
+/// are still distinguished correctly.
+///
+/// Every match (right or wrong) is reported to the backend via
+/// submitLessonAnswer, which is the ONLY place a word's score actually
+/// changes. A wrong match involves two distinct cards (the tapped left card
+/// and the tapped right card); only the LEFT card's word_id is scored as
+/// incorrect -- it's the "prompt" side being tested (does the player know
+/// this word's translation), while the right card is just the wrong guess,
+/// not itself a demonstrated failure to recognize its own word.
 class MatchingScreen extends StatefulWidget {
-  final GuyoDictionary dictionary;
-  const MatchingScreen({super.key, required this.dictionary});
+  final int lessonId;
+  const MatchingScreen({super.key, required this.lessonId});
 
   @override
   State<MatchingScreen> createState() => _MatchingScreenState();
@@ -39,7 +38,6 @@ class MatchingScreen extends StatefulWidget {
 class _MatchingScreenState extends State<MatchingScreen> {
   bool _isLoading = true;
   String? _errorMessage;
-  int _availableCount = 0; // how many learned+usable words exist in total
 
   List<GuyoWord>? _left; // word_id order for the left ("word") column
   List<GuyoWord>? _right; // word_id order for the right ("translation") column
@@ -48,6 +46,17 @@ class _MatchingScreenState extends State<MatchingScreen> {
   int? _selectedRightId;
   int _mistakes = 0;
   bool _awaitingMismatchClear = false;
+  bool _lessonCompleted = false;
+  // Every match's score submission is fire-and-forget for a snappy per-tap
+  // feel, EXCEPT the one that finishes the round: whether the round-complete
+  // view should also say "Урок пройден!" depends on the LAST submission's
+  // `lesson_completed`, so that one specific completion is awaited (see
+  // `_evaluateIfReady`) before the complete view is allowed to render --
+  // otherwise a round that finishes the whole lesson on its last match could
+  // flash the complete view without the congratulation simply because the
+  // network call hadn't resolved yet.
+  final List<Future<void>> _pendingSubmits = [];
+  bool _roundReadyToShowComplete = false;
 
   @override
   void initState() {
@@ -56,23 +65,21 @@ class _MatchingScreenState extends State<MatchingScreen> {
   }
 
   /// Fetches a fresh round from the backend -- called on first open AND on
-  /// every "Играть ещё раз", so a replay is a genuinely new random
-  /// selection (same as every other exercise built on learned words),
-  /// not just a client-side reshuffle of a stale list.
+  /// every "Играть ещё раз", so a replay is a genuinely new shuffle of the
+  /// same fixed lesson words, not a client-side reshuffle of a stale list.
   Future<void> _load() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
     try {
-      final words = await ApiClient.instance.fetchExerciseLearnedWords(widget.dictionary.id, _exerciseKey);
+      final words = await ApiClient.instance.fetchLessonMatchingWords(widget.lessonId);
       // A word with no translation can't be matched to anything; the
       // backend already excludes these, but this stays defensive rather
       // than assuming that holds forever.
       final usable = words.where((w) => w.translation.trim().isNotEmpty).toList();
       if (!mounted) return;
-      setState(() => _availableCount = usable.length);
-      if (usable.length >= _minWordsForRound) {
+      if (usable.isNotEmpty) {
         _startRound(usable);
       } else {
         setState(() => _isLoading = false);
@@ -103,6 +110,8 @@ class _MatchingScreenState extends State<MatchingScreen> {
       _mistakes = 0;
       _awaitingMismatchClear = false;
       _isLoading = false;
+      _roundReadyToShowComplete = false;
+      _pendingSubmits.clear();
     });
   }
 
@@ -127,13 +136,27 @@ class _MatchingScreenState extends State<MatchingScreen> {
     // underlying word_id? Never compare the displayed text.
     final isCorrect = leftId == rightId;
 
+    _submitAnswer(leftId, isCorrect);
+
     if (isCorrect) {
+      final left = _left!;
       setState(() {
         _matchedIds.add(leftId);
         _selectedLeftId = null;
         _selectedRightId = null;
       });
       _showFeedback('Правильно', isError: false);
+
+      if (_matchedIds.length == left.length) {
+        // This match just finished the round -- wait for every submission
+        // (this one included) to resolve before showing the complete view,
+        // so "Урок пройден!" reflects this exact match's real outcome.
+        final pending = List<Future<void>>.from(_pendingSubmits);
+        Future.wait(pending).then((_) {
+          if (!mounted) return;
+          setState(() => _roundReadyToShowComplete = true);
+        });
+      }
     } else {
       _mistakes++;
       _awaitingMismatchClear = true;
@@ -147,6 +170,20 @@ class _MatchingScreenState extends State<MatchingScreen> {
         });
       });
     }
+  }
+
+  void _submitAnswer(int wordId, bool isCorrect) {
+    late final Future<void> future;
+    future = ApiClient.instance
+        .submitLessonAnswer(widget.lessonId, 'matching', wordId: wordId, isCorrect: isCorrect)
+        .then((result) {
+      if (result.lessonCompleted) _lessonCompleted = true;
+    }).catchError((_) {
+      // The score update failed to save -- the round itself still plays
+      // out locally; there's nothing actionable to show mid-round for a
+      // single failed save.
+    }).whenComplete(() => _pendingSubmits.remove(future));
+    _pendingSubmits.add(future);
   }
 
   void _showFeedback(String text, {required bool isError}) {
@@ -182,26 +219,20 @@ class _MatchingScreenState extends State<MatchingScreen> {
         ),
       );
     }
-    if (_availableCount < _minWordsForRound) {
-      return Center(
+
+    final left = _left;
+    final right = _right;
+    if (left == null || right == null || left.isEmpty) {
+      return const Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            'Для тренажёра «Сопоставление» нужно изучить хотя бы $_minWordsForRound слова.\n'
-            'Изучите слова в разделе «Изучение слов», чтобы начать.',
-            textAlign: TextAlign.center,
-          ),
+          padding: EdgeInsets.all(24),
+          child: Text('Для этого упражнения пока нет слов', textAlign: TextAlign.center),
         ),
       );
     }
 
-    final left = _left;
-    final right = _right;
-    if (left == null || right == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    final isRoundComplete = _matchedIds.length == left.length;
+    final isFullyMatched = _matchedIds.length == left.length;
+    final isRoundComplete = isFullyMatched && _roundReadyToShowComplete;
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -214,7 +245,20 @@ class _MatchingScreenState extends State<MatchingScreen> {
           ),
           const SizedBox(height: 12),
           if (isRoundComplete)
-            Expanded(child: _RoundCompleteView(onPlayAgain: _load, mistakes: _mistakes))
+            Expanded(
+              child: _RoundCompleteView(
+                onPlayAgain: _load,
+                mistakes: _mistakes,
+                lessonCompleted: _lessonCompleted,
+                onBackToLesson: () => Navigator.of(context).pop(_lessonCompleted),
+              ),
+            )
+          else if (isFullyMatched)
+            // Every pair is matched but the last match's score submission
+            // hasn't resolved yet -- a brief, real (not padded) wait rather
+            // than a fixed delay, since it's usually near-instant on a
+            // normal connection.
+            const Expanded(child: Center(child: CircularProgressIndicator()))
           else
             Expanded(
               child: Row(
@@ -372,8 +416,15 @@ class _MatchCard extends StatelessWidget {
 class _RoundCompleteView extends StatelessWidget {
   final VoidCallback onPlayAgain;
   final int mistakes;
+  final bool lessonCompleted;
+  final VoidCallback onBackToLesson;
 
-  const _RoundCompleteView({required this.onPlayAgain, required this.mistakes});
+  const _RoundCompleteView({
+    required this.onPlayAgain,
+    required this.mistakes,
+    required this.lessonCompleted,
+    required this.onBackToLesson,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -389,12 +440,23 @@ class _RoundCompleteView extends StatelessWidget {
             mistakes == 0 ? 'Без единой ошибки' : 'Ошибок: $mistakes',
             style: const TextStyle(color: Colors.black54),
           ),
+          if (lessonCompleted) ...[
+            const SizedBox(height: 8),
+            const Text('Урок пройден!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600)),
+          ],
           const SizedBox(height: 20),
           FilledButton.icon(
-            onPressed: onPlayAgain,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Играть ещё раз'),
+            onPressed: onBackToLesson,
+            icon: const Icon(Icons.arrow_back),
+            label: const Text('К уроку'),
           ),
+          const SizedBox(height: 8),
+          if (!lessonCompleted)
+            OutlinedButton.icon(
+              onPressed: onPlayAgain,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Играть ещё раз'),
+            ),
         ],
       ),
     );

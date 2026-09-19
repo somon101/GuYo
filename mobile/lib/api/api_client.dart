@@ -6,6 +6,7 @@ import '../config.dart';
 import '../models/dictionary.dart';
 import '../models/exercise.dart';
 import '../models/learning.dart';
+import '../models/lesson.dart';
 import '../models/word.dart';
 
 class ApiException implements Exception {
@@ -250,5 +251,106 @@ class ApiClient {
     );
     await _throwIfUnauthorized(res);
     return BuildWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  // --- Уроки ("Lessons") --------------------------------------------------
+  // The new primary progress system: every word/score/threshold/completion
+  // decision is made entirely by the backend (see backend/app/routers/
+  // lessons.py) -- these methods only forward requests and parse responses.
+
+  Future<LessonCandidateWords> fetchLessonCandidateWords(int dictionaryId) async {
+    final res = await http.get(
+      _uri('/dictionaries/$dictionaryId/lesson-candidate-words'),
+      headers: await _authHeaders(),
+    );
+    await _throwIfUnauthorized(res);
+    return LessonCandidateWords.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  /// Returns the current active (not-yet-completed) lesson for this
+  /// dictionary, or null if there isn't one -- distinct from an error, same
+  /// convention as [fetchActiveLearningSession].
+  Future<Lesson?> fetchActiveLesson(int dictionaryId) async {
+    final res = await http.get(
+      _uri('/lessons/active').replace(queryParameters: {'dictionary_id': '$dictionaryId'}),
+      headers: await _authHeaders(),
+    );
+    if (res.statusCode == 404) return null;
+    await _throwIfUnauthorized(res);
+    return Lesson.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  Future<Lesson> fetchLesson(int lessonId) async {
+    final res = await http.get(_uri('/lessons/$lessonId'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    return Lesson.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  /// Pass exactly one of [wordIds] (ручной выбор, max 15) or [randomCount]
+  /// (случайный выбор, 1-15) -- the backend rejects both/neither, same rule
+  /// CreateLessonIn enforces. Fails with a 409 (surfaced via [ApiException.
+  /// message]) if the current lesson for this dictionary isn't complete yet.
+  Future<Lesson> createLesson({required int dictionaryId, List<int>? wordIds, int? randomCount}) async {
+    final res = await http.post(
+      _uri('/lessons'),
+      headers: await _authHeaders(),
+      body: jsonEncode({
+        'dictionary_id': dictionaryId,
+        if (wordIds != null) 'word_ids': wordIds,
+        if (randomCount != null) 'random_count': randomCount,
+      }),
+    );
+    await _throwWithDetail(res);
+    return Lesson.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  Future<TrueOrFalseRound> fetchLessonTrueOrFalseRound(int lessonId) async {
+    final res = await http.get(
+      _uri('/lessons/$lessonId/exercises/true-or-false'),
+      headers: await _authHeaders(),
+    );
+    await _throwIfUnauthorized(res);
+    return TrueOrFalseRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  /// Same generic shape as [fetchExerciseLearnedWords], sourced from this
+  /// lesson's fixed word set instead of the dictionary's learned words.
+  Future<List<GuyoWord>> fetchLessonMatchingWords(int lessonId) async {
+    final res = await http.get(
+      _uri('/lessons/$lessonId/exercises/matching'),
+      headers: await _authHeaders(),
+    );
+    await _throwIfUnauthorized(res);
+    final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    final list = body['words'] as List<dynamic>;
+    return list.map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<BuildWordRound> fetchLessonBuildWordRound(int lessonId) async {
+    final res = await http.get(
+      _uri('/lessons/$lessonId/exercises/build-word'),
+      headers: await _authHeaders(),
+    );
+    await _throwIfUnauthorized(res);
+    return BuildWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  /// The one call that actually changes anything in the Уроки system: moves
+  /// [wordId]'s score by [exerciseKey]'s admin-configured points (backend
+  /// decides direction/amount/clamping/threshold -- never this client) and
+  /// reports whether the word, and then the whole lesson, just got learned.
+  Future<SubmitAnswerResult> submitLessonAnswer(
+    int lessonId,
+    String exerciseKey, {
+    required int wordId,
+    required bool isCorrect,
+  }) async {
+    final res = await http.post(
+      _uri('/lessons/$lessonId/exercises/$exerciseKey/answers'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'word_id': wordId, 'is_correct': isCorrect}),
+    );
+    await _throwWithDetail(res);
+    return SubmitAnswerResult.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 }

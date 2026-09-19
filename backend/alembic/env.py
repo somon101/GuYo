@@ -14,11 +14,16 @@ from app.models import (  # noqa: F401
     LearnedWord,
     LearningSession,
     LearningSessionItem,
+    LearningSettings,
+    Lesson,
+    LessonExercise,
+    LessonWord,
     Phrase,
     PhraseCategory,
     User,
     Word,
     WordForm,
+    WordProgress,
     WordTranslation,
 )
 

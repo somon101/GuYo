@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
-import '../models/dictionary.dart';
 import '../models/exercise.dart';
 import '../widgets/audio_button.dart';
 
-/// "Правда или ложь": the backend hands back a ready round (which learned
-/// words, and for each one whether the shown translation is real or
-/// borrowed from a different learned word) -- this screen only renders one
-/// card at a time and compares the tapped button to `item.isCorrect`.
+/// "Правда или ложь", as one of a Lesson's exercises: the backend hands back
+/// a round built from THIS lesson's fixed word set (wrong-answer candidates
+/// come from the user's previously-learned pool, never from other words in
+/// this same lesson) -- this screen only renders one card at a time and
+/// compares the tapped button to `item.isCorrect`.
 ///
-/// Word source is the backend's learned-words query (never the full
-/// dictionary), and the per-run word count is whatever the admin
-/// configured in Admin Web -- neither is decided here.
+/// After every answer, this screen reports {word_id, is_correct} to the
+/// backend via submitLessonAnswer, which is the ONLY place a word's score
+/// actually changes -- this screen never computes or trusts a score itself,
+/// it just shows whatever the backend already decided next.
 class TrueOrFalseScreen extends StatefulWidget {
-  final GuyoDictionary dictionary;
-  const TrueOrFalseScreen({super.key, required this.dictionary});
+  final int lessonId;
+  const TrueOrFalseScreen({super.key, required this.lessonId});
 
   @override
   State<TrueOrFalseScreen> createState() => _TrueOrFalseScreenState();
@@ -27,6 +28,7 @@ class _TrueOrFalseScreenState extends State<TrueOrFalseScreen> {
   int _index = 0;
   int _correctCount = 0;
   bool _isAnswering = false;
+  bool _lessonCompleted = false;
 
   @override
   void initState() {
@@ -40,7 +42,7 @@ class _TrueOrFalseScreenState extends State<TrueOrFalseScreen> {
       _errorMessage = null;
     });
     try {
-      final round = await ApiClient.instance.fetchTrueOrFalseRound(widget.dictionary.id);
+      final round = await ApiClient.instance.fetchLessonTrueOrFalseRound(widget.lessonId);
       if (!mounted) return;
       setState(() {
         _items = round.items;
@@ -63,20 +65,30 @@ class _TrueOrFalseScreenState extends State<TrueOrFalseScreen> {
   /// translation is the real one.
   bool _isAnswerCorrect(TrueOrFalseItem item, bool userSaidTrue) => userSaidTrue == item.isCorrect;
 
-  void _answer(bool userSaidTrue) {
+  Future<void> _answer(bool userSaidTrue) async {
     if (_isAnswering || _index >= _items.length) return;
-    final correct = _isAnswerCorrect(_items[_index], userSaidTrue);
+    final item = _items[_index];
+    final correct = _isAnswerCorrect(item, userSaidTrue);
     setState(() {
       _isAnswering = true;
       if (correct) _correctCount++;
     });
     _showFeedback(correct ? 'Правильно' : 'Неправильно', isError: !correct);
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (!mounted) return;
-      setState(() {
-        _index++;
-        _isAnswering = false;
-      });
+
+    final submit = ApiClient.instance
+        .submitLessonAnswer(widget.lessonId, 'true_or_false', wordId: item.wordId, isCorrect: correct)
+        .then((result) {
+      if (result.lessonCompleted) _lessonCompleted = true;
+    }).catchError((_) {
+      // The score update failed to save -- surfaced once at round-complete
+      // rather than interrupting the quiz flow card by card.
+    });
+    await Future.wait([submit, Future.delayed(const Duration(milliseconds: 500))]);
+
+    if (!mounted) return;
+    setState(() {
+      _index++;
+      _isAnswering = false;
     });
   }
 
@@ -114,24 +126,10 @@ class _TrueOrFalseScreenState extends State<TrueOrFalseScreen> {
       );
     }
     if (_items.isEmpty) {
-      return Center(
+      return const Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'В языке «${widget.dictionary.name}» вы пока не изучили ни одного слова.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Сначала пройдите «Изучение слов», затем возвращайтесь сюда.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.black54),
-              ),
-            ],
-          ),
+          padding: EdgeInsets.all(24),
+          child: Text('Для этого упражнения пока нет слов', textAlign: TextAlign.center),
         ),
       );
     }
@@ -149,7 +147,13 @@ class _TrueOrFalseScreenState extends State<TrueOrFalseScreen> {
           const SizedBox(height: 12),
           Expanded(
             child: isRoundComplete
-                ? _RoundCompleteView(correctCount: _correctCount, total: _items.length, onPlayAgain: _load)
+                ? _RoundCompleteView(
+                    correctCount: _correctCount,
+                    total: _items.length,
+                    lessonCompleted: _lessonCompleted,
+                    onPlayAgain: _load,
+                    onBackToLesson: () => Navigator.of(context).pop(_lessonCompleted),
+                  )
                 : Center(child: SingleChildScrollView(child: _TrueOrFalseCard(item: _items[_index]))),
           ),
           if (!isRoundComplete) ...[
@@ -260,9 +264,17 @@ class _TrueOrFalseCard extends StatelessWidget {
 class _RoundCompleteView extends StatelessWidget {
   final int correctCount;
   final int total;
+  final bool lessonCompleted;
   final VoidCallback onPlayAgain;
+  final VoidCallback onBackToLesson;
 
-  const _RoundCompleteView({required this.correctCount, required this.total, required this.onPlayAgain});
+  const _RoundCompleteView({
+    required this.correctCount,
+    required this.total,
+    required this.lessonCompleted,
+    required this.onPlayAgain,
+    required this.onBackToLesson,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -275,12 +287,23 @@ class _RoundCompleteView extends StatelessWidget {
           const Text('Упражнение завершено!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
           Text('Правильно: $correctCount из $total', style: const TextStyle(color: Colors.black54)),
+          if (lessonCompleted) ...[
+            const SizedBox(height: 8),
+            const Text('Урок пройден!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600)),
+          ],
           const SizedBox(height: 20),
           FilledButton.icon(
-            onPressed: onPlayAgain,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Играть ещё раз'),
+            onPressed: onBackToLesson,
+            icon: const Icon(Icons.arrow_back),
+            label: const Text('К уроку'),
           ),
+          const SizedBox(height: 8),
+          if (!lessonCompleted)
+            OutlinedButton.icon(
+              onPressed: onPlayAgain,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Играть ещё раз'),
+            ),
         ],
       ),
     );

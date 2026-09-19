@@ -1,20 +1,16 @@
 import 'package:flutter/material.dart';
 import '../models/dictionary.dart';
-import 'build_word_screen.dart';
 import 'dictionary_words_screen.dart';
-import 'learning_screen.dart';
-import 'matching_screen.dart';
-import 'true_or_false_screen.dart';
 
-/// Temporary central hub for every currently-available feature.
+/// Central hub for whatever doesn't have its own bottom-nav tab.
 ///
-/// This is deliberately NOT where these features are meant to live
-/// long-term -- once everything is built and tested, "Словарь"/"Изучение
-/// слов"/"Сопоставление" may move to their own bottom-nav tabs, get
-/// nested elsewhere, or be reorganized entirely. This screen owns none of
-/// their logic; it's only a list of entry points, each pushing the
-/// existing screen as-is (unwrapped, untouched) inside a plain Scaffold
-/// so it gets a title and a back button.
+/// "Изучение слов" (the old flashcard progress system) and the standalone
+/// "Сопоставление"/"Правда или ложь"/"Собери слово" entries are gone: those
+/// three now only exist as exercises inside a lesson, reached from the
+/// "Уроки" tab (see LessonsScreen) -- not as their own menu items. This
+/// screen owns none of the remaining item's logic; it just pushes the
+/// existing screen as-is (unwrapped, untouched) inside a plain Scaffold so
+/// it gets a title and a back button.
 ///
 /// A plain vertical list rather than a grid: for a handful of items this
 /// needs far less height per row, so it never risks clipping an entry
@@ -29,26 +25,6 @@ class MainMenuScreen extends StatelessWidget {
           icon: Icons.menu_book_outlined,
           label: 'Словарь',
           builder: (_) => DictionaryWordsScreen(dictionary: dictionary),
-        ),
-        _MenuItem(
-          icon: Icons.school_outlined,
-          label: 'Изучение слов',
-          builder: (_) => LearningScreen(dictionary: dictionary),
-        ),
-        _MenuItem(
-          icon: Icons.extension_outlined,
-          label: 'Сопоставление',
-          builder: (_) => MatchingScreen(dictionary: dictionary),
-        ),
-        _MenuItem(
-          icon: Icons.rule_outlined,
-          label: 'Правда или ложь',
-          builder: (_) => TrueOrFalseScreen(dictionary: dictionary),
-        ),
-        _MenuItem(
-          icon: Icons.abc_outlined,
-          label: 'Собери слово',
-          builder: (_) => BuildWordScreen(dictionary: dictionary),
         ),
       ];
 
