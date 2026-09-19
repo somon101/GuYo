@@ -186,24 +186,42 @@ export async function deleteTranslation(wordId: number, language: TranslationLan
   await api.delete(`/words/${wordId}/translations/${language}`);
 }
 
-export interface ImportSummary {
-  categories_created: number;
-  categories_reused: number;
-  words_created: number;
-  words_reused: number;
-  forms_added: number;
+/** Server-tracked state of one dictionary ZIP import (see the backend's
+ * ImportJobOut). The browser never parses the ZIP or decides whether it's
+ * valid -- it only starts the job and polls this by job_id, so a slow
+ * import keeps running on the backend (and its result stays retrievable)
+ * no matter what the admin's tab does in the meantime. `error_message` is
+ * a specific reason (which word/category/path, or which JSON problem),
+ * only set once `status === "failed"`; the count fields are only set once
+ * `status === "completed"`. */
+export interface ImportJob {
+  job_id: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  error_message: string | null;
+  categories_created: number | null;
+  categories_reused: number | null;
+  words_created: number | null;
+  words_reused: number | null;
+  forms_added: number | null;
 }
 
-/** Dictionary import/export now moves as a ZIP archive (dictionary.json --
- * same fixed categories/words shape as before, now with optional `audio`/
- * `audio_tg` paths per word -- plus the audio files themselves under
+/** Dictionary import/export moves as a ZIP archive (dictionary.json --
+ * fixed categories/words shape, each word optionally carrying `audio`/
+ * `audio_tg` paths -- plus the audio files themselves under
  * audio/original/ and audio/tg/, see the backend's ImportPayload for the
  * authoritative shape). The admin only ever passes the archive through as
- * an opaque file/blob, never parses it client-side. */
-export async function importDictionary(dictionaryId: number, file: File): Promise<ImportSummary> {
+ * an opaque file/blob, never parses it client-side. Starting an import
+ * only hands the file to the backend and gets a job_id back immediately;
+ * use `getDictionaryImportJob` to poll for its actual result. */
+export async function startDictionaryImport(dictionaryId: number, file: File): Promise<ImportJob> {
   const formData = new FormData();
   formData.append("file", file);
   const { data } = await api.post(`/dictionaries/${dictionaryId}/import`, formData);
+  return data;
+}
+
+export async function getDictionaryImportJob(dictionaryId: number, jobId: string): Promise<ImportJob> {
+  const { data } = await api.get(`/dictionaries/${dictionaryId}/import/${jobId}`);
   return data;
 }
 

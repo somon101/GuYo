@@ -10,6 +10,7 @@ from app.models import (  # noqa: F401
     Category,
     Dictionary,
     ExerciseSettings,
+    ImportJob,
     LearnedWord,
     LearningSession,
     LearningSessionItem,

@@ -1,19 +1,31 @@
 import io
 import json
+import os
+import tempfile
+import uuid
 import zipfile
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
+from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.deps import Principal, get_current_admin, get_current_principal
 from app.core.languages import is_valid_translation_language
 from app.core.storage import MEDIA_ROOT, delete_by_key, save_bytes, save_upload, url_for_key
-from app.database import get_db
+from app.database import SessionLocal, get_db
 from app.models.category import Category
 from app.models.dictionary import Dictionary
+from app.models.import_job import ImportJob
 from app.models.word import Word, WordForm, WordTranslation
-from app.schemas.bulk import ExportCategory, ExportPayload, ExportWord, ImportPayload, ImportSummary
+from app.schemas.bulk import (
+    ExportCategory,
+    ExportPayload,
+    ExportWord,
+    ImportJobOut,
+    ImportPayload,
+    ImportSummary,
+)
 from app.schemas.word import WordFormOut, WordOut, WordTranslationOut
 
 router = APIRouter(tags=["words"])
@@ -375,10 +387,11 @@ def _get_or_create_category(db: Session, dictionary_id: int, name: str) -> tuple
 
 
 def _read_zip_audio(zf: zipfile.ZipFile, path: str | None) -> bytes | None:
-    """Best-effort read of one audio entry out of the dictionary ZIP by the
-    relative path given in dictionary.json -- a missing entry (absent path,
-    null, or just not actually in the archive) must never abort the rest
-    of the import, only skip that one audio file."""
+    """Reads one audio entry out of the dictionary ZIP by the relative path
+    given in dictionary.json. By the time this runs, `_validate_import_zip`
+    has already confirmed the path exists (when one was given at all), so
+    a missing entry here only means the field itself was absent/null --
+    reading nothing is the correct outcome, not an error."""
     if not path:
         return None
     try:
@@ -387,40 +400,94 @@ def _read_zip_audio(zf: zipfile.ZipFile, path: str | None) -> bytes | None:
         return None
 
 
-@router.post("/dictionaries/{dictionary_id}/import", response_model=ImportSummary)
-def import_words(
-    dictionary_id: int,
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
-):
-    """Bulk-loads words from a dictionary ZIP archive: a `dictionary.json`
-    in the same fixed categories/words shape as before (see ExportPayload),
-    plus this word's own-language pronunciation and Tajik-translation
-    pronunciation as audio files referenced by relative path inside the
-    ZIP (see ImportWord.audio/audio_tg). A category already present
-    (matched by name) is reused, never duplicated; a word already present
-    in that category (matched by exact word text) is reused too -- it's
-    synced, not overwritten: its Tajik translation text is refreshed, any
-    forms not already there (exact text match, per language) are appended
-    (existing forms are never removed just because this file doesn't list
-    them), and audio (word + Tajik translation) is added or replaced
-    whenever the ZIP actually references a real audio file, but left
-    exactly as-is when it doesn't. Re-importing the same file is therefore
-    safe to repeat. Only genuinely new words get a new word_id."""
-    dictionary = _get_dictionary_or_404(db, dictionary_id)
-    _require_valid_language(dictionary.language)
+def _validate_import_zip(zf: zipfile.ZipFile, payload: ImportPayload) -> None:
+    """Everything about the ZIP that Pydantic's field types alone can't
+    check: each audio/audio_tg path (when present at all -- both fields
+    stay fully optional) must actually point at a real entry inside this
+    same archive, under the right audio/original/ or audio/tg/ folder, and
+    never escape the archive via "..". Raises ValueError with a specific,
+    human-readable reason (which word, which category, which field) --
+    never a generic "invalid format" -- and runs to completion over the
+    WHOLE payload before the import is allowed to touch the database, so a
+    problem anywhere in a large file never produces a partial import."""
+    zip_names = set(zf.namelist())
+    for cat in payload.categories:
+        cat_name = cat.name.strip()
+        if not cat_name:
+            raise ValueError("Найдена категория с пустым названием.")
+        for word in cat.words:
+            word_text = word.word.strip()
+            if not word_text:
+                raise ValueError(f"В категории «{cat_name}» найдено слово с пустым текстом.")
+            for field_name, path, expected_prefix in (
+                ("audio", word.audio, "audio/original/"),
+                ("audio_tg", word.audio_tg, "audio/tg/"),
+            ):
+                if path is None:
+                    continue
+                if not path or path.startswith("/") or ".." in path.split("/"):
+                    raise ValueError(
+                        f"Слово «{word_text}» ({cat_name}): недопустимый путь в поле {field_name}: {path!r}"
+                    )
+                if not path.startswith(expected_prefix):
+                    raise ValueError(
+                        f"Слово «{word_text}» ({cat_name}): поле {field_name} должно начинаться с "
+                        f"{expected_prefix!r}, получено {path!r}"
+                    )
+                if path not in zip_names:
+                    raise ValueError(
+                        f"Слово «{word_text}» ({cat_name}): файл {path!r}, указанный в поле {field_name}, "
+                        f"отсутствует в архиве"
+                    )
+
+
+def _open_and_validate_zip(zip_path: str) -> tuple[zipfile.ZipFile, ImportPayload]:
+    """The full pre-DB validation pass: a real ZIP, a dictionary.json at its
+    root, valid JSON, the fixed categories/words shape, and every
+    referenced audio file actually present. Raises ValueError with a
+    specific reason on the first problem found; the caller must not touch
+    the database unless this returns successfully."""
+    try:
+        zf = zipfile.ZipFile(zip_path)
+    except zipfile.BadZipFile as exc:
+        raise ValueError("ZIP-архив повреждён или не является ZIP-файлом.") from exc
 
     try:
-        zf = zipfile.ZipFile(io.BytesIO(file.file.read()))
-        payload_data = json.loads(zf.read("dictionary.json"))
-    except (zipfile.BadZipFile, KeyError, json.JSONDecodeError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Invalid dictionary ZIP archive: expected a dictionary.json at its root",
-        ) from exc
-    payload = ImportPayload.model_validate(payload_data)
+        raw = zf.read("dictionary.json")
+    except KeyError as exc:
+        raise ValueError("В архиве отсутствует файл dictionary.json.") from exc
 
+    try:
+        payload_data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"dictionary.json содержит некорректный JSON: {exc}") from exc
+
+    try:
+        payload = ImportPayload.model_validate(payload_data)
+    except PydanticValidationError as exc:
+        first = exc.errors()[0]
+        loc = ".".join(str(part) for part in first["loc"]) or "categories"
+        raise ValueError(f"dictionary.json не соответствует формату (поле {loc}): {first['msg']}") from exc
+
+    _validate_import_zip(zf, payload)
+    return zf, payload
+
+
+def _merge_import_payload(
+    db: Session, dictionary: Dictionary, zf: zipfile.ZipFile, payload: ImportPayload
+) -> ImportSummary:
+    """The actual merge, run only after `_open_and_validate_zip` already
+    passed: a category already present (matched by name) is reused, never
+    duplicated; a word already present in that category (matched by exact
+    word text) is reused too -- it's synced, not overwritten: its Tajik
+    translation text is refreshed, any forms not already there (exact text
+    match, per language) are appended (existing forms are never removed
+    just because this file doesn't list them), and audio (word + Tajik
+    translation) is added or replaced whenever the ZIP actually references
+    a real audio file, but left exactly as-is when it doesn't. Re-importing
+    the same file is therefore safe to repeat. Only genuinely new words get
+    a new word_id."""
+    dictionary_id = dictionary.id
     categories_created = categories_reused = 0
     words_created = words_reused = 0
     forms_added = 0
@@ -455,10 +522,9 @@ def import_words(
             # The word's own pronunciation, in the dictionary's own
             # language. A ZIP that references real audio always wins (added
             # if there was none, replaced if there already was one); a ZIP
-            # with no audio for this word (missing path, null, or the file
-            # just isn't in the archive) leaves whatever audio is already
-            # there alone -- sync never deletes data the new file is simply
-            # silent about.
+            # with no audio for this word (missing field, or null) leaves
+            # whatever audio is already there alone -- sync never deletes
+            # data the new file is simply silent about.
             audio_bytes = _read_zip_audio(zf, word_data.audio)
             if audio_bytes is not None:
                 delete_by_key(db_word.word_audio_key)
@@ -507,13 +573,125 @@ def import_words(
                     existing_tg_forms.add(text)
                     forms_added += 1
 
-    db.commit()
     return ImportSummary(
         categories_created=categories_created,
         categories_reused=categories_reused,
         words_created=words_created,
         words_reused=words_reused,
         forms_added=forms_added,
+    )
+
+
+def _run_import_job(job_id: str, dictionary_id: int, zip_path: str) -> None:
+    """The actual import work, run entirely outside the HTTP request that
+    started it: its own DB session (never the request's -- that one is
+    closed by the time a background task runs), no FastAPI Depends()
+    involved. This keeps going, and its result stays retrievable by
+    job_id, no matter whether the admin's browser is still connected,
+    still on this page, or closed entirely -- Admin Web only ever polls
+    GET .../import/{job_id} for whatever this last wrote."""
+    db = SessionLocal()
+    try:
+        job = db.get(ImportJob, job_id)
+        if job is None:
+            return
+        job.status = "processing"
+        db.commit()
+
+        try:
+            dictionary = db.get(Dictionary, dictionary_id)
+            if dictionary is None:
+                raise ValueError("Словарь не найден.")
+
+            zf, payload = _open_and_validate_zip(zip_path)
+            try:
+                summary = _merge_import_payload(db, dictionary, zf, payload)
+                db.commit()
+            finally:
+                zf.close()
+
+            job = db.get(ImportJob, job_id)
+            job.status = "completed"
+            job.categories_created = summary.categories_created
+            job.categories_reused = summary.categories_reused
+            job.words_created = summary.words_created
+            job.words_reused = summary.words_reused
+            job.forms_added = summary.forms_added
+            db.commit()
+        except ValueError as exc:
+            db.rollback()
+            job = db.get(ImportJob, job_id)
+            job.status = "failed"
+            job.error_message = str(exc)
+            db.commit()
+        except Exception as exc:  # noqa: BLE001 -- an import job must always reach a terminal state
+            db.rollback()
+            job = db.get(ImportJob, job_id)
+            job.status = "failed"
+            job.error_message = f"Непредвиденная ошибка при импорте: {exc}"
+            db.commit()
+    finally:
+        db.close()
+        try:
+            os.remove(zip_path)
+        except OSError:
+            pass
+
+
+@router.post(
+    "/dictionaries/{dictionary_id}/import",
+    response_model=ImportJobOut,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def import_words(
+    dictionary_id: int,
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """Starts a dictionary ZIP import as a server-tracked background job.
+    Admin Web only uploads the file and gets back a job_id; the actual
+    parsing, validation and database merge happen in `_run_import_job`
+    after this request already returned, so a slow upload/large archive
+    keeps being processed here even if the admin navigates away or closes
+    the tab -- polling GET .../import/{job_id} is the only way the result
+    is meant to be observed, never a state held only in the browser."""
+    dictionary = _get_dictionary_or_404(db, dictionary_id)
+    _require_valid_language(dictionary.language)
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
+        tmp.write(file.file.read())
+        zip_path = tmp.name
+
+    job = ImportJob(id=uuid.uuid4().hex, dictionary_id=dictionary_id, status="pending")
+    db.add(job)
+    db.commit()
+
+    background_tasks.add_task(_run_import_job, job.id, dictionary_id, zip_path)
+
+    return ImportJobOut(job_id=job.id, status=job.status)
+
+
+@router.get("/dictionaries/{dictionary_id}/import/{job_id}", response_model=ImportJobOut)
+def get_import_job(
+    dictionary_id: int,
+    job_id: str,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    job = db.get(ImportJob, job_id)
+    if job is None or job.dictionary_id != dictionary_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Import job not found")
+    return ImportJobOut(
+        job_id=job.id,
+        status=job.status,
+        error_message=job.error_message,
+        categories_created=job.categories_created,
+        categories_reused=job.categories_reused,
+        words_created=job.words_created,
+        words_reused=job.words_reused,
+        forms_added=job.forms_added,
     )
 
 

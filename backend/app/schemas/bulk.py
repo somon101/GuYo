@@ -37,6 +37,26 @@ class ImportSummary(BaseModel):
     forms_added: int
 
 
+class ImportJobOut(BaseModel):
+    """Server-tracked state of one ZIP import -- Admin Web polls this by
+    job_id instead of holding the operation's progress/result in its own
+    component state, so a slow import keeps running (and its result stays
+    retrievable) no matter what the admin's browser does in the meantime.
+    `error_message` is only set once `status == "failed"`, and is a
+    specific reason (which word/category/path or JSON problem), never a
+    generic "invalid format" string; the count fields are only set once
+    `status == "completed"`."""
+
+    job_id: str
+    status: str  # "pending" | "processing" | "completed" | "failed"
+    error_message: str | None = None
+    categories_created: int | None = None
+    categories_reused: int | None = None
+    words_created: int | None = None
+    words_reused: int | None = None
+    forms_added: int | None = None
+
+
 # Export uses the exact same shape as import, so a re-exported file can be
 # fed straight back into import with no conversion.
 ExportWord = ImportWord

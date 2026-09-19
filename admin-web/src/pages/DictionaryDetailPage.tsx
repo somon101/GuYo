@@ -1,16 +1,29 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   createCategory,
   exportDictionary,
   getDictionary,
-  importDictionary,
+  getDictionaryImportJob,
   listCategories,
-  type ImportSummary,
+  startDictionaryImport,
+  type ImportJob,
 } from "../api/endpoints";
 import type { Category, Dictionary } from "../types";
 import { Modal } from "../components/Modal";
 import { LanguageSectionTabs } from "../components/LanguageSectionTabs";
+
+const IMPORT_JOB_POLL_MS = 1500;
+
+// The import itself runs on the backend as a job, entirely independent of
+// this component's lifetime -- so the one piece of state that actually
+// needs to survive a lost React tree (navigating away, closing the tab,
+// reopening Admin Web later) is just the job_id, kept here rather than in
+// memory. On mount, this page checks for one and resumes polling it
+// instead of assuming "no import in progress".
+function importJobStorageKey(dictionaryId: number): string {
+  return `guyo_import_job_${dictionaryId}`;
+}
 
 export function DictionaryDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -22,9 +35,8 @@ export function DictionaryDetailPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const [importNotice, setImportNotice] = useState<string | null>(null);
-  const [importError, setImportError] = useState<string | null>(null);
+  const [importJob, setImportJob] = useState<ImportJob | null>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function reload() {
     setIsLoading(true);
@@ -43,8 +55,43 @@ export function DictionaryDetailPage() {
     }
   }
 
+  const pollImportJob = useCallback(
+    (jobId: string) => {
+      getDictionaryImportJob(dictionaryId, jobId)
+        .then((job) => {
+          setImportJob(job);
+          if (job.status === "pending" || job.status === "processing") {
+            pollTimeoutRef.current = setTimeout(() => pollImportJob(jobId), IMPORT_JOB_POLL_MS);
+            return;
+          }
+          // Terminal state (completed or failed): the job's result is now
+          // shown from this response, so there's nothing left to resume
+          // from storage next time this page loads.
+          localStorage.removeItem(importJobStorageKey(dictionaryId));
+          if (job.status === "completed") {
+            reload();
+          }
+        })
+        .catch(() => {
+          // A transient network hiccup while polling must not make the
+          // import look "lost" -- the job keeps running server-side
+          // regardless, so just try again shortly.
+          pollTimeoutRef.current = setTimeout(() => pollImportJob(jobId), IMPORT_JOB_POLL_MS);
+        });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dictionaryId],
+  );
+
   useEffect(() => {
     reload();
+    const storedJobId = localStorage.getItem(importJobStorageKey(dictionaryId));
+    if (storedJobId) {
+      pollImportJob(storedJobId);
+    }
+    return () => {
+      if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dictionaryId]);
 
@@ -58,28 +105,36 @@ export function DictionaryDetailPage() {
     URL.revokeObjectURL(url);
   }
 
-  function summaryText(s: ImportSummary): string {
+  function summaryText(job: ImportJob): string {
     return (
-      `Категорий создано: ${s.categories_created} (переиспользовано: ${s.categories_reused}) · ` +
-      `Слов создано: ${s.words_created} (переиспользовано: ${s.words_reused}) · ` +
-      `Форм добавлено: ${s.forms_added}`
+      `Категорий создано: ${job.categories_created} (переиспользовано: ${job.categories_reused}) · ` +
+      `Слов создано: ${job.words_created} (переиспользовано: ${job.words_reused}) · ` +
+      `Форм добавлено: ${job.forms_added}`
     );
   }
 
   async function handleImportFile(file: File) {
-    setImportError(null);
-    setImportNotice(null);
-    setIsImporting(true);
+    setImportJob(null);
     try {
-      const summary = await importDictionary(dictionaryId, file);
-      setImportNotice(summaryText(summary));
-      await reload();
+      const job = await startDictionaryImport(dictionaryId, file);
+      localStorage.setItem(importJobStorageKey(dictionaryId), job.job_id);
+      setImportJob(job);
+      pollImportJob(job.job_id);
     } catch {
-      setImportError("Не удалось импортировать файл. Проверьте формат ZIP-архива.");
-    } finally {
-      setIsImporting(false);
+      setImportJob({
+        job_id: "",
+        status: "failed",
+        error_message: "Не удалось отправить файл на сервер. Проверьте соединение и повторите попытку.",
+        categories_created: null,
+        categories_reused: null,
+        words_created: null,
+        words_reused: null,
+        forms_added: null,
+      });
     }
   }
+
+  const isImporting = importJob?.status === "pending" || importJob?.status === "processing";
 
   if (isLoading) {
     return <p className="text-sm text-slate-500">Загрузка…</p>;
@@ -142,9 +197,20 @@ export function DictionaryDetailPage() {
         </div>
       </div>
 
-      {(importNotice || importError) && (
-        <p className={`mb-4 text-sm ${importError ? "text-red-600" : "text-emerald-600"}`}>
-          {importError ?? importNotice}
+      {importJob && (
+        <p
+          className={`mb-4 text-sm ${
+            importJob.status === "failed"
+              ? "text-red-600"
+              : importJob.status === "completed"
+                ? "text-emerald-600"
+                : "text-slate-500"
+          }`}
+        >
+          {importJob.status === "failed" && (importJob.error_message ?? "Не удалось импортировать файл.")}
+          {importJob.status === "completed" && summaryText(importJob)}
+          {(importJob.status === "pending" || importJob.status === "processing") &&
+            "Импорт выполняется на сервере… Можно уйти со страницы — прогресс сохранится, и результат будет здесь при возврате."}
         </p>
       )}
 
