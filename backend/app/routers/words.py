@@ -3,6 +3,7 @@ import json
 import zipfile
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.deps import Principal, get_current_admin, get_current_principal
@@ -352,6 +353,27 @@ def delete_form(
     return None
 
 
+def _get_or_create_category(db: Session, dictionary_id: int, name: str) -> tuple[Category, bool]:
+    """Two ZIP imports of the same file hitting the backend close together
+    (e.g. a slow multi-MB upload retried, or an impatient second click)
+    would otherwise both see no existing category, both try to insert it,
+    and the loser would crash the whole import on the (dictionary_id, name)
+    unique constraint. A SAVEPOINT here means that race just falls back to
+    "someone else already created it" instead of a 500."""
+    category = db.query(Category).filter(Category.dictionary_id == dictionary_id, Category.name == name).first()
+    if category is not None:
+        return category, False
+    try:
+        with db.begin_nested():
+            category = Category(dictionary_id=dictionary_id, name=name)
+            db.add(category)
+            db.flush()
+        return category, True
+    except IntegrityError:
+        category = db.query(Category).filter(Category.dictionary_id == dictionary_id, Category.name == name).first()
+        return category, False  # type: ignore[return-value]
+
+
 def _read_zip_audio(zf: zipfile.ZipFile, path: str | None) -> bytes | None:
     """Best-effort read of one audio entry out of the dictionary ZIP by the
     relative path given in dictionary.json -- a missing entry (absent path,
@@ -405,15 +427,8 @@ def import_words(
 
     for cat_data in payload.categories:
         name = cat_data.name.strip()
-        category = (
-            db.query(Category)
-            .filter(Category.dictionary_id == dictionary_id, Category.name == name)
-            .first()
-        )
-        if category is None:
-            category = Category(dictionary_id=dictionary_id, name=name)
-            db.add(category)
-            db.flush()
+        category, was_created = _get_or_create_category(db, dictionary_id, name)
+        if was_created:
             categories_created += 1
         else:
             categories_reused += 1
