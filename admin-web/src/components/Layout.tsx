@@ -7,6 +7,7 @@ const navItems = [
   { to: "/users", label: "Пользователи" },
   { to: "/dictionaries", label: "Языки" },
   { to: "/exercises", label: "Упражнения" },
+  { to: "/analytics", label: "Аналитика" },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {

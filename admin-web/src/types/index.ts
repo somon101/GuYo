@@ -132,3 +132,62 @@ export interface ExerciseSettings {
 export interface LearningSettings {
   threshold_score: number;
 }
+
+// --- Аналитика пользователей ---------------------------------------------
+// Read-only report built on the exact same "is this phrase available"
+// definition as the app's own "Мои фразы" (see the backend's
+// app.routers.phrases) -- nothing here is a second, independent notion of
+// "learned".
+
+export interface AnalyticsDictionary {
+  id: number;
+  name: string;
+  language: string;
+  phrase_count: number;
+}
+
+export interface OpenPhraseAnalytics {
+  phrase_id: number;
+  original: string;
+  translation_tg: string;
+  category_name: string | null;
+}
+
+export interface MissingWord {
+  // null when the phrase contains a token that matches no Word (or its
+  // forms) in this dictionary at all -- nothing to "learn" for it.
+  word_id: number | null;
+  text: string;
+}
+
+export interface NearPhrase {
+  phrase_id: number;
+  original: string;
+  translation_tg: string;
+  category_name: string | null;
+  learned_count: number;
+  total_count: number;
+  missing_words: MissingWord[];
+}
+
+export interface WordImpact {
+  word_id: number;
+  word: string;
+  new_phrase_count: number;
+  sample_phrases: string[];
+}
+
+export interface UserPhraseAnalytics {
+  user_id: number;
+  user_login: string;
+  dictionary_id: number;
+  threshold: number;
+  learned_word_count: number;
+  total_word_count: number;
+  open_phrase_count: number;
+  total_phrase_count: number;
+  remaining_phrase_count: number;
+  open_phrases: OpenPhraseAnalytics[];
+  near_phrases: NearPhrase[];
+  top_words: WordImpact[];
+}

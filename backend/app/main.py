@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.routers import (
+    admin_analytics,
     auth,
     categories,
     dictionaries,
@@ -48,6 +49,7 @@ app.include_router(phrase_categories.router)
 app.include_router(learning.router)
 app.include_router(exercises.router)
 app.include_router(lessons.router)
+app.include_router(admin_analytics.router)
 
 
 @app.get("/health")

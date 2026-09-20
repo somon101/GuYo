@@ -16,6 +16,7 @@ import { TrueOrFalseSettingsPage } from "./pages/exercises/TrueOrFalseSettingsPa
 import { MatchingSettingsPage } from "./pages/exercises/MatchingSettingsPage";
 import { BuildWordSettingsPage } from "./pages/exercises/BuildWordSettingsPage";
 import { LearningThresholdSettingsPage } from "./pages/exercises/LearningThresholdSettingsPage";
+import { UserAnalyticsPage } from "./pages/UserAnalyticsPage";
 
 // HashRouter is used deliberately: GitHub Pages serves static files with no
 // server-side rewrites, so a BrowserRouter route like /dictionaries/3 would
@@ -173,6 +174,16 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <LearningThresholdSettingsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/analytics"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <UserAnalyticsPage />
                 </Layout>
               </ProtectedRoute>
             }

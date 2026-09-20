@@ -1,6 +1,7 @@
 import { api } from "./client";
 import type {
   AdminUser,
+  AnalyticsDictionary,
   Category,
   Dictionary,
   ExerciseSettings,
@@ -8,6 +9,7 @@ import type {
   Phrase,
   PhraseCategory,
   TranslationLanguage,
+  UserPhraseAnalytics,
   Word,
   WordForm,
   WordTranslation,
@@ -394,5 +396,25 @@ export async function getLearningSettings(): Promise<LearningSettings> {
 
 export async function setLearningSettings(thresholdScore: number): Promise<LearningSettings> {
   const { data } = await api.put("/learning-settings", { threshold_score: thresholdScore });
+  return data;
+}
+
+// --- Аналитика пользователей ---------------------------------------------
+// Read-only: every number here is computed by the backend from existing
+// Word/WordForm/WordProgress/Phrase data, using the exact same
+// "is this phrase available" definition as the app's own "Мои фразы".
+
+export async function listAnalyticsDictionaries(): Promise<AnalyticsDictionary[]> {
+  const { data } = await api.get("/admin/analytics/dictionaries");
+  return data;
+}
+
+export async function getUserPhraseAnalytics(
+  userId: number,
+  dictionaryId: number,
+): Promise<UserPhraseAnalytics> {
+  const { data } = await api.get(`/admin/analytics/users/${userId}`, {
+    params: { dictionary_id: dictionaryId },
+  });
   return data;
 }
