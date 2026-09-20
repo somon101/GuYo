@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/exercise.dart';
 import '../widgets/audio_button.dart';
+import 'lesson_complete_screen.dart';
 
 /// "Правда или ложь", as one of a Lesson's exercises: the backend hands back
 /// a round built from THIS lesson's fixed word set (wrong-answer candidates
@@ -15,7 +16,8 @@ import '../widgets/audio_button.dart';
 /// it just shows whatever the backend already decided next.
 class TrueOrFalseScreen extends StatefulWidget {
   final int lessonId;
-  const TrueOrFalseScreen({super.key, required this.lessonId});
+  final int lessonNumber;
+  const TrueOrFalseScreen({super.key, required this.lessonId, required this.lessonNumber});
 
   @override
   State<TrueOrFalseScreen> createState() => _TrueOrFalseScreenState();
@@ -152,7 +154,13 @@ class _TrueOrFalseScreenState extends State<TrueOrFalseScreen> {
                     total: _items.length,
                     lessonCompleted: _lessonCompleted,
                     onPlayAgain: _load,
-                    onBackToLesson: () => Navigator.of(context).pop(_lessonCompleted),
+                    onBackToLesson: () => _lessonCompleted
+                        ? Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) => LessonCompleteScreen(lessonNumber: widget.lessonNumber),
+                            ),
+                          )
+                        : Navigator.of(context).pop(),
                   )
                 : Center(child: SingleChildScrollView(child: _TrueOrFalseCard(item: _items[_index]))),
           ),
@@ -294,8 +302,8 @@ class _RoundCompleteView extends StatelessWidget {
           const SizedBox(height: 20),
           FilledButton.icon(
             onPressed: onBackToLesson,
-            icon: const Icon(Icons.arrow_back),
-            label: const Text('К уроку'),
+            icon: Icon(lessonCompleted ? Icons.emoji_events_outlined : Icons.arrow_back),
+            label: Text(lessonCompleted ? 'Продолжить' : 'К уроку'),
           ),
           const SizedBox(height: 8),
           if (!lessonCompleted)

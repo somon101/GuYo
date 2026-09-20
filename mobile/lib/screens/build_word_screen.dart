@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/exercise.dart';
 import '../widgets/audio_button.dart';
+import 'lesson_complete_screen.dart';
 
 /// One letter button/slot's contents, with a unique instance id so two
 /// identical letters (e.g. HELLO's two L's) are always distinguishable and
@@ -29,7 +30,8 @@ class _Tile {
 /// score actually changes.
 class BuildWordScreen extends StatefulWidget {
   final int lessonId;
-  const BuildWordScreen({super.key, required this.lessonId});
+  final int lessonNumber;
+  const BuildWordScreen({super.key, required this.lessonId, required this.lessonNumber});
 
   @override
   State<BuildWordScreen> createState() => _BuildWordScreenState();
@@ -211,7 +213,13 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
         total: round.items.length,
         lessonCompleted: _lessonCompleted,
         onPlayAgain: _load,
-        onBackToLesson: () => Navigator.of(context).pop(_lessonCompleted),
+        onBackToLesson: () => _lessonCompleted
+            ? Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => LessonCompleteScreen(lessonNumber: widget.lessonNumber),
+                ),
+              )
+            : Navigator.of(context).pop(),
       );
     }
 
@@ -400,8 +408,8 @@ class _RoundCompleteView extends StatelessWidget {
           const SizedBox(height: 20),
           FilledButton.icon(
             onPressed: onBackToLesson,
-            icon: const Icon(Icons.arrow_back),
-            label: const Text('К уроку'),
+            icon: Icon(lessonCompleted ? Icons.emoji_events_outlined : Icons.arrow_back),
+            label: Text(lessonCompleted ? 'Продолжить' : 'К уроку'),
           ),
           const SizedBox(height: 8),
           if (!lessonCompleted)

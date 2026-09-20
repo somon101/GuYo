@@ -47,7 +47,9 @@ from app.schemas.lesson import (
     LearningSettingsIn,
     LearningSettingsOut,
     LessonCandidateWordsOut,
+    LessonListOut,
     LessonOut,
+    LessonSummaryOut,
     LessonWordOut,
     SubmitAnswerIn,
     SubmitAnswerOut,
@@ -212,6 +214,32 @@ def _lesson_to_out(db: Session, lesson: Lesson, threshold: int) -> LessonOut:
     )
 
 
+def _lesson_to_summary(db: Session, lesson: Lesson, threshold: int) -> LessonSummaryOut:
+    """One row of the full lesson history -- see GET
+    /dictionaries/{id}/lessons. Deliberately lighter than `_lesson_to_out`:
+    just the counts the chain screen needs to render one link, not every
+    word's own text/translation/score."""
+    word_ids = [row[0] for row in db.query(LessonWord.word_id).filter(LessonWord.lesson_id == lesson.id).all()]
+    learned_count = 0
+    if word_ids:
+        learned_count = (
+            db.query(func.count(WordProgress.id))
+            .filter(
+                WordProgress.user_id == lesson.user_id,
+                WordProgress.word_id.in_(word_ids),
+                WordProgress.score >= threshold,
+            )
+            .scalar()
+        )
+    return LessonSummaryOut(
+        id=lesson.id,
+        number=lesson.number,
+        is_completed=lesson.is_completed,
+        word_count=len(word_ids),
+        learned_count=learned_count,
+    )
+
+
 def _check_and_apply_lesson_completion(db: Session, lesson: Lesson, threshold: int) -> bool:
     """Recomputes from WordProgress every time rather than trusting any
     cached flag -- a lesson is complete exactly when ALL its words are at
@@ -267,6 +295,32 @@ def get_active_lesson(
     if lesson is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active lesson")
     return _lesson_to_out(db, lesson, _get_threshold(db))
+
+
+@router.get("/dictionaries/{dictionary_id}/lessons", response_model=LessonListOut)
+def list_lessons(
+    dictionary_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """The full, permanent lesson history for this (user, dictionary) --
+    every lesson ever created, oldest first, each with its current status.
+    Lessons are never deleted (see Lesson's docstring), so this is the
+    "Уроки" chain screen's one source of truth: unlike get_active_lesson,
+    an empty list or an all-completed history is a normal, valid response,
+    never a 404."""
+    _get_published_dictionary_or_404(db, dictionary_id)
+    threshold = _get_threshold(db)
+    lessons = (
+        db.query(Lesson)
+        .filter(Lesson.user_id == user.id, Lesson.dictionary_id == dictionary_id)
+        .order_by(Lesson.number)
+        .all()
+    )
+    return LessonListOut(
+        dictionary_id=dictionary_id,
+        lessons=[_lesson_to_summary(db, lesson, threshold) for lesson in lessons],
+    )
 
 
 @router.get("/lessons/{lesson_id}", response_model=LessonOut)

@@ -2,35 +2,24 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../models/lesson.dart';
-import 'build_word_screen.dart';
 import 'learned_words_screen.dart';
 import 'lesson_create_screen.dart';
-import 'matching_screen.dart';
-import 'true_or_false_screen.dart';
-
-const Map<String, String> _exerciseLabels = {
-  'true_or_false': 'Правда или ложь',
-  'matching': 'Сопоставление',
-  'build_word': 'Собери слово',
-};
-
-const Map<String, IconData> _exerciseIcons = {
-  'true_or_false': Icons.rule_outlined,
-  'matching': Icons.extension_outlined,
-  'build_word': Icons.abc_outlined,
-};
+import 'lesson_detail_screen.dart';
 
 /// "Уроки": the new primary progress system's own tab. Shows this
-/// dictionary's current active lesson (its fixed word set, each word's own
-/// cumulative score/learned status, and whichever exercises the backend
-/// decided are available for it) -- or, once it's fully complete (every
-/// word at or above the admin's threshold) or there isn't one yet, the
-/// entry point to create the next one.
+/// dictionary's FULL, permanent lesson history as a sequential chain --
+/// every lesson the user has ever created, oldest first, each with its own
+/// real status (never a locally-invented one) -- plus, once the last one
+/// is fully complete (or there isn't one yet), one extra unlocked link at
+/// the end for creating the next lesson. Lessons are never deleted or
+/// replaced (see the backend's Lesson model): completing one just reveals
+/// the next link in the chain, it never removes the one before it.
 ///
-/// All progress state -- scores, learned status, lesson completion -- is
-/// whatever the backend's last response said; this screen never computes
-/// any of it, only reloads after anything that could have changed it (an
-/// exercise round, a new lesson).
+/// This screen owns none of the actual lesson mechanics -- word selection,
+/// exercises, scoring, the learning threshold -- all of that is unchanged
+/// and lives in LessonDetailScreen/LessonCreateScreen/the exercise
+/// screens. This is purely "what lessons exist and in what order", always
+/// re-fetched from the backend, never assembled from local state.
 class LessonsScreen extends StatefulWidget {
   final GuyoDictionary dictionary;
   const LessonsScreen({super.key, required this.dictionary});
@@ -42,7 +31,7 @@ class LessonsScreen extends StatefulWidget {
 class _LessonsScreenState extends State<LessonsScreen> {
   bool _isLoading = true;
   String? _loadError;
-  Lesson? _lesson;
+  List<LessonSummary> _lessons = [];
 
   @override
   void initState() {
@@ -51,69 +40,45 @@ class _LessonsScreenState extends State<LessonsScreen> {
   }
 
   Future<void> _load() async {
-    // Guarded even before the first await: `_openExercise` calls this right
-    // after an awaited Navigator.push returns, and that push/pop round trip
-    // is a wide enough window for HomeScreen's unrelated resume-triggered
-    // dictionaries reload to have already torn down and disposed this
-    // screen by the time control comes back here.
     if (!mounted) return;
     setState(() {
       _isLoading = true;
       _loadError = null;
     });
     try {
-      final lesson = await ApiClient.instance.fetchActiveLesson(widget.dictionary.id);
+      final lessons = await ApiClient.instance.fetchLessons(widget.dictionary.id);
       if (!mounted) return;
       setState(() {
-        _lesson = lesson;
+        _lessons = lessons;
         _isLoading = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = 'Не удалось загрузить урок';
+        _loadError = 'Не удалось загрузить уроки';
       });
     }
   }
 
-  Future<void> _openExercise(String exerciseKey) async {
-    final lesson = _lesson;
-    if (lesson == null) return;
-    final label = _exerciseLabels[exerciseKey] ?? exerciseKey;
-    final completed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => Scaffold(
-          appBar: AppBar(title: Text(label)),
-          body: switch (exerciseKey) {
-            'true_or_false' => TrueOrFalseScreen(lessonId: lesson.id),
-            'matching' => MatchingScreen(lessonId: lesson.id),
-            'build_word' => BuildWordScreen(lessonId: lesson.id),
-            _ => const SizedBox.shrink(),
-          },
-        ),
-      ),
+  Future<void> _openLesson(int lessonId) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => LessonDetailScreen(lessonId: lessonId)),
     );
     await _load();
-    if (!mounted) return;
-    if (completed == true) {
-      final messenger = ScaffoldMessenger.of(context);
-      messenger.hideCurrentSnackBar();
-      messenger.showSnackBar(const SnackBar(content: Text('Урок пройден! Можно создать следующий.')));
-    }
+  }
+
+  Future<void> _createNextLesson() async {
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => LessonCreateScreen(dictionary: widget.dictionary)),
+    );
+    await _load();
   }
 
   Future<void> _openLearnedWords() async {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => LearnedWordsScreen(dictionary: widget.dictionary)),
     );
-  }
-
-  Future<void> _createLesson() async {
-    final created = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => LessonCreateScreen(dictionary: widget.dictionary)),
-    );
-    if (created == true) await _load();
   }
 
   @override
@@ -133,10 +98,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
             ),
           ),
           Expanded(
-            child: RefreshIndicator(
-              onRefresh: _load,
-              child: _buildBody(),
-            ),
+            child: RefreshIndicator(onRefresh: _load, child: _buildBody()),
           ),
         ],
       ),
@@ -146,9 +108,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
   Widget _buildBody() {
     if (_isLoading) {
       return ListView(
-        children: const [
-          SizedBox(height: 160, child: Center(child: CircularProgressIndicator())),
-        ],
+        children: const [SizedBox(height: 160, child: Center(child: CircularProgressIndicator()))],
       );
     }
     if (_loadError != null) {
@@ -169,122 +129,209 @@ class _LessonsScreenState extends State<LessonsScreen> {
       );
     }
 
-    final lesson = _lesson;
-    if (lesson == null) {
-      return ListView(
-        children: [
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.auto_stories_outlined, size: 56, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Пока нет активного урока',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Выберите слова для нового урока, чтобы начать',
-                    style: TextStyle(color: Colors.black54),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 20),
-                  FilledButton(onPressed: _createLesson, child: const Text('Создать урок')),
-                ],
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
-    final learnedCount = lesson.words.where((w) => w.isLearned).length;
+    final lessons = _lessons;
+    // A new link is only ever added once the current last lesson is fully
+    // complete -- exactly the backend's own creation rule (POST /lessons
+    // 409s otherwise), mirrored here purely for what the chain displays.
+    final canCreateNext = lessons.isEmpty || lessons.last.isCompleted;
+    final nextNumber = lessons.isEmpty ? 1 : lessons.last.number + 1;
+    final completedCount = lessons.where((l) => l.isCompleted).length;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
-        Text('Урок ${lesson.number}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+        Text(
+          'Уроки',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.primary),
+        ),
         const SizedBox(height: 4),
         Text(
-          'Изучено $learnedCount из ${lesson.words.length}',
+          lessons.isEmpty ? 'Создайте первый урок, чтобы начать' : 'Пройдено $completedCount из ${lessons.length}',
           style: const TextStyle(color: Colors.black54, fontSize: 13),
         ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: LinearProgressIndicator(
-            value: lesson.words.isEmpty ? 0.0 : learnedCount / lesson.words.length,
-            minHeight: 8,
-          ),
-        ),
-        const SizedBox(height: 20),
-        if (lesson.exerciseKeys.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Text(
-              'Для этого урока пока нет доступных упражнений.',
-              style: TextStyle(color: Colors.black54),
-            ),
-          )
-        else ...[
-          const Text('Упражнения', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              for (final key in lesson.exerciseKeys)
-                FilledButton.tonalIcon(
-                  onPressed: () => _openExercise(key),
-                  icon: Icon(_exerciseIcons[key] ?? Icons.school_outlined),
-                  label: Text(_exerciseLabels[key] ?? key),
-                ),
-            ],
-          ),
-        ],
         const SizedBox(height: 24),
-        const Text('Слова урока', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        for (final word in lesson.words) _LessonWordTile(word: word),
+        for (var i = 0; i < lessons.length; i++)
+          _ChainNode(
+            isFirst: i == 0,
+            isLast: i == lessons.length - 1 && !canCreateNext,
+            state: lessons[i].isCompleted ? _ChainNodeState.completed : _ChainNodeState.inProgress,
+            title: 'Урок ${lessons[i].number}',
+            subtitle: lessons[i].isCompleted
+                ? 'Пройден'
+                : 'Изучено ${lessons[i].learnedCount} из ${lessons[i].wordCount}',
+            progress: lessons[i].wordCount == 0 ? 0.0 : lessons[i].learnedCount / lessons[i].wordCount,
+            onTap: () => _openLesson(lessons[i].id),
+          ),
+        if (canCreateNext)
+          _ChainNode(
+            isFirst: lessons.isEmpty,
+            isLast: true,
+            state: _ChainNodeState.unlocked,
+            title: 'Урок $nextNumber',
+            subtitle: lessons.isEmpty ? 'Создать урок' : 'Доступен для создания',
+            progress: null,
+            onTap: _createNextLesson,
+          ),
       ],
     );
   }
 }
 
-class _LessonWordTile extends StatelessWidget {
-  final LessonWord word;
-  const _LessonWordTile({required this.word});
+enum _ChainNodeState { completed, inProgress, unlocked }
+
+/// One link of the vertical lesson chain: a status circle (with a subtle
+/// progress ring while in progress) connected by a line to its neighbors
+/// above/below, and a tappable, softly-shadowed, state-tinted card.
+/// Adapted from the general "sequential chain of steps, done vs. not-done
+/// look different" idea (not any particular reference design/colors/
+/// assets) to GuYo's own indigo/emerald Material style.
+class _ChainNode extends StatelessWidget {
+  final bool isFirst;
+  final bool isLast;
+  final _ChainNodeState state;
+  final String title;
+  final String subtitle;
+  final double? progress;
+  final VoidCallback onTap;
+
+  const _ChainNode({
+    required this.isFirst,
+    required this.isLast,
+    required this.state,
+    required this.title,
+    required this.subtitle,
+    required this.progress,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: word.isLearned ? Colors.green.shade50 : Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: word.isLearned ? Colors.green.shade300 : Colors.grey.shade300),
-      ),
+    final scheme = Theme.of(context).colorScheme;
+    final lineColor = Colors.grey.shade300;
+    final List<Color> gradientColors;
+    final Color tint;
+    final IconData icon;
+    switch (state) {
+      case _ChainNodeState.completed:
+        gradientColors = [Colors.green.shade400, Colors.teal.shade600];
+        tint = Colors.green.shade600;
+        icon = Icons.check_rounded;
+      case _ChainNodeState.inProgress:
+        gradientColors = [scheme.primary, Colors.indigo.shade900];
+        tint = scheme.primary;
+        icon = Icons.menu_book_rounded;
+      case _ChainNodeState.unlocked:
+        gradientColors = [Colors.grey.shade400, Colors.grey.shade500];
+        tint = Colors.grey.shade500;
+        icon = Icons.add_rounded;
+    }
+
+    return IntrinsicHeight(
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
+          SizedBox(
+            width: 44,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(word.word, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                if (word.translation != null && word.translation!.isNotEmpty)
-                  Text(word.translation!, style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                Container(width: 3, height: 14, color: isFirst ? Colors.transparent : lineColor),
+                SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      if (state == _ChainNodeState.inProgress && progress != null && progress! > 0)
+                        SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: CircularProgressIndicator(
+                            value: progress,
+                            strokeWidth: 3,
+                            backgroundColor: scheme.primary.withValues(alpha: 0.15),
+                            valueColor: AlwaysStoppedAnimation(Colors.amber.shade600),
+                          ),
+                        ),
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: gradientColors,
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          boxShadow: [
+                            BoxShadow(color: tint.withValues(alpha: 0.45), blurRadius: 10, offset: const Offset(0, 3)),
+                          ],
+                        ),
+                        child: Icon(icon, color: Colors.white, size: 19),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(child: Container(width: 3, color: isLast ? Colors.transparent : lineColor)),
               ],
             ),
           ),
-          if (word.isLearned)
-            Icon(Icons.check_circle, color: Colors.green.shade600, size: 20)
-          else
-            Text('${word.score}', style: const TextStyle(fontSize: 14, color: Colors.black54)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Material(
+                color: state == _ChainNodeState.unlocked ? Colors.grey.shade50 : tint.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(16),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: onTap,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: state == _ChainNodeState.unlocked
+                            ? Colors.grey.shade300
+                            : tint.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.grey.shade900),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                subtitle,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: state == _ChainNodeState.completed
+                                      ? Colors.green.shade700
+                                      : state == _ChainNodeState.unlocked
+                                          ? Colors.black45
+                                          : Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          state == _ChainNodeState.unlocked ? Icons.add_circle_outline : Icons.chevron_right,
+                          color: state == _ChainNodeState.unlocked ? tint : Colors.black38,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

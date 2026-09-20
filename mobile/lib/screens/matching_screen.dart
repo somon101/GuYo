@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/word.dart';
 import '../widgets/audio_button.dart';
+import 'lesson_complete_screen.dart';
 
 /// A drag-free "tap word, then tap its translation" matching drill, as one
 /// of a Lesson's exercises.
@@ -29,7 +30,8 @@ import '../widgets/audio_button.dart';
 /// not itself a demonstrated failure to recognize its own word.
 class MatchingScreen extends StatefulWidget {
   final int lessonId;
-  const MatchingScreen({super.key, required this.lessonId});
+  final int lessonNumber;
+  const MatchingScreen({super.key, required this.lessonId, required this.lessonNumber});
 
   @override
   State<MatchingScreen> createState() => _MatchingScreenState();
@@ -250,7 +252,13 @@ class _MatchingScreenState extends State<MatchingScreen> {
                 onPlayAgain: _load,
                 mistakes: _mistakes,
                 lessonCompleted: _lessonCompleted,
-                onBackToLesson: () => Navigator.of(context).pop(_lessonCompleted),
+                onBackToLesson: () => _lessonCompleted
+                    ? Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (_) => LessonCompleteScreen(lessonNumber: widget.lessonNumber),
+                        ),
+                      )
+                    : Navigator.of(context).pop(),
               ),
             )
           else if (isFullyMatched)
@@ -447,8 +455,8 @@ class _RoundCompleteView extends StatelessWidget {
           const SizedBox(height: 20),
           FilledButton.icon(
             onPressed: onBackToLesson,
-            icon: const Icon(Icons.arrow_back),
-            label: const Text('К уроку'),
+            icon: Icon(lessonCompleted ? Icons.emoji_events_outlined : Icons.arrow_back),
+            label: Text(lessonCompleted ? 'Продолжить' : 'К уроку'),
           ),
           const SizedBox(height: 8),
           if (!lessonCompleted)

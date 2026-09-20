@@ -1,18 +1,24 @@
 // Covers "Уроки" end to end against the real backend:
-//   - no active lesson yet -> the create-lesson entry point;
-//   - random selection creates a lesson with the requested count, and only
-//     "Сопоставление"/"Собери слово" are offered (no previously-learned
-//     pool exists yet, so "Правда или ложь" isn't available for this very
-//     first lesson -- see EXERCISE_AVAILABILITY in lessons.py);
+//   - no lessons yet -> the chain shows a single unlocked "create" link;
+//   - random selection creates Lesson 1, visible in the chain as
+//     in-progress; opening it shows only "Сопоставление"/"Собери слово"
+//     (no previously-learned pool exists yet, so "Правда или ложь" isn't
+//     available for this very first lesson -- see EXERCISE_AVAILABILITY in
+//     lessons.py);
 //   - answering correctly in those exercises raises each specific word's
-//     own score (never a lesson-wide total), and once every word crosses
-//     the admin threshold the lesson completes and those words show up
-//     under "Мои слова";
-//   - a new lesson cannot be created while one is still active, and becomes
-//     createable again once it's complete;
-//   - manual selection (checkboxes, grouped by category) creates a lesson
+//     own score (never a lesson-wide total); once every word crosses the
+//     admin threshold, the lesson-complete screen appears, those words show
+//     up under "Мои слова", Lesson 1 stays in the chain marked "Пройден",
+//     and a new unlocked link for Lesson 2 appears -- Lesson 1 is NEVER
+//     removed or replaced;
+//   - a new lesson cannot be created while one is still active/incomplete
+//     (enforced by the chain only ever showing an unlocked "create" link
+//     once the last real lesson is complete);
+//   - manual selection (checkboxes, grouped by category) creates Lesson 2
 //     from a hand-picked word set, and once a learned-words pool exists
-//     "Правда или ложь" becomes available too.
+//     "Правда или ложь" becomes available too;
+//   - after re-loading the chain, BOTH lessons remain, in the right order,
+//     with the right statuses -- lessons are permanent, not swapped out.
 //
 // Run with:
 //   flutter test integration_test/lessons_screen_test.dart -d windows --dart-define=API_BASE_URL=http://127.0.0.1:8000
@@ -123,8 +129,8 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    'random lesson: only matching+build_word available, repeated correct play reaches the threshold, '
-    'lesson completes, words show under Мои слова, next lesson is gated until then',
+    'random lesson: chain shows the unlocked create-link first, Lesson 1 stays in the chain as '
+    '"Пройден" after completion (never removed), and Lesson 2 unlocks next to it',
     (tester) async {
       final token = await _userToken();
       final dictionaryId = await _englishDictionaryId(token);
@@ -132,8 +138,10 @@ void main() {
       await _login(tester);
       await _openLessonsTab(tester);
 
-      expect(find.text('Пока нет активного урока'), findsOneWidget);
-      await tester.tap(find.widgetWithText(FilledButton, 'Создать урок'));
+      // No lessons yet -- the chain is just one unlocked "create" link.
+      expect(find.text('Создайте первый урок, чтобы начать'), findsOneWidget);
+      expect(find.text('Урок 1'), findsOneWidget);
+      await tester.tap(find.text('Создать урок'));
       await tester.pumpAndSettle();
 
       // Random mode is the default; drive the stepper down to 3 (default
@@ -148,8 +156,18 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Создать урок'));
       await tester.pumpAndSettle(const Duration(seconds: 2));
 
+      // Back on the chain -- Lesson 1 now shows as its own (in-progress)
+      // link, not a full-screen replacement of the chain itself.
       expect(find.text('Урок 1'), findsOneWidget);
       expect(find.textContaining('Изучено 0 из 3'), findsOneWidget);
+
+      final lessonWords = (await _activeLesson(token, dictionaryId))['words'] as List<dynamic>;
+      final wordIds = lessonWords.map((w) => w['word_id'] as int).toList();
+      expect(wordIds.length, 3);
+
+      // Open Lesson 1's own screen to see its exercises.
+      await tester.tap(find.text('Урок 1'));
+      await tester.pumpAndSettle();
       expect(find.text('Сопоставление'), findsOneWidget);
       expect(find.text('Собери слово'), findsOneWidget);
       expect(
@@ -157,10 +175,6 @@ void main() {
         findsNothing,
         reason: 'first-ever lesson has no previously-learned pool, so True/False cannot be offered',
       );
-
-      final lessonWords = (await _activeLesson(token, dictionaryId))['words'] as List<dynamic>;
-      final wordIds = lessonWords.map((w) => w['word_id'] as int).toList();
-      expect(wordIds.length, 3);
 
       // --- Matching, played twice (each correct match is +20): total +40 ---
       await tester.tap(find.text('Сопоставление'));
@@ -179,7 +193,9 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'К уроку'));
       await tester.pumpAndSettle(const Duration(seconds: 1));
 
-      expect(find.text('Урок 1'), findsOneWidget, reason: 'back on the lesson screen, not yet complete');
+      // Back on Lesson 1's own screen (its AppBar reads "Урок 1"), not yet
+      // complete.
+      expect(find.text('Урок 1'), findsOneWidget, reason: 'back on lesson 1\'s own screen, not yet complete');
       expect(find.textContaining('Изучено 0 из 3'), findsOneWidget);
 
       // --- Build word, once (+30): total 40+30 = 70 >= threshold (60) ---
@@ -199,12 +215,26 @@ void main() {
         findsOneWidget,
         reason: 'every word should now be at 70 >= the 60 threshold',
       );
-      await tester.tap(find.widgetWithText(FilledButton, 'К уроку'));
+
+      // The round-complete button now leads to a dedicated completion
+      // screen instead of popping straight back.
+      await tester.tap(find.widgetWithText(FilledButton, 'Продолжить'));
+      await tester.pumpAndSettle(const Duration(seconds: 1));
+      expect(find.text('УРОК 1'), findsOneWidget);
+      expect(find.text('Пройден!'), findsOneWidget);
+
+      // Continuing from there returns all the way to the "Уроки" chain --
+      // never to Lesson 1's own (now-history) screen.
+      await tester.tap(find.widgetWithText(FilledButton, 'Продолжить'));
       await tester.pumpAndSettle(const Duration(seconds: 1));
 
-      // The lesson is complete -- GET /lessons/active now 404s, so the
-      // screen falls back to the create-lesson entry point.
-      expect(find.text('Пока нет активного урока'), findsOneWidget);
+      // Lesson 1 stays in the chain, now marked "Пройден" -- it is NOT
+      // removed or replaced by a fresh lesson-creation prompt.
+      expect(find.text('Урок 1'), findsOneWidget);
+      expect(find.text('Пройден'), findsOneWidget);
+      // A new unlocked link for Lesson 2 appears right after it.
+      expect(find.text('Урок 2'), findsOneWidget);
+      expect(find.text('Доступен для создания'), findsOneWidget);
 
       // --- Мои слова: all 3 lesson words now show up there ---
       await tester.tap(find.widgetWithIcon(TextButton, Icons.bookmark_outline));
@@ -215,23 +245,31 @@ void main() {
       await tester.pageBack();
       await tester.pumpAndSettle();
 
-      // --- Gating: creating a lesson while none is needed still works
-      // (there IS no active lesson anymore); the 409-gating case itself is
-      // exercised implicitly by the very fact this screen only ever showed
-      // "Создать урок" again after -- not before -- the lesson completed.
-      expect(find.widgetWithText(FilledButton, 'Создать урок'), findsOneWidget);
+      // Re-open Lesson 1 directly: it must still be there, read-only (no
+      // exercise buttons -- a completed lesson is history, not replayable).
+      await tester.tap(find.text('Урок 1'));
+      await tester.pumpAndSettle();
+      expect(find.text('Урок пройден'), findsOneWidget);
+      expect(find.text('Сопоставление'), findsNothing, reason: 'a completed lesson shows no exercise buttons');
+      await tester.pageBack();
+      await tester.pumpAndSettle();
     },
   );
 
   testWidgets(
-    'manual lesson: checkbox selection creates a lesson from the hand-picked words, '
-    'and Правда или ложь is now available since a learned pool exists',
+    'manual lesson: checkbox selection creates Lesson 2 from the hand-picked words, it joins the '
+    'chain alongside the still-present Lesson 1, and Правда или ложь is now available',
     (tester) async {
       final token = await _userToken();
       final dictionaryId = await _englishDictionaryId(token);
 
       await _login(tester);
       await _openLessonsTab(tester);
+
+      // Both lessons from the previous test must still be present.
+      expect(find.text('Урок 1'), findsOneWidget);
+      expect(find.text('Пройден'), findsOneWidget);
+      expect(find.text('Урок 2'), findsOneWidget);
 
       // The 3 remaining never-learned words from the fixture (the other 3
       // were learned by the previous test in this same run).
@@ -243,7 +281,7 @@ void main() {
       expect(candidateWords.length, 3, reason: 'exactly the 3 words not consumed by the previous test');
       final targetIds = candidateWords.map((w) => w['id'] as int).toList();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Создать урок'));
+      await tester.tap(find.text('Доступен для создания'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Вручную'));
@@ -263,11 +301,18 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
       await tester.pumpAndSettle(const Duration(seconds: 2));
 
-      expect(find.text('Урок 2'), findsOneWidget, reason: 'numbering continues from the previous lesson');
+      // Back on the chain: both lessons present, in order, right statuses.
+      expect(find.text('Урок 1'), findsOneWidget);
+      expect(find.text('Пройден'), findsOneWidget);
+      expect(find.text('Урок 2'), findsOneWidget);
+      expect(find.textContaining('Изучено 0 из 3'), findsOneWidget);
+
+      await tester.tap(find.text('Урок 2'));
+      await tester.pumpAndSettle();
       expect(
         find.text('Правда или ложь'),
         findsOneWidget,
-        reason: 'the 3 words learned in the previous lesson are now a usable pool for True/False',
+        reason: 'the 3 words learned in Lesson 1 are now a usable pool for True/False',
       );
       expect(find.text('Сопоставление'), findsOneWidget);
       expect(find.text('Собери слово'), findsOneWidget);

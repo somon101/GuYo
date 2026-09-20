@@ -83,6 +83,36 @@ class LessonCandidateWords {
   }
 }
 
+/// One row of a dictionary's full, permanent lesson history (see
+/// GET /dictionaries/{id}/lessons) -- everything the "Уроки" chain screen
+/// needs to render one link without fetching every lesson's full word
+/// list up front. Mirrors the backend's LessonSummaryOut exactly.
+class LessonSummary {
+  final int id;
+  final int number;
+  final bool isCompleted;
+  final int wordCount;
+  final int learnedCount;
+
+  LessonSummary({
+    required this.id,
+    required this.number,
+    required this.isCompleted,
+    required this.wordCount,
+    required this.learnedCount,
+  });
+
+  factory LessonSummary.fromJson(Map<String, dynamic> json) {
+    return LessonSummary(
+      id: json['id'] as int,
+      number: json['number'] as int,
+      isCompleted: json['is_completed'] as bool,
+      wordCount: json['word_count'] as int,
+      learnedCount: json['learned_count'] as int,
+    );
+  }
+}
+
 /// What submitting one answer changed: this specific word_id's new score,
 /// whether it just became learned, and whether the whole lesson just
 /// completed as a result (every word reached the threshold) -- all decided

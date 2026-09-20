@@ -258,6 +258,22 @@ class ApiClient {
   // decision is made entirely by the backend (see backend/app/routers/
   // lessons.py) -- these methods only forward requests and parse responses.
 
+  /// The full, permanent lesson history for this dictionary -- every lesson
+  /// the user has ever created, oldest first, each with its current
+  /// status. Powers the "Уроки" chain screen; unlike [fetchActiveLesson]
+  /// this never means "not found", an empty list is a normal response for
+  /// a user with no lessons yet.
+  Future<List<LessonSummary>> fetchLessons(int dictionaryId) async {
+    final res = await http.get(
+      _uri('/dictionaries/$dictionaryId/lessons'),
+      headers: await _authHeaders(),
+    );
+    await _throwIfUnauthorized(res);
+    final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    final list = body['lessons'] as List<dynamic>;
+    return list.map((e) => LessonSummary.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
   Future<LessonCandidateWords> fetchLessonCandidateWords(int dictionaryId) async {
     final res = await http.get(
       _uri('/dictionaries/$dictionaryId/lesson-candidate-words'),

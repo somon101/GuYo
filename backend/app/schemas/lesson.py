@@ -38,6 +38,24 @@ class LessonOut(BaseModel):
     words: list[LessonWordOut]
 
 
+class LessonSummaryOut(BaseModel):
+    """One row of a dictionary's full lesson history (see GET
+    /dictionaries/{id}/lessons) -- everything the "Уроки" chain screen
+    needs to render one link (number, status, a lightweight progress
+    count) without fetching every lesson's full word list up front."""
+
+    id: int
+    number: int
+    is_completed: bool
+    word_count: int
+    learned_count: int
+
+
+class LessonListOut(BaseModel):
+    dictionary_id: int
+    lessons: list[LessonSummaryOut]
+
+
 class LessonCandidateWordsOut(BaseModel):
     """The pool a new lesson's word picker (random or manual) draws from --
     every not-yet-learned word (WordProgress.score below the admin's
