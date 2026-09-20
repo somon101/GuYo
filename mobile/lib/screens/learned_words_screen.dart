@@ -4,6 +4,7 @@ import '../models/dictionary.dart';
 import '../models/learning.dart';
 import '../models/word.dart';
 import '../widgets/audio_button.dart';
+import 'my_phrases_screen.dart';
 
 /// "Мои изученные слова": every Word (by word_id, no copies) the user has
 /// marked "Изучил" in the current language, grouped by the same Category
@@ -38,11 +39,30 @@ class _LearnedWordsScreenState extends State<LearnedWordsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Мои изученные слова')),
-      body: RefreshIndicator(
-        onRefresh: _reload,
-        child: FutureBuilder<List<LearnedCategory>>(
-          future: _future,
-          builder: (context, snapshot) {
+      body: Column(
+        children: [
+          // A separate, always-present entry point -- not an exercise, not
+          // tied to lesson/score state, so it belongs beside "Мои слова"
+          // rather than nested inside its (learned-words-only) list below.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+            child: ListTile(
+              leading: const Icon(Icons.chat_bubble_outline),
+              title: const Text('Мои фразы'),
+              subtitle: const Text('Фразы, где изучены все слова'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => MyPhrasesScreen(dictionary: widget.dictionary)),
+              ),
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _reload,
+              child: FutureBuilder<List<LearnedCategory>>(
+                future: _future,
+                builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
@@ -99,8 +119,11 @@ class _LearnedWordsScreenState extends State<LearnedWordsScreen> {
                 );
               },
             );
-          },
-        ),
+                },
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

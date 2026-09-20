@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import re
 import tempfile
 import uuid
 import zipfile
@@ -9,12 +10,16 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.orm import Session
 
-from app.core.deps import Principal, get_current_admin, get_current_principal
+from app.core.deps import Principal, get_current_admin, get_current_principal, get_current_user
 from app.core.storage import MEDIA_ROOT, delete_by_key, save_bytes, save_upload, url_for_key
 from app.database import SessionLocal, get_db
 from app.models.dictionary import Dictionary
 from app.models.import_job import ImportJob
 from app.models.phrase import Phrase, PhraseCategory
+from app.models.user import User
+from app.models.word import Word
+from app.models.word_progress import WordProgress
+from app.routers.lessons import _get_published_dictionary_or_404, _get_threshold
 from app.routers.words import _add_audio_to_zip, _read_zip_audio
 from app.schemas.bulk import (
     ExportPhrase,
@@ -27,6 +32,64 @@ from app.schemas.bulk import (
 from app.schemas.phrase import PhraseOut
 
 router = APIRouter(tags=["phrases"])
+
+# --- Мои фразы ("My Phrases") ----------------------------------------------
+# A phrase is "available" to a user purely as a computed, always-live view
+# over data that already exists (WordProgress + Word + WordForm + Phrase) --
+# no new table, no copy of Word or Phrase, and no persisted "unlocked"
+# flag: unlock it once, un-learn a word later (not currently possible, but
+# nothing here assumes it never will be), and the phrase would correctly
+# stop showing up next time this is queried.
+_TOKEN_RE = re.compile(r"[^\W\d_]+", re.UNICODE)
+
+
+def _tokenize(text: str) -> list[str]:
+    """Every run of letters (Unicode-aware, so Cyrillic/Tajik words work the
+    same as Latin ones) in `text`, lowercased -- punctuation, digits and
+    whitespace are never part of a token. "Наш дом." -> ["наш", "дом"]."""
+    return [t.lower() for t in _TOKEN_RE.findall(text)]
+
+
+def _get_learned_word_tokens(db: Session, user_id: int, dictionary: Dictionary) -> set[str]:
+    """Every token a phrase's word can match against: each learned Word's
+    own text, plus every one of its OWN-LANGUAGE forms (WordForm rows in
+    the dictionary's own language -- translation-language forms, e.g. "tg",
+    describe a different language's grammar and are irrelevant to matching
+    against `Phrase.original`, which is written in the dictionary's own
+    language). "Learned" reuses the exact same threshold-based definition
+    as /learned-words: WordProgress.score >= the admin's configured
+    threshold."""
+    threshold = _get_threshold(db)
+    learned_words = (
+        db.query(Word)
+        .join(WordProgress, WordProgress.word_id == Word.id)
+        .filter(
+            WordProgress.user_id == user_id,
+            WordProgress.score >= threshold,
+            Word.dictionary_id == dictionary.id,
+        )
+        .all()
+    )
+    tokens: set[str] = set()
+    for word in learned_words:
+        tokens.add(word.word.strip().lower())
+        for form in word.forms:
+            if form.language == dictionary.language:
+                tokens.add(form.text.strip().lower())
+    return tokens
+
+
+def _phrase_is_available(phrase: Phrase, learned_tokens: set[str]) -> bool:
+    """A phrase is available only once EVERY one of its tokens matches a
+    learned word or one of that word's own-language forms -- one
+    unmatched token (a word not yet learned, and not a form of any learned
+    word either) hides the whole phrase, per spec. A phrase with no
+    letter tokens at all (degenerate content) is never considered
+    available -- there's nothing to have "fully learned"."""
+    tokens = _tokenize(phrase.original)
+    if not tokens:
+        return False
+    return all(t in learned_tokens for t in tokens)
 
 
 def phrase_to_out(phrase: Phrase) -> PhraseOut:
@@ -87,6 +150,27 @@ def list_phrases(
         query = query.filter(Phrase.category_id == category_id)
     phrases = query.order_by(Phrase.id).all()
     return [phrase_to_out(p) for p in phrases]
+
+
+@router.get("/dictionaries/{dictionary_id}/available-phrases", response_model=list[PhraseOut])
+def list_available_phrases(
+    dictionary_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """"Мои фразы": every Phrase in this dictionary whose every word is
+    already learned by this user -- either the word itself or one of its
+    own-language grammatical forms (see `_get_learned_word_tokens`). This
+    is deliberately NOT tied to lessons, exercises, or any progress/score
+    of its own: a phrase carries no state of its own here, it's just
+    filtered live off of Word/WordProgress every time this is called, so
+    learning one more word can only ever add phrases to this list, never
+    requires any action on the phrase itself."""
+    dictionary = _get_published_dictionary_or_404(db, dictionary_id)
+    learned_tokens = _get_learned_word_tokens(db, user.id, dictionary)
+    phrases = db.query(Phrase).filter(Phrase.dictionary_id == dictionary_id).order_by(Phrase.id).all()
+    available = [p for p in phrases if _phrase_is_available(p, learned_tokens)]
+    return [phrase_to_out(p) for p in available]
 
 
 @router.post(

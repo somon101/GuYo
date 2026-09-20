@@ -7,6 +7,7 @@ import '../models/dictionary.dart';
 import '../models/exercise.dart';
 import '../models/learning.dart';
 import '../models/lesson.dart';
+import '../models/phrase.dart';
 import '../models/word.dart';
 
 class ApiException implements Exception {
@@ -194,6 +195,22 @@ class ApiClient {
     await _throwIfUnauthorized(res);
     final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
     return list.map((e) => LearnedCategory.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// "Мои фразы": every Phrase in this dictionary whose every word is
+  /// already learned (directly, or via one of that word's own forms) --
+  /// entirely computed on the backend, never decided here. Not an
+  /// exercise, no score, no progress of its own -- purely a live view over
+  /// already-learned words and existing Phrase rows (see backend's
+  /// list_available_phrases).
+  Future<List<GuyoPhrase>> fetchAvailablePhrases(int dictionaryId) async {
+    final res = await http.get(
+      _uri('/dictionaries/$dictionaryId/available-phrases'),
+      headers: await _authHeaders(),
+    );
+    await _throwIfUnauthorized(res);
+    final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
+    return list.map((e) => GuyoPhrase.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// Pass exactly one of [categoryId] or [uncategorized]; pass neither for
