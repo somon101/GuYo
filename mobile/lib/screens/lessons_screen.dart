@@ -5,6 +5,7 @@ import '../models/lesson.dart';
 import 'learned_words_screen.dart';
 import 'lesson_create_screen.dart';
 import 'lesson_detail_screen.dart';
+import 'quests_screen.dart';
 
 /// "Уроки": the new primary progress system's own tab. Shows this
 /// dictionary's FULL, permanent lesson history as a sequential chain --
@@ -81,20 +82,33 @@ class _LessonsScreenState extends State<LessonsScreen> {
     );
   }
 
+  Future<void> _openQuests() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => QuestsScreen(dictionary: widget.dictionary)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: _openLearnedWords,
-                icon: const Icon(Icons.bookmark_outline),
-                label: const Text('Мои слова'),
-              ),
+            padding: const EdgeInsets.fromLTRB(8, 12, 16, 0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton.icon(
+                  onPressed: _openQuests,
+                  icon: const Icon(Icons.flag_outlined),
+                  label: const Text('Квесты'),
+                ),
+                TextButton.icon(
+                  onPressed: _openLearnedWords,
+                  icon: const Icon(Icons.bookmark_outline),
+                  label: const Text('Мои слова'),
+                ),
+              ],
             ),
           ),
           Expanded(

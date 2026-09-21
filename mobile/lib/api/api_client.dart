@@ -9,6 +9,7 @@ import '../models/exercise.dart';
 import '../models/learning.dart';
 import '../models/lesson.dart';
 import '../models/phrase.dart';
+import '../models/quest.dart';
 import '../models/user_profile.dart';
 import '../models/user_rating.dart';
 import '../models/word.dart';
@@ -478,5 +479,43 @@ class ApiClient {
     final res = await http.get(_uri('/users/me/rating'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
     return UserRating.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  // --- Квесты ---------------------------------------------------------------
+  // A system entirely separate from Lessons (see backend/app/quests/) --
+  // eligibility, round content, and reward are all backend-decided.
+
+  Future<List<AvailableQuest>> fetchAvailableQuests(int dictionaryId) async {
+    final res = await http.get(
+      _uri('/quests').replace(queryParameters: {'dictionary_id': '$dictionaryId'}),
+      headers: await _authHeaders(),
+    );
+    await _throwIfUnauthorized(res);
+    final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
+    return list.map((e) => AvailableQuest.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<QuestRound> fetchQuestRound(int questId, int dictionaryId) async {
+    final res = await http.get(
+      _uri('/quests/$questId/round').replace(queryParameters: {'dictionary_id': '$dictionaryId'}),
+      headers: await _authHeaders(),
+    );
+    await _throwWithDetail(res);
+    return QuestRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  Future<QuestAnswerResult> submitQuestAnswer(
+    int questId,
+    int dictionaryId, {
+    required int wordId,
+    required bool isCorrect,
+  }) async {
+    final res = await http.post(
+      _uri('/quests/$questId/answers').replace(queryParameters: {'dictionary_id': '$dictionaryId'}),
+      headers: {...await _authHeaders(), 'Content-Type': 'application/json'},
+      body: jsonEncode({'word_id': wordId, 'is_correct': isCorrect}),
+    );
+    await _throwWithDetail(res);
+    return QuestAnswerResult.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 }
