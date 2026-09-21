@@ -5,6 +5,7 @@ and nothing in app/achievements/ reads or writes any model imported below.
 
 from datetime import date
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.rating import (
@@ -48,8 +49,15 @@ def current_rank_for_points(db: Session, points: int) -> Rank | None:
     never a stored/cached value that could drift from `points`. Returns
     None (rather than raising) if no enabled rank's range covers `points`,
     e.g. a gap left by admin misconfiguration -- the UI shows a neutral
-    "no rank yet" state instead of breaking."""
-    ranks = db.query(Rank).filter(Rank.enabled.is_(True)).all()
+    "no rank yet" state instead of breaking.
+
+    Ordered by the admin's own `order` (then `id` as a stable tie-break)
+    -- assert_rank_range_free already refuses to let two enabled ranks'
+    ranges overlap, so this ordering is normally never actually decisive,
+    but it gives a defined, non-arbitrary answer rather than "whatever
+    order the database happened to return" if a conflict ever slips
+    through (e.g. a row edited directly outside the API)."""
+    ranks = db.query(Rank).filter(Rank.enabled.is_(True)).order_by(Rank.order, Rank.id).all()
     for rank in ranks:
         if rank.min_points <= points and (rank.max_points is None or points <= rank.max_points):
             return rank
@@ -103,7 +111,17 @@ def award_word_points_if_new(db: Session, user: User, word_id: int) -> None:
 
     `points_awarded` snapshots RatingSettings.points_per_learned_word at
     this exact moment -- a later admin change to that setting only ever
-    affects future awards, never this one."""
+    affects future awards, never this one.
+
+    The pre-check below narrows the common case, but two truly
+    simultaneous requests for the same (user, word) could both pass it --
+    the UNIQUE(user_id, word_id) constraint is what actually decides that
+    at the database level. The insert runs in its own SAVEPOINT so a
+    losing request's IntegrityError only rolls back this one insert (not
+    the rest of the caller's transaction, e.g. the WordProgress update
+    already made in the same request) and returns quietly, exactly as if
+    this word had already been awarded -- never a 500 for the loser, and
+    never double-counted points either way."""
     already_awarded = (
         db.query(UserWordPoints).filter(UserWordPoints.user_id == user.id, UserWordPoints.word_id == word_id).first()
         is not None
@@ -112,10 +130,17 @@ def award_word_points_if_new(db: Session, user: User, word_id: int) -> None:
         return
 
     settings = get_rating_settings(db)
-    db.add(UserWordPoints(user_id=user.id, word_id=word_id, points_awarded=settings.points_per_learned_word))
+    points = settings.points_per_learned_word
+
+    try:
+        with db.begin_nested():
+            db.add(UserWordPoints(user_id=user.id, word_id=word_id, points_awarded=points))
+            db.flush()
+    except IntegrityError:
+        return
 
     rating = get_or_create_user_rating(db, user.id)
-    rating.total_points += settings.points_per_learned_word
+    rating.total_points += points
     db.flush()
 
 
