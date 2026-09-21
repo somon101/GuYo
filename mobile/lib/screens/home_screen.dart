@@ -4,6 +4,7 @@ import '../models/dictionary.dart';
 import 'lessons_screen.dart';
 import 'login_screen.dart';
 import 'main_menu_screen.dart';
+import 'practice_screen.dart';
 
 /// The app's main hub, reached right after login.
 ///
@@ -20,10 +21,12 @@ import 'main_menu_screen.dart';
 /// `_visible_to`), so this screen doesn't need to (and must not try to)
 /// second-guess publish status on its own.
 ///
-/// Bottom nav has two destinations: "Главная" (MainMenuScreen -- whatever
-/// doesn't have its own tab, currently just "Словарь") and "Уроки"
-/// (LessonsScreen -- the new primary progress system). Switching tabs never
-/// touches the language selection above; both tabs just render against
+/// Bottom nav has three destinations: "Главная" (MainMenuScreen -- whatever
+/// doesn't have its own tab, currently just "Словарь"), "Уроки"
+/// (LessonsScreen -- the sequential lesson chain) and "Практика"
+/// (PracticeScreen -- self-directed drills over already-learned words/
+/// phrases, entirely independent of lesson order). Switching tabs never
+/// touches the language selection above; every tab just renders against
 /// whichever dictionary is currently selected.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -231,6 +234,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             children: [
               MainMenuScreen(key: ValueKey('menu-${selected.id}'), dictionary: selected),
               LessonsScreen(key: ValueKey('lessons-${selected.id}'), dictionary: selected),
+              PracticeScreen(key: ValueKey('practice-${selected.id}'), dictionary: selected),
             ],
           );
         },
@@ -241,6 +245,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Главная'),
           NavigationDestination(icon: Icon(Icons.auto_stories_outlined), label: 'Уроки'),
+          NavigationDestination(icon: Icon(Icons.fitness_center_outlined), label: 'Практика'),
         ],
       ),
     );

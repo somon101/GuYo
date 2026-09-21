@@ -1,3 +1,20 @@
+/// One grammatical form of a Word, in a given language -- mirrors the
+/// backend's WordFormOut. Only meaningful together with the language it's
+/// in: matching a phrase token against a learned word's forms must only
+/// ever consider the dictionary's OWN language (see
+/// GuyoDictionary.language), never a translation-language form (e.g. a
+/// Tajik form describes Tajik grammar, not this dictionary's own
+/// sentences) -- same rule the backend's phrase-availability check uses.
+class GuyoWordForm {
+  final String language;
+  final String text;
+  GuyoWordForm({required this.language, required this.text});
+
+  factory GuyoWordForm.fromJson(Map<String, dynamic> json) {
+    return GuyoWordForm(language: json['language'] as String, text: json['text'] as String);
+  }
+}
+
 class GuyoWord {
   final int id;
   final int dictionaryId;
@@ -12,6 +29,9 @@ class GuyoWord {
   // category) -- absent/null wherever a caller doesn't need it.
   final int? categoryId;
   final String? categoryName;
+  // Present wherever the backend's WordOut is used (e.g. /learned-words);
+  // empty when the endpoint's own schema never includes it at all.
+  final List<GuyoWordForm> forms;
 
   GuyoWord({
     required this.id,
@@ -24,6 +44,7 @@ class GuyoWord {
     this.imageUrl,
     this.categoryId,
     this.categoryName,
+    this.forms = const [],
   });
 
   factory GuyoWord.fromJson(Map<String, dynamic> json) {
@@ -40,6 +61,11 @@ class GuyoWord {
       imageUrl: json['image_url'] as String?,
       categoryId: json['category_id'] as int?,
       categoryName: json['category_name'] as String?,
+      forms: json['forms'] == null
+          ? const []
+          : (json['forms'] as List<dynamic>)
+              .map((e) => GuyoWordForm.fromJson(e as Map<String, dynamic>))
+              .toList(),
     );
   }
 }

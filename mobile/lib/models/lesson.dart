@@ -139,3 +139,105 @@ class SubmitAnswerResult {
     );
   }
 }
+
+/// One "Произнеси слово" task: just the word itself (plus its optional
+/// transcription/image, purely for the card) -- there is no audio here,
+/// the user speaks it, the app's own on-device speech recognizer produces
+/// text, and that text is compared to `word` right on the client. Mirrors
+/// the backend's SpeakingWordItemOut/RoundOut exactly.
+class SpeakingWordItem {
+  final int wordId;
+  final String word;
+  final String? transcription;
+  final String? imageUrl;
+
+  SpeakingWordItem({required this.wordId, required this.word, this.transcription, this.imageUrl});
+
+  factory SpeakingWordItem.fromJson(Map<String, dynamic> json) {
+    return SpeakingWordItem(
+      wordId: json['word_id'] as int,
+      word: json['word'] as String,
+      transcription: json['transcription'] as String?,
+      imageUrl: json['image_url'] as String?,
+    );
+  }
+}
+
+class SpeakingWordRound {
+  final int dictionaryId;
+  final int availableCount;
+  // Minimum recognized-text-vs-target similarity (0-100) the admin
+  // configured for accepting a spoken answer -- carried on the round
+  // itself so the client never has to fetch admin settings separately,
+  // same pattern as BuildWordRound.caseSensitive.
+  final int matchThreshold;
+  final List<SpeakingWordItem> items;
+
+  SpeakingWordRound({
+    required this.dictionaryId,
+    required this.availableCount,
+    required this.matchThreshold,
+    required this.items,
+  });
+
+  factory SpeakingWordRound.fromJson(Map<String, dynamic> json) {
+    return SpeakingWordRound(
+      dictionaryId: json['dictionary_id'] as int,
+      availableCount: json['available_count'] as int,
+      matchThreshold: json['match_threshold'] as int,
+      items: (json['items'] as List<dynamic>)
+          .map((e) => SpeakingWordItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+/// One button of a "Услышь слово" task -- just enough to render a choice
+/// and compare the tap by word_id, never by text.
+class ListenWordOption {
+  final int wordId;
+  final String word;
+
+  ListenWordOption({required this.wordId, required this.word});
+
+  factory ListenWordOption.fromJson(Map<String, dynamic> json) {
+    return ListenWordOption(wordId: json['word_id'] as int, word: json['word'] as String);
+  }
+}
+
+/// One "Услышь слово" task: the word being played (by word_id, `word`
+/// itself deliberately NOT included here -- the whole point is the user
+/// hasn't been shown the text yet) plus the shuffled multiple-choice.
+class ListenWordItem {
+  final int wordId;
+  final String? wordAudioUrl;
+  final List<ListenWordOption> options;
+
+  ListenWordItem({required this.wordId, required this.wordAudioUrl, required this.options});
+
+  factory ListenWordItem.fromJson(Map<String, dynamic> json) {
+    return ListenWordItem(
+      wordId: json['word_id'] as int,
+      wordAudioUrl: json['word_audio_url'] as String?,
+      options: (json['options'] as List<dynamic>)
+          .map((e) => ListenWordOption.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+class ListenWordRound {
+  final int dictionaryId;
+  final int availableCount;
+  final List<ListenWordItem> items;
+
+  ListenWordRound({required this.dictionaryId, required this.availableCount, required this.items});
+
+  factory ListenWordRound.fromJson(Map<String, dynamic> json) {
+    return ListenWordRound(
+      dictionaryId: json['dictionary_id'] as int,
+      availableCount: json['available_count'] as int,
+      items: (json['items'] as List<dynamic>).map((e) => ListenWordItem.fromJson(e as Map<String, dynamic>)).toList(),
+    );
+  }
+}

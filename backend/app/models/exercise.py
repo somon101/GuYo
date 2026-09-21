@@ -27,8 +27,17 @@ class ExerciseSettings(Base):
     to this exercise moves a word's WordProgress.score (see
     app/models/word_progress.py) -- e.g. Сопоставление +20/-10, Правда или
     ложь +10/-5. Nullable with a code-level default per exercise_key (see
-    app/routers/lessons.py), same reasoning as the three columns above:
-    an admin can leave these unset and the exercise still works."""
+    app/exercises/common.py), same reasoning as the three columns above:
+    an admin can leave these unset and the exercise still works.
+
+    `enabled` gates whether this exercise_key can ever be picked for a new
+    Lesson at all (see app/exercises/__init__.py's EXERCISE_TYPES dispatch)
+    -- null/true means enabled, same nullable-defaults-to-working pattern
+    as everything else here. `option_count` is "Услышь слово"'s own knob
+    (how many word choices one round shows); `speech_match_threshold` is
+    "Произнеси слово"'s own knob (0-100 minimum text-similarity to accept
+    a spoken answer as correct) -- both null/ignored for every other
+    exercise_key, same convention as wrong_letter_count etc."""
 
     __tablename__ = "exercise_settings"
 
@@ -40,6 +49,9 @@ class ExerciseSettings(Base):
     case_sensitive: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     correct_points: Mapped[int | None] = mapped_column(Integer, nullable=True)
     incorrect_points: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    enabled: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    option_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    speech_match_threshold: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

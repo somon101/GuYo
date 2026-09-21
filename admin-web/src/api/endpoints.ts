@@ -368,6 +368,14 @@ export interface ExerciseSettingsInput {
   // exercise's own built-in default.
   correctPoints?: number | null;
   incorrectPoints?: number | null;
+  // Whether this exercise can be picked for a new Lesson at all. Omit (or
+  // null) to leave it enabled.
+  enabled?: boolean | null;
+  // Only "Услышь слово" uses this (how many word choices one round shows).
+  optionCount?: number | null;
+  // Only "Произнеси слово" uses this (0-100 minimum text-similarity to
+  // accept a spoken answer as correct).
+  speechMatchThreshold?: number | null;
 }
 
 export async function setExerciseSettings(
@@ -381,6 +389,9 @@ export async function setExerciseSettings(
     case_sensitive: input.caseSensitive ?? null,
     correct_points: input.correctPoints ?? null,
     incorrect_points: input.incorrectPoints ?? null,
+    enabled: input.enabled ?? null,
+    option_count: input.optionCount ?? null,
+    speech_match_threshold: input.speechMatchThreshold ?? null,
   });
   return data;
 }

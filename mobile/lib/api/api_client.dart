@@ -368,6 +368,24 @@ class ApiClient {
     return BuildWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
+  Future<SpeakingWordRound> fetchLessonSpeakingWordRound(int lessonId) async {
+    final res = await http.get(
+      _uri('/lessons/$lessonId/exercises/speaking-word'),
+      headers: await _authHeaders(),
+    );
+    await _throwIfUnauthorized(res);
+    return SpeakingWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  Future<ListenWordRound> fetchLessonListenWordRound(int lessonId) async {
+    final res = await http.get(
+      _uri('/lessons/$lessonId/exercises/listen-word'),
+      headers: await _authHeaders(),
+    );
+    await _throwIfUnauthorized(res);
+    return ListenWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
   /// The one call that actually changes anything in the Уроки system: moves
   /// [wordId]'s score by [exerciseKey]'s admin-configured points (backend
   /// decides direction/amount/clamping/threshold -- never this client) and

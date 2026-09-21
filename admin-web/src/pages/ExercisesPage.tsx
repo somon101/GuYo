@@ -7,6 +7,8 @@ const EXERCISES: { key: string; label: string }[] = [
   { key: "true_or_false", label: "Правда или ложь" },
   { key: "matching", label: "Сопоставление" },
   { key: "build_word", label: "Собери слово" },
+  { key: "speaking_word", label: "Произнеси слово 🎙️" },
+  { key: "listen_word", label: "Услышь слово 🔊" },
 ];
 
 export function ExercisesPage() {

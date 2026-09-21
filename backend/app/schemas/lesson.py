@@ -84,3 +84,39 @@ class LearningSettingsOut(BaseModel):
 
 class LearningSettingsIn(BaseModel):
     threshold_score: int = Field(ge=0, le=100)
+
+
+class SpeakingWordItemOut(BaseModel):
+    word_id: int
+    word: str
+    transcription: str | None
+    image_url: str | None
+
+
+class SpeakingWordRoundOut(BaseModel):
+    dictionary_id: int
+    available_count: int
+    # Minimum recognized-text-vs-target similarity (0-100) the client must
+    # require to accept a spoken answer as correct -- the admin's own
+    # "speech_match_threshold" setting, carried on the round itself so the
+    # client never has to fetch admin settings separately (same pattern as
+    # BuildWordRoundOut.case_sensitive).
+    match_threshold: int
+    items: list[SpeakingWordItemOut]
+
+
+class ListenWordOptionOut(BaseModel):
+    word_id: int
+    word: str
+
+
+class ListenWordItemOut(BaseModel):
+    word_id: int
+    word_audio_url: str | None
+    options: list[ListenWordOptionOut]
+
+
+class ListenWordRoundOut(BaseModel):
+    dictionary_id: int
+    available_count: int
+    items: list[ListenWordItemOut]

@@ -19,6 +19,8 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_admin, get_current_user
 from app.core.storage import url_for_key
 from app.database import get_db
+from app.exercises.build_word import build_item as _build_word_item
+from app.exercises.build_word import get_build_word_settings as _get_build_word_settings
 from app.models.dictionary import Dictionary
 from app.models.exercise import ExerciseSettings
 from app.models.learning import LearnedWord
@@ -26,7 +28,6 @@ from app.models.user import User
 from app.models.word import Word
 from app.routers.words import word_to_out
 from app.schemas.exercise import (
-    BuildWordItemOut,
     BuildWordRoundOut,
     ExerciseSettingsIn,
     ExerciseSettingsOut,
@@ -41,9 +42,6 @@ TRUE_OR_FALSE_KEY = "true_or_false"
 MATCHING_KEY = "matching"
 BUILD_WORD_KEY = "build_word"
 DEFAULT_WORD_COUNT = 10
-DEFAULT_WRONG_LETTER_COUNT = 3
-DEFAULT_MIN_WORD_LENGTH = 3
-DEFAULT_CASE_SENSITIVE = False
 
 
 def _get_published_dictionary_or_404(db: Session, dictionary_id: int) -> Dictionary:
@@ -56,23 +54,6 @@ def _get_published_dictionary_or_404(db: Session, dictionary_id: int) -> Diction
 def _get_word_count(db: Session, exercise_key: str) -> int:
     settings = db.query(ExerciseSettings).filter(ExerciseSettings.exercise_key == exercise_key).first()
     return settings.word_count if settings is not None else DEFAULT_WORD_COUNT
-
-
-def _get_build_word_settings(db: Session) -> tuple[int, int, bool]:
-    """(wrong_letter_count, min_word_length, case_sensitive) for
-    "build_word", each independently falling back to its own default when
-    unset -- an admin can set word_count without having touched these yet."""
-    settings = db.query(ExerciseSettings).filter(ExerciseSettings.exercise_key == BUILD_WORD_KEY).first()
-    wrong_letter_count = (
-        settings.wrong_letter_count if settings and settings.wrong_letter_count is not None else DEFAULT_WRONG_LETTER_COUNT
-    )
-    min_word_length = (
-        settings.min_word_length if settings and settings.min_word_length is not None else DEFAULT_MIN_WORD_LENGTH
-    )
-    case_sensitive = (
-        settings.case_sensitive if settings and settings.case_sensitive is not None else DEFAULT_CASE_SENSITIVE
-    )
-    return wrong_letter_count, min_word_length, case_sensitive
 
 
 def _get_usable_learned_words(db: Session, user_id: int, dictionary_id: int) -> list[Word]:
@@ -118,6 +99,9 @@ def get_exercise_settings(
         case_sensitive=settings.case_sensitive if settings else None,
         correct_points=settings.correct_points if settings else None,
         incorrect_points=settings.incorrect_points if settings else None,
+        enabled=settings.enabled if settings else None,
+        option_count=settings.option_count if settings else None,
+        speech_match_threshold=settings.speech_match_threshold if settings else None,
     )
 
 
@@ -139,6 +123,9 @@ def set_exercise_settings(
     settings.case_sensitive = payload.case_sensitive
     settings.correct_points = payload.correct_points
     settings.incorrect_points = payload.incorrect_points
+    settings.enabled = payload.enabled
+    settings.option_count = payload.option_count
+    settings.speech_match_threshold = payload.speech_match_threshold
     db.commit()
     return ExerciseSettingsOut(
         exercise_key=exercise_key,
@@ -148,6 +135,9 @@ def set_exercise_settings(
         case_sensitive=payload.case_sensitive,
         correct_points=payload.correct_points,
         incorrect_points=payload.incorrect_points,
+        enabled=payload.enabled,
+        option_count=payload.option_count,
+        speech_match_threshold=payload.speech_match_threshold,
     )
 
 
@@ -247,47 +237,6 @@ def get_exercise_learned_words(
         exercise_key=exercise_key,
         available_count=len(usable_words),
         words=[word_to_out(w) for w in selected],
-    )
-
-
-def _build_word_item(word: Word, alphabet: str, wrong_letter_count: int) -> BuildWordItemOut:
-    """One "Собери слово" task: the real letters of `word.word`, in their
-    real order and multiplicity (so e.g. HELLO's two L's are both present),
-    plus up to `wrong_letter_count` distractor letters drawn from the
-    dictionary's own alphabet, then everything shuffled together.
-
-    Distractors prefer letters that don't appear in the word at all, so
-    they never accidentally inflate a letter's count beyond what the real
-    word actually has; if the alphabet can't supply enough distinct ones,
-    whatever's available is used instead (never padded with duplicates)."""
-    correct_word = word.word
-    correct_letters = list(correct_word)
-    correct_letters_lower = {c.lower() for c in correct_letters}
-
-    candidates = [c for c in alphabet if c.lower() not in correct_letters_lower]
-    seen: set[str] = set()
-    unique_candidates = []
-    for c in candidates:
-        key = c.lower()
-        if key not in seen:
-            seen.add(key)
-            unique_candidates.append(c)
-    random.shuffle(unique_candidates)
-    wrong_letters = unique_candidates[:wrong_letter_count]
-
-    all_letters = correct_letters + wrong_letters
-    random.shuffle(all_letters)
-
-    primary_translation = word.translations[0]
-    return BuildWordItemOut(
-        word_id=word.id,
-        translation=primary_translation.text,
-        correct_word=correct_word,
-        letters=all_letters,
-        transcription=word.transcription,
-        image_url=url_for_key(word.image_key),
-        word_audio_url=url_for_key(word.word_audio_key),
-        translation_audio_url=url_for_key(primary_translation.audio_key),
     )
 
 

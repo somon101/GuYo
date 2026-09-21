@@ -4,7 +4,7 @@ now unused by the app but left in place -- see the migration notes).
 
 A Lesson is a fixed, <=15-word set the user picked (randomly or by hand)
 for one dictionary, plus whichever exercise types turned out to be
-available for that exact set (see EXERCISE_AVAILABILITY below). Nothing
+available for that exact set (see app.exercises.EXERCISE_TYPES). Nothing
 here duplicates Word -- every LessonWord is just a word_id reference, the
 same principle as every other exercise in this codebase.
 
@@ -16,6 +16,12 @@ app/models/learning_settings.py), it counts as learned; once every word
 in a lesson does, the lesson itself is complete and a new one can be
 created. This is the ONE place "is this word learned" is decided now --
 nothing here reads or writes the old LearnedWord table.
+
+This router is the ONE current caller of app.exercises (context=Lesson).
+Everything about a specific exercise type -- its own prerequisites, round
+shape, generation -- lives in its own app/exercises/<key>.py module; this
+file only does Lesson-specific bookkeeping (which lesson, which words,
+whether it's complete) and dispatches to that module by exercise_key.
 """
 import random
 
@@ -24,24 +30,16 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_admin, get_current_user
-from app.core.storage import url_for_key
 from app.database import get_db
+from app.exercises import EXERCISE_TYPES, build_word, listen_word, matching, speaking_word, true_or_false
+from app.exercises.common import get_eligible_words, get_points, get_threshold, is_exercise_enabled
 from app.models.dictionary import Dictionary
-from app.models.exercise import ExerciseSettings
 from app.models.learning_settings import LearningSettings
 from app.models.lesson import Lesson, LessonExercise, LessonWord
 from app.models.user import User
-from app.models.word import Word
 from app.models.word_progress import WordProgress
-from app.routers.exercises import (
-    BUILD_WORD_KEY,
-    MATCHING_KEY,
-    TRUE_OR_FALSE_KEY,
-    _build_word_item,
-    _get_build_word_settings,
-)
 from app.routers.words import word_to_out
-from app.schemas.exercise import BuildWordRoundOut, ExerciseWordsOut, TrueOrFalseItemOut, TrueOrFalseRoundOut
+from app.schemas.exercise import BuildWordRoundOut, ExerciseWordsOut, TrueOrFalseRoundOut
 from app.schemas.lesson import (
     CreateLessonIn,
     LearningSettingsIn,
@@ -51,21 +49,13 @@ from app.schemas.lesson import (
     LessonOut,
     LessonSummaryOut,
     LessonWordOut,
+    ListenWordRoundOut,
+    SpeakingWordRoundOut,
     SubmitAnswerIn,
     SubmitAnswerOut,
 )
 
 router = APIRouter(tags=["lessons"])
-
-DEFAULT_THRESHOLD = 60
-# (correct, incorrect) points, only used when an admin hasn't configured a
-# given exercise_key's own values yet -- purely illustrative numbers from
-# the spec, not meant to be load-bearing once Admin Web has real settings.
-DEFAULT_POINTS: dict[str, tuple[int, int]] = {
-    MATCHING_KEY: (20, 10),
-    TRUE_OR_FALSE_KEY: (10, 5),
-    BUILD_WORD_KEY: (30, 15),
-}
 
 
 def _get_published_dictionary_or_404(db: Session, dictionary_id: int) -> Dictionary:
@@ -75,73 +65,11 @@ def _get_published_dictionary_or_404(db: Session, dictionary_id: int) -> Diction
     return dictionary
 
 
+# Re-exported under these exact names because app/routers/learning.py,
+# app/routers/phrases.py and app/routers/admin_analytics.py already import
+# them from here -- the actual logic now lives in app.exercises.common.
 def _get_threshold(db: Session) -> int:
-    settings = db.get(LearningSettings, 1)
-    return settings.threshold_score if settings is not None else DEFAULT_THRESHOLD
-
-
-def _get_points(db: Session, exercise_key: str) -> tuple[int, int]:
-    """(correct_points, incorrect_points) -- incorrect_points is always a
-    positive "how much to subtract" number, matching how Admin Web presents
-    it (e.g. "-10" meaning score decreases by 10)."""
-    settings = db.query(ExerciseSettings).filter(ExerciseSettings.exercise_key == exercise_key).first()
-    default_correct, default_incorrect = DEFAULT_POINTS.get(exercise_key, (10, 5))
-    correct = settings.correct_points if settings and settings.correct_points is not None else default_correct
-    incorrect = settings.incorrect_points if settings and settings.incorrect_points is not None else default_incorrect
-    return correct, incorrect
-
-
-def _get_eligible_words(db: Session, user_id: int, dictionary_id: int, threshold: int) -> list[Word]:
-    """Every Word in this dictionary NOT already learned (WordProgress.score
-    >= threshold) -- the one pool both lesson-creation modes (random and
-    manual) draw from, so a word already mastered is never offered again."""
-    learned_ids = (
-        db.query(WordProgress.word_id)
-        .filter(WordProgress.user_id == user_id, WordProgress.score >= threshold)
-        .subquery()
-    )
-    return db.query(Word).filter(Word.dictionary_id == dictionary_id, ~Word.id.in_(learned_ids)).all()
-
-
-def _get_learned_pool(db: Session, user_id: int, dictionary_id: int, threshold: int) -> list[Word]:
-    """The inverse of `_get_eligible_words`: words already learned (score >=
-    threshold) with a translation to show -- "Правда или ложь"'s ONLY
-    source of wrong-answer candidates, deliberately never a lesson's own
-    words (see EXERCISE_AVAILABILITY's true_or_false check)."""
-    learned_ids = (
-        db.query(WordProgress.word_id)
-        .filter(WordProgress.user_id == user_id, WordProgress.score >= threshold)
-        .subquery()
-    )
-    words = db.query(Word).filter(Word.dictionary_id == dictionary_id, Word.id.in_(learned_ids)).all()
-    return [w for w in words if w.translations]
-
-
-def _true_or_false_available(db: Session, user: User, dictionary_id: int, lesson_word_ids: list[int], threshold: int) -> bool:
-    """Requires at least one PREVIOUSLY learned word (never this lesson's
-    own words) to draw wrong-answer candidates from -- confirmed as an
-    always-required external pool, not a same-lesson fallback."""
-    return len(_get_learned_pool(db, user.id, dictionary_id, threshold)) >= 1
-
-
-def _matching_available(db: Session, user: User, dictionary_id: int, lesson_word_ids: list[int], threshold: int) -> bool:
-    return len(lesson_word_ids) >= 2
-
-
-def _build_word_available(db: Session, user: User, dictionary_id: int, lesson_word_ids: list[int], threshold: int) -> bool:
-    _, min_word_length, _ = _get_build_word_settings(db)
-    words = db.query(Word).filter(Word.id.in_(lesson_word_ids)).all()
-    return any(len(w.word) >= min_word_length for w in words)
-
-
-# The extensibility point section 13 of the spec asks for: a future
-# exercise just adds its own (key -> availability check) entry here, never
-# touches lesson-creation logic itself.
-EXERCISE_AVAILABILITY = {
-    TRUE_OR_FALSE_KEY: _true_or_false_available,
-    MATCHING_KEY: _matching_available,
-    BUILD_WORD_KEY: _build_word_available,
-}
+    return get_threshold(db)
 
 
 def _get_active_lesson(db: Session, user_id: int, dictionary_id: int) -> Lesson | None:
@@ -277,8 +205,8 @@ def get_lesson_candidate_words(
     (grouped by category client-side, same as the old "Мои слова"
     screen) with a checkbox each."""
     _get_published_dictionary_or_404(db, dictionary_id)
-    threshold = _get_threshold(db)
-    words = _get_eligible_words(db, user.id, dictionary_id, threshold)
+    threshold = get_threshold(db)
+    words = get_eligible_words(db, user.id, dictionary_id, threshold)
     return LessonCandidateWordsOut(
         dictionary_id=dictionary_id, available_count=len(words), words=[word_to_out(w) for w in words]
     )
@@ -294,7 +222,7 @@ def get_active_lesson(
     lesson = _get_active_lesson(db, user.id, dictionary_id)
     if lesson is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active lesson")
-    return _lesson_to_out(db, lesson, _get_threshold(db))
+    return _lesson_to_out(db, lesson, get_threshold(db))
 
 
 @router.get("/dictionaries/{dictionary_id}/lessons", response_model=LessonListOut)
@@ -310,7 +238,7 @@ def list_lessons(
     an empty list or an all-completed history is a normal, valid response,
     never a 404."""
     _get_published_dictionary_or_404(db, dictionary_id)
-    threshold = _get_threshold(db)
+    threshold = get_threshold(db)
     lessons = (
         db.query(Lesson)
         .filter(Lesson.user_id == user.id, Lesson.dictionary_id == dictionary_id)
@@ -330,7 +258,7 @@ def get_lesson(
     user: User = Depends(get_current_user),
 ):
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
-    return _lesson_to_out(db, lesson, _get_threshold(db))
+    return _lesson_to_out(db, lesson, get_threshold(db))
 
 
 @router.post("/lessons", response_model=LessonOut, status_code=status.HTTP_201_CREATED)
@@ -341,11 +269,13 @@ def create_lesson(
 ):
     """Freezes a specific set of word_ids (<=15, chosen randomly or by
     hand -- never both) into a new Lesson, then decides once which
-    exercise types are available for that exact set (EXERCISE_AVAILABILITY)
-    and persists that too (LessonExercise) -- never recomputed afterwards.
-    Blocked while the current lesson for this (user, dictionary) isn't
-    complete yet, enforced here AND at the database level (see Lesson's
-    partial unique index) against a race between two requests."""
+    exercise types are available for that exact set (app.exercises.
+    EXERCISE_TYPES, gated first by each exercise_key's own enabled/
+    disabled admin setting) and persists that too (LessonExercise) --
+    never recomputed afterwards. Blocked while the current lesson for this
+    (user, dictionary) isn't complete yet, enforced here AND at the
+    database level (see Lesson's partial unique index) against a race
+    between two requests."""
     dictionary = _get_published_dictionary_or_404(db, payload.dictionary_id)
 
     if _get_active_lesson(db, user.id, dictionary.id) is not None:
@@ -354,8 +284,8 @@ def create_lesson(
             detail="Текущий урок ещё не завершён -- сначала пройдите его до конца",
         )
 
-    threshold = _get_threshold(db)
-    eligible_words = _get_eligible_words(db, user.id, dictionary.id, threshold)
+    threshold = get_threshold(db)
+    eligible_words = get_eligible_words(db, user.id, dictionary.id, threshold)
     eligible_ids = {w.id for w in eligible_words}
 
     if payload.word_ids is not None:
@@ -388,8 +318,10 @@ def create_lesson(
     for word_id in selected_ids:
         db.add(LessonWord(lesson_id=lesson.id, word_id=word_id))
 
-    for exercise_key, check in EXERCISE_AVAILABILITY.items():
-        if check(db, user, dictionary.id, selected_ids, threshold):
+    for exercise_key, exercise_type in EXERCISE_TYPES.items():
+        if not is_exercise_enabled(db, exercise_key):
+            continue
+        if exercise_type.is_available(db, user, dictionary.id, selected_ids, threshold):
             db.add(LessonExercise(lesson_id=lesson.id, exercise_key=exercise_key))
 
     db.commit()
@@ -398,10 +330,10 @@ def create_lesson(
 
 
 # --- Lesson exercise rounds -------------------------------------------------
-# Same response shapes as the old dictionary-scoped exercises
-# (app/routers/exercises.py) -- only the word SOURCE changes, from
-# LearnedWord to this lesson's fixed LessonWord set (plus, for True/False
-# only, the separate previously-learned pool for wrong answers).
+# Each endpoint here is a thin Lesson-specific wrapper: look up the lesson,
+# confirm this exercise_key was actually decided available for it, then
+# hand off to that exercise type's own build_round (app/exercises/<key>.py)
+# for the actual round shape/logic.
 
 
 @router.get("/lessons/{lesson_id}/exercises/true-or-false", response_model=TrueOrFalseRoundOut)
@@ -411,49 +343,8 @@ def get_lesson_true_or_false_round(
     user: User = Depends(get_current_user),
 ):
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
-    _require_lesson_exercise(db, lesson.id, TRUE_OR_FALSE_KEY)
-
-    lesson_words = [lw.word for lw in lesson.words if lw.word.translations]
-    threshold = _get_threshold(db)
-    learned_pool = _get_learned_pool(db, user.id, lesson.dictionary_id, threshold)
-
-    def primary_text(word: Word) -> str:
-        return word.translations[0].text
-
-    def primary_audio(word: Word) -> str | None:
-        return url_for_key(word.translations[0].audio_key)
-
-    items: list[TrueOrFalseItemOut] = []
-    for word in lesson_words:
-        real_text = primary_text(word)
-        show_real = random.random() < 0.5
-
-        fake_candidates = []
-        if not show_real:
-            fake_candidates = [w for w in learned_pool if w.id != word.id and primary_text(w) != real_text]
-            if not fake_candidates:
-                fake_candidates = [w for w in learned_pool if w.id != word.id]
-
-        if show_real or not fake_candidates:
-            shown_text, shown_audio, is_correct = real_text, primary_audio(word), True
-        else:
-            fake_word = random.choice(fake_candidates)
-            shown_text, shown_audio, is_correct = primary_text(fake_word), primary_audio(fake_word), False
-
-        items.append(
-            TrueOrFalseItemOut(
-                word_id=word.id,
-                original=word.word,
-                transcription=word.transcription,
-                image_url=url_for_key(word.image_key),
-                word_audio_url=url_for_key(word.word_audio_key),
-                shown_translation=shown_text,
-                shown_translation_audio_url=shown_audio,
-                is_correct=is_correct,
-            )
-        )
-
-    return TrueOrFalseRoundOut(dictionary_id=lesson.dictionary_id, available_count=len(lesson_words), items=items)
+    _require_lesson_exercise(db, lesson.id, true_or_false.KEY)
+    return true_or_false.build_round(db, lesson, get_threshold(db))
 
 
 @router.get("/lessons/{lesson_id}/exercises/matching", response_model=ExerciseWordsOut)
@@ -463,15 +354,8 @@ def get_lesson_matching_round(
     user: User = Depends(get_current_user),
 ):
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
-    _require_lesson_exercise(db, lesson.id, MATCHING_KEY)
-
-    words = [lw.word for lw in lesson.words if lw.word.translations]
-    return ExerciseWordsOut(
-        dictionary_id=lesson.dictionary_id,
-        exercise_key=MATCHING_KEY,
-        available_count=len(words),
-        words=[word_to_out(w) for w in words],
-    )
+    _require_lesson_exercise(db, lesson.id, matching.KEY)
+    return matching.build_round(db, lesson)
 
 
 @router.get("/lessons/{lesson_id}/exercises/build-word", response_model=BuildWordRoundOut)
@@ -481,20 +365,30 @@ def get_lesson_build_word_round(
     user: User = Depends(get_current_user),
 ):
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
-    _require_lesson_exercise(db, lesson.id, BUILD_WORD_KEY)
+    _require_lesson_exercise(db, lesson.id, build_word.KEY)
+    return build_word.build_round(db, lesson)
 
-    dictionary = db.get(Dictionary, lesson.dictionary_id)
-    wrong_letter_count, min_word_length, case_sensitive = _get_build_word_settings(db)
-    words = [lw.word for lw in lesson.words if len(lw.word.word) >= min_word_length]
-    alphabet = dictionary.alphabet or "" if dictionary else ""
 
-    items = [_build_word_item(w, alphabet, wrong_letter_count) for w in words]
-    return BuildWordRoundOut(
-        dictionary_id=lesson.dictionary_id,
-        available_count=len(words),
-        case_sensitive=case_sensitive,
-        items=items,
-    )
+@router.get("/lessons/{lesson_id}/exercises/speaking-word", response_model=SpeakingWordRoundOut)
+def get_lesson_speaking_word_round(
+    lesson_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
+    _require_lesson_exercise(db, lesson.id, speaking_word.KEY)
+    return speaking_word.build_round(db, lesson)
+
+
+@router.get("/lessons/{lesson_id}/exercises/listen-word", response_model=ListenWordRoundOut)
+def get_lesson_listen_word_round(
+    lesson_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
+    _require_lesson_exercise(db, lesson.id, listen_word.KEY)
+    return listen_word.build_round(db, lesson)
 
 
 @router.post("/lessons/{lesson_id}/exercises/{exercise_key}/answers", response_model=SubmitAnswerOut)
@@ -510,7 +404,8 @@ def submit_answer(
     points (clamped 0-100), then checks whether that word -- and the whole
     lesson -- just crossed the learned threshold. `word_id` must belong to
     THIS lesson; scoring a word through an exercise it was never shown in
-    is rejected, not silently accepted."""
+    is rejected, not silently accepted. Identical for every exercise_key,
+    including both new ones -- neither needed a change here."""
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
     _require_lesson_exercise(db, lesson.id, exercise_key)
 
@@ -521,7 +416,7 @@ def submit_answer(
     if not in_lesson:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Word not in this lesson")
 
-    correct_points, incorrect_points = _get_points(db, exercise_key)
+    correct_points, incorrect_points = get_points(db, exercise_key)
     delta = correct_points if payload.is_correct else -incorrect_points
 
     progress = (
@@ -537,7 +432,7 @@ def submit_answer(
     progress.score = max(0, min(100, progress.score + delta))
     db.flush()  # this session's autoflush is off -- the completion check below must see this update
 
-    threshold = _get_threshold(db)
+    threshold = get_threshold(db)
     lesson_completed = _check_and_apply_lesson_completion(db, lesson, threshold)
 
     db.commit()
@@ -554,7 +449,7 @@ def submit_answer(
 
 @router.get("/learning-settings", response_model=LearningSettingsOut)
 def get_learning_settings(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
-    return LearningSettingsOut(threshold_score=_get_threshold(db))
+    return LearningSettingsOut(threshold_score=get_threshold(db))
 
 
 @router.put("/learning-settings", response_model=LearningSettingsOut)

@@ -124,6 +124,16 @@ export interface ExerciseSettings {
   // exercise's own built-in default".
   correct_points: number | null;
   incorrect_points: number | null;
+  // Whether this exercise can be picked for a new Lesson at all. Null
+  // means enabled -- same "unset = working default" convention as every
+  // other field here.
+  enabled: boolean | null;
+  // Only meaningful for "listen_word" (how many word choices one round
+  // shows); null for every other exercise_key.
+  option_count: number | null;
+  // Only meaningful for "speaking_word" (0-100 minimum text-similarity to
+  // accept a spoken answer as correct); null for every other exercise_key.
+  speech_match_threshold: number | null;
 }
 
 // The single admin-configured value that isn't specific to any one

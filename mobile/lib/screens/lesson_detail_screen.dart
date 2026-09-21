@@ -1,21 +1,12 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
+import '../exercises/exercise_type.dart';
 import '../models/lesson.dart';
 import 'build_word_screen.dart';
+import 'listen_word_screen.dart';
 import 'matching_screen.dart';
+import 'speaking_word_screen.dart';
 import 'true_or_false_screen.dart';
-
-const Map<String, String> _exerciseLabels = {
-  'true_or_false': 'Правда или ложь',
-  'matching': 'Сопоставление',
-  'build_word': 'Собери слово',
-};
-
-const Map<String, IconData> _exerciseIcons = {
-  'true_or_false': Icons.rule_outlined,
-  'matching': Icons.extension_outlined,
-  'build_word': Icons.abc_outlined,
-};
 
 /// One lesson's own screen: its fixed word set, each word's own cumulative
 /// score/learned status, and whichever exercises the backend decided are
@@ -74,7 +65,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
   Future<void> _openExercise(String exerciseKey) async {
     final lesson = _lesson;
     if (lesson == null) return;
-    final label = _exerciseLabels[exerciseKey] ?? exerciseKey;
+    final label = lessonExerciseTypes[exerciseKey]?.label ?? exerciseKey;
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => Scaffold(
@@ -83,6 +74,8 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
             'true_or_false' => TrueOrFalseScreen(lessonId: lesson.id, lessonNumber: lesson.number),
             'matching' => MatchingScreen(lessonId: lesson.id, lessonNumber: lesson.number),
             'build_word' => BuildWordScreen(lessonId: lesson.id, lessonNumber: lesson.number),
+            'speaking_word' => SpeakingWordScreen(lessonId: lesson.id, lessonNumber: lesson.number),
+            'listen_word' => ListenWordScreen(lessonId: lesson.id, lessonNumber: lesson.number),
             _ => const SizedBox.shrink(),
           },
         ),
@@ -183,8 +176,8 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
                 for (final key in lesson.exerciseKeys)
                   FilledButton.tonalIcon(
                     onPressed: () => _openExercise(key),
-                    icon: Icon(_exerciseIcons[key] ?? Icons.school_outlined),
-                    label: Text(_exerciseLabels[key] ?? key),
+                    icon: Icon(lessonExerciseTypes[key]?.icon ?? Icons.school_outlined),
+                    label: Text(lessonExerciseTypes[key]?.label ?? key),
                   ),
               ],
             ),

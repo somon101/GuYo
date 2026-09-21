@@ -15,6 +15,8 @@ import { ExercisesPage } from "./pages/ExercisesPage";
 import { TrueOrFalseSettingsPage } from "./pages/exercises/TrueOrFalseSettingsPage";
 import { MatchingSettingsPage } from "./pages/exercises/MatchingSettingsPage";
 import { BuildWordSettingsPage } from "./pages/exercises/BuildWordSettingsPage";
+import { SpeakingWordSettingsPage } from "./pages/exercises/SpeakingWordSettingsPage";
+import { ListenWordSettingsPage } from "./pages/exercises/ListenWordSettingsPage";
 import { LearningThresholdSettingsPage } from "./pages/exercises/LearningThresholdSettingsPage";
 import { UserAnalyticsPage } from "./pages/UserAnalyticsPage";
 
@@ -164,6 +166,26 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <BuildWordSettingsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/exercises/speaking_word"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SpeakingWordSettingsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/exercises/listen_word"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ListenWordSettingsPage />
                 </Layout>
               </ProtectedRoute>
             }

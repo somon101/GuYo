@@ -15,10 +15,21 @@ class ExerciseSettingsOut(BaseModel):
     case_sensitive: bool | None = None
     # How much a right/wrong answer to this exercise moves a word's
     # WordProgress.score (see app/models/word_progress.py). Null means "use
-    # this exercise_key's own code-level default" (see lessons.py's
-    # DEFAULT_POINTS), same fallback pattern as the fields above.
+    # this exercise_key's own code-level default" (see
+    # app/exercises/common.py's DEFAULT_POINTS), same fallback pattern as
+    # the fields above.
     correct_points: int | None = None
     incorrect_points: int | None = None
+    # Whether this exercise_key can be picked for a new Lesson at all. Null
+    # means enabled (same "unset = working default" convention as every
+    # other field here) -- see app/exercises/__init__.py.
+    enabled: bool | None = None
+    # Only meaningful for "listen_word" (how many word choices one round
+    # shows); null for every other exercise_key.
+    option_count: int | None = None
+    # Only meaningful for "speaking_word" (0-100 minimum text-similarity to
+    # accept a spoken answer); null for every other exercise_key.
+    speech_match_threshold: int | None = None
 
 
 class ExerciseSettingsIn(BaseModel):
@@ -28,6 +39,9 @@ class ExerciseSettingsIn(BaseModel):
     case_sensitive: bool | None = None
     correct_points: int | None = Field(default=None, ge=0, le=100)
     incorrect_points: int | None = Field(default=None, ge=0, le=100)
+    enabled: bool | None = None
+    option_count: int | None = Field(default=None, ge=2, le=10)
+    speech_match_threshold: int | None = Field(default=None, ge=0, le=100)
 
 
 class TrueOrFalseItemOut(BaseModel):
