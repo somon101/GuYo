@@ -201,3 +201,29 @@ export interface UserPhraseAnalytics {
   near_phrases: NearPhrase[];
   top_words: WordImpact[];
 }
+
+// --- Достижения ------------------------------------------------------------
+// Achievement is the DEFINITION an admin edits here; whether/when a given
+// user actually earned it lives entirely on the backend (UserAchievement) --
+// Admin Web never sees or touches individual users' grants directly.
+
+export interface Achievement {
+  id: number;
+  title: string;
+  description: string;
+  icon: string;
+  condition_type: string;
+  condition_value: number;
+  enabled: boolean;
+  order: number;
+}
+
+export interface AchievementIcon {
+  id: string;
+  emoji: string;
+}
+
+export interface ConditionType {
+  id: string;
+  label: string;
+}

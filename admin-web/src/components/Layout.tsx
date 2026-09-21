@@ -7,6 +7,7 @@ const navItems = [
   { to: "/users", label: "Пользователи" },
   { to: "/dictionaries", label: "Языки" },
   { to: "/exercises", label: "Упражнения" },
+  { to: "/achievements", label: "Достижения" },
   { to: "/analytics", label: "Аналитика" },
 ];
 

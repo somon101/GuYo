@@ -6,6 +6,7 @@ from sqlalchemy import engine_from_config, pool
 from app.config import get_settings
 from app.database import Base
 from app.models import (  # noqa: F401
+    Achievement,
     Admin,
     Category,
     Dictionary,
@@ -21,6 +22,7 @@ from app.models import (  # noqa: F401
     Phrase,
     PhraseCategory,
     User,
+    UserAchievement,
     Word,
     WordForm,
     WordProgress,

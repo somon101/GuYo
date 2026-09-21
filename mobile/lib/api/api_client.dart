@@ -8,6 +8,7 @@ import '../models/exercise.dart';
 import '../models/learning.dart';
 import '../models/lesson.dart';
 import '../models/phrase.dart';
+import '../models/user_profile.dart';
 import '../models/word.dart';
 
 class ApiException implements Exception {
@@ -403,5 +404,46 @@ class ApiClient {
     );
     await _throwWithDetail(res);
     return SubmitAnswerResult.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  // --- Профиль и Достижения ------------------------------------------------
+  // Avatar storage and achievement earning/eligibility are entirely
+  // backend-decided (see backend/app/achievements/) -- this client only
+  // fetches/uploads and renders the result.
+
+  Future<UserProfile> fetchMyProfile() async {
+    final res = await http.get(_uri('/users/me/profile'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    return UserProfile.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  /// Uploads [bytes] (read from whatever the user picked) as the new
+  /// avatar, replacing any existing one -- the backend rejects anything
+  /// that isn't a real, reasonably sized image rather than this client
+  /// pre-guessing what's valid.
+  Future<UserProfile> uploadMyAvatar(List<int> bytes, String filename) async {
+    final t = await token;
+    final req = http.MultipartRequest('POST', _uri('/users/me/avatar'))
+      ..headers['Authorization'] = 'Bearer $t'
+      ..files.add(http.MultipartFile.fromBytes('avatar', bytes, filename: filename));
+    final streamed = await req.send();
+    final res = await http.Response.fromStream(streamed);
+    await _throwWithDetail(res);
+    return UserProfile.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  /// Clears the avatar -- the caller should fall back to the generated
+  /// default avatar the moment `avatarUrl` comes back null.
+  Future<UserProfile> deleteMyAvatar() async {
+    final res = await http.delete(_uri('/users/me/avatar'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    return UserProfile.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  Future<List<UserAchievement>> fetchMyAchievements() async {
+    final res = await http.get(_uri('/users/me/achievements'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
+    return list.map((e) => UserAchievement.fromJson(e as Map<String, dynamic>)).toList();
   }
 }

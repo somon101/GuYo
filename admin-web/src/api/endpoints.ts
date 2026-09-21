@@ -1,8 +1,11 @@
 import { api } from "./client";
 import type {
+  Achievement,
+  AchievementIcon,
   AdminUser,
   AnalyticsDictionary,
   Category,
+  ConditionType,
   Dictionary,
   ExerciseSettings,
   LearningSettings,
@@ -428,4 +431,63 @@ export async function getUserPhraseAnalytics(
     params: { dictionary_id: dictionaryId },
   });
   return data;
+}
+
+// --- Достижения ------------------------------------------------------------
+// Achievement DEFINITIONS only -- individual users' earned status lives
+// entirely on the backend and is never fetched/edited from here.
+
+export async function listAchievements(): Promise<Achievement[]> {
+  const { data } = await api.get("/admin/achievements");
+  return data;
+}
+
+export async function listAchievementIcons(): Promise<AchievementIcon[]> {
+  const { data } = await api.get("/admin/achievements/icons");
+  return data;
+}
+
+export async function listConditionTypes(): Promise<ConditionType[]> {
+  const { data } = await api.get("/admin/achievements/condition-types");
+  return data;
+}
+
+export interface AchievementInput {
+  title: string;
+  description: string;
+  icon: string;
+  conditionType: string;
+  conditionValue: number;
+  enabled: boolean;
+  order: number;
+}
+
+function achievementBody(input: AchievementInput) {
+  return {
+    title: input.title,
+    description: input.description,
+    icon: input.icon,
+    condition_type: input.conditionType,
+    condition_value: input.conditionValue,
+    enabled: input.enabled,
+    order: input.order,
+  };
+}
+
+export async function createAchievement(input: AchievementInput): Promise<Achievement> {
+  const { data } = await api.post("/admin/achievements", achievementBody(input));
+  return data;
+}
+
+export async function updateAchievement(id: number, input: AchievementInput): Promise<Achievement> {
+  const { data } = await api.patch(`/admin/achievements/${id}`, achievementBody(input));
+  return data;
+}
+
+// Throws with the backend's own 409 message when the achievement has
+// already been earned by at least one user -- callers should show that
+// message rather than a generic failure, since it's telling the admin
+// exactly what to do instead (disable it).
+export async function deleteAchievement(id: number): Promise<void> {
+  await api.delete(`/admin/achievements/${id}`);
 }

@@ -5,6 +5,7 @@ import 'lessons_screen.dart';
 import 'login_screen.dart';
 import 'main_menu_screen.dart';
 import 'practice_screen.dart';
+import 'profile_screen.dart';
 
 /// The app's main hub, reached right after login.
 ///
@@ -235,6 +236,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               MainMenuScreen(key: ValueKey('menu-${selected.id}'), dictionary: selected),
               LessonsScreen(key: ValueKey('lessons-${selected.id}'), dictionary: selected),
               PracticeScreen(key: ValueKey('practice-${selected.id}'), dictionary: selected),
+              // Not dictionary-scoped at all (identity/achievements are
+              // per-user, not per-language) -- kept in the same IndexedStack
+              // purely for consistency with the other tabs; a dedicated
+              // ValueKey isn't needed since nothing about it depends on
+              // `selected`.
+              const ProfileScreen(),
             ],
           );
         },
@@ -246,6 +253,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Главная'),
           NavigationDestination(icon: Icon(Icons.auto_stories_outlined), label: 'Уроки'),
           NavigationDestination(icon: Icon(Icons.fitness_center_outlined), label: 'Практика'),
+          NavigationDestination(icon: Icon(Icons.person_outline), label: 'Профиль'),
         ],
       ),
     );

@@ -1,3 +1,4 @@
+from app.models.achievement import Achievement, UserAchievement
 from app.models.admin import Admin
 from app.models.category import Category
 from app.models.dictionary import Dictionary
@@ -31,4 +32,6 @@ __all__ = [
     "LessonExercise",
     "WordProgress",
     "LearningSettings",
+    "Achievement",
+    "UserAchievement",
 ]

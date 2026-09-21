@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_admin, get_current_user
 from app.database import get_db
+from app.achievements import check_and_grant_achievements
 from app.exercises import EXERCISE_TYPES, build_word, listen_word, matching, speaking_word, true_or_false
 from app.exercises.common import get_eligible_words, get_points, get_threshold, is_exercise_enabled
 from app.models.dictionary import Dictionary
@@ -434,12 +435,20 @@ def submit_answer(
 
     threshold = get_threshold(db)
     lesson_completed = _check_and_apply_lesson_completion(db, lesson, threshold)
+    is_learned = progress.score >= threshold
+
+    # A word crossing the learned threshold is the one event that can ever
+    # raise phrases_opened_count (a word becoming LESS learned never grants
+    # anything, so this is skipped otherwise) -- see app/achievements/
+    # service.py, the one reusable mechanism every condition_type shares.
+    if is_learned:
+        check_and_grant_achievements(db, user, "phrases_opened")
 
     db.commit()
     return SubmitAnswerOut(
         word_id=payload.word_id,
         score=progress.score,
-        is_learned=progress.score >= threshold,
+        is_learned=is_learned,
         lesson_completed=lesson_completed,
     )
 
