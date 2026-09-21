@@ -11,6 +11,9 @@ import type {
   LearningSettings,
   Phrase,
   PhraseCategory,
+  Rank,
+  RatingSettings,
+  Season,
   TranslationLanguage,
   UserPhraseAnalytics,
   Word,
@@ -506,5 +509,92 @@ export async function deleteAchievement(id: number): Promise<void> {
  * drag-and-drop -- never only client-side/local state. */
 export async function reorderAchievements(achievementIds: number[]): Promise<Achievement[]> {
   const { data } = await api.put("/admin/achievements/order", { achievement_ids: achievementIds });
+  return data;
+}
+
+// --- Рейтинг -----------------------------------------------------------------
+// Entirely separate backend system from Achievements above (app/rating/).
+
+export async function getRatingSettings(): Promise<RatingSettings> {
+  const { data } = await api.get("/admin/rating/settings");
+  return data;
+}
+
+export async function updateRatingSettings(input: RatingSettings): Promise<RatingSettings> {
+  const { data } = await api.put("/admin/rating/settings", input);
+  return data;
+}
+
+export async function listRanks(): Promise<Rank[]> {
+  const { data } = await api.get("/admin/rating/ranks");
+  return data;
+}
+
+export interface RankInput {
+  name: string;
+  minPoints: number;
+  maxPoints: number | null;
+  color: string;
+  enabled: boolean;
+  /** A real uploaded image -- never emoji. Omit on update to leave the
+   * current icon untouched. */
+  icon?: File | null;
+  /** Update only: clears the icon instead of replacing it. */
+  removeIcon?: boolean;
+}
+
+function rankForm(input: RankInput): FormData {
+  const form = new FormData();
+  form.append("name", input.name);
+  form.append("min_points", String(input.minPoints));
+  if (input.maxPoints !== null) form.append("max_points", String(input.maxPoints));
+  else form.append("clear_max_points", "true");
+  form.append("color", input.color);
+  form.append("enabled", String(input.enabled));
+  if (input.icon) form.append("icon", input.icon);
+  if (input.removeIcon) form.append("remove_icon", "true");
+  return form;
+}
+
+export async function createRank(input: RankInput): Promise<Rank> {
+  const { data } = await api.post("/admin/rating/ranks", rankForm(input), {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+export async function updateRank(id: number, input: RankInput): Promise<Rank> {
+  const { data } = await api.patch(`/admin/rating/ranks/${id}`, rankForm(input), {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+// Throws with the backend's own 409 message when a completed season's
+// history already points to this rank -- callers should show that message
+// (disable it instead of deleting).
+export async function deleteRank(id: number): Promise<void> {
+  await api.delete(`/admin/rating/ranks/${id}`);
+}
+
+export async function reorderRanks(rankIds: number[]): Promise<Rank[]> {
+  const { data } = await api.put("/admin/rating/ranks/order", { rank_ids: rankIds });
+  return data;
+}
+
+export async function listSeasons(): Promise<Season[]> {
+  const { data } = await api.get("/admin/rating/seasons");
+  return data;
+}
+
+export async function createSeason(name: string): Promise<Season> {
+  const { data } = await api.post("/admin/rating/seasons", { name });
+  return data;
+}
+
+// Freezes every user's current points/rank into that season's history and
+// applies the configured reset -- irreversible.
+export async function endSeason(id: number): Promise<Season> {
+  const { data } = await api.post(`/admin/rating/seasons/${id}/end`);
   return data;
 }

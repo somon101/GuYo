@@ -8,6 +8,7 @@ const navItems = [
   { to: "/dictionaries", label: "Языки" },
   { to: "/exercises", label: "Упражнения" },
   { to: "/achievements", label: "Достижения" },
+  { to: "/rating", label: "Рейтинг" },
   { to: "/analytics", label: "Аналитика" },
 ];
 

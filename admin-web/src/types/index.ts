@@ -227,3 +227,36 @@ export interface ConditionType {
   id: string;
   label: string;
 }
+
+// --- Рейтинг -----------------------------------------------------------------
+// Entirely separate from Achievements above -- a different backend system
+// (app/rating/), a different Admin Web section, never cross-referenced.
+
+export type RatingResetMode = "fixed" | "percent";
+
+export interface RatingSettings {
+  points_per_learned_word: number;
+  season_reset_mode: RatingResetMode;
+  season_reset_value: number;
+}
+
+export interface Rank {
+  id: number;
+  name: string;
+  min_points: number;
+  max_points: number | null;
+  icon_url: string | null;
+  color: string;
+  order: number;
+  enabled: boolean;
+}
+
+export type SeasonStatus = "active" | "completed";
+
+export interface Season {
+  id: number;
+  name: string;
+  start_date: string;
+  end_date: string | null;
+  status: SeasonStatus;
+}

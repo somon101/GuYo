@@ -8,8 +8,11 @@ from app.core.storage import delete_by_key, save_upload, url_for_key
 from app.database import get_db
 from app.models.achievement import VISIBILITY_HIDDEN, Achievement, UserAchievement
 from app.models.admin import Admin
+from app.models.rating import SeasonHistory
 from app.models.user import User
+from app.rating import current_rank_for_points, get_active_season, get_or_create_user_rating, next_rank_for_points
 from app.schemas.achievement import UserAchievementOut
+from app.schemas.rating import RankPublicOut, SeasonHistoryOut, SeasonOut, UserRatingOut
 from app.schemas.user import UserCreate, UserOut, UserProfileOut
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -163,3 +166,57 @@ def get_my_achievements(db: Session = Depends(get_db), user: User = Depends(get_
             )
         )
     return result
+
+
+def _rank_public_out(rank) -> RankPublicOut | None:
+    if rank is None:
+        return None
+    return RankPublicOut(
+        id=rank.id,
+        name=rank.name,
+        icon_url=url_for_key(rank.icon_key),
+        color=rank.color,
+        min_points=rank.min_points,
+        max_points=rank.max_points,
+    )
+
+
+@router.get("/me/rating", response_model=UserRatingOut)
+def get_my_rating(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Everything the Profile screen's "Рейтинг" block needs in one round
+    trip -- current points, current season, current rank (+ the next rank
+    up, for a progress bar), and past seasons' frozen results. A fully
+    separate system from achievements (see app/rating/): nothing here
+    touches Achievement/UserAchievement, and this never recomputes a past
+    season's SeasonHistory row from the CURRENT rating -- that snapshot is
+    permanent the moment a season ends."""
+    rating = get_or_create_user_rating(db, user.id)
+    rank = current_rank_for_points(db, rating.total_points)
+    next_rank = next_rank_for_points(db, rating.total_points)
+    season = get_active_season(db)
+
+    history_rows = (
+        db.query(SeasonHistory)
+        .filter(SeasonHistory.user_id == user.id)
+        .order_by(SeasonHistory.ended_at.desc())
+        .all()
+    )
+    history = [
+        SeasonHistoryOut(
+            season_id=row.season_id,
+            season_name=row.season.name if row.season else "",
+            points=row.points,
+            rank=_rank_public_out(row.rank) if row.rank_id else None,
+            ended_at=row.ended_at,
+        )
+        for row in history_rows
+    ]
+
+    return UserRatingOut(
+        total_points=rating.total_points,
+        season=SeasonOut.model_validate(season, from_attributes=True) if season else None,
+        rank=_rank_public_out(rank),
+        next_rank=_rank_public_out(next_rank),
+        points_to_next_rank=(next_rank.min_points - rating.total_points) if next_rank else None,
+        history=history,
+    )

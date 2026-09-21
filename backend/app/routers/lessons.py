@@ -32,6 +32,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_admin, get_current_user
 from app.database import get_db
 from app.achievements import check_and_grant_achievements, record_activity
+from app.rating import award_word_points_if_new
 from app.exercises import EXERCISE_TYPES, build_word, listen_word, matching, speaking_word, true_or_false
 from app.exercises.common import get_eligible_words, get_points, get_threshold, is_exercise_enabled
 from app.models.dictionary import Dictionary
@@ -443,10 +444,14 @@ def submit_answer(
     # raise phrases_opened_count or words_learned_count (a word becoming
     # LESS learned never grants anything, so this is skipped otherwise) --
     # see app/achievements/service.py, the one reusable mechanism every
-    # condition_type shares.
+    # condition_type shares. Rating points react to the exact same
+    # condition but are a fully separate system (see app/rating/service.py)
+    # -- award_word_points_if_new never grants twice for the same word,
+    # so calling it here on every is_learned=True answer is safe.
     if is_learned:
         check_and_grant_achievements(db, user, "phrases_opened")
         check_and_grant_achievements(db, user, "words_learned")
+        award_word_points_if_new(db, user, payload.word_id)
     if lesson_completed:
         check_and_grant_achievements(db, user, "lessons_completed")
 

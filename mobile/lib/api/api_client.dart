@@ -10,6 +10,7 @@ import '../models/learning.dart';
 import '../models/lesson.dart';
 import '../models/phrase.dart';
 import '../models/user_profile.dart';
+import '../models/user_rating.dart';
 import '../models/word.dart';
 
 /// package:http's MultipartFile.fromBytes defaults to
@@ -468,5 +469,14 @@ class ApiClient {
     await _throwIfUnauthorized(res);
     final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
     return list.map((e) => UserAchievement.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// A fully separate system from achievements (see backend/app/rating/) --
+  /// current points, current season, current rank and season history, all
+  /// backend-decided.
+  Future<UserRating> fetchMyRating() async {
+    final res = await http.get(_uri('/users/me/rating'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    return UserRating.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 }

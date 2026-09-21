@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import '../api/api_client.dart';
 import '../models/user_profile.dart';
+import '../models/user_rating.dart';
 import '../widgets/user_avatar.dart';
 
 const List<String> _russianMonthsGenitive = [
@@ -46,6 +47,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _loadError;
   UserProfile? _profile;
   List<UserAchievement> _achievements = [];
+  UserRating? _rating;
   bool _isUpdatingAvatar = false;
 
   @override
@@ -64,11 +66,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final results = await Future.wait([
         ApiClient.instance.fetchMyProfile(),
         ApiClient.instance.fetchMyAchievements(),
+        ApiClient.instance.fetchMyRating(),
       ]);
       if (!mounted) return;
       setState(() {
         _profile = results[0] as UserProfile;
         _achievements = results[1] as List<UserAchievement>;
+        _rating = results[2] as UserRating;
         _isLoading = false;
       });
       // Deliberately NOT awaited: this is called from RefreshIndicator's
@@ -280,7 +284,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 28),
+        if (_rating != null) _RatingSection(rating: _rating!),
+        const SizedBox(height: 28),
         Row(
           children: [
             const Text('Достижения', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
@@ -301,6 +307,166 @@ class _ProfileScreenState extends State<ProfileScreen> {
         else
           for (final achievement in _achievements) _AchievementTile(achievement: achievement),
       ],
+    );
+  }
+}
+
+/// "Рейтинг" -- entirely separate from achievements below: its own
+/// backend system (see backend/app/rating/), its own visual block. Shows
+/// the current rank/points/progress-to-next-rank, and (compactly) past
+/// seasons' frozen results. Everything here is exactly what the backend
+/// sent; this widget never computes a rank or a progress fraction itself
+/// beyond simple arithmetic on numbers the backend already gave it.
+class _RatingSection extends StatelessWidget {
+  final UserRating rating;
+  const _RatingSection({required this.rating});
+
+  @override
+  Widget build(BuildContext context) {
+    final rank = rating.rank;
+    final nextRank = rating.nextRank;
+    final color = rank != null ? _parseHexColor(rank.color) : Colors.grey;
+
+    double? progress;
+    if (rank != null && nextRank != null) {
+      final span = nextRank.minPoints - rank.minPoints;
+      if (span > 0) {
+        progress = ((rating.totalPoints - rank.minPoints) / span).clamp(0.0, 1.0);
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('Рейтинг', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+              const Spacer(),
+              if (rating.season != null)
+                Text(
+                  rating.season!.name,
+                  style: const TextStyle(fontSize: 12, color: Colors.black45, fontWeight: FontWeight.w600),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _RankIcon(rank: rank, color: color, size: 48),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      rank?.name ?? 'Без ранга',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: color),
+                    ),
+                    const SizedBox(height: 2),
+                    Text('${rating.totalPoints} очков', style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (progress != null && nextRank != null) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 6,
+                backgroundColor: Colors.grey.shade200,
+                valueColor: AlwaysStoppedAnimation(color),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'До «${nextRank.name}»: ${rating.pointsToNextRank} очков',
+              style: const TextStyle(fontSize: 11, color: Colors.black45),
+            ),
+          ],
+          if (rating.history.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Divider(height: 1, color: color.withValues(alpha: 0.15)),
+            const SizedBox(height: 10),
+            const Text(
+              'История сезонов',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.black45),
+            ),
+            const SizedBox(height: 6),
+            for (final entry in rating.history) _SeasonHistoryRow(entry: entry),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _RankIcon extends StatelessWidget {
+  final RankSummary? rank;
+  final Color color;
+  final double size;
+  const _RankIcon({required this.rank, required this.color, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    final url = rank?.iconUrl;
+    if (url != null && url.isNotEmpty) {
+      return ClipOval(
+        child: Image.network(
+          ApiClient.instance.mediaUrl(url),
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _fallback(),
+        ),
+      );
+    }
+    return _fallback();
+  }
+
+  Widget _fallback() {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color.withValues(alpha: 0.15)),
+      child: Icon(Icons.military_tech_rounded, color: color, size: size * 0.55),
+    );
+  }
+}
+
+class _SeasonHistoryRow extends StatelessWidget {
+  final SeasonHistoryEntry entry;
+  const _SeasonHistoryRow({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    final rank = entry.rank;
+    final color = rank != null ? _parseHexColor(rank.color) : Colors.black45;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(entry.seasonName, style: const TextStyle(fontSize: 12, color: Colors.black87)),
+          ),
+          if (rank != null) ...[
+            Container(width: 6, height: 6, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
+            const SizedBox(width: 5),
+            Text(rank.name, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
+            const SizedBox(width: 8),
+          ],
+          Text('${entry.points}', style: const TextStyle(fontSize: 12, color: Colors.black45)),
+        ],
+      ),
     );
   }
 }
