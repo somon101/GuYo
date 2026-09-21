@@ -10,6 +10,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.orm import Session
 
+from app.achievements import record_activity
 from app.core.deps import Principal, get_current_admin, get_current_principal, get_current_user
 from app.core.storage import MEDIA_ROOT, delete_by_key, save_bytes, save_upload, url_for_key
 from app.database import SessionLocal, get_db
@@ -170,6 +171,13 @@ def list_available_phrases(
     learned_tokens = _get_learned_word_tokens(db, user.id, dictionary)
     phrases = db.query(Phrase).filter(Phrase.dictionary_id == dictionary_id).order_by(Phrase.id).all()
     available = [p for p in phrases if _phrase_is_available(p, learned_tokens)]
+
+    # Fires from both Practice and "Мои фразы" -- another natural,
+    # already-existing activity signal for the streak. This is otherwise a
+    # read-only endpoint that never commits.
+    record_activity(db, user)
+    db.commit()
+
     return [phrase_to_out(p) for p in available]
 
 

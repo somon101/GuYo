@@ -2,10 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.achievements import record_activity
 from app.core.deps import Principal, get_current_admin, get_current_principal
 from app.core.storage import delete_by_key
 from app.database import get_db
 from app.models.dictionary import Dictionary, resolve_dictionary_language_label
+from app.models.user import User
 from app.models.word import Word
 from app.schemas.dictionary import DictionaryCreate, DictionaryOut, DictionaryUpdate
 
@@ -21,6 +23,15 @@ def _visible_to(principal: Principal, dictionary: Dictionary) -> bool:
 
 @router.get("", response_model=list[DictionaryOut])
 def list_dictionaries(db: Session = Depends(get_db), principal: Principal = Depends(get_current_principal)):
+    # Fires on every Flutter app open (HomeScreen.initState) -- the natural
+    # place to record today's activity for the streak, rather than a
+    # dedicated "ping" endpoint (see app/achievements/streak.py).
+    if principal.role == "user":
+        user = db.get(User, principal.id)
+        if user is not None:
+            record_activity(db, user)
+            db.commit()  # this is otherwise a read-only endpoint that never commits
+
     query = db.query(Dictionary, func.count(Word.id)).outerjoin(Word, Word.dictionary_id == Dictionary.id)
     if principal.role != "admin":
         query = query.filter(Dictionary.is_published.is_(True))

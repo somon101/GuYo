@@ -23,6 +23,7 @@ from app.models import (  # noqa: F401
     PhraseCategory,
     User,
     UserAchievement,
+    UserActivityDay,
     Word,
     WordForm,
     WordProgress,

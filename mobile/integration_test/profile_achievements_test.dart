@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:guyo_app/config.dart';
@@ -118,20 +119,31 @@ void main() {
       final wordId = await _createWord(adminToken, dictionaryId, 'solo');
       await _createPhrase(adminToken, dictionaryId, 'solo');
 
-      final achRes = await http.post(
-        Uri.parse('$apiBaseUrl/admin/achievements'),
-        headers: {'Authorization': 'Bearer $adminToken', 'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'title': 'Первая фраза',
-          'description': 'Ты открыл свою первую фразу',
-          'icon': 'trophy',
-          'condition_type': 'phrases_opened',
-          'condition_value': 1,
-          'enabled': true,
-          'order': 1,
-        }),
-      );
-      expect(achRes.statusCode, 201);
+      final achReq = http.MultipartRequest('POST', Uri.parse('$apiBaseUrl/admin/achievements'))
+        ..headers['Authorization'] = 'Bearer $adminToken'
+        ..fields['title'] = 'Первая фраза'
+        ..fields['description'] = 'Ты открыл свою первую фразу'
+        ..fields['condition_type'] = 'phrases_opened'
+        ..fields['condition_value'] = '1'
+        ..fields['color'] = '#6366F1'
+        ..fields['visibility'] = 'visible'
+        ..fields['show_before_unlock'] = 'true'
+        ..fields['enabled'] = 'true'
+        ..fields['order'] = '1'
+        ..files.add(
+          http.MultipartFile.fromBytes(
+            'icon',
+            // 1x1 transparent PNG -- content doesn't matter, only that a
+            // real image file is uploaded (admin picks no emoji here).
+            base64Decode(
+              'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+            ),
+            filename: 'icon.png',
+            contentType: MediaType('image', 'png'),
+          ),
+        );
+      final achStreamed = await achReq.send();
+      expect(achStreamed.statusCode, 201);
 
       await _login(tester);
       await tester.tap(find.text('Профиль'));

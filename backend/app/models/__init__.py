@@ -1,4 +1,4 @@
-from app.models.achievement import Achievement, UserAchievement
+from app.models.achievement import Achievement, UserAchievement, UserActivityDay
 from app.models.admin import Admin
 from app.models.category import Category
 from app.models.dictionary import Dictionary
@@ -34,4 +34,5 @@ __all__ = [
     "LearningSettings",
     "Achievement",
     "UserAchievement",
+    "UserActivityDay",
 ]

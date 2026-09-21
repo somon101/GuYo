@@ -6,7 +6,7 @@ from app.core.deps import get_current_admin, get_current_user
 from app.core.security import hash_password
 from app.core.storage import delete_by_key, save_upload, url_for_key
 from app.database import get_db
-from app.models.achievement import Achievement, UserAchievement
+from app.models.achievement import VISIBILITY_HIDDEN, Achievement, UserAchievement
 from app.models.admin import Admin
 from app.models.user import User
 from app.schemas.achievement import UserAchievementOut
@@ -101,7 +101,9 @@ def get_my_achievements(db: Session = Depends(get_db), user: User = Depends(get_
     something through an action that hasn't explicitly re-run the granting
     check (see app/achievements/service.py) since. The backend decides all
     of this; nothing about "have I earned this" is computed in Flutter."""
-    achievements = db.query(Achievement).filter(Achievement.enabled.is_(True)).order_by(Achievement.order, Achievement.id).all()
+    achievements = (
+        db.query(Achievement).filter(Achievement.enabled.is_(True)).order_by(Achievement.order, Achievement.id).all()
+    )
     earned_at_by_id = {
         row.achievement_id: row.earned_at
         for row in db.query(UserAchievement).filter(UserAchievement.user_id == user.id).all()
@@ -117,17 +119,47 @@ def get_my_achievements(db: Session = Depends(get_db), user: User = Depends(get_
             value_cache[condition_type] = compute(db, user) if compute else 0
         return value_cache[condition_type]
 
-    return [
-        UserAchievementOut(
-            id=a.id,
-            title=a.title,
-            description=a.description,
-            icon=a.icon,
-            condition_type=a.condition_type,
-            condition_value=a.condition_value,
-            earned=a.id in earned_at_by_id,
-            earned_at=earned_at_by_id.get(a.id),
-            current_value=current_value(a.condition_type),
+    result = []
+    for a in achievements:
+        earned = a.id in earned_at_by_id
+        is_hidden = a.visibility == VISIBILITY_HIDDEN
+
+        if not earned and is_hidden and not a.show_before_unlock:
+            # Fully invisible until earned -- omitted entirely, not just
+            # styled as locked, so it can't be discovered early.
+            continue
+
+        if not earned and is_hidden:
+            # Visible as a locked mystery tile: the real icon (the client
+            # dims it), but the condition itself stays withheld.
+            result.append(
+                UserAchievementOut(
+                    id=a.id,
+                    title=None,
+                    description=None,
+                    icon_url=url_for_key(a.icon_key),
+                    color=a.color,
+                    condition_type=None,
+                    condition_value=None,
+                    current_value=None,
+                    earned=False,
+                    earned_at=None,
+                )
+            )
+            continue
+
+        result.append(
+            UserAchievementOut(
+                id=a.id,
+                title=a.title,
+                description=a.description,
+                icon_url=url_for_key(a.icon_key),
+                color=a.color,
+                condition_type=a.condition_type,
+                condition_value=a.condition_value,
+                current_value=current_value(a.condition_type),
+                earned=earned,
+                earned_at=earned_at_by_id.get(a.id),
+            )
         )
-        for a in achievements
-    ]
+    return result

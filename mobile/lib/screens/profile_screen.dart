@@ -4,10 +4,22 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
-import '../achievements/achievement_icons.dart';
 import '../api/api_client.dart';
 import '../models/user_profile.dart';
 import '../widgets/user_avatar.dart';
+
+const List<String> _russianMonthsGenitive = [
+  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+];
+
+/// "Получено 21 сентября 2026" -- from `earnedAt`, which the backend always
+/// sends as a server timestamp (see UserAchievement.earned_at), never the
+/// phone's own clock.
+String _formatEarnedDate(DateTime date) {
+  final local = date.toLocal();
+  return '${local.day} ${_russianMonthsGenitive[local.month - 1]} ${local.year}';
+}
 
 /// "Профиль": the user's own identity (avatar, login, their permanent
 /// user_id) plus their achievements -- both fetched from the backend, which
@@ -300,27 +312,29 @@ class _AchievementTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final earned = achievement.earned;
+    final locked = achievement.isLocked;
+    final color = _parseHexColor(achievement.color);
+    final title = locked ? 'Скрытое достижение' : achievement.title!;
+    final description = locked ? 'Условие неизвестно' : achievement.description!;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: earned ? Colors.amber.shade50 : Theme.of(context).colorScheme.surface,
+        color: earned ? color.withValues(alpha: 0.08) : Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: earned ? Colors.amber.shade300 : Colors.grey.shade300),
+        border: Border.all(color: earned ? color.withValues(alpha: 0.4) : Colors.grey.shade300),
       ),
       child: Row(
         children: [
-          Opacity(
-            opacity: earned ? 1 : 0.35,
-            child: Text(achievementEmoji(achievement.icon), style: const TextStyle(fontSize: 28)),
-          ),
+          _AchievementIcon(achievement: achievement, dimmed: !earned, size: 44),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  achievement.title,
+                  title,
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -328,20 +342,25 @@ class _AchievementTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  achievement.description,
-                  style: const TextStyle(fontSize: 13, color: Colors.black54),
-                ),
-                if (!earned) ...[
+                Text(description, style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                if (earned && achievement.earnedAt != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Получено ${_formatEarnedDate(achievement.earnedAt!)}',
+                    style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
+                  ),
+                ],
+                if (!earned && !locked) ...[
                   const SizedBox(height: 6),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(6),
                     child: LinearProgressIndicator(
                       value: achievement.conditionValue == 0
                           ? 0
-                          : (achievement.currentValue / achievement.conditionValue).clamp(0.0, 1.0),
+                          : (achievement.currentValue! / achievement.conditionValue!).clamp(0.0, 1.0),
                       minHeight: 5,
                       backgroundColor: Colors.grey.shade200,
+                      valueColor: AlwaysStoppedAnimation(color),
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -354,11 +373,60 @@ class _AchievementTile extends StatelessWidget {
             ),
           ),
           if (earned)
-            Icon(Icons.check_circle, color: Colors.amber.shade700, size: 22)
+            Icon(Icons.check_circle, color: color, size: 22)
           else
             Icon(Icons.lock_outline, color: Colors.grey.shade400, size: 20),
         ],
       ),
+    );
+  }
+}
+
+Color _parseHexColor(String hex) {
+  var value = hex.replaceFirst('#', '');
+  if (value.length == 6) value = 'FF$value';
+  return Color(int.parse(value, radix: 16));
+}
+
+/// The achievement's own uploaded icon -- never a substitute/generic image
+/// -- shown at full brightness once earned, dimmed while locked/unearned
+/// (including the hidden "mystery" state, which still uses the admin's
+/// real icon, just darkened, per spec). Falls back to a generic badge only
+/// when no icon was ever uploaded (or it fails to load), tinted by the
+/// achievement's own color.
+class _AchievementIcon extends StatelessWidget {
+  final UserAchievement achievement;
+  final bool dimmed;
+  final double size;
+  const _AchievementIcon({required this.achievement, required this.dimmed, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _parseHexColor(achievement.color);
+    final url = achievement.iconUrl;
+    Widget child;
+    if (url != null && url.isNotEmpty) {
+      child = ClipOval(
+        child: Image.network(
+          ApiClient.instance.mediaUrl(url),
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _fallbackIcon(color),
+        ),
+      );
+    } else {
+      child = _fallbackIcon(color);
+    }
+    return Opacity(opacity: dimmed ? 0.35 : 1, child: child);
+  }
+
+  Widget _fallbackIcon(Color color) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color.withValues(alpha: 0.15)),
+      child: Icon(Icons.emoji_events_rounded, color: color, size: size * 0.55),
     );
   }
 }
@@ -384,21 +452,22 @@ class _AchievementUnlockedDialog extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 88,
-                height: 88,
+                width: 96,
+                height: 96,
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: const LinearGradient(colors: [Color(0xFFFFD54F), Color(0xFFFFA000)]),
-                  boxShadow: [BoxShadow(color: Colors.amber.withValues(alpha: 0.5), blurRadius: 28, spreadRadius: 2)],
+                  color: _parseHexColor(achievement.color).withValues(alpha: 0.15),
+                  boxShadow: [BoxShadow(color: _parseHexColor(achievement.color).withValues(alpha: 0.5), blurRadius: 28, spreadRadius: 2)],
                 ),
-                child: Center(child: Text(achievementEmoji(achievement.icon), style: const TextStyle(fontSize: 44))),
+                child: _AchievementIcon(achievement: achievement, dimmed: false, size: 88),
               ),
               const SizedBox(height: 18),
               const Text('Достижение получено!', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.black45, letterSpacing: 0.5)),
               const SizedBox(height: 6),
-              Text(achievement.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800), textAlign: TextAlign.center),
+              Text(achievement.title!, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800), textAlign: TextAlign.center),
               const SizedBox(height: 8),
-              Text(achievement.description, style: const TextStyle(fontSize: 14, color: Colors.black54), textAlign: TextAlign.center),
+              Text(achievement.description!, style: const TextStyle(fontSize: 14, color: Colors.black54), textAlign: TextAlign.center),
               const SizedBox(height: 22),
               SizedBox(
                 width: double.infinity,

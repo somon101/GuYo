@@ -207,20 +207,20 @@ export interface UserPhraseAnalytics {
 // user actually earned it lives entirely on the backend (UserAchievement) --
 // Admin Web never sees or touches individual users' grants directly.
 
+export type AchievementVisibility = "visible" | "hidden";
+
 export interface Achievement {
   id: number;
   title: string;
   description: string;
-  icon: string;
+  icon_url: string | null;
+  color: string;
   condition_type: string;
   condition_value: number;
   enabled: boolean;
+  visibility: AchievementVisibility;
+  show_before_unlock: boolean;
   order: number;
-}
-
-export interface AchievementIcon {
-  id: string;
-  emoji: string;
 }
 
 export interface ConditionType {

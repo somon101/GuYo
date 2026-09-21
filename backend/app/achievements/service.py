@@ -1,10 +1,14 @@
 """The ONE reusable mechanism that decides "has this user now earned any
 new achievements" -- called after any event that could move a
-condition_type's measured value (today: a word crossing the learned
-threshold, since that's what changes phrases_opened_count). There is
-deliberately no per-achievement if-branch here: every achievement of the
-given condition_type is checked the same way, so adding a 5th, 50th, or
-500th achievement in Admin Web needs zero code changes.
+condition_type's measured value (a word crossing the learned threshold for
+phrases_opened/words_learned, a lesson becoming fully completed for
+lessons_completed, today's first recorded activity for streak_days -- see
+the call sites in app/routers/lessons.py and app/achievements/streak.py).
+There is deliberately no per-achievement if-branch here: every achievement
+of the given condition_type is checked the same way, so adding a 5th,
+50th, or 500th achievement in Admin Web needs zero code changes, and a
+future condition_type only needs one new function in conditions.py plus a
+call to this same service wherever that value can change.
 """
 
 from sqlalchemy.orm import Session

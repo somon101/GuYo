@@ -1,7 +1,7 @@
 import { api } from "./client";
 import type {
   Achievement,
-  AchievementIcon,
+  AchievementVisibility,
   AdminUser,
   AnalyticsDictionary,
   Category,
@@ -442,11 +442,6 @@ export async function listAchievements(): Promise<Achievement[]> {
   return data;
 }
 
-export async function listAchievementIcons(): Promise<AchievementIcon[]> {
-  const { data } = await api.get("/admin/achievements/icons");
-  return data;
-}
-
 export async function listConditionTypes(): Promise<ConditionType[]> {
   const { data } = await api.get("/admin/achievements/condition-types");
   return data;
@@ -455,32 +450,47 @@ export async function listConditionTypes(): Promise<ConditionType[]> {
 export interface AchievementInput {
   title: string;
   description: string;
-  icon: string;
   conditionType: string;
   conditionValue: number;
+  color: string;
+  visibility: AchievementVisibility;
+  showBeforeUnlock: boolean;
   enabled: boolean;
   order: number;
+  /** A real uploaded image -- never an emoji/text substitute. Omit on
+   * update to leave the current icon untouched. */
+  icon?: File | null;
+  /** Update only: clears the icon instead of replacing it. */
+  removeIcon?: boolean;
 }
 
-function achievementBody(input: AchievementInput) {
-  return {
-    title: input.title,
-    description: input.description,
-    icon: input.icon,
-    condition_type: input.conditionType,
-    condition_value: input.conditionValue,
-    enabled: input.enabled,
-    order: input.order,
-  };
+function achievementForm(input: AchievementInput): FormData {
+  const form = new FormData();
+  form.append("title", input.title);
+  form.append("description", input.description);
+  form.append("condition_type", input.conditionType);
+  form.append("condition_value", String(input.conditionValue));
+  form.append("color", input.color);
+  form.append("visibility", input.visibility);
+  form.append("show_before_unlock", String(input.showBeforeUnlock));
+  form.append("enabled", String(input.enabled));
+  form.append("order", String(input.order));
+  if (input.icon) form.append("icon", input.icon);
+  if (input.removeIcon) form.append("remove_icon", "true");
+  return form;
 }
 
 export async function createAchievement(input: AchievementInput): Promise<Achievement> {
-  const { data } = await api.post("/admin/achievements", achievementBody(input));
+  const { data } = await api.post("/admin/achievements", achievementForm(input), {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return data;
 }
 
 export async function updateAchievement(id: number, input: AchievementInput): Promise<Achievement> {
-  const { data } = await api.patch(`/admin/achievements/${id}`, achievementBody(input));
+  const { data } = await api.patch(`/admin/achievements/${id}`, achievementForm(input), {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return data;
 }
 
@@ -490,4 +500,11 @@ export async function updateAchievement(id: number, input: AchievementInput): Pr
 // exactly what to do instead (disable it).
 export async function deleteAchievement(id: number): Promise<void> {
   await api.delete(`/admin/achievements/${id}`);
+}
+
+/** Persists the chain's full new order, front to back, from Admin Web's
+ * drag-and-drop -- never only client-side/local state. */
+export async function reorderAchievements(achievementIds: number[]): Promise<Achievement[]> {
+  const { data } = await api.put("/admin/achievements/order", { achievement_ids: achievementIds });
+  return data;
 }

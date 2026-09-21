@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../config.dart';
@@ -10,6 +11,26 @@ import '../models/lesson.dart';
 import '../models/phrase.dart';
 import '../models/user_profile.dart';
 import '../models/word.dart';
+
+/// package:http's MultipartFile.fromBytes defaults to
+/// application/octet-stream when no contentType is given -- the backend's
+/// avatar/icon upload endpoints reject that (they only accept real image
+/// MIME types), so every image upload from this client must set one
+/// explicitly, inferred from the picked file's own extension.
+MediaType? _imageMediaType(String filename) {
+  final ext = filename.toLowerCase().split('.').last;
+  switch (ext) {
+    case 'png':
+      return MediaType('image', 'png');
+    case 'jpg':
+    case 'jpeg':
+      return MediaType('image', 'jpeg');
+    case 'webp':
+      return MediaType('image', 'webp');
+    default:
+      return null;
+  }
+}
 
 class ApiException implements Exception {
   final int? statusCode;
@@ -425,7 +446,9 @@ class ApiClient {
     final t = await token;
     final req = http.MultipartRequest('POST', _uri('/users/me/avatar'))
       ..headers['Authorization'] = 'Bearer $t'
-      ..files.add(http.MultipartFile.fromBytes('avatar', bytes, filename: filename));
+      ..files.add(
+        http.MultipartFile.fromBytes('avatar', bytes, filename: filename, contentType: _imageMediaType(filename)),
+      );
     final streamed = await req.send();
     final res = await http.Response.fromStream(streamed);
     await _throwWithDetail(res);
