@@ -8,7 +8,9 @@ from app.config import get_settings
 from app.routers import (
     admin_achievements,
     admin_analytics,
+    admin_quests,
     admin_rating,
+    admin_word_levels,
     auth,
     categories,
     dictionaries,
@@ -17,6 +19,7 @@ from app.routers import (
     lessons,
     phrase_categories,
     phrases,
+    quests,
     users,
     words,
 )
@@ -54,6 +57,9 @@ app.include_router(lessons.router)
 app.include_router(admin_analytics.router)
 app.include_router(admin_achievements.router)
 app.include_router(admin_rating.router)
+app.include_router(admin_word_levels.router)
+app.include_router(admin_quests.router)
+app.include_router(quests.router)
 
 
 @app.get("/health")

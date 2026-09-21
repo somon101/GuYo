@@ -11,7 +11,9 @@ from app.models.phrase import Phrase, PhraseCategory
 from app.models.rating import RatingSettings, Rank, Season, SeasonHistory, UserRating, UserWordPoints
 from app.models.user import User
 from app.models.word import Word, WordForm, WordTranslation
+from app.models.word_level import WordLevel
 from app.models.word_progress import WordProgress
+from app.models.quest import Quest, UserQuestWordDay
 
 __all__ = [
     "Admin",
@@ -42,4 +44,7 @@ __all__ = [
     "SeasonHistory",
     "UserRating",
     "UserWordPoints",
+    "WordLevel",
+    "Quest",
+    "UserQuestWordDay",
 ]

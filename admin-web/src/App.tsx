@@ -17,7 +17,8 @@ import { MatchingSettingsPage } from "./pages/exercises/MatchingSettingsPage";
 import { BuildWordSettingsPage } from "./pages/exercises/BuildWordSettingsPage";
 import { SpeakingWordSettingsPage } from "./pages/exercises/SpeakingWordSettingsPage";
 import { ListenWordSettingsPage } from "./pages/exercises/ListenWordSettingsPage";
-import { LearningThresholdSettingsPage } from "./pages/exercises/LearningThresholdSettingsPage";
+import { WordLevelsSettingsPage } from "./pages/exercises/WordLevelsSettingsPage";
+import { QuestsPage } from "./pages/QuestsPage";
 import { UserAnalyticsPage } from "./pages/UserAnalyticsPage";
 import { AchievementsPage } from "./pages/AchievementsPage";
 import { RatingPage } from "./pages/RatingPage";
@@ -193,11 +194,21 @@ export default function App() {
             }
           />
           <Route
-            path="/exercises/learning-threshold"
+            path="/exercises/word-levels"
             element={
               <ProtectedRoute>
                 <Layout>
-                  <LearningThresholdSettingsPage />
+                  <WordLevelsSettingsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quests"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <QuestsPage />
                 </Layout>
               </ProtectedRoute>
             }

@@ -13,6 +13,7 @@ from app.models.exercise import ExerciseSettings
 from app.models.learning_settings import LearningSettings
 from app.models.word import Word
 from app.models.word_progress import WordProgress
+from app.word_levels import top_level_threshold
 
 DEFAULT_THRESHOLD = 60
 # (correct, incorrect) points, only used when an admin hasn't configured a
@@ -29,6 +30,14 @@ DEFAULT_POINTS: dict[str, tuple[int, int]] = {
 
 
 def get_threshold(db: Session) -> int:
+    """The score a word needs to reach before it counts as learned. Once an
+    admin has configured the WordLevel ladder (see app/word_levels/), this
+    is the top enabled level's min_points -- level 5 "Закреплено" in the
+    spec's own example. Falls back to the legacy single LearningSettings
+    number until then, so nothing breaks before an admin sets up levels."""
+    top = top_level_threshold(db)
+    if top is not None:
+        return top
     settings = db.get(LearningSettings, 1)
     return settings.threshold_score if settings is not None else DEFAULT_THRESHOLD
 

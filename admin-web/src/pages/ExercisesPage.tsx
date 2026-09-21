@@ -29,10 +29,10 @@ export function ExercisesPage() {
         ))}
         <li>
           <Link
-            to="/exercises/learning-threshold"
+            to="/exercises/word-levels"
             className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-5 hover:border-indigo-300 hover:bg-indigo-50/40"
           >
-            <span className="text-base font-medium text-slate-900">Проходной порог изучения слова</span>
+            <span className="text-base font-medium text-slate-900">Уровни слов</span>
             <span className="text-slate-400">→</span>
           </Link>
         </li>

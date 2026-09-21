@@ -136,13 +136,6 @@ export interface ExerciseSettings {
   speech_match_threshold: number | null;
 }
 
-// The single admin-configured value that isn't specific to any one
-// exercise: the score (0-100) a word's WordProgress needs to reach before
-// it counts as learned.
-export interface LearningSettings {
-  threshold_score: number;
-}
-
 // --- Аналитика пользователей ---------------------------------------------
 // Read-only report built on the exact same "is this phrase available"
 // definition as the app's own "Мои фразы" (see the backend's
@@ -259,4 +252,32 @@ export interface Season {
   start_date: string;
   end_date: string | null;
   status: SeasonStatus;
+}
+
+// --- Уровни слов и квесты -----------------------------------------------------
+// WordLevel replaces the old single "Проходной порог изучения слова" number
+// with an admin-defined ladder (app/word_levels/) -- the top enabled level's
+// min_points becomes the new "learned" threshold. Quests (app/quests/) are a
+// separate system again: reinforcement points stay on WordProgress (reused
+// from the exercise-settings points already configured per exercise_key),
+// only the rating reward is new.
+
+export interface WordLevel {
+  id: number;
+  name: string;
+  min_points: number;
+  max_points: number | null;
+  order: number;
+  enabled: boolean;
+}
+
+export interface Quest {
+  id: number;
+  name: string;
+  word_level_id: number;
+  word_level_name: string;
+  exercise_key: string;
+  reward_points: number;
+  enabled: boolean;
+  order: number;
 }

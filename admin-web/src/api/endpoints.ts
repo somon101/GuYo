@@ -8,9 +8,9 @@ import type {
   ConditionType,
   Dictionary,
   ExerciseSettings,
-  LearningSettings,
   Phrase,
   PhraseCategory,
+  Quest,
   Rank,
   RatingSettings,
   Season,
@@ -18,6 +18,7 @@ import type {
   UserPhraseAnalytics,
   Word,
   WordForm,
+  WordLevel,
   WordTranslation,
 } from "../types";
 
@@ -402,20 +403,6 @@ export async function setExerciseSettings(
   return data;
 }
 
-// --- Уроки ("Lessons") --------------------------------------------------
-// The one setting that isn't specific to any exercise: the score
-// threshold a word needs to reach before it counts as learned.
-
-export async function getLearningSettings(): Promise<LearningSettings> {
-  const { data } = await api.get("/learning-settings");
-  return data;
-}
-
-export async function setLearningSettings(thresholdScore: number): Promise<LearningSettings> {
-  const { data } = await api.put("/learning-settings", { threshold_score: thresholdScore });
-  return data;
-}
-
 // --- Аналитика пользователей ---------------------------------------------
 // Read-only: every number here is computed by the backend from existing
 // Word/WordForm/WordProgress/Phrase data, using the exact same
@@ -596,5 +583,110 @@ export async function createSeason(name: string): Promise<Season> {
 // applies the configured reset -- irreversible.
 export async function endSeason(id: number): Promise<Season> {
   const { data } = await api.post(`/admin/rating/seasons/${id}/end`);
+  return data;
+}
+
+// --- Уровни слов ---------------------------------------------------------------
+
+export async function listWordLevels(): Promise<WordLevel[]> {
+  const { data } = await api.get("/admin/word-levels");
+  return data;
+}
+
+export interface WordLevelInput {
+  name: string;
+  minPoints: number;
+  maxPoints: number | null;
+  enabled: boolean;
+  order: number;
+}
+
+function wordLevelBody(input: WordLevelInput) {
+  return {
+    name: input.name,
+    min_points: input.minPoints,
+    ...(input.maxPoints === null ? { clear_max_points: true } : { max_points: input.maxPoints }),
+    enabled: input.enabled,
+    order: input.order,
+  };
+}
+
+export async function createWordLevel(input: WordLevelInput): Promise<WordLevel> {
+  const { data } = await api.post("/admin/word-levels", {
+    name: input.name,
+    min_points: input.minPoints,
+    ...(input.maxPoints !== null ? { max_points: input.maxPoints } : {}),
+    enabled: input.enabled,
+    order: input.order,
+  });
+  return data;
+}
+
+export async function updateWordLevel(id: number, input: WordLevelInput): Promise<WordLevel> {
+  const { data } = await api.patch(`/admin/word-levels/${id}`, wordLevelBody(input));
+  return data;
+}
+
+// Throws with the backend's own 409 message when a Quest still targets
+// this level -- disable it instead.
+export async function deleteWordLevel(id: number): Promise<void> {
+  await api.delete(`/admin/word-levels/${id}`);
+}
+
+export async function reorderWordLevels(ids: number[]): Promise<WordLevel[]> {
+  const { data } = await api.put("/admin/word-levels/order", { word_level_ids: ids });
+  return data;
+}
+
+// --- Квесты ----------------------------------------------------------------------
+
+export async function listQuests(): Promise<Quest[]> {
+  const { data } = await api.get("/admin/quests");
+  return data;
+}
+
+export async function listQuestExerciseTypes(): Promise<string[]> {
+  const { data } = await api.get("/admin/quests/exercise-types");
+  return data;
+}
+
+export interface QuestInput {
+  name: string;
+  wordLevelId: number;
+  exerciseKey: string;
+  rewardPoints: number;
+  enabled: boolean;
+  order: number;
+}
+
+function questBody(input: QuestInput) {
+  return {
+    name: input.name,
+    word_level_id: input.wordLevelId,
+    exercise_key: input.exerciseKey,
+    reward_points: input.rewardPoints,
+    enabled: input.enabled,
+    order: input.order,
+  };
+}
+
+export async function createQuest(input: QuestInput): Promise<Quest> {
+  const { data } = await api.post("/admin/quests", questBody(input));
+  return data;
+}
+
+export async function updateQuest(id: number, input: QuestInput): Promise<Quest> {
+  const { data } = await api.patch(`/admin/quests/${id}`, questBody(input));
+  return data;
+}
+
+// Throws with the backend's own 409 message when the quest has already
+// been completed by at least one user -- disable it instead.
+export async function deleteQuest(id: number): Promise<void> {
+  await api.delete(`/admin/quests/${id}`);
+}
+
+export async function reorderQuests(ids: number[]): Promise<Quest[]> {
+  const { data } = await api.put("/admin/quests/order", { quest_ids: ids });
   return data;
 }

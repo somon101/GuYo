@@ -43,6 +43,19 @@ def get_or_create_user_rating(db: Session, user_id: int) -> UserRating:
     return rating
 
 
+def grant_rating_points(db: Session, user: User, points: int) -> None:
+    """The one other place (besides award_word_points_if_new) rating
+    points ever get added -- used by the Quest system's own reward on
+    successful completion (see app/quests/service.py). Deliberately NOT
+    deduplicated the way word-points are (no "once per X" ledger here):
+    a quest's daily one-word-per-day limit is enforced entirely on the
+    Quest side (UserQuestWordDay), not by this generic grant function,
+    which just applies whatever point delta it's given."""
+    rating = get_or_create_user_rating(db, user.id)
+    rating.total_points += points
+    db.flush()
+
+
 def current_rank_for_points(db: Session, points: int) -> Rank | None:
     """The one place a user's rank is ever determined -- purely a
     comparison against enabled Ranks' own [min_points, max_points] ranges,
