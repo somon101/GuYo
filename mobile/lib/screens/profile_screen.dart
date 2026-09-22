@@ -153,9 +153,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isUpdatingAvatar = true);
     try {
       final bytes = await picked.readAsBytes();
-      final profile = await ApiClient.instance.uploadMyAvatar(bytes, picked.name);
+      final profile = await ApiClient.instance.uploadMyAvatar(bytes, picked.name, mimeType: picked.mimeType);
       if (!mounted) return;
       setState(() => _profile = profile);
+      // Explicit success feedback -- previously silent on success, so a
+      // real upload that landed fine on the backend but whose new photo
+      // failed to actually RENDER (bad network, a stale cached widget)
+      // looked identical to "nothing happened at all".
+      _showSnack('Фото обновлено');
     } on ApiException catch (e) {
       _showSnack(e.message);
     } catch (_) {

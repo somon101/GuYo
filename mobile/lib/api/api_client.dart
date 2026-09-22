@@ -18,20 +18,39 @@ import '../models/word.dart';
 /// application/octet-stream when no contentType is given -- the backend's
 /// avatar/icon upload endpoints reject that (they only accept real image
 /// MIME types), so every image upload from this client must set one
-/// explicitly, inferred from the picked file's own extension.
-MediaType? _imageMediaType(String filename) {
-  final ext = filename.toLowerCase().split('.').last;
-  switch (ext) {
-    case 'png':
-      return MediaType('image', 'png');
-    case 'jpg':
-    case 'jpeg':
-      return MediaType('image', 'jpeg');
-    case 'webp':
-      return MediaType('image', 'webp');
-    default:
-      return null;
+/// explicitly. [hint] is the platform's own reported MIME type for the
+/// picked file (XFile.mimeType on image_picker results), which is far more
+/// reliable than guessing from the filename -- some real Android gallery
+/// apps hand back a content:// name with no recognizable extension at all,
+/// which would otherwise silently fall through to octet-stream and get
+/// rejected with no visible cause. Falls back to the filename's own
+/// extension, and finally to JPEG -- every gallery/camera pick is some
+/// raster photo, never truly "unknown".
+MediaType _imageMediaType(String filename, {String? hint}) {
+  MediaType? fromMime(String? mime) {
+    if (mime == null) return null;
+    switch (mime.toLowerCase()) {
+      case 'image/png':
+        return MediaType('image', 'png');
+      case 'image/jpeg':
+      case 'image/jpg':
+        return MediaType('image', 'jpeg');
+      case 'image/webp':
+        return MediaType('image', 'webp');
+      default:
+        return null;
+    }
   }
+
+  final ext = filename.toLowerCase().split('.').last;
+  final fromExtension = switch (ext) {
+    'png' => MediaType('image', 'png'),
+    'jpg' || 'jpeg' => MediaType('image', 'jpeg'),
+    'webp' => MediaType('image', 'webp'),
+    _ => null,
+  };
+
+  return fromMime(hint) ?? fromExtension ?? MediaType('image', 'jpeg');
 }
 
 class ApiException implements Exception {
@@ -456,12 +475,17 @@ class ApiClient {
   /// avatar, replacing any existing one -- the backend rejects anything
   /// that isn't a real, reasonably sized image rather than this client
   /// pre-guessing what's valid.
-  Future<UserProfile> uploadMyAvatar(List<int> bytes, String filename) async {
+  Future<UserProfile> uploadMyAvatar(List<int> bytes, String filename, {String? mimeType}) async {
     final t = await token;
     final req = http.MultipartRequest('POST', _uri('/users/me/avatar'))
       ..headers['Authorization'] = 'Bearer $t'
       ..files.add(
-        http.MultipartFile.fromBytes('avatar', bytes, filename: filename, contentType: _imageMediaType(filename)),
+        http.MultipartFile.fromBytes(
+          'avatar',
+          bytes,
+          filename: filename,
+          contentType: _imageMediaType(filename, hint: mimeType),
+        ),
       );
     final streamed = await req.send();
     final res = await http.Response.fromStream(streamed);
