@@ -1,20 +1,29 @@
 /// The current user's own profile: their permanent `id` (never `login`,
-/// which is only credentials/display text), and their avatar -- a real
+/// which is only credentials/display text), their avatar -- a real
 /// uploaded photo's URL, or null when the UI should render its own
-/// generated default avatar instead. Mirrors the backend's UserProfileOut
-/// exactly.
+/// generated default avatar instead -- and their current activity streak.
+/// Both the avatar and the streak live entirely on the backend (Postgres),
+/// never only on this device: logging in from a different phone returns
+/// the exact same values. Mirrors the backend's UserProfileOut exactly.
 class UserProfile {
   final int id;
   final String login;
   final String? avatarUrl;
+  final int currentStreakDays;
 
-  UserProfile({required this.id, required this.login, required this.avatarUrl});
+  UserProfile({
+    required this.id,
+    required this.login,
+    required this.avatarUrl,
+    required this.currentStreakDays,
+  });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
       id: json['id'] as int,
       login: json['login'] as String,
       avatarUrl: json['avatar_url'] as String?,
+      currentStreakDays: json['current_streak_days'] as int,
     );
   }
 }

@@ -282,6 +282,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text(profile.login, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
               Text('ID: ${profile.id}', style: const TextStyle(fontSize: 13, color: Colors.black45)),
+              const SizedBox(height: 10),
+              _StreakBadge(days: profile.currentStreakDays),
             ],
           ),
         ),
@@ -308,6 +310,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
         else
           for (final achievement in _achievements) _AchievementTile(achievement: achievement),
       ],
+    );
+  }
+}
+
+/// "N дней подряд" -- `days` is computed entirely server-side
+/// (backend/app/achievements/conditions.py's streak_days_count, the SAME
+/// number the "Активность" achievement condition_type uses), reusing
+/// UserActivityDay as its one source of truth. Never a locally-tracked
+/// counter: a fresh login on another device shows this exact same value.
+class _StreakBadge extends StatelessWidget {
+  final int days;
+  const _StreakBadge({required this.days});
+
+  String _dayWord(int n) {
+    final mod100 = n % 100;
+    if (mod100 >= 11 && mod100 <= 14) return 'дней';
+    switch (n % 10) {
+      case 1:
+        return 'день';
+      case 2:
+      case 3:
+      case 4:
+        return 'дня';
+      default:
+        return 'дней';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final active = days > 0;
+    final color = active ? Colors.orange.shade700 : Colors.black38;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: active ? Colors.orange.withValues(alpha: 0.1) : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(active ? Icons.local_fire_department_rounded : Icons.local_fire_department_outlined, color: color, size: 16),
+          const SizedBox(width: 5),
+          Text(
+            active ? '$days ${_dayWord(days)} подряд' : 'Начните серию сегодня',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color),
+          ),
+        ],
+      ),
     );
   }
 }

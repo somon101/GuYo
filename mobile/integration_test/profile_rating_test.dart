@@ -100,10 +100,17 @@ void main() {
       final rankStreamed = await rankReq.send();
       expect(rankStreamed.statusCode, 201);
 
+      // A unique name per run -- ending a PAST run's own season (the
+      // cleanup loop above) permanently freezes a SeasonHistory row under
+      // that name (by design: history is never deletable via the public
+      // API), so reusing the same literal name every run would make it
+      // ambiguous which "ТестСезон" text on screen is this run's current
+      // season vs. an old frozen result.
+      final seasonName = 'ТестСезон-${DateTime.now().millisecondsSinceEpoch}';
       await http.post(
         Uri.parse('$apiBaseUrl/admin/rating/seasons'),
         headers: {'Authorization': 'Bearer $adminToken', 'Content-Type': 'application/json'},
-        body: jsonEncode({'name': 'ТестСезон'}),
+        body: jsonEncode({'name': seasonName}),
       );
 
       // Create a fresh dictionary/word so this run's points are predictable
@@ -143,7 +150,7 @@ void main() {
       // both correct, so this only checks the section is present at all.
       expect(find.text('Рейтинг'), findsWidgets);
       expect(find.text('ТестРанг'), findsOneWidget, reason: 'the only enabled rank should show as current');
-      expect(find.text('ТестСезон'), findsOneWidget);
+      expect(find.text(seasonName), findsOneWidget);
       expect(find.text('$pointsBefore очков'), findsOneWidget);
 
       // Learn the word through the REAL exercise/answers pipeline.

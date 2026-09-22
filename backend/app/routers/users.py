@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.achievements import CONDITION_TYPES
+from app.achievements import CONDITION_TYPES, streak_days_count
 from app.core.deps import get_current_admin, get_current_user
 from app.core.security import hash_password
 from app.core.storage import delete_by_key, save_upload, url_for_key
@@ -43,13 +43,18 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db), _admin: Admi
     return user
 
 
-def _profile_out(user: User) -> UserProfileOut:
-    return UserProfileOut(id=user.id, login=user.login, avatar_url=url_for_key(user.avatar_key))
+def _profile_out(db: Session, user: User) -> UserProfileOut:
+    return UserProfileOut(
+        id=user.id,
+        login=user.login,
+        avatar_url=url_for_key(user.avatar_key),
+        current_streak_days=streak_days_count(db, user),
+    )
 
 
 @router.get("/me/profile", response_model=UserProfileOut)
-def get_my_profile(user: User = Depends(get_current_user)):
-    return _profile_out(user)
+def get_my_profile(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _profile_out(db, user)
 
 
 @router.post("/me/avatar", response_model=UserProfileOut)
@@ -81,7 +86,7 @@ def upload_my_avatar(
     db.commit()
     delete_by_key(old_key)
     db.refresh(user)
-    return _profile_out(user)
+    return _profile_out(db, user)
 
 
 @router.delete("/me/avatar", response_model=UserProfileOut)
@@ -93,7 +98,7 @@ def delete_my_avatar(db: Session = Depends(get_db), user: User = Depends(get_cur
     user.avatar_key = None
     db.commit()
     delete_by_key(old_key)
-    return _profile_out(user)
+    return _profile_out(db, user)
 
 
 @router.get("/me/achievements", response_model=list[UserAchievementOut])
