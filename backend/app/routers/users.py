@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.achievements import CONDITION_TYPES, streak_days_count
 from app.core.deps import get_current_admin, get_current_user
 from app.core.security import hash_password
-from app.core.storage import delete_by_key, save_upload, url_for_key
+from app.core.storage import delete_by_key, save_bytes, url_for_key
 from app.database import get_db
 from app.models.achievement import VISIBILITY_HIDDEN, Achievement, UserAchievement
 from app.models.admin import Admin
@@ -29,6 +29,18 @@ router = APIRouter(prefix="/users", tags=["users"])
 # elsewhere in this codebase.
 MAX_AVATAR_BYTES = 5 * 1024 * 1024
 ALLOWED_AVATAR_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
+# Keyed by the SAME validated content_type above -- the extension a stored
+# avatar file gets on disk must come from here, never from the client's own
+# filename. A real Android gallery pick can hand back a content:// name
+# with no extension at all (or the wrong one); storing under that name
+# leaves StaticFiles unable to guess a Content-Type on the way back out,
+# so it serves text/plain for a real photo and the client's Image.network
+# silently fails to render it -- exactly the bug this fixes.
+_AVATAR_EXTENSION_BY_CONTENT_TYPE = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+}
 
 
 @router.get("", response_model=list[UserOut])
@@ -85,8 +97,8 @@ def upload_my_avatar(
     if len(data) == 0:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Пустой файл")
 
-    avatar.file.seek(0)
-    new_key = save_upload(avatar, subdir=f"users/{user.id}/avatar")
+    extension = _AVATAR_EXTENSION_BY_CONTENT_TYPE[avatar.content_type]
+    new_key = save_bytes(data, subdir=f"users/{user.id}/avatar", filename_hint=f"avatar{extension}")
     old_key = user.avatar_key
     user.avatar_key = new_key
     db.commit()
