@@ -16,6 +16,25 @@ function mediaUrl(path: string | null): string | null {
   return path ? `${API_URL}${path}` : null;
 }
 
+// Purely a display grouping/labeling choice for this page -- the backend's
+// own condition_type set (app/achievements/conditions.py's CONDITION_TYPES)
+// is untouched, and any condition_type not listed here still gets its own
+// chain automatically (see conditionGroups below), just with the backend's
+// own generic label instead of one of these shorter ones.
+const GROUP_ORDER = ["words_learned", "phrases_opened", "lessons_completed", "streak_days"];
+const GROUP_LABEL_OVERRIDES: Record<string, string> = {
+  words_learned: "Изученные слова",
+  phrases_opened: "Открытые фразы",
+  lessons_completed: "Пройденные уроки",
+  streak_days: "Активность",
+};
+const CONDITION_UNIT: Record<string, string> = {
+  words_learned: "слов",
+  phrases_opened: "фраз",
+  lessons_completed: "уроков",
+  streak_days: "дней",
+};
+
 export function AchievementsPage() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [conditionTypes, setConditionTypes] = useState<ConditionType[]>([]);
@@ -60,26 +79,33 @@ export function AchievementsPage() {
     }
   }
 
-  const conditionLabel = (id: string) => conditionTypes.find((c) => c.id === id)?.label ?? id;
-
-  // Native HTML5 drag-and-drop -- reorders the local list immediately for a
-  // responsive feel, then persists the FULL new order to the backend on
-  // drop (never only client-side state).
+  // Native HTML5 drag-and-drop, same mechanism as before, just scoped to
+  // ONE chain at a time: dragging within a condition_type's row only
+  // reshuffles that row's own items relative to each other -- every other
+  // achievement (any other condition_type) keeps its exact current
+  // position in the underlying list. The backend's `order` is still one
+  // shared, global field (see admin_achievements.py's reorder endpoint),
+  // so persisting still sends the FULL id list, just with only this one
+  // chain's slice of it actually changed.
   function handleDragStart(id: number) {
     dragId.current = id;
   }
 
-  function handleDragOver(e: DragEvent<HTMLLIElement>, overId: number) {
+  function handleDragOver(e: DragEvent<HTMLDivElement>, conditionType: string, overId: number) {
     e.preventDefault();
-    if (dragId.current === null || dragId.current === overId) return;
+    const draggedId = dragId.current;
+    if (draggedId === null || draggedId === overId) return;
     setAchievements((prev) => {
-      const from = prev.findIndex((a) => a.id === dragId.current);
-      const to = prev.findIndex((a) => a.id === overId);
-      if (from === -1 || to === -1) return prev;
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      return next;
+      const subset = prev.filter((a) => a.condition_type === conditionType);
+      const fromIdx = subset.findIndex((a) => a.id === draggedId);
+      const toIdx = subset.findIndex((a) => a.id === overId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const reordered = [...subset];
+      const [moved] = reordered.splice(fromIdx, 1);
+      reordered.splice(toIdx, 0, moved);
+
+      let cursor = 0;
+      return prev.map((a) => (a.condition_type === conditionType ? reordered[cursor++] : a));
     });
   }
 
@@ -98,12 +124,18 @@ export function AchievementsPage() {
     }
   }
 
+  // Every known condition_type gets its own chain, in GROUP_ORDER first,
+  // then any the backend knows about that isn't in that fixed list (a
+  // future condition_type needs zero changes here to get its own chain).
+  const knownIds = conditionTypes.map((c) => c.id);
+  const orderedGroupIds = [...GROUP_ORDER.filter((id) => knownIds.includes(id)), ...knownIds.filter((id) => !GROUP_ORDER.includes(id))];
+
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-5xl">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Достижения</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Перетаскивайте карточки, чтобы изменить порядок цепочки</p>
+          <p className="mt-0.5 text-sm text-slate-500">Каждый тип условия -- своя цепочка. Перетаскивайте карточки внутри цепочки, чтобы изменить порядок.</p>
         </div>
         <button
           onClick={() => setEditing("new")}
@@ -134,67 +166,102 @@ export function AchievementsPage() {
       ) : achievements.length === 0 ? (
         <p className="text-sm text-slate-500">Достижений пока нет</p>
       ) : (
-        <ul className={`relative flex flex-col ${isReordering ? "opacity-60" : ""}`}>
-          {achievements.map((a, index) => (
-            <li
-              key={a.id}
-              draggable
-              onDragStart={() => handleDragStart(a.id)}
-              onDragOver={(e) => handleDragOver(e, a.id)}
-              onDragEnd={handleDragEnd}
-              className="relative flex cursor-grab gap-4 pb-3 active:cursor-grabbing"
-            >
-              {/* the connecting line running down through every node but the last */}
-              {index < achievements.length - 1 && (
-                <span
-                  className="absolute left-[27px] top-14 h-full w-0.5"
-                  style={{ backgroundColor: a.color, opacity: 0.25 }}
-                />
-              )}
+        <div className={`flex flex-col gap-8 ${isReordering ? "opacity-60" : ""}`}>
+          {orderedGroupIds.map((conditionType) => {
+            const items = achievements
+              .filter((a) => a.condition_type === conditionType)
+              .sort((a, b) => a.order - b.order);
+            if (items.length === 0) return null;
+            const label = GROUP_LABEL_OVERRIDES[conditionType] ?? conditionTypes.find((c) => c.id === conditionType)?.label ?? conditionType;
+            return (
+              <AchievementChain
+                key={conditionType}
+                label={label}
+                conditionType={conditionType}
+                items={items}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDragEnd}
+                onEdit={setEditing}
+                onDelete={handleDelete}
+                deletingId={deletingId}
+              />
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
-              <ChainIcon achievement={a} />
-
+function AchievementChain({
+  label,
+  conditionType,
+  items,
+  onDragStart,
+  onDragOver,
+  onDragEnd,
+  onEdit,
+  onDelete,
+  deletingId,
+}: {
+  label: string;
+  conditionType: string;
+  items: Achievement[];
+  onDragStart: (id: number) => void;
+  onDragOver: (e: DragEvent<HTMLDivElement>, conditionType: string, overId: number) => void;
+  onDragEnd: () => void;
+  onEdit: (a: Achievement) => void;
+  onDelete: (a: Achievement) => void;
+  deletingId: number | null;
+}) {
+  const unit = CONDITION_UNIT[conditionType];
+  return (
+    <div>
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">{label}</h2>
+      <div className="overflow-x-auto pb-2">
+        <div className="flex w-max items-start">
+          {items.map((a, index) => (
+            <div key={a.id} className="flex items-start">
               <div
-                className={`min-w-0 flex-1 rounded-lg border bg-white p-3 ${a.enabled ? "border-slate-200" : "border-slate-200 opacity-50"}`}
+                draggable
+                onDragStart={() => onDragStart(a.id)}
+                onDragOver={(e) => onDragOver(e, conditionType, a.id)}
+                onDragEnd={onDragEnd}
+                className="group flex w-28 shrink-0 cursor-grab flex-col items-center gap-1.5 rounded-lg p-2 text-center active:cursor-grabbing hover:bg-slate-50"
               >
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-medium text-slate-900">{a.title}</p>
-                  {a.visibility === "hidden" && (
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
-                      {a.show_before_unlock ? "скрытое (виден силуэт)" : "полностью скрытое"}
-                    </span>
-                  )}
-                  {!a.enabled && (
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                      отключено
-                    </span>
-                  )}
-                </div>
-                <p className="mt-0.5 text-sm text-slate-500">{a.description}</p>
-                <p className="mt-1 text-xs font-medium" style={{ color: a.color }}>
-                  {conditionLabel(a.condition_type)} ≥ {a.condition_value}
+                <ChainIcon achievement={a} />
+                <p className={`w-full truncate text-xs font-semibold ${a.enabled ? "text-slate-900" : "text-slate-400"}`} title={a.title}>
+                  {a.title}
                 </p>
-
-                <div className="mt-2 flex gap-3">
-                  <button
-                    onClick={() => setEditing(a)}
-                    className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
-                  >
+                <p className="text-[11px] font-medium" style={{ color: a.enabled ? a.color : "#94a3b8" }}>
+                  {a.condition_value} {unit}
+                </p>
+                {a.visibility === "hidden" && (
+                  <span className="text-[10px] text-slate-400">{a.show_before_unlock ? "🔒 силуэт" : "🔒 скрыто"}</span>
+                )}
+                {!a.enabled && <span className="text-[10px] font-medium text-amber-600">отключено</span>}
+                <div className="mt-0.5 flex gap-2 opacity-0 group-hover:opacity-100">
+                  <button onClick={() => onEdit(a)} className="text-[11px] font-medium text-indigo-600 hover:text-indigo-700">
                     Изменить
                   </button>
                   <button
-                    onClick={() => handleDelete(a)}
+                    onClick={() => onDelete(a)}
                     disabled={deletingId === a.id}
-                    className="text-sm text-slate-400 hover:text-red-600 disabled:opacity-60"
+                    className="text-[11px] text-slate-400 hover:text-red-600 disabled:opacity-60"
                   >
                     {deletingId === a.id ? "…" : "Удалить"}
                   </button>
                 </div>
               </div>
-            </li>
+
+              {index < items.length - 1 && (
+                <div className="mt-7 h-0.5 w-6 shrink-0" style={{ backgroundColor: a.color, opacity: 0.3 }} />
+              )}
+            </div>
           ))}
-        </ul>
-      )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -203,7 +270,7 @@ function ChainIcon({ achievement }: { achievement: Achievement }) {
   return (
     <div
       className="relative z-10 flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-white"
-      style={{ borderColor: achievement.color }}
+      style={{ borderColor: achievement.enabled ? achievement.color : "#cbd5e1" }}
     >
       {achievement.icon_url ? (
         <img src={mediaUrl(achievement.icon_url)!} alt="" className="h-full w-full object-cover" />
