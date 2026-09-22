@@ -10,6 +10,7 @@ import '../models/user_profile.dart';
 import '../models/user_rating.dart';
 import '../widgets/rank_icon.dart';
 import '../widgets/user_avatar.dart';
+import 'all_ranks_screen.dart';
 
 const List<String> _russianMonthsGenitive = [
   'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
@@ -532,6 +533,22 @@ class _RatingSection extends StatelessWidget {
               style: const TextStyle(fontSize: 11, color: Colors.black45),
             ),
           ],
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => AllRanksScreen(rating: rating)),
+              ),
+              icon: const Icon(Icons.military_tech_outlined, size: 18),
+              label: const Text('Все уровни'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: color,
+                side: BorderSide(color: color.withValues(alpha: 0.4)),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
+          ),
           if (rating.history.isNotEmpty) ...[
             const SizedBox(height: 14),
             Divider(height: 1, color: color.withValues(alpha: 0.15)),

@@ -552,6 +552,17 @@ class ApiClient {
     return Leaderboard.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
+  /// The full rank ladder, enabled ranks only, lowest points-requirement
+  /// first -- what the Profile screen's "Все уровни" full-progress-path
+  /// screen renders. The SAME ranks/order fetchMyRating's own rank/
+  /// next_rank came from, never a second definition of the ladder.
+  Future<List<RankSummary>> fetchAllRanks() async {
+    final res = await http.get(_uri('/rating/ranks'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
+    return list.map((e) => RankSummary.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
   // --- Квесты ---------------------------------------------------------------
   // A system entirely separate from Lessons (see backend/app/quests/) --
   // eligibility, round content, and reward are all backend-decided.
