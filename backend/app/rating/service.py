@@ -55,6 +55,16 @@ def grant_rating_points(db: Session, user: User, points: int) -> None:
     db.flush()
 
 
+def ordered_enabled_ranks(db: Session) -> list[Rank]:
+    """Every enabled rank, in the admin's own `order` (then `id` as a
+    stable tie-break) -- the one ladder both `current_rank_for_points`
+    (fetch once, reuse per lookup) and the "Все уровни" full-ladder screen
+    (app/routers/rating.py's GET /rating/ranks) read from, so the two can
+    never disagree about how many ranks there are or what order they're
+    in."""
+    return db.query(Rank).filter(Rank.enabled.is_(True)).order_by(Rank.order, Rank.id).all()
+
+
 def current_rank_for_points(db: Session, points: int) -> Rank | None:
     """The one place a user's rank is ever determined -- purely a
     comparison against enabled Ranks' own [min_points, max_points] ranges,
@@ -63,14 +73,13 @@ def current_rank_for_points(db: Session, points: int) -> Rank | None:
     e.g. a gap left by admin misconfiguration -- the UI shows a neutral
     "no rank yet" state instead of breaking.
 
-    Ordered by the admin's own `order` (then `id` as a stable tie-break)
-    -- assert_rank_range_free already refuses to let two enabled ranks'
-    ranges overlap, so this ordering is normally never actually decisive,
-    but it gives a defined, non-arbitrary answer rather than "whatever
-    order the database happened to return" if a conflict ever slips
-    through (e.g. a row edited directly outside the API)."""
-    ranks = db.query(Rank).filter(Rank.enabled.is_(True)).order_by(Rank.order, Rank.id).all()
-    for rank in ranks:
+    assert_rank_range_free already refuses to let two enabled ranks'
+    ranges overlap, so ordered_enabled_ranks's ordering is normally never
+    actually decisive here, but it gives a defined, non-arbitrary answer
+    rather than "whatever order the database happened to return" if a
+    conflict ever slips through (e.g. a row edited directly outside the
+    API)."""
+    for rank in ordered_enabled_ranks(db):
         if rank.min_points <= points and (rank.max_points is None or points <= rank.max_points):
             return rank
     return None

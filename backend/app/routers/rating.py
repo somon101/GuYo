@@ -12,7 +12,13 @@ from app.core.storage import url_for_key
 from app.database import get_db
 from app.models.rating import UserRating
 from app.models.user import User
-from app.rating import current_rank_for_points, get_or_create_user_rating, leaderboard_for_rank, leaderboard_global
+from app.rating import (
+    current_rank_for_points,
+    get_or_create_user_rating,
+    leaderboard_for_rank,
+    leaderboard_global,
+    ordered_enabled_ranks,
+)
 from app.schemas.rating import LeaderboardEntryOut, LeaderboardOut, RankPublicOut, rank_public_out
 
 router = APIRouter(prefix="/rating", tags=["rating"])
@@ -71,3 +77,14 @@ def get_global_leaderboard(db: Session = Depends(get_db), user: User = Depends(g
     """Top 100 users across every rank combined, sorted purely by points."""
     ratings = leaderboard_global(db)
     return LeaderboardOut(rank=None, entries=_entries_out(db, ratings, user, with_rank=True))
+
+
+@router.get("/ranks", response_model=list[RankPublicOut])
+def list_all_ranks(db: Session = Depends(get_db), _user: User = Depends(get_current_user)):
+    """Every enabled rank, lowest points-requirement first -- the full
+    ladder the Profile screen's "Все уровни" screen renders as a single
+    progress path. The SAME ordering and SAME rows current_rank_for_points
+    already classifies a user's points against (ordered_enabled_ranks),
+    so this can never show a different ladder than the one that actually
+    determined the user's own current/next rank."""
+    return [rank_public_out(r) for r in ordered_enabled_ranks(db)]
