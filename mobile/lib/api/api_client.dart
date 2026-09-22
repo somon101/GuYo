@@ -481,6 +481,22 @@ class ApiClient {
     return UserRating.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
+  /// Top 100 users sharing the CALLER's own current rank -- the backend
+  /// decides which rank that is; there is no way to ask for a different
+  /// one.
+  Future<Leaderboard> fetchMyRankLeaderboard() async {
+    final res = await http.get(_uri('/rating/leaderboard'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    return Leaderboard.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  /// Top 100 users across every rank combined.
+  Future<Leaderboard> fetchGlobalLeaderboard() async {
+    final res = await http.get(_uri('/rating/leaderboard/global'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    return Leaderboard.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
   // --- Квесты ---------------------------------------------------------------
   // A system entirely separate from Lessons (see backend/app/quests/) --
   // eligibility, round content, and reward are all backend-decided.

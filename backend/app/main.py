@@ -20,6 +20,7 @@ from app.routers import (
     phrase_categories,
     phrases,
     quests,
+    rating,
     users,
     words,
 )
@@ -60,6 +61,7 @@ app.include_router(admin_rating.router)
 app.include_router(admin_word_levels.router)
 app.include_router(admin_quests.router)
 app.include_router(quests.router)
+app.include_router(rating.router)
 
 
 @app.get("/health")

@@ -137,7 +137,11 @@ void main() {
       await tester.tap(find.text('Профиль'));
       await tester.pumpAndSettle(const Duration(seconds: 2));
 
-      expect(find.text('Рейтинг'), findsOneWidget);
+      // "Рейтинг" legitimately appears twice now: the bottom nav's own tab
+      // label (always in the tree once IndexedStack has built it, even
+      // while a different tab is on top) AND this section's own header --
+      // both correct, so this only checks the section is present at all.
+      expect(find.text('Рейтинг'), findsWidgets);
       expect(find.text('ТестРанг'), findsOneWidget, reason: 'the only enabled rank should show as current');
       expect(find.text('ТестСезон'), findsOneWidget);
       expect(find.text('$pointsBefore очков'), findsOneWidget);

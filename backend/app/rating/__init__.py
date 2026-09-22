@@ -8,6 +8,8 @@ from app.rating.service import (
     get_or_create_user_rating,
     get_rating_settings,
     grant_rating_points,
+    leaderboard_for_rank,
+    leaderboard_global,
     next_rank_for_points,
     ranks_overlap,
 )
@@ -22,6 +24,8 @@ __all__ = [
     "get_or_create_user_rating",
     "get_rating_settings",
     "grant_rating_points",
+    "leaderboard_for_rank",
+    "leaderboard_global",
     "next_rank_for_points",
     "ranks_overlap",
 ]

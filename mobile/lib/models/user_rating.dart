@@ -71,6 +71,58 @@ class SeasonHistoryEntry {
   }
 }
 
+/// One row of a leaderboard -- mirrors LeaderboardEntryOut. `rank` is only
+/// populated on the global board (every row of the own-rank board shares
+/// the same rank the screen already shows once, at the top).
+class LeaderboardEntry {
+  final int position;
+  final int userId;
+  final String login;
+  final String? avatarUrl;
+  final int totalPoints;
+  final RankSummary? rank;
+  final bool isMe;
+
+  LeaderboardEntry({
+    required this.position,
+    required this.userId,
+    required this.login,
+    required this.avatarUrl,
+    required this.totalPoints,
+    required this.rank,
+    required this.isMe,
+  });
+
+  factory LeaderboardEntry.fromJson(Map<String, dynamic> json) {
+    return LeaderboardEntry(
+      position: json['position'] as int,
+      userId: json['user_id'] as int,
+      login: json['login'] as String,
+      avatarUrl: json['avatar_url'] as String?,
+      totalPoints: json['total_points'] as int,
+      rank: json['rank'] == null ? null : RankSummary.fromJson(json['rank'] as Map<String, dynamic>),
+      isMe: json['is_me'] as bool,
+    );
+  }
+}
+
+/// `rank` is the CALLER's own current rank for the own-rank board (never
+/// user-chosen -- see ApiClient.fetchMyRankLeaderboard), and always null
+/// for the global board, which has no single rank of its own.
+class Leaderboard {
+  final RankSummary? rank;
+  final List<LeaderboardEntry> entries;
+
+  Leaderboard({required this.rank, required this.entries});
+
+  factory Leaderboard.fromJson(Map<String, dynamic> json) {
+    return Leaderboard(
+      rank: json['rank'] == null ? null : RankSummary.fromJson(json['rank'] as Map<String, dynamic>),
+      entries: (json['entries'] as List<dynamic>).map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>)).toList(),
+    );
+  }
+}
+
 class UserRating {
   final int totalPoints;
   final RatingSeason? season;

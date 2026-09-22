@@ -156,6 +156,26 @@ def award_word_points_if_new(db: Session, user: User, word_id: int) -> None:
     db.flush()
 
 
+LEADERBOARD_LIMIT = 100
+
+
+def leaderboard_for_rank(db: Session, rank: Rank, limit: int = LEADERBOARD_LIMIT) -> list[UserRating]:
+    """Top `limit` users whose CURRENT points fall inside this one rank's
+    own range -- never a manually-picked rank, always the caller's own
+    (see app/routers/rating.py). Filters directly on UserRating.total_points
+    rather than computing every user's rank in Python, since a rank's
+    range already says exactly which point values belong to it."""
+    query = db.query(UserRating).filter(UserRating.total_points >= rank.min_points)
+    if rank.max_points is not None:
+        query = query.filter(UserRating.total_points <= rank.max_points)
+    return query.order_by(UserRating.total_points.desc(), UserRating.user_id.asc()).limit(limit).all()
+
+
+def leaderboard_global(db: Session, limit: int = LEADERBOARD_LIMIT) -> list[UserRating]:
+    """Top `limit` users across every rank combined, by points alone."""
+    return db.query(UserRating).order_by(UserRating.total_points.desc(), UserRating.user_id.asc()).limit(limit).all()
+
+
 def get_active_season(db: Session) -> Season | None:
     return db.query(Season).filter(Season.status == SEASON_ACTIVE).first()
 

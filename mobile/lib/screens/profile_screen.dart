@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../api/api_client.dart';
 import '../models/user_profile.dart';
 import '../models/user_rating.dart';
+import '../widgets/rank_icon.dart';
 import '../widgets/user_avatar.dart';
 
 const List<String> _russianMonthsGenitive = [
@@ -325,7 +326,7 @@ class _RatingSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final rank = rating.rank;
     final nextRank = rating.nextRank;
-    final color = rank != null ? _parseHexColor(rank.color) : Colors.grey;
+    final color = rank != null ? parseHexColor(rank.color) : Colors.grey;
 
     double? progress;
     if (rank != null && nextRank != null) {
@@ -359,7 +360,7 @@ class _RatingSection extends StatelessWidget {
           const SizedBox(height: 14),
           Row(
             children: [
-              _RankIcon(rank: rank, color: color, size: 48),
+              RankIcon(rank: rank, color: color, size: 48),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -410,39 +411,6 @@ class _RatingSection extends StatelessWidget {
   }
 }
 
-class _RankIcon extends StatelessWidget {
-  final RankSummary? rank;
-  final Color color;
-  final double size;
-  const _RankIcon({required this.rank, required this.color, required this.size});
-
-  @override
-  Widget build(BuildContext context) {
-    final url = rank?.iconUrl;
-    if (url != null && url.isNotEmpty) {
-      return ClipOval(
-        child: Image.network(
-          ApiClient.instance.mediaUrl(url),
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => _fallback(),
-        ),
-      );
-    }
-    return _fallback();
-  }
-
-  Widget _fallback() {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(shape: BoxShape.circle, color: color.withValues(alpha: 0.15)),
-      child: Icon(Icons.military_tech_rounded, color: color, size: size * 0.55),
-    );
-  }
-}
-
 class _SeasonHistoryRow extends StatelessWidget {
   final SeasonHistoryEntry entry;
   const _SeasonHistoryRow({required this.entry});
@@ -450,7 +418,7 @@ class _SeasonHistoryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rank = entry.rank;
-    final color = rank != null ? _parseHexColor(rank.color) : Colors.black45;
+    final color = rank != null ? parseHexColor(rank.color) : Colors.black45;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
@@ -479,7 +447,7 @@ class _AchievementTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final earned = achievement.earned;
     final locked = achievement.isLocked;
-    final color = _parseHexColor(achievement.color);
+    final color = parseHexColor(achievement.color);
     final title = locked ? 'Скрытое достижение' : achievement.title!;
     final description = locked ? 'Условие неизвестно' : achievement.description!;
 
@@ -548,11 +516,6 @@ class _AchievementTile extends StatelessWidget {
   }
 }
 
-Color _parseHexColor(String hex) {
-  var value = hex.replaceFirst('#', '');
-  if (value.length == 6) value = 'FF$value';
-  return Color(int.parse(value, radix: 16));
-}
 
 /// The achievement's own uploaded icon -- never a substitute/generic image
 /// -- shown at full brightness once earned, dimmed while locked/unearned
@@ -568,7 +531,7 @@ class _AchievementIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _parseHexColor(achievement.color);
+    final color = parseHexColor(achievement.color);
     final url = achievement.iconUrl;
     Widget child;
     if (url != null && url.isNotEmpty) {
@@ -623,8 +586,8 @@ class _AchievementUnlockedDialog extends StatelessWidget {
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: _parseHexColor(achievement.color).withValues(alpha: 0.15),
-                  boxShadow: [BoxShadow(color: _parseHexColor(achievement.color).withValues(alpha: 0.5), blurRadius: 28, spreadRadius: 2)],
+                  color: parseHexColor(achievement.color).withValues(alpha: 0.15),
+                  boxShadow: [BoxShadow(color: parseHexColor(achievement.color).withValues(alpha: 0.5), blurRadius: 28, spreadRadius: 2)],
                 ),
                 child: _AchievementIcon(achievement: achievement, dimmed: false, size: 88),
               ),

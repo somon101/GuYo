@@ -6,6 +6,7 @@ import 'login_screen.dart';
 import 'main_menu_screen.dart';
 import 'practice_screen.dart';
 import 'profile_screen.dart';
+import 'rating_screen.dart';
 
 /// The app's main hub, reached right after login.
 ///
@@ -22,13 +23,14 @@ import 'profile_screen.dart';
 /// `_visible_to`), so this screen doesn't need to (and must not try to)
 /// second-guess publish status on its own.
 ///
-/// Bottom nav has three destinations: "Главная" (MainMenuScreen -- whatever
-/// doesn't have its own tab, currently just "Словарь"), "Уроки"
-/// (LessonsScreen -- the sequential lesson chain) and "Практика"
-/// (PracticeScreen -- self-directed drills over already-learned words/
-/// phrases, entirely independent of lesson order). Switching tabs never
-/// touches the language selection above; every tab just renders against
-/// whichever dictionary is currently selected.
+/// Bottom nav: "Главная" (MainMenuScreen -- whatever doesn't have its own
+/// tab, currently just "Словарь"), "Уроки" (LessonsScreen -- the
+/// sequential lesson chain), "Практика" (PracticeScreen -- self-directed
+/// drills over already-learned words/phrases, independent of lesson
+/// order), "Рейтинг" (RatingScreen -- the user's own-rank leaderboard,
+/// never dictionary-scoped) and "Профиль". Switching tabs never touches
+/// the language selection above; every dictionary-scoped tab just renders
+/// against whichever one is currently selected.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -236,11 +238,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               MainMenuScreen(key: ValueKey('menu-${selected.id}'), dictionary: selected),
               LessonsScreen(key: ValueKey('lessons-${selected.id}'), dictionary: selected),
               PracticeScreen(key: ValueKey('practice-${selected.id}'), dictionary: selected),
-              // Not dictionary-scoped at all (identity/achievements are
-              // per-user, not per-language) -- kept in the same IndexedStack
-              // purely for consistency with the other tabs; a dedicated
-              // ValueKey isn't needed since nothing about it depends on
-              // `selected`.
+              // Neither tab below is dictionary-scoped at all (identity/
+              // achievements/rating are per-user, not per-language) -- kept
+              // in the same IndexedStack purely for consistency with the
+              // other tabs; no ValueKey needed since nothing about either
+              // depends on `selected`.
+              const RatingScreen(),
               const ProfileScreen(),
             ],
           );
@@ -253,6 +256,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Главная'),
           NavigationDestination(icon: Icon(Icons.auto_stories_outlined), label: 'Уроки'),
           NavigationDestination(icon: Icon(Icons.fitness_center_outlined), label: 'Практика'),
+          NavigationDestination(icon: Icon(Icons.leaderboard_outlined), label: 'Рейтинг'),
           NavigationDestination(icon: Icon(Icons.person_outline), label: 'Профиль'),
         ],
       ),

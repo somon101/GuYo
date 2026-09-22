@@ -2,7 +2,8 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.models.rating import RESET_MODE_FIXED, RESET_MODE_PERCENT
+from app.core.storage import url_for_key
+from app.models.rating import RESET_MODE_FIXED, RESET_MODE_PERCENT, Rank
 
 
 class RatingSettingsOut(BaseModel):
@@ -59,6 +60,19 @@ class RankPublicOut(BaseModel):
     max_points: int | None
 
 
+def rank_public_out(rank: Rank | None) -> RankPublicOut | None:
+    """The one place a Rank ORM row becomes a RankPublicOut -- shared by
+    every user-facing endpoint that shows a rank (app/routers/users.py's
+    /me/rating, app/routers/rating.py's leaderboards), never redefined
+    per router."""
+    if rank is None:
+        return None
+    return RankPublicOut(
+        id=rank.id, name=rank.name, icon_url=url_for_key(rank.icon_key), color=rank.color,
+        min_points=rank.min_points, max_points=rank.max_points,
+    )
+
+
 class ReorderRanksIn(BaseModel):
     rank_ids: list[int]
 
@@ -87,6 +101,32 @@ class SeasonHistoryOut(BaseModel):
     points: int
     rank: RankPublicOut | None
     ended_at: datetime
+
+
+class LeaderboardEntryOut(BaseModel):
+    """One row of a leaderboard -- `position` is this row's 1-based rank
+    within THIS list (own-rank or global), never a global user id ordering.
+    `rank` is only meaningful on the global board (every row of an
+    own-rank board shares the same rank by construction, so the client
+    doesn't need to re-render it per row there, but it's included on both
+    for a uniform shape)."""
+
+    position: int
+    user_id: int
+    login: str
+    avatar_url: str | None
+    total_points: int
+    rank: RankPublicOut | None
+    is_me: bool
+
+
+class LeaderboardOut(BaseModel):
+    # None when the requesting user has no current rank at all (no ranks
+    # configured, or a gap in the ladder) -- entries is then always empty
+    # for the own-rank board (there's no range to match against), while
+    # the global board can still be non-empty.
+    rank: RankPublicOut | None
+    entries: list[LeaderboardEntryOut]
 
 
 class UserRatingOut(BaseModel):

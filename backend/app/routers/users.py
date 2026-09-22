@@ -12,7 +12,7 @@ from app.models.rating import SeasonHistory
 from app.models.user import User
 from app.rating import current_rank_for_points, get_active_season, get_or_create_user_rating, next_rank_for_points
 from app.schemas.achievement import UserAchievementOut
-from app.schemas.rating import RankPublicOut, SeasonHistoryOut, SeasonOut, UserRatingOut
+from app.schemas.rating import SeasonHistoryOut, SeasonOut, UserRatingOut, rank_public_out
 from app.schemas.user import UserCreate, UserOut, UserProfileOut
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -168,19 +168,6 @@ def get_my_achievements(db: Session = Depends(get_db), user: User = Depends(get_
     return result
 
 
-def _rank_public_out(rank) -> RankPublicOut | None:
-    if rank is None:
-        return None
-    return RankPublicOut(
-        id=rank.id,
-        name=rank.name,
-        icon_url=url_for_key(rank.icon_key),
-        color=rank.color,
-        min_points=rank.min_points,
-        max_points=rank.max_points,
-    )
-
-
 @router.get("/me/rating", response_model=UserRatingOut)
 def get_my_rating(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """Everything the Profile screen's "Рейтинг" block needs in one round
@@ -206,7 +193,7 @@ def get_my_rating(db: Session = Depends(get_db), user: User = Depends(get_curren
             season_id=row.season_id,
             season_name=row.season.name if row.season else "",
             points=row.points,
-            rank=_rank_public_out(row.rank) if row.rank_id else None,
+            rank=rank_public_out(row.rank) if row.rank_id else None,
             ended_at=row.ended_at,
         )
         for row in history_rows
@@ -215,8 +202,8 @@ def get_my_rating(db: Session = Depends(get_db), user: User = Depends(get_curren
     return UserRatingOut(
         total_points=rating.total_points,
         season=SeasonOut.model_validate(season, from_attributes=True) if season else None,
-        rank=_rank_public_out(rank),
-        next_rank=_rank_public_out(next_rank),
+        rank=rank_public_out(rank),
+        next_rank=rank_public_out(next_rank),
         points_to_next_rank=(next_rank.min_points - rating.total_points) if next_rank else None,
         history=history,
     )
