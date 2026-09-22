@@ -144,11 +144,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final XFile? picked;
     try {
       picked = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, imageQuality: 85);
-    } catch (_) {
-      _showSnack('Не удалось открыть галерею');
+    } catch (e) {
+      _showSnack('Не удалось открыть галерею: $e');
       return;
     }
-    if (picked == null) return;
+    if (picked == null) {
+      // Distinguishes a real "nothing picked" from every other silent
+      // failure mode below -- some OEM gallery pickers return null here
+      // even after the user visibly picks something (a cancelled/failed
+      // crop step, for instance), which otherwise looks identical to
+      // every other kind of silent no-op.
+      _showSnack('Файл не выбран');
+      return;
+    }
 
     setState(() => _isUpdatingAvatar = true);
     try {
@@ -163,8 +171,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _showSnack('Фото обновлено');
     } on ApiException catch (e) {
       _showSnack(e.message);
-    } catch (_) {
-      _showSnack('Не удалось загрузить фото');
+    } catch (e) {
+      // Includes the raw exception text (not just a generic message) --
+      // this upload path has silently failed on some real devices before
+      // with no visible cause, so surfacing exactly what threw is worth
+      // more here than a clean but uninformative message.
+      _showSnack('Не удалось загрузить фото: $e');
     } finally {
       if (mounted) setState(() => _isUpdatingAvatar = false);
     }
