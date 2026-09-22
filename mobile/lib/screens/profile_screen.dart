@@ -166,6 +166,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
+    // picker.pickImage() backgrounds this Activity for as long as the
+    // system picker is on screen -- on a low-RAM device Android can reclaim
+    // enough memory meanwhile to tear down and recreate the Activity/engine
+    // entirely, which disposes THIS exact State object before control ever
+    // returns here. Calling setState on that already-disposed State is
+    // undefined in release builds -- confirmed via a real device log as a
+    // framework-internal crash ("Null check operator used on a null value"
+    // inside State.setState) that aborted this whole function silently
+    // before it ever reached readAsBytes(), which is exactly what looked
+    // like "picks a photo, screen goes blank, nothing ever happens".
+    if (!mounted) return;
     // Set BEFORE reading any bytes, not after -- readAsBytes() opens the
     // picked content:// URI through the OS, which on a real device can
     // take a real, visible moment (or throw, see below), and previously
