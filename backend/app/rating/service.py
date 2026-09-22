@@ -3,11 +3,10 @@ app/achievements/. Nothing here reads or writes Achievement/UserAchievement,
 and nothing in app/achievements/ reads or writes any model imported below.
 """
 
-from datetime import date
-
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.dates import utc_today
 from app.models.rating import (
     RESET_MODE_FIXED,
     SEASON_ACTIVE,
@@ -199,5 +198,5 @@ def end_season(db: Session, season: Season) -> None:
         rating.total_points = apply_season_reset(rating.total_points, settings)
 
     season.status = SEASON_COMPLETED
-    season.end_date = date.today()
+    season.end_date = utc_today()
     db.commit()

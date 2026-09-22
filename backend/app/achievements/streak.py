@@ -7,11 +7,10 @@ a new "ping" endpoint Flutter would have to call explicitly on top of
 what it already does.
 """
 
-from datetime import date
-
 from sqlalchemy.orm import Session
 
 from app.achievements.service import check_and_grant_achievements
+from app.core.dates import utc_today
 from app.models.achievement import UserActivityDay
 from app.models.user import User
 
@@ -22,7 +21,7 @@ def record_activity(db: Session, user: User) -> None:
     activity_date). Only re-checks streak achievements the FIRST time
     today is recorded, since that's the only moment the streak count
     could have changed."""
-    today = date.today()
+    today = utc_today()
     exists = (
         db.query(UserActivityDay)
         .filter(UserActivityDay.user_id == user.id, UserActivityDay.activity_date == today)

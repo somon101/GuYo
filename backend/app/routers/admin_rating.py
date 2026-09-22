@@ -5,11 +5,10 @@ Form+File create/update, a dedicated reorder endpoint, block-delete-if-
 referenced), never any model or table.
 """
 
-from datetime import date
-
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.dates import utc_today
 from app.core.deps import get_current_admin
 from app.core.storage import delete_by_key, save_upload, url_for_key
 from app.database import get_db
@@ -263,7 +262,7 @@ def create_season(payload: SeasonCreateIn, db: Session = Depends(get_db), _admin
             status_code=status.HTTP_409_CONFLICT,
             detail="Текущий сезон ещё не завершён -- сначала завершите его",
         )
-    season = Season(name=payload.name.strip(), start_date=payload.start_date or date.today())
+    season = Season(name=payload.name.strip(), start_date=payload.start_date or utc_today())
     db.add(season)
     db.commit()
     db.refresh(season)
