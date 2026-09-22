@@ -1,0 +1,12 @@
+# `railway up` snapshots this directory as its own upload root, so it never
+# sees the repo-root .gitignore (backend/.venv, backend/storage, __pycache__
+# are excluded there, but that file lives one level up from here) -- without
+# this, every `railway up` tries to upload the local venv and every locally
+# stored media file, which is slow/large enough to make the upload itself
+# time out.
+.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+storage/
+.env
