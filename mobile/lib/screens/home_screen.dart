@@ -39,7 +39,17 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
-  late Future<List<GuyoDictionary>> _dictionariesFuture;
+  // Plain state fields, not a FutureBuilder -- see _refreshDictionariesInBackground
+  // for why: driving the tab tree off a FutureBuilder's own `future`
+  // identity meant EVERY reassignment (including a silent background
+  // refresh) forced that builder through ConnectionState.waiting for at
+  // least one frame, which tore down and rebuilt the entire IndexedStack
+  // below -- destroying every tab's State (Профиль's in-progress avatar
+  // upload included) even though nothing about the dictionary list itself
+  // had actually changed.
+  bool _isLoading = true;
+  Object? _loadError;
+  List<GuyoDictionary> _dictionaries = [];
   GuyoDictionary? _selectedDictionary;
   int _selectedTabIndex = 0;
 
@@ -47,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _dictionariesFuture = ApiClient.instance.fetchDictionaries();
+    _loadDictionaries();
   }
 
   @override
@@ -61,16 +71,56 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // An admin can publish/unpublish a dictionary at any time from Admin
     // Web while this app is just sitting in the background. Re-check what's
     // published as soon as the user comes back to it, rather than only on
-    // the next cold start.
+    // the next cold start -- but silently: returning from ANY external
+    // Activity (the image picker included, not just switching apps) fires
+    // this same "resumed" transition, so it must never reset or rebuild
+    // whatever tab is already on screen.
     if (state == AppLifecycleState.resumed) {
-      _reloadDictionaries();
+      _refreshDictionariesInBackground();
     }
   }
 
-  void _reloadDictionaries() {
+  /// The real, user-visible load -- shows the loading/error states below.
+  /// Used for the initial load and for the explicit "Повторить"/"Проверить
+  /// снова" retry buttons, both cases where there is no tab content mounted
+  /// yet to lose anyway.
+  Future<void> _loadDictionaries() async {
     setState(() {
-      _dictionariesFuture = ApiClient.instance.fetchDictionaries();
+      _isLoading = true;
+      _loadError = null;
     });
+    try {
+      final fresh = await ApiClient.instance.fetchDictionaries();
+      if (!mounted) return;
+      setState(() {
+        _dictionaries = fresh;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = e;
+        _isLoading = false;
+      });
+    }
+  }
+
+  /// Refreshes the dictionary list on app resume without ever touching
+  /// `_isLoading`/`_loadError` or otherwise disturbing whatever tab is
+  /// currently mounted -- only applies the new list (if the fetch
+  /// succeeds) once it's actually in hand. A failure here (a momentary
+  /// network blip right as the app resumes, say) is silently ignored: the
+  /// user is already looking at a perfectly good previous list, and the
+  /// next resume or explicit retry will pick up the real one.
+  Future<void> _refreshDictionariesInBackground() async {
+    if (_isLoading) return;
+    try {
+      final fresh = await ApiClient.instance.fetchDictionaries();
+      if (!mounted) return;
+      setState(() => _dictionaries = fresh);
+    } catch (_) {
+      // Intentionally silent -- see doc comment above.
+    }
   }
 
   Future<void> _logout() async {
@@ -112,16 +162,93 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return options.first;
   }
 
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_loadError != null) {
+      // A 401 means the stored token itself is dead (expired, or left over
+      // from a different backend/build) -- ApiClient has already cleared it
+      // by this point, so retrying the same request would just 401 again
+      // forever. Send the user back to a real login instead of trapping
+      // them in that loop.
+      final error = _loadError;
+      final sessionExpired = error is ApiException && error.statusCode == 401;
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                sessionExpired ? 'Сессия истекла' : 'Не удалось загрузить словари',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: sessionExpired ? _logout : _loadDictionaries,
+                child: Text(sessionExpired ? 'Войти заново' : 'Повторить'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    final options = _languageOptions(_dictionaries);
+    final selected = _resolveSelection(options);
+    if (selected == null) {
+      // No published content at all -- a clean, explicit state, not an
+      // error and not a guess at what might be there.
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Пока нет доступных словарей', textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              OutlinedButton(onPressed: _loadDictionaries, child: const Text('Проверить снова')),
+            ],
+          ),
+        ),
+      );
+    }
+    _selectedDictionary = selected;
+
+    // Keying by dictionary id makes each tab's content rebuild fresh
+    // whenever the selected language changes. IndexedStack (not a simple
+    // `_selectedTabIndex == 0 ? … : …`) keeps every tab's state alive across
+    // switches -- AND across a background dictionary refresh, now that this
+    // whole method only ever runs again because of a real setState, never
+    // because a FutureBuilder's `future` identity changed -- so leaving
+    // "Уроки" mid-round, or Профиль mid avatar-upload, and coming back to
+    // it doesn't lose anything.
+    return IndexedStack(
+      index: _selectedTabIndex,
+      children: [
+        MainMenuScreen(key: ValueKey('menu-${selected.id}'), dictionary: selected),
+        LessonsScreen(key: ValueKey('lessons-${selected.id}'), dictionary: selected),
+        PracticeScreen(key: ValueKey('practice-${selected.id}'), dictionary: selected),
+        // Neither tab below is dictionary-scoped at all (identity/
+        // achievements/rating are per-user, not per-language) -- kept in
+        // the same IndexedStack purely for consistency with the other
+        // tabs; no ValueKey needed since nothing about either depends on
+        // `selected`.
+        const RatingScreen(),
+        const ProfileScreen(),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('GuYo'),
         actions: [
-          FutureBuilder<List<GuyoDictionary>>(
-            future: _dictionariesFuture,
-            builder: (context, snapshot) {
-              final options = _languageOptions(snapshot.data ?? []);
+          Builder(
+            builder: (context) {
+              final options = _languageOptions(_dictionaries);
               final current = _resolveSelection(options);
               if (current == null) {
                 // Nothing published -- no switcher to show at all, not even
@@ -172,83 +299,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ],
       ),
-      body: FutureBuilder<List<GuyoDictionary>>(
-        future: _dictionariesFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            // A 401 means the stored token itself is dead (expired, or left
-            // over from a different backend/build) -- ApiClient has already
-            // cleared it by this point, so retrying the same request would
-            // just 401 again forever. Send the user back to a real login
-            // instead of trapping them in that loop.
-            final error = snapshot.error;
-            final sessionExpired = error is ApiException && error.statusCode == 401;
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      sessionExpired ? 'Сессия истекла' : 'Не удалось загрузить словари',
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton(
-                      onPressed: sessionExpired ? _logout : _reloadDictionaries,
-                      child: Text(sessionExpired ? 'Войти заново' : 'Повторить'),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-          final options = _languageOptions(snapshot.data ?? []);
-          final selected = _resolveSelection(options);
-          if (selected == null) {
-            // No published content at all -- a clean, explicit state, not
-            // an error and not a guess at what might be there.
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('Пока нет доступных словарей', textAlign: TextAlign.center),
-                    const SizedBox(height: 12),
-                    OutlinedButton(onPressed: _reloadDictionaries, child: const Text('Проверить снова')),
-                  ],
-                ),
-              ),
-            );
-          }
-          _selectedDictionary = selected;
-
-          // Keying by dictionary id makes each tab's content rebuild fresh
-          // whenever the selected language changes. IndexedStack (not a
-          // simple `_selectedTabIndex == 0 ? … : …`) keeps both tabs' state
-          // alive across switches, so leaving "Уроки" mid-round and coming
-          // back to it doesn't lose anything.
-          return IndexedStack(
-            index: _selectedTabIndex,
-            children: [
-              MainMenuScreen(key: ValueKey('menu-${selected.id}'), dictionary: selected),
-              LessonsScreen(key: ValueKey('lessons-${selected.id}'), dictionary: selected),
-              PracticeScreen(key: ValueKey('practice-${selected.id}'), dictionary: selected),
-              // Neither tab below is dictionary-scoped at all (identity/
-              // achievements/rating are per-user, not per-language) -- kept
-              // in the same IndexedStack purely for consistency with the
-              // other tabs; no ValueKey needed since nothing about either
-              // depends on `selected`.
-              const RatingScreen(),
-              const ProfileScreen(),
-            ],
-          );
-        },
-      ),
+      body: _buildBody(),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedTabIndex,
         onDestinationSelected: (index) => setState(() => _selectedTabIndex = index),
