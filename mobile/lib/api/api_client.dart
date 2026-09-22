@@ -475,6 +475,11 @@ class ApiClient {
   /// avatar, replacing any existing one -- the backend rejects anything
   /// that isn't a real, reasonably sized image rather than this client
   /// pre-guessing what's valid.
+  ///
+  /// [req.send] has an explicit timeout -- without one, a stalled/flaky
+  /// mobile connection left this Future waiting forever with no error and
+  /// no way for the UI to ever leave its "uploading" state, which looked
+  /// exactly like a permanent freeze.
   Future<UserProfile> uploadMyAvatar(List<int> bytes, String filename, {String? mimeType}) async {
     final t = await token;
     final req = http.MultipartRequest('POST', _uri('/users/me/avatar'))
@@ -487,8 +492,11 @@ class ApiClient {
           contentType: _imageMediaType(filename, hint: mimeType),
         ),
       );
-    final streamed = await req.send();
-    final res = await http.Response.fromStream(streamed);
+    final streamed = await req.send().timeout(
+      const Duration(seconds: 25),
+      onTimeout: () => throw ApiException('Загрузка не удалась: слишком медленное соединение'),
+    );
+    final res = await http.Response.fromStream(streamed).timeout(const Duration(seconds: 25));
     await _throwWithDetail(res);
     return UserProfile.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
@@ -496,7 +504,9 @@ class ApiClient {
   /// Clears the avatar -- the caller should fall back to the generated
   /// default avatar the moment `avatarUrl` comes back null.
   Future<UserProfile> deleteMyAvatar() async {
-    final res = await http.delete(_uri('/users/me/avatar'), headers: await _authHeaders());
+    final res = await http
+        .delete(_uri('/users/me/avatar'), headers: await _authHeaders())
+        .timeout(const Duration(seconds: 15));
     await _throwIfUnauthorized(res);
     return UserProfile.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }

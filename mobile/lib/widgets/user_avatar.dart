@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 
@@ -36,13 +37,27 @@ class UserAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final url = avatarUrl;
     if (url != null && url.isNotEmpty) {
+      // CachedNetworkImage persists the decoded file to disk the first time
+      // it loads, so every later view of this SAME url -- a cold app
+      // restart included -- renders instantly from that local copy with no
+      // network round trip at all, and still renders it with no internet
+      // present. memCacheWidth/Height cap the decode to roughly this
+      // widget's own on-screen size regardless of the source photo's real
+      // resolution, which otherwise risked exactly the jank/near-hang a
+      // multi-megapixel camera photo caused decoding at full size into a
+      // 96-logical-pixel circle.
+      final cacheSize = (size * MediaQuery.devicePixelRatioOf(context)).round();
       return ClipOval(
-        child: Image.network(
-          ApiClient.instance.mediaUrl(url),
+        child: CachedNetworkImage(
+          imageUrl: ApiClient.instance.mediaUrl(url),
           width: size,
           height: size,
           fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => _DefaultAvatar(login: login, size: size),
+          memCacheWidth: cacheSize,
+          memCacheHeight: cacheSize,
+          fadeInDuration: Duration.zero,
+          placeholder: (_, _) => _DefaultAvatar(login: login, size: size),
+          errorWidget: (_, _, _) => _DefaultAvatar(login: login, size: size),
         ),
       );
     }

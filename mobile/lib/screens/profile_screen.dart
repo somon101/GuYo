@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -50,6 +51,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<UserAchievement> _achievements = [];
   UserRating? _rating;
   bool _isUpdatingAvatar = false;
+  // The just-picked photo's raw bytes, shown immediately via Image.memory
+  // while the upload is still in flight -- the user sees THEIR photo the
+  // instant they pick it, never a blank/waiting circle for however long
+  // the network takes. Cleared on both success (the real server URL takes
+  // over, now itself cached to disk by CachedNetworkImage) and failure
+  // (reverts to whatever avatar was showing before this pick).
+  Uint8List? _pendingAvatarBytes;
 
   @override
   void initState() {
@@ -158,24 +166,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    setState(() => _isUpdatingAvatar = true);
+    final bytes = await picked.readAsBytes();
+    if (!mounted) return;
+    // Optimistic preview -- set BEFORE the network call even starts, so
+    // there is no window at all where the screen shows nothing new.
+    setState(() {
+      _pendingAvatarBytes = bytes;
+      _isUpdatingAvatar = true;
+    });
     try {
-      final bytes = await picked.readAsBytes();
       final profile = await ApiClient.instance.uploadMyAvatar(bytes, picked.name, mimeType: picked.mimeType);
       if (!mounted) return;
-      setState(() => _profile = profile);
+      setState(() {
+        _profile = profile;
+        _pendingAvatarBytes = null;
+      });
       // Explicit success feedback -- previously silent on success, so a
       // real upload that landed fine on the backend but whose new photo
       // failed to actually RENDER (bad network, a stale cached widget)
       // looked identical to "nothing happened at all".
       _showSnack('Фото обновлено');
     } on ApiException catch (e) {
+      if (mounted) setState(() => _pendingAvatarBytes = null);
       _showSnack(e.message);
     } catch (e) {
       // Includes the raw exception text (not just a generic message) --
       // this upload path has silently failed on some real devices before
       // with no visible cause, so surfacing exactly what threw is worth
       // more here than a clean but uninformative message.
+      if (mounted) setState(() => _pendingAvatarBytes = null);
       _showSnack('Не удалось загрузить фото: $e');
     } finally {
       if (mounted) setState(() => _isUpdatingAvatar = false);
@@ -183,7 +202,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _removeAvatar() async {
-    setState(() => _isUpdatingAvatar = true);
+    setState(() {
+      _isUpdatingAvatar = true;
+      _pendingAvatarBytes = null;
+    });
     try {
       final profile = await ApiClient.instance.deleteMyAvatar();
       if (!mounted) return;
@@ -278,7 +300,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     Opacity(
                       opacity: _isUpdatingAvatar ? 0.5 : 1,
-                      child: UserAvatar(avatarUrl: profile.avatarUrl, login: profile.login, size: 96),
+                      child: _pendingAvatarBytes != null
+                          ? ClipOval(
+                              child: Image.memory(
+                                _pendingAvatarBytes!,
+                                width: 96,
+                                height: 96,
+                                fit: BoxFit.cover,
+                                gaplessPlayback: true,
+                              ),
+                            )
+                          : UserAvatar(avatarUrl: profile.avatarUrl, login: profile.login, size: 96),
                     ),
                     if (_isUpdatingAvatar)
                       const Positioned.fill(child: Center(child: CircularProgressIndicator(strokeWidth: 2)))
