@@ -22,6 +22,7 @@ from app.routers import (
     quests,
     rating,
     users,
+    word_levels,
     words,
 )
 
@@ -62,6 +63,7 @@ app.include_router(admin_word_levels.router)
 app.include_router(admin_quests.router)
 app.include_router(quests.router)
 app.include_router(rating.router)
+app.include_router(word_levels.router)
 
 
 @app.get("/health")

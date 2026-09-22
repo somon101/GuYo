@@ -15,6 +15,30 @@ class GuyoWordForm {
   }
 }
 
+/// One rung of the word-reinforcement ladder -- mirrors the backend's
+/// WordLevelOut (GET /word-levels), enabled levels only, lowest
+/// score-range first. This list's own index is what "Мои слова" uses to
+/// pick a word's red-to-green badge color: the backend decides which
+/// level a word is in and the levels' order; the color-per-position
+/// mapping is the only thing left to the client.
+class WordLevelSummary {
+  final int id;
+  final String name;
+  final int minPoints;
+  final int? maxPoints;
+
+  WordLevelSummary({required this.id, required this.name, required this.minPoints, required this.maxPoints});
+
+  factory WordLevelSummary.fromJson(Map<String, dynamic> json) {
+    return WordLevelSummary(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      minPoints: json['min_points'] as int,
+      maxPoints: json['max_points'] as int?,
+    );
+  }
+}
+
 class GuyoWord {
   final int id;
   final int dictionaryId;
@@ -32,6 +56,13 @@ class GuyoWord {
   // Present wherever the backend's WordOut is used (e.g. /learned-words);
   // empty when the endpoint's own schema never includes it at all.
   final List<GuyoWordForm> forms;
+  // Only populated by /learned-words?include_in_progress=true (see
+  // learned_words_screen.dart) -- this user's own WordProgress score and
+  // the word-reinforcement level it currently falls in. Null everywhere
+  // else, including the default (threshold-only) /learned-words call.
+  final int? score;
+  final int? wordLevelId;
+  final String? wordLevelName;
 
   GuyoWord({
     required this.id,
@@ -45,6 +76,9 @@ class GuyoWord {
     this.categoryId,
     this.categoryName,
     this.forms = const [],
+    this.score,
+    this.wordLevelId,
+    this.wordLevelName,
   });
 
   factory GuyoWord.fromJson(Map<String, dynamic> json) {
@@ -66,6 +100,9 @@ class GuyoWord {
           : (json['forms'] as List<dynamic>)
               .map((e) => GuyoWordForm.fromJson(e as Map<String, dynamic>))
               .toList(),
+      score: json['score'] as int?,
+      wordLevelId: json['word_level_id'] as int?,
+      wordLevelName: json['word_level_name'] as String?,
     );
   }
 }

@@ -24,6 +24,7 @@ from app.routers.lessons import _get_threshold
 from app.routers.words import word_to_out
 from app.schemas.learning import CreateLearningSessionIn, LearnedCategoryOut, LearningSessionOut
 from app.schemas.word import WordOut
+from app.word_levels import level_for_score_in, ordered_enabled_levels
 
 router = APIRouter(tags=["learning"])
 
@@ -256,6 +257,7 @@ def mark_word_for_review(
 @router.get("/learned-words/categories", response_model=list[LearnedCategoryOut])
 def list_learned_word_categories(
     dictionary_id: int = Query(...),
+    include_in_progress: bool = Query(False),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -266,18 +268,25 @@ def list_learned_word_categories(
 
     "Learned" now means WordProgress.score >= the admin's configured
     threshold (see app/routers/lessons.py) -- the old LearnedWord flag from
-    the removed flashcard flow is no longer read here at all."""
+    the removed flashcard flow is no longer read here at all.
+
+    `include_in_progress` opts into counting EVERY word with any progress
+    at all, not just fully-learned ones -- used by the "Мои слова" screen so
+    it can show a word's current level even before it crosses the
+    threshold. Defaults to False so build_phrase_screen.dart's existing use
+    of this endpoint (which genuinely wants "fully learned only") is
+    completely unaffected."""
     _get_published_dictionary_or_404(db, dictionary_id)
     threshold = _get_threshold(db)
-    rows = (
+    query = (
         db.query(Word.category_id, Category.name, func.count(WordProgress.id))
         .join(WordProgress, WordProgress.word_id == Word.id)
         .outerjoin(Category, Category.id == Word.category_id)
-        .filter(WordProgress.user_id == user.id, WordProgress.score >= threshold, Word.dictionary_id == dictionary_id)
-        .group_by(Word.category_id, Category.name)
-        .order_by(Category.name)
-        .all()
+        .filter(WordProgress.user_id == user.id, Word.dictionary_id == dictionary_id)
     )
+    if not include_in_progress:
+        query = query.filter(WordProgress.score >= threshold)
+    rows = query.group_by(Word.category_id, Category.name).order_by(Category.name).all()
     return [
         LearnedCategoryOut(category_id=category_id, category_name=name or "Без категории", learned_count=count)
         for category_id, name, count in rows
@@ -289,22 +298,44 @@ def list_learned_words(
     dictionary_id: int = Query(...),
     category_id: int | None = Query(None),
     uncategorized: bool = Query(False),
+    include_in_progress: bool = Query(False),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """Same threshold-based "learned" definition as the categories endpoint
-    above -- see its docstring."""
+    above -- see its docstring, `include_in_progress` included.
+
+    When `include_in_progress` is set, each returned word also carries its
+    current score and word-reinforcement level (see app/schemas/word.py),
+    classified via word_levels' own ordered_enabled_levels/
+    level_for_score_in -- the exact same ladder Quests classifies words
+    against, fetched once and reused per word rather than requeried."""
     _get_published_dictionary_or_404(db, dictionary_id)
     threshold = _get_threshold(db)
     query = (
-        db.query(Word)
+        db.query(Word, WordProgress.score)
         .join(WordProgress, WordProgress.word_id == Word.id)
-        .filter(WordProgress.user_id == user.id, WordProgress.score >= threshold, Word.dictionary_id == dictionary_id)
+        .filter(WordProgress.user_id == user.id, Word.dictionary_id == dictionary_id)
     )
+    if not include_in_progress:
+        query = query.filter(WordProgress.score >= threshold)
     if uncategorized:
         query = query.filter(Word.category_id.is_(None))
     elif category_id is not None:
         query = query.filter(Word.category_id == category_id)
 
-    words = query.order_by(Word.id).all()
-    return [word_to_out(w) for w in words]
+    rows = query.order_by(Word.id).all()
+
+    if not include_in_progress:
+        return [word_to_out(w) for w, _score in rows]
+
+    levels = ordered_enabled_levels(db)
+    result = []
+    for w, score in rows:
+        out = word_to_out(w)
+        level = level_for_score_in(levels, score)
+        out.score = score
+        out.word_level_id = level.id if level else None
+        out.word_level_name = level.name if level else None
+        result.append(out)
+    return result

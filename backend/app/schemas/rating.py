@@ -133,7 +133,13 @@ class UserRatingOut(BaseModel):
     """Everything the Profile screen needs for its "Рейтинг" block, in one
     round trip: current points, current season, current rank, the next
     rank up (for a progress bar), and past seasons' frozen results. The
-    backend decides all of it -- Flutter only renders."""
+    backend decides all of it -- Flutter only renders.
+
+    `points_per_learned_word` is the SAME RatingSettings value
+    award_word_points_if_new already grants on every newly-learned word
+    (app/rating/service.py) -- included here so the "Квесты" screen's
+    always-visible "изучение новых слов" system tile can show the real
+    configured reward without a second settings surface."""
 
     total_points: int
     season: SeasonOut | None
@@ -141,3 +147,4 @@ class UserRatingOut(BaseModel):
     next_rank: RankPublicOut | None
     points_to_next_rank: int | None
     history: list[SeasonHistoryOut]
+    points_per_learned_word: int

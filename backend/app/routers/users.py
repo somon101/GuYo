@@ -10,7 +10,13 @@ from app.models.achievement import VISIBILITY_HIDDEN, Achievement, UserAchieveme
 from app.models.admin import Admin
 from app.models.rating import SeasonHistory
 from app.models.user import User
-from app.rating import current_rank_for_points, get_active_season, get_or_create_user_rating, next_rank_for_points
+from app.rating import (
+    current_rank_for_points,
+    get_active_season,
+    get_or_create_user_rating,
+    get_rating_settings,
+    next_rank_for_points,
+)
 from app.schemas.achievement import UserAchievementOut
 from app.schemas.rating import SeasonHistoryOut, SeasonOut, UserRatingOut, rank_public_out
 from app.schemas.user import UserCreate, UserOut, UserProfileOut
@@ -211,4 +217,5 @@ def get_my_rating(db: Session = Depends(get_db), user: User = Depends(get_curren
         next_rank=rank_public_out(next_rank),
         points_to_next_rank=(next_rank.min_points - rating.total_points) if next_rank else None,
         history=history,
+        points_per_learned_word=get_rating_settings(db).points_per_learned_word,
     )

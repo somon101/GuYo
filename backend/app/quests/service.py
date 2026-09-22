@@ -13,7 +13,7 @@ import random
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.dates import utc_today
+from app.core.dates import dushanbe_today
 from app.exercises.common import get_points, get_threshold
 from app.models.quest import Quest, UserQuestWordDay
 from app.models.user import User
@@ -25,7 +25,10 @@ from app.rating import grant_rating_points
 
 
 def _words_used_today(db: Session, user_id: int) -> set[int]:
-    today = utc_today()
+    # Explicitly Asia/Dushanbe, never UTC or the device's own timezone --
+    # GuYo's personal quests reset on Tajikistan's own clock, the same
+    # moment for every user regardless of where their phone thinks it is.
+    today = dushanbe_today()
     return {
         row[0]
         for row in db.query(UserQuestWordDay.word_id)
@@ -110,7 +113,7 @@ def complete_quest_attempt(db: Session, user: User, quest: Quest, word: Word, is
     if is_correct:
         try:
             with db.begin_nested():
-                db.add(UserQuestWordDay(user_id=user.id, word_id=word.id, quest_id=quest.id, used_date=utc_today()))
+                db.add(UserQuestWordDay(user_id=user.id, word_id=word.id, quest_id=quest.id, used_date=dushanbe_today()))
                 db.flush()
         except IntegrityError:
             # Lost a race against a concurrent quest completion for the

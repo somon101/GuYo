@@ -46,3 +46,15 @@ class WordOut(BaseModel):
     # Grammatical forms, in insertion order, one list mixing all languages
     # -- the admin editor groups them by `language` for display.
     forms: list[WordFormOut]
+
+    # This user's own progress on this word -- None everywhere word_to_out()
+    # is called without a user in scope (matching.py, exercises.py,
+    # quests/rounds.py, lessons.py, most of words.py). Only
+    # learning.py's /learned-words populates these, by enriching the object
+    # AFTER word_to_out() builds it, using word_levels' own
+    # ordered_enabled_levels/level_for_score_in so the level shown here is
+    # always the same one the rest of the app (Quests included) would pick
+    # for this score -- never a second, parallel classification.
+    score: int | None = None
+    word_level_id: int | None = None
+    word_level_name: str | None = None

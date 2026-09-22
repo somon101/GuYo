@@ -211,11 +211,20 @@ class ApiClient {
     return LearningSession.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
-  Future<List<LearnedCategory>> fetchLearnedCategories(int dictionaryId) async {
-    final res = await http.get(
-      _uri('/learned-words/categories?dictionary_id=$dictionaryId'),
-      headers: await _authHeaders(),
-    );
+  /// [includeInProgress] widens "learned" to every word with ANY progress,
+  /// not just fully-learned ones -- used only by learned_words_screen.dart
+  /// ("Мои слова"). Defaults to false so build_phrase_screen.dart's own use
+  /// of this endpoint (which needs fully-learned-only) is unaffected.
+  Future<List<LearnedCategory>> fetchLearnedCategories(
+    int dictionaryId, {
+    bool includeInProgress = false,
+  }) async {
+    final params = {
+      'dictionary_id': '$dictionaryId',
+      if (includeInProgress) 'include_in_progress': 'true',
+    };
+    final uri = _uri('/learned-words/categories').replace(queryParameters: params);
+    final res = await http.get(uri, headers: await _authHeaders());
     await _throwIfUnauthorized(res);
     final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
     return list.map((e) => LearnedCategory.fromJson(e as Map<String, dynamic>)).toList();
@@ -239,15 +248,18 @@ class ApiClient {
 
   /// Pass exactly one of [categoryId] or [uncategorized]; pass neither for
   /// every learned word in the dictionary regardless of category.
+  /// [includeInProgress] -- see fetchLearnedCategories's own doc.
   Future<List<GuyoWord>> fetchLearnedWords(
     int dictionaryId, {
     int? categoryId,
     bool uncategorized = false,
+    bool includeInProgress = false,
   }) async {
     final params = {
       'dictionary_id': '$dictionaryId',
       if (categoryId != null) 'category_id': '$categoryId',
       if (uncategorized) 'uncategorized': 'true',
+      if (includeInProgress) 'include_in_progress': 'true',
     };
     final uri = _uri('/learned-words').replace(queryParameters: params);
     final res = await http.get(uri, headers: await _authHeaders());
@@ -488,6 +500,15 @@ class ApiClient {
     final res = await http.get(_uri('/rating/leaderboard'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
     return Leaderboard.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  /// The word-reinforcement ladder, enabled levels only, lowest
+  /// score-range first -- see WordLevelSummary's own doc.
+  Future<List<WordLevelSummary>> fetchWordLevels() async {
+    final res = await http.get(_uri('/word-levels'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
+    return list.map((e) => WordLevelSummary.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// Top 100 users across every rank combined.

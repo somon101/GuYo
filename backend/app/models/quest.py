@@ -48,8 +48,11 @@ class UserQuestWordDay(Base):
     today -- the one thing that guarantees "a word can be used in at most
     one quest per day", across ALL quests, exactly mirroring
     UserActivityDay's own per-day uniqueness role (see
-    app/models/achievement.py). `used_date` is the server's own UTC date,
-    never the phone's clock -- same reasoning as UserActivityDay.
+    app/models/achievement.py). `used_date` is the server's own
+    Asia/Dushanbe date (app/core/dates.py's dushanbe_today) -- GuYo's
+    quests reset on Tajikistan's own clock, deliberately NOT UTC and
+    never the phone's own timezone, so every user sees the same reset
+    moment regardless of where their device thinks it is.
 
     `quest_id` is kept only as a record of which quest actually used the
     word that day (useful for admin visibility); it plays no part in the

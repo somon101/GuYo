@@ -25,12 +25,12 @@ class _LearnedWordsScreenState extends State<LearnedWordsScreen> {
   @override
   void initState() {
     super.initState();
-    _future = ApiClient.instance.fetchLearnedCategories(widget.dictionary.id);
+    _future = ApiClient.instance.fetchLearnedCategories(widget.dictionary.id, includeInProgress: true);
   }
 
   Future<void> _reload() async {
     setState(() {
-      _future = ApiClient.instance.fetchLearnedCategories(widget.dictionary.id);
+      _future = ApiClient.instance.fetchLearnedCategories(widget.dictionary.id, includeInProgress: true);
     });
     await _future;
   }
@@ -139,7 +139,11 @@ class _LearnedWordsInCategoryScreen extends StatefulWidget {
 }
 
 class _LearnedWordsInCategoryScreenState extends State<_LearnedWordsInCategoryScreen> {
-  late Future<List<GuyoWord>> _future;
+  // Words and the level ladder load together: the ladder's own order is
+  // what turns each word's word_level_id into a red-to-green badge
+  // position (see _LearnedWordTile), so the tile list has nothing useful
+  // to render until both are in.
+  late Future<(List<GuyoWord>, List<WordLevelSummary>)> _future;
 
   @override
   void initState() {
@@ -147,13 +151,18 @@ class _LearnedWordsInCategoryScreenState extends State<_LearnedWordsInCategorySc
     _future = _load();
   }
 
-  Future<List<GuyoWord>> _load() {
+  Future<(List<GuyoWord>, List<WordLevelSummary>)> _load() async {
     final categoryId = widget.category.categoryId;
-    return ApiClient.instance.fetchLearnedWords(
-      widget.dictionary.id,
-      categoryId: categoryId,
-      uncategorized: categoryId == null,
-    );
+    final results = await Future.wait([
+      ApiClient.instance.fetchLearnedWords(
+        widget.dictionary.id,
+        categoryId: categoryId,
+        uncategorized: categoryId == null,
+        includeInProgress: true,
+      ),
+      ApiClient.instance.fetchWordLevels(),
+    ]);
+    return (results[0] as List<GuyoWord>, results[1] as List<WordLevelSummary>);
   }
 
   Future<void> _reload() async {
@@ -167,7 +176,7 @@ class _LearnedWordsInCategoryScreenState extends State<_LearnedWordsInCategorySc
       appBar: AppBar(title: Text(widget.category.categoryName)),
       body: RefreshIndicator(
         onRefresh: _reload,
-        child: FutureBuilder<List<GuyoWord>>(
+        child: FutureBuilder<(List<GuyoWord>, List<WordLevelSummary>)>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -189,7 +198,7 @@ class _LearnedWordsInCategoryScreenState extends State<_LearnedWordsInCategorySc
                 ],
               );
             }
-            final words = snapshot.data ?? [];
+            final (words, levels) = snapshot.data ?? (<GuyoWord>[], <WordLevelSummary>[]);
             if (words.isEmpty) {
               return ListView(
                 children: const [
@@ -204,7 +213,7 @@ class _LearnedWordsInCategoryScreenState extends State<_LearnedWordsInCategorySc
               padding: const EdgeInsets.symmetric(vertical: 8),
               itemCount: words.length,
               separatorBuilder: (_, _) => const Divider(height: 1),
-              itemBuilder: (context, index) => _LearnedWordTile(word: words[index]),
+              itemBuilder: (context, index) => _LearnedWordTile(word: words[index], levels: levels),
             );
           },
         ),
@@ -213,15 +222,30 @@ class _LearnedWordsInCategoryScreenState extends State<_LearnedWordsInCategorySc
   }
 }
 
+/// Position-based red-to-green color for a word level: the backend decides
+/// WHICH level a word is in and the levels' own order (ordered_enabled_levels
+/// on the backend, mirrored 1:1 by GET /word-levels) -- this is the one
+/// purely visual mapping left to the client, from that position alone.
+Color _wordLevelColor(int index, int total) {
+  if (total <= 1) return const Color(0xFF43A047);
+  final t = index / (total - 1);
+  return Color.lerp(const Color(0xFFE53935), const Color(0xFF43A047), t)!;
+}
+
 class _LearnedWordTile extends StatelessWidget {
   final GuyoWord word;
-  const _LearnedWordTile({required this.word});
+  final List<WordLevelSummary> levels;
+  const _LearnedWordTile({required this.word, required this.levels});
 
   @override
   Widget build(BuildContext context) {
     final hasTranscription = word.transcription != null && word.transcription!.isNotEmpty;
     final hasWordAudio = word.wordAudioUrl != null && word.wordAudioUrl!.isNotEmpty;
     final hasTranslationAudio = word.translationAudioUrl != null && word.translationAudioUrl!.isNotEmpty;
+
+    final levelIndex = word.wordLevelId == null ? -1 : levels.indexWhere((l) => l.id == word.wordLevelId);
+    final levelColor = levelIndex == -1 ? null : _wordLevelColor(levelIndex, levels.length);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
@@ -229,11 +253,44 @@ class _LearnedWordTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(word.word, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
-              if (hasWordAudio) ...[
-                const SizedBox(width: 6),
-                AudioButton(url: ApiClient.instance.mediaUrl(word.wordAudioUrl!)),
-              ],
+              Expanded(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(word.word, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+                    if (hasWordAudio) ...[
+                      const SizedBox(width: 6),
+                      AudioButton(url: ApiClient.instance.mediaUrl(word.wordAudioUrl!)),
+                    ],
+                  ],
+                ),
+              ),
+              if (levelColor != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: levelColor.withValues(alpha: 0.13),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: levelColor.withValues(alpha: 0.5)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(color: levelColor, shape: BoxShape.circle),
+                      ),
+                      if (word.wordLevelName != null) ...[
+                        const SizedBox(width: 5),
+                        Text(
+                          word.wordLevelName!,
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: levelColor),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
             ],
           ),
           if (hasTranscription)

@@ -131,6 +131,11 @@ class UserRating {
   final int? pointsToNextRank;
   final List<SeasonHistoryEntry> history;
 
+  /// The same reward award_word_points_if_new grants on every newly-learned
+  /// word -- shown as-is on the Квесты screen's permanent "изучение новых
+  /// слов" system tile, never a second, quest-specific setting.
+  final int pointsPerLearnedWord;
+
   UserRating({
     required this.totalPoints,
     required this.season,
@@ -138,6 +143,7 @@ class UserRating {
     required this.nextRank,
     required this.pointsToNextRank,
     required this.history,
+    required this.pointsPerLearnedWord,
   });
 
   factory UserRating.fromJson(Map<String, dynamic> json) {
@@ -150,6 +156,7 @@ class UserRating {
       history: (json['history'] as List<dynamic>)
           .map((e) => SeasonHistoryEntry.fromJson(e as Map<String, dynamic>))
           .toList(),
+      pointsPerLearnedWord: json['points_per_learned_word'] as int,
     );
   }
 }
