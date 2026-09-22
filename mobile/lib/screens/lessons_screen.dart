@@ -9,12 +9,15 @@ import 'quests_screen.dart';
 
 /// "Уроки": the new primary progress system's own tab. Shows this
 /// dictionary's FULL, permanent lesson history as a sequential chain --
-/// every lesson the user has ever created, oldest first, each with its own
-/// real status (never a locally-invented one) -- plus, once the last one
-/// is fully complete (or there isn't one yet), one extra unlocked link at
-/// the end for creating the next lesson. Lessons are never deleted or
-/// replaced (see the backend's Lesson model): completing one just reveals
-/// the next link in the chain, it never removes the one before it.
+/// every lesson the user has ever created, each with its own real status
+/// (never a locally-invented one) -- rendered NEWEST first (highest
+/// number at the top): the backend's own list (GET .../lessons) stays
+/// oldest-first as its stable order, this screen just reverses it for
+/// display, with one extra unlocked link leading at the top for creating
+/// the next lesson once the current last one is fully complete (or there
+/// isn't one yet). Lessons are never deleted or replaced (see the
+/// backend's Lesson model): completing one just reveals the next link in
+/// the chain, it never removes the one before it.
 ///
 /// This screen owns none of the actual lesson mechanics -- word selection,
 /// exercises, scoring, the learning threshold -- all of that is unchanged
@@ -151,6 +154,14 @@ class _LessonsScreenState extends State<LessonsScreen> {
     final nextNumber = lessons.isEmpty ? 1 : lessons.last.number + 1;
     final completedCount = lessons.where((l) => l.isCompleted).length;
 
+    // The backend's own list stays oldest-first (its natural, stable
+    // order) -- only the RENDER order is newest-first: the not-yet-created
+    // next lesson (if unlocked) leads at the top, then existing lessons
+    // counting down from the highest number, so "Урок 3, Урок 2, Урок 1"
+    // reads top to bottom instead of the other way around.
+    final reversedLessons = lessons.reversed.toList();
+    final nodeCount = reversedLessons.length + (canCreateNext ? 1 : 0);
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
@@ -164,27 +175,27 @@ class _LessonsScreenState extends State<LessonsScreen> {
           style: const TextStyle(color: Colors.black54, fontSize: 13),
         ),
         const SizedBox(height: 24),
-        for (var i = 0; i < lessons.length; i++)
-          _ChainNode(
-            isFirst: i == 0,
-            isLast: i == lessons.length - 1 && !canCreateNext,
-            state: lessons[i].isCompleted ? _ChainNodeState.completed : _ChainNodeState.inProgress,
-            title: 'Урок ${lessons[i].number}',
-            subtitle: lessons[i].isCompleted
-                ? 'Пройден'
-                : 'Изучено ${lessons[i].learnedCount} из ${lessons[i].wordCount}',
-            progress: lessons[i].wordCount == 0 ? 0.0 : lessons[i].learnedCount / lessons[i].wordCount,
-            onTap: () => _openLesson(lessons[i].id),
-          ),
         if (canCreateNext)
           _ChainNode(
-            isFirst: lessons.isEmpty,
-            isLast: true,
+            isFirst: true,
+            isLast: nodeCount == 1,
             state: _ChainNodeState.unlocked,
             title: 'Урок $nextNumber',
             subtitle: lessons.isEmpty ? 'Создать урок' : 'Доступен для создания',
             progress: null,
             onTap: _createNextLesson,
+          ),
+        for (var i = 0; i < reversedLessons.length; i++)
+          _ChainNode(
+            isFirst: !canCreateNext && i == 0,
+            isLast: i == reversedLessons.length - 1,
+            state: reversedLessons[i].isCompleted ? _ChainNodeState.completed : _ChainNodeState.inProgress,
+            title: 'Урок ${reversedLessons[i].number}',
+            subtitle: reversedLessons[i].isCompleted
+                ? 'Пройден'
+                : 'Изучено ${reversedLessons[i].learnedCount} из ${reversedLessons[i].wordCount}',
+            progress: reversedLessons[i].wordCount == 0 ? 0.0 : reversedLessons[i].learnedCount / reversedLessons[i].wordCount,
+            onTap: () => _openLesson(reversedLessons[i].id),
           ),
       ],
     );
