@@ -16,7 +16,7 @@ BuildWordRoundOut.case_sensitive.
 from sqlalchemy.orm import Session
 
 from app.core.storage import url_for_key
-from app.exercises.common import get_exercise_settings_row
+from app.exercises.common import get_exercise_settings_row, lesson_words_pending
 from app.models.lesson import Lesson
 from app.models.user import User
 from app.schemas.lesson import SpeakingWordItemOut, SpeakingWordRoundOut
@@ -39,8 +39,8 @@ def is_available(db: Session, user: User, dictionary_id: int, lesson_word_ids: l
     return len(lesson_word_ids) >= 1
 
 
-def build_round(db: Session, lesson: Lesson) -> SpeakingWordRoundOut:
-    words = [lw.word for lw in lesson.words]
+def build_round(db: Session, lesson: Lesson, threshold: int) -> SpeakingWordRoundOut:
+    words = lesson_words_pending(db, lesson, threshold)
     items = [
         SpeakingWordItemOut(
             word_id=w.id,

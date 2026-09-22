@@ -41,6 +41,7 @@ from app.models.lesson import Lesson, LessonExercise, LessonWord
 from app.models.user import User
 from app.models.word_progress import WordProgress
 from app.routers.words import word_to_out
+from app.word_levels import level_for_score_in, ordered_enabled_levels
 from app.schemas.exercise import BuildWordRoundOut, ExerciseWordsOut, TrueOrFalseRoundOut
 from app.schemas.lesson import (
     CreateLessonIn,
@@ -114,11 +115,13 @@ def _lesson_to_out(db: Session, lesson: Lesson, threshold: int) -> LessonOut:
             .all()
         }
 
+    levels = ordered_enabled_levels(db)
     words_out = []
     for lw in lesson_words:
         w = lw.word
         score = progress_by_word.get(lw.word_id, 0)
         primary = w.translations[0] if w.translations else None
+        level = level_for_score_in(levels, score)
         words_out.append(
             LessonWordOut(
                 word_id=w.id,
@@ -126,6 +129,8 @@ def _lesson_to_out(db: Session, lesson: Lesson, threshold: int) -> LessonOut:
                 translation=primary.text if primary else None,
                 score=score,
                 is_learned=score >= threshold,
+                word_level_id=level.id if level else None,
+                word_level_name=level.name if level else None,
             )
         )
 
@@ -357,7 +362,7 @@ def get_lesson_matching_round(
 ):
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
     _require_lesson_exercise(db, lesson.id, matching.KEY)
-    return matching.build_round(db, lesson)
+    return matching.build_round(db, lesson, get_threshold(db))
 
 
 @router.get("/lessons/{lesson_id}/exercises/build-word", response_model=BuildWordRoundOut)
@@ -368,7 +373,7 @@ def get_lesson_build_word_round(
 ):
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
     _require_lesson_exercise(db, lesson.id, build_word.KEY)
-    return build_word.build_round(db, lesson)
+    return build_word.build_round(db, lesson, get_threshold(db))
 
 
 @router.get("/lessons/{lesson_id}/exercises/speaking-word", response_model=SpeakingWordRoundOut)
@@ -379,7 +384,7 @@ def get_lesson_speaking_word_round(
 ):
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
     _require_lesson_exercise(db, lesson.id, speaking_word.KEY)
-    return speaking_word.build_round(db, lesson)
+    return speaking_word.build_round(db, lesson, get_threshold(db))
 
 
 @router.get("/lessons/{lesson_id}/exercises/listen-word", response_model=ListenWordRoundOut)
@@ -390,7 +395,7 @@ def get_lesson_listen_word_round(
 ):
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
     _require_lesson_exercise(db, lesson.id, listen_word.KEY)
-    return listen_word.build_round(db, lesson)
+    return listen_word.build_round(db, lesson, get_threshold(db))
 
 
 @router.post("/lessons/{lesson_id}/exercises/{exercise_key}/answers", response_model=SubmitAnswerOut)

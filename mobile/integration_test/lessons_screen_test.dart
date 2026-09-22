@@ -1,22 +1,29 @@
-// Covers "Уроки" end to end against the real backend:
+// Covers "Уроки" end to end against the real backend, through the NEW
+// auto-sequenced lesson runner (tap "Начать урок" once, no manual
+// exercise picking -- the app runs every available exercise type in the
+// backend's own fixed order automatically):
 //   - no lessons yet -> the chain shows a single unlocked "create" link;
 //   - random selection creates Lesson 1, visible in the chain as
-//     in-progress; opening it shows only "Сопоставление"/"Собери слово"
-//     (no previously-learned pool exists yet, so "Правда или ложь" isn't
-//     available for this very first lesson -- see EXERCISE_AVAILABILITY in
-//     lessons.py);
-//   - answering correctly in those exercises raises each specific word's
-//     own score (never a lesson-wide total); once every word crosses the
-//     admin threshold, the lesson-complete screen appears, those words show
-//     up under "Мои слова", Lesson 1 stays in the chain marked "Пройден",
-//     and a new unlocked link for Lesson 2 appears -- Lesson 1 is NEVER
-//     removed or replaced;
+//     in-progress; opening it shows the word list + "Начать урок", never a
+//     manual exercise menu;
+//   - tapping "Начать урок" auto-opens Сопоставление first (no previously-
+//     learned pool exists yet, so "Правда или ложь" isn't part of the
+//     sequence at all for this very first lesson -- see EXERCISE_AVAILABILITY
+//     in lessons.py), then auto-advances to Собери слово once that round is
+//     backed out of;
+//   - answering correctly raises each specific word's own score (never a
+//     lesson-wide total); once every word crosses the admin threshold, the
+//     sequence ends and the lesson's own RESULTS screen shows "Урок пройден"
+//     -- those words show up under "Мои слова", Lesson 1 stays in the chain
+//     marked "Пройден", and a new unlocked link for Lesson 2 appears --
+//     Lesson 1 is NEVER removed or replaced;
 //   - a new lesson cannot be created while one is still active/incomplete
 //     (enforced by the chain only ever showing an unlocked "create" link
 //     once the last real lesson is complete);
 //   - manual selection (checkboxes, grouped by category) creates Lesson 2
 //     from a hand-picked word set, and once a learned-words pool exists
-//     "Правда или ложь" becomes available too;
+//     "Правда или ложь" becomes available too -- now leading the auto
+//     sequence, since it comes first in the backend's own exercise order;
 //   - after re-loading the chain, BOTH lessons remain, in the right order,
 //     with the right statuses -- lessons are permanent, not swapped out.
 //
@@ -129,8 +136,8 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    'random lesson: chain shows the unlocked create-link first, Lesson 1 stays in the chain as '
-    '"Пройден" after completion (never removed), and Lesson 2 unlocks next to it',
+    'random lesson: "Начать урок" auto-runs Сопоставление then Собери слово with no manual picking, '
+    'Lesson 1 stays in the chain as "Пройден" after completion (never removed), and Lesson 2 unlocks next to it',
     (tester) async {
       final token = await _userToken();
       final dictionaryId = await _englishDictionaryId(token);
@@ -165,22 +172,22 @@ void main() {
       final wordIds = lessonWords.map((w) => w['word_id'] as int).toList();
       expect(wordIds.length, 3);
 
-      // Open Lesson 1's own screen to see its exercises.
+      // Open Lesson 1's own screen: word list + one "Начать урок" button,
+      // never a manual exercise menu.
       await tester.tap(find.text('Урок 1'));
       await tester.pumpAndSettle();
-      expect(find.text('Сопоставление'), findsOneWidget);
-      expect(find.text('Собери слово'), findsOneWidget);
-      expect(
-        find.text('Правда или ложь'),
-        findsNothing,
-        reason: 'first-ever lesson has no previously-learned pool, so True/False cannot be offered',
-      );
+      expect(find.text('Начать урок'), findsOneWidget);
+      expect(find.text('Сопоставление'), findsNothing, reason: 'no manual exercise buttons any more');
 
-      // --- Matching, played twice (each correct match is +20): total +40 ---
-      await tester.tap(find.text('Сопоставление'));
-      await tester.pumpAndSettle();
+      await tester.tap(find.text('Начать урок'));
+      await tester.pumpAndSettle(const Duration(seconds: 1));
+
+      // --- First in the auto sequence: Сопоставление (AppBar confirms it,
+      // "Правда или ложь" never appears at all -- no learned pool yet) ---
+      expect(find.text('Сопоставление'), findsOneWidget);
       expect(find.textContaining('Правильно: 0/3'), findsOneWidget);
 
+      // --- Matching, played twice (each correct match is +20): total +40 ---
       await _matchAllCorrectly(tester, wordIds);
       expect(find.text('Раунд завершён!'), findsOneWidget);
       expect(find.text('Урок пройден!'), findsNothing, reason: '+20 alone must stay below the threshold (60)');
@@ -193,15 +200,10 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'К уроку'));
       await tester.pumpAndSettle(const Duration(seconds: 1));
 
-      // Back on Lesson 1's own screen (its AppBar reads "Урок 1"), not yet
-      // complete.
-      expect(find.text('Урок 1'), findsOneWidget, reason: 'back on lesson 1\'s own screen, not yet complete');
-      expect(find.textContaining('Изучено 0 из 3'), findsOneWidget);
+      // --- Sequencer auto-advances to Собери слово (no menu, no tap) ---
+      expect(find.text('Собери слово'), findsOneWidget);
 
       // --- Build word, once (+30): total 40+30 = 70 >= threshold (60) ---
-      await tester.tap(find.text('Собери слово'));
-      await tester.pumpAndSettle();
-
       for (var i = 0; i < wordIds.length; i++) {
         final word = _readCurrentBuildWordCorrectWord(tester);
         await _buildWordCorrectly(tester, word);
@@ -216,17 +218,27 @@ void main() {
         reason: 'every word should now be at 70 >= the 60 threshold',
       );
 
-      // The round-complete button now leads to a dedicated completion
-      // screen instead of popping straight back.
+      // This is the round that finished the lesson -- its own "Продолжить"
+      // just pops back to the sequencer (never straight to a standalone
+      // completion screen); the sequence is exhausted right after (both
+      // exercise types have now been attempted), so the lesson's own
+      // results screen comes up next.
       await tester.tap(find.widgetWithText(FilledButton, 'Продолжить'));
-      await tester.pumpAndSettle(const Duration(seconds: 1));
-      expect(find.text('УРОК 1'), findsOneWidget);
-      expect(find.text('Пройден!'), findsOneWidget);
+      await tester.pumpAndSettle(const Duration(seconds: 2));
 
-      // Continuing from there returns all the way to the "Уроки" chain --
-      // never to Lesson 1's own (now-history) screen.
-      await tester.tap(find.widgetWithText(FilledButton, 'Продолжить'));
+      expect(find.textContaining('результаты'), findsOneWidget);
+      expect(find.text('Урок пройден'), findsOneWidget);
+      expect(find.text('Готово'), findsOneWidget);
+      expect(find.text('Повторить урок'), findsNothing);
+      await tester.tap(find.text('Готово'));
       await tester.pumpAndSettle(const Duration(seconds: 1));
+
+      // Back on Lesson 1's own (now-history) screen -- "Пройден" banner,
+      // no "Начать урок" button any more (a completed lesson is read-only).
+      expect(find.text('Урок пройден'), findsOneWidget);
+      expect(find.text('Начать урок'), findsNothing);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
 
       // Lesson 1 stays in the chain, now marked "Пройден" -- it is NOT
       // removed or replaced by a fresh lesson-creation prompt.
@@ -244,21 +256,12 @@ void main() {
       expect(find.text('3'), findsOneWidget);
       await tester.pageBack();
       await tester.pumpAndSettle();
-
-      // Re-open Lesson 1 directly: it must still be there, read-only (no
-      // exercise buttons -- a completed lesson is history, not replayable).
-      await tester.tap(find.text('Урок 1'));
-      await tester.pumpAndSettle();
-      expect(find.text('Урок пройден'), findsOneWidget);
-      expect(find.text('Сопоставление'), findsNothing, reason: 'a completed lesson shows no exercise buttons');
-      await tester.pageBack();
-      await tester.pumpAndSettle();
     },
   );
 
   testWidgets(
     'manual lesson: checkbox selection creates Lesson 2 from the hand-picked words, it joins the '
-    'chain alongside the still-present Lesson 1, and Правда или ложь is now available',
+    'chain alongside the still-present Lesson 1, and Начать урок now leads with Правда или ложь',
     (tester) async {
       final token = await _userToken();
       final dictionaryId = await _englishDictionaryId(token);
@@ -309,17 +312,19 @@ void main() {
 
       await tester.tap(find.text('Урок 2'));
       await tester.pumpAndSettle();
+      expect(find.text('Начать урок'), findsOneWidget);
+
+      await tester.tap(find.text('Начать урок'));
+      await tester.pumpAndSettle(const Duration(seconds: 1));
+
+      // Правда или ложь now comes FIRST in the auto sequence -- it's first
+      // in the backend's own exercise order and is available for the first
+      // time now that Lesson 1's 3 words form a real learned pool.
       expect(
         find.text('Правда или ложь'),
         findsOneWidget,
         reason: 'the 3 words learned in Lesson 1 are now a usable pool for True/False',
       );
-      expect(find.text('Сопоставление'), findsOneWidget);
-      expect(find.text('Собери слово'), findsOneWidget);
-
-      // Smoke-test True/False actually loads a playable round.
-      await tester.tap(find.text('Правда или ложь'));
-      await tester.pumpAndSettle();
       expect(find.widgetWithText(FilledButton, 'Правда'), findsOneWidget);
       expect(find.widgetWithText(OutlinedButton, 'Ложь'), findsOneWidget);
       expect(find.textContaining('Правильно: 0/3'), findsOneWidget);

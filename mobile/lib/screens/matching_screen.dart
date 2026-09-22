@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/word.dart';
 import '../widgets/audio_button.dart';
-import 'lesson_complete_screen.dart';
 
 /// A drag-free "tap word, then tap its translation" matching drill, as one
 /// of a Lesson's exercises.
@@ -252,13 +251,14 @@ class _MatchingScreenState extends State<MatchingScreen> {
                 onPlayAgain: _load,
                 mistakes: _mistakes,
                 lessonCompleted: _lessonCompleted,
-                onBackToLesson: () => _lessonCompleted
-                    ? Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(
-                          builder: (_) => LessonCompleteScreen(lessonNumber: widget.lessonNumber),
-                        ),
-                      )
-                    : Navigator.of(context).pop(),
+                // Always a plain pop back to whoever pushed this screen --
+                // the lesson-runner sequencer (LessonDetailScreen), not a
+                // jump straight to a standalone completion screen. Even
+                // when this round happens to be the one that finishes the
+                // lesson, the sequencer still needs control back so it can
+                // move on to (or skip past) the rest of the exercise
+                // sequence before showing the lesson's own results screen.
+                onBackToLesson: () => Navigator.of(context).pop(),
               ),
             )
           else if (isFullyMatched)

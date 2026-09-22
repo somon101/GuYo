@@ -2,7 +2,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/lesson.dart';
-import 'lesson_complete_screen.dart';
 
 /// "Услышь слово", as one of a Lesson's exercises: the backend hands back a
 /// round built from THIS lesson's own words (see ApiClient.
@@ -168,13 +167,10 @@ class _ListenWordScreenState extends State<ListenWordScreen> {
                     total: _items.length,
                     lessonCompleted: _lessonCompleted,
                     onPlayAgain: _load,
-                    onBackToLesson: () => _lessonCompleted
-                        ? Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                              builder: (_) => LessonCompleteScreen(lessonNumber: widget.lessonNumber),
-                            ),
-                          )
-                        : Navigator.of(context).pop(),
+                    // Always a plain pop back to the lesson-runner
+                    // sequencer -- see matching_screen.dart's identical
+                    // comment.
+                    onBackToLesson: () => Navigator.of(context).pop(),
                   )
                 : Column(
                     // Carries the current item's own (correct) word_id for

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/exercise.dart';
 import '../widgets/audio_button.dart';
-import 'lesson_complete_screen.dart';
 
 /// One letter button/slot's contents, with a unique instance id so two
 /// identical letters (e.g. HELLO's two L's) are always distinguishable and
@@ -213,13 +212,9 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
         total: round.items.length,
         lessonCompleted: _lessonCompleted,
         onPlayAgain: _load,
-        onBackToLesson: () => _lessonCompleted
-            ? Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (_) => LessonCompleteScreen(lessonNumber: widget.lessonNumber),
-                ),
-              )
-            : Navigator.of(context).pop(),
+        // Always a plain pop back to the lesson-runner sequencer -- see
+        // matching_screen.dart's identical comment.
+        onBackToLesson: () => Navigator.of(context).pop(),
       );
     }
 

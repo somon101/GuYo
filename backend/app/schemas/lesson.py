@@ -27,6 +27,12 @@ class LessonWordOut(BaseModel):
     translation: str | None
     score: int
     is_learned: bool
+    # Classified via the SAME word_levels.ordered_enabled_levels/
+    # level_for_score_in helpers "Мои слова" already uses (see
+    # app/routers/learning.py) -- never a second scoring/classification
+    # path, just the same ladder applied to a Lesson word's own score.
+    word_level_id: int | None = None
+    word_level_name: str | None = None
 
 
 class LessonOut(BaseModel):

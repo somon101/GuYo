@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.models.exercise import ExerciseSettings
 from app.models.learning_settings import LearningSettings
+from app.models.lesson import Lesson
 from app.models.word import Word
 from app.models.word_progress import WordProgress
 from app.word_levels import top_level_threshold
@@ -74,6 +75,30 @@ def get_eligible_words(db: Session, user_id: int, dictionary_id: int, threshold:
         .subquery()
     )
     return db.query(Word).filter(Word.dictionary_id == dictionary_id, ~Word.id.in_(learned_ids)).all()
+
+
+def lesson_words_pending(db: Session, lesson: Lesson, threshold: int) -> list[Word]:
+    """This lesson's own words that HAVEN'T yet reached the threshold --
+    what every exercise type's build_round now draws its round from,
+    instead of the lesson's full original set. On a lesson's first pass
+    every word is still below threshold, so this is identical to the old
+    "all lesson words" behavior; it only starts excluding words once some
+    of them cross the threshold -- whether mid-sequence (an earlier
+    exercise type in this same pass already pushed a word over) or on a
+    later "Повторить урок" pass, so a repeat only ever re-tests the words
+    still short of their level, never words already secured. A word with
+    no WordProgress row at all counts as below threshold (score 0), same
+    convention as everywhere else scoring is read."""
+    word_ids = [lw.word_id for lw in lesson.words]
+    if not word_ids:
+        return []
+    learned_ids = {
+        row[0]
+        for row in db.query(WordProgress.word_id)
+        .filter(WordProgress.user_id == lesson.user_id, WordProgress.word_id.in_(word_ids), WordProgress.score >= threshold)
+        .all()
+    }
+    return [lw.word for lw in lesson.words if lw.word_id not in learned_ids]
 
 
 def get_learned_pool(db: Session, user_id: int, dictionary_id: int, threshold: int) -> list[Word]:

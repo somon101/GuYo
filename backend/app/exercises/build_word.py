@@ -10,7 +10,7 @@ import random
 from sqlalchemy.orm import Session
 
 from app.core.storage import url_for_key
-from app.exercises.common import get_exercise_settings_row
+from app.exercises.common import get_exercise_settings_row, lesson_words_pending
 from app.models.dictionary import Dictionary
 from app.models.lesson import Lesson
 from app.models.user import User
@@ -87,10 +87,10 @@ def is_available(db: Session, user: User, dictionary_id: int, lesson_word_ids: l
     return any(len(w.word) >= min_word_length for w in words)
 
 
-def build_round(db: Session, lesson: Lesson) -> BuildWordRoundOut:
+def build_round(db: Session, lesson: Lesson, threshold: int) -> BuildWordRoundOut:
     dictionary = db.get(Dictionary, lesson.dictionary_id)
     wrong_letter_count, min_word_length, case_sensitive = get_build_word_settings(db)
-    words = [lw.word for lw in lesson.words if len(lw.word.word) >= min_word_length]
+    words = [w for w in lesson_words_pending(db, lesson, threshold) if len(w.word) >= min_word_length]
     alphabet = dictionary.alphabet or "" if dictionary else ""
 
     items = [build_item(w, alphabet, wrong_letter_count) for w in words]

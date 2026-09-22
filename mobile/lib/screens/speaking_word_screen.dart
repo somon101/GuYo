@@ -3,7 +3,6 @@ import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../api/api_client.dart';
 import '../models/lesson.dart';
-import 'lesson_complete_screen.dart';
 
 enum _MicState { idle, recording, processing, result }
 
@@ -243,11 +242,9 @@ class _SpeakingWordScreenState extends State<SpeakingWordScreen> {
         total: round.items.length,
         lessonCompleted: _lessonCompleted,
         onPlayAgain: _load,
-        onBackToLesson: () => _lessonCompleted
-            ? Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => LessonCompleteScreen(lessonNumber: widget.lessonNumber)),
-              )
-            : Navigator.of(context).pop(),
+        // Always a plain pop back to the lesson-runner sequencer -- see
+        // matching_screen.dart's identical comment.
+        onBackToLesson: () => Navigator.of(context).pop(),
       );
     }
 

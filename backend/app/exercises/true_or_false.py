@@ -9,7 +9,7 @@ import random
 from sqlalchemy.orm import Session
 
 from app.core.storage import url_for_key
-from app.exercises.common import get_learned_pool
+from app.exercises.common import get_learned_pool, lesson_words_pending
 from app.models.lesson import Lesson
 from app.models.user import User
 from app.models.word import Word
@@ -25,7 +25,7 @@ def is_available(db: Session, user: User, dictionary_id: int, lesson_word_ids: l
 
 
 def build_round(db: Session, lesson: Lesson, threshold: int) -> TrueOrFalseRoundOut:
-    lesson_words = [lw.word for lw in lesson.words if lw.word.translations]
+    lesson_words = [w for w in lesson_words_pending(db, lesson, threshold) if w.translations]
     learned_pool = get_learned_pool(db, lesson.user_id, lesson.dictionary_id, threshold)
 
     def primary_text(word: Word) -> str:

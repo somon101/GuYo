@@ -1,26 +1,33 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
-import '../exercises/exercise_type.dart';
 import '../models/lesson.dart';
 import 'build_word_screen.dart';
+import 'lesson_results_screen.dart';
 import 'listen_word_screen.dart';
 import 'matching_screen.dart';
 import 'speaking_word_screen.dart';
 import 'true_or_false_screen.dart';
 
 /// One lesson's own screen: its fixed word set, each word's own cumulative
-/// score/learned status, and whichever exercises the backend decided are
-/// available for it. Reached by tapping a link in the "Уроки" chain
-/// (LessonsScreen) -- for the still-open lesson this is where the user
-/// actually plays exercises; for an already-completed one (see
-/// [Lesson.isCompleted]) it's a read-only look back at what was learned,
-/// no exercise buttons shown -- a finished lesson is history, not
-/// something to keep replaying.
+/// score/learned status, and one "Начать урок" button. Reached by tapping a
+/// link in the "Уроки" chain (LessonsScreen).
 ///
-/// Re-fetches every time an exercise screen pushed from here is popped back
-/// to it (see [_openExercise]) -- the score/learned state shown here must
-/// always reflect the backend's latest answer, never a stale copy from
-/// before the exercise ran.
+/// The user never picks which exercise to play: tapping "Начать урок" walks
+/// this lesson's own `exerciseKeys` (decided once at creation, unchanged)
+/// IN ORDER, pushing each exercise type's existing screen in turn -- an
+/// exercise whose round currently has nothing left to test (every one of
+/// its words already at the required level) is skipped automatically,
+/// never shown as an empty screen. Once every exercise type has been
+/// attempted (or skipped), [LessonResultsScreen] shows the real, dynamic
+/// outcome -- per-word progress/level, and whether the lesson is fully
+/// "Пройден" or needs another pass. A repeat pass runs the exact same
+/// sequence again; each exercise's own round (see backend/app/exercises/
+/// common.py's lesson_words_pending) already narrows itself to only the
+/// words still short of their level, so nothing already secured gets
+/// re-tested.
+///
+/// For an already-completed lesson this is a read-only look back at what
+/// was learned -- no "Начать урок" button, a finished lesson is history.
 class LessonDetailScreen extends StatefulWidget {
   final int lessonId;
   const LessonDetailScreen({super.key, required this.lessonId});
@@ -33,6 +40,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
   bool _isLoading = true;
   String? _loadError;
   Lesson? _lesson;
+  bool _isRunning = false;
 
   @override
   void initState() {
@@ -62,15 +70,37 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
     }
   }
 
-  Future<void> _openExercise(String exerciseKey) async {
-    final lesson = _lesson;
-    if (lesson == null) return;
-    final label = lessonExerciseTypes[exerciseKey]?.label ?? exerciseKey;
+  /// Whether exercise [key]'s round currently has anything left to test --
+  /// fetched fresh every time (never cached), since an earlier exercise
+  /// type in this same pass can push a word over its required level and
+  /// shrink what THIS exercise still needs to cover. Сопоставление alone
+  /// needs at least 2 remaining words to form a board at all (matching a
+  /// single leftover word against nothing isn't a real round); every other
+  /// type is meaningful with just 1.
+  Future<bool> _hasPendingWork(String key) async {
+    switch (key) {
+      case 'true_or_false':
+        return (await ApiClient.instance.fetchLessonTrueOrFalseRound(widget.lessonId)).items.isNotEmpty;
+      case 'matching':
+        return (await ApiClient.instance.fetchLessonMatchingWords(widget.lessonId)).length >= 2;
+      case 'build_word':
+        return (await ApiClient.instance.fetchLessonBuildWordRound(widget.lessonId)).items.isNotEmpty;
+      case 'speaking_word':
+        return (await ApiClient.instance.fetchLessonSpeakingWordRound(widget.lessonId)).items.isNotEmpty;
+      case 'listen_word':
+        return (await ApiClient.instance.fetchLessonListenWordRound(widget.lessonId)).items.isNotEmpty;
+      default:
+        return false;
+    }
+  }
+
+  Future<void> _pushExercise(String key, Lesson lesson) async {
+    final label = _exerciseLabels[key] ?? key;
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => Scaffold(
           appBar: AppBar(title: Text(label)),
-          body: switch (exerciseKey) {
+          body: switch (key) {
             'true_or_false' => TrueOrFalseScreen(lessonId: lesson.id, lessonNumber: lesson.number),
             'matching' => MatchingScreen(lessonId: lesson.id, lessonNumber: lesson.number),
             'build_word' => BuildWordScreen(lessonId: lesson.id, lessonNumber: lesson.number),
@@ -81,12 +111,56 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
         ),
       ),
     );
-    // Resolves whenever the pushed route leaves the stack for any reason --
-    // a plain pop back here after a round, or this whole screen's own
-    // route being removed together with it via the completion screen's
-    // popUntil(isFirst) -- either way, `mounted` below covers the case
-    // where this screen no longer exists to update.
-    await _load();
+  }
+
+  /// Walks `lesson.exerciseKeys` in the backend's own fixed order, skipping
+  /// any exercise with nothing pending, then shows the results screen. If
+  /// the user chooses "Повторить урок" there, this whole sequence just
+  /// runs again -- naturally covering only what's still short, since every
+  /// round is re-fetched fresh each time.
+  Future<void> _startLesson() async {
+    final lesson = _lesson;
+    if (lesson == null || _isRunning) return;
+    setState(() => _isRunning = true);
+    try {
+      for (final key in lesson.exerciseKeys) {
+        bool hasWork;
+        try {
+          hasWork = await _hasPendingWork(key);
+        } catch (_) {
+          // A single exercise's own availability check failing (a network
+          // blip) shouldn't derail the whole run -- try to still show it
+          // rather than silently skip a real round.
+          hasWork = true;
+        }
+        if (!hasWork) continue;
+        if (!mounted) return;
+        await _pushExercise(key, lesson);
+        if (!mounted) return;
+      }
+
+      if (!mounted) return;
+      final fresh = await ApiClient.instance.fetchLesson(widget.lessonId);
+      if (!mounted) return;
+      final repeat = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(builder: (_) => LessonResultsScreen(lesson: fresh)),
+      );
+      if (!mounted) return;
+      if (repeat == true) {
+        setState(() => _isRunning = false);
+        await _startLesson();
+        return;
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Не удалось продолжить урок, попробуйте ещё раз')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRunning = false);
+      await _load();
+    }
   }
 
   @override
@@ -157,7 +231,11 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
           ),
         ),
         const SizedBox(height: 20),
+        Text('Слова урока', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        for (final word in lesson.words) _LessonWordTile(word: word),
         if (!lesson.isCompleted) ...[
+          const SizedBox(height: 20),
           if (lesson.exerciseKeys.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
@@ -166,31 +244,35 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
                 style: TextStyle(color: Colors.black54),
               ),
             )
-          else ...[
-            const Text('Упражнения', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                for (final key in lesson.exerciseKeys)
-                  FilledButton.tonalIcon(
-                    onPressed: () => _openExercise(key),
-                    icon: Icon(lessonExerciseTypes[key]?.icon ?? Icons.school_outlined),
-                    label: Text(lessonExerciseTypes[key]?.label ?? key),
-                  ),
-              ],
+          else
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _isRunning ? null : _startLesson,
+                icon: _isRunning
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.play_arrow_rounded),
+                label: Text(_isRunning ? 'Загрузка…' : 'Начать урок'),
+                style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+              ),
             ),
-          ],
-          const SizedBox(height: 24),
         ],
-        const Text('Слова урока', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        for (final word in lesson.words) _LessonWordTile(word: word),
       ],
     );
   }
 }
+
+const Map<String, String> _exerciseLabels = {
+  'true_or_false': 'Правда или ложь',
+  'matching': 'Сопоставление',
+  'build_word': 'Собери слово',
+  'speaking_word': 'Произнеси слово',
+  'listen_word': 'Услышь слово',
+};
 
 class _LessonWordTile extends StatelessWidget {
   final LessonWord word;

@@ -13,7 +13,7 @@ import random
 from sqlalchemy.orm import Session
 
 from app.core.storage import url_for_key
-from app.exercises.common import get_exercise_settings_row
+from app.exercises.common import get_exercise_settings_row, lesson_words_pending
 from app.models.lesson import Lesson
 from app.models.user import User
 from app.models.word import Word
@@ -40,9 +40,14 @@ def is_available(db: Session, user: User, dictionary_id: int, lesson_word_ids: l
     return any(w.word_audio_key for w in words)
 
 
-def build_round(db: Session, lesson: Lesson) -> ListenWordRoundOut:
+def build_round(db: Session, lesson: Lesson, threshold: int) -> ListenWordRoundOut:
+    # The distractor pool stays the lesson's FULL word set (any lesson word
+    # makes a fine wrong-answer label, already-learned ones included) --
+    # only the words actually being TESTED (playable_words) are narrowed to
+    # what's still pending, so a repeat pass only quizzes the words that
+    # still need it.
     all_words = [lw.word for lw in lesson.words]
-    playable_words = [w for w in all_words if w.word_audio_key]
+    playable_words = [w for w in lesson_words_pending(db, lesson, threshold) if w.word_audio_key]
     option_count = get_option_count(db)
 
     items: list[ListenWordItemOut] = []

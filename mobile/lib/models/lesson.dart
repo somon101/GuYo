@@ -10,6 +10,11 @@ class LessonWord {
   final String? translation;
   final int score;
   final bool isLearned;
+  // Classified via the same WordLevel ladder "Мои слова" shows -- see
+  // GET /word-levels (ApiClient.fetchWordLevels), never a second scoring
+  // system.
+  final int? wordLevelId;
+  final String? wordLevelName;
 
   LessonWord({
     required this.wordId,
@@ -17,6 +22,8 @@ class LessonWord {
     required this.translation,
     required this.score,
     required this.isLearned,
+    this.wordLevelId,
+    this.wordLevelName,
   });
 
   factory LessonWord.fromJson(Map<String, dynamic> json) {
@@ -26,6 +33,8 @@ class LessonWord {
       translation: json['translation'] as String?,
       score: json['score'] as int,
       isLearned: json['is_learned'] as bool,
+      wordLevelId: json['word_level_id'] as int?,
+      wordLevelName: json['word_level_name'] as String?,
     );
   }
 }
