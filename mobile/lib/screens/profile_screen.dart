@@ -166,14 +166,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    final bytes = await picked.readAsBytes();
+    // Set BEFORE reading any bytes, not after -- readAsBytes() opens the
+    // picked content:// URI through the OS, which on a real device can
+    // take a real, visible moment (or throw, see below), and previously
+    // showed nothing at all -- no spinner, no feedback -- for however long
+    // that took, which is exactly what looked like a frozen white screen.
+    setState(() => _isUpdatingAvatar = true);
+    Uint8List bytes;
+    try {
+      bytes = await picked.readAsBytes();
+    } catch (e) {
+      // This was completely unguarded before: readAsBytes() can genuinely
+      // throw on Android (a revoked URI grant, the Activity having been
+      // recreated under memory pressure while the gallery was open) and
+      // nothing anywhere caught it, so the failure vanished into an
+      // unhandled Future error -- no snackbar, no state change, the exact
+      // "picks a photo, then nothing happens at all" this was chasing.
+      if (mounted) setState(() => _isUpdatingAvatar = false);
+      _showSnack('Не удалось прочитать фото: $e');
+      return;
+    }
     if (!mounted) return;
     // Optimistic preview -- set BEFORE the network call even starts, so
     // there is no window at all where the screen shows nothing new.
-    setState(() {
-      _pendingAvatarBytes = bytes;
-      _isUpdatingAvatar = true;
-    });
+    setState(() => _pendingAvatarBytes = bytes);
     try {
       final profile = await ApiClient.instance.uploadMyAvatar(bytes, picked.name, mimeType: picked.mimeType);
       if (!mounted) return;
@@ -308,6 +324,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 height: 96,
                                 fit: BoxFit.cover,
                                 gaplessPlayback: true,
+                                // Bounds the decode to roughly this circle's
+                                // own on-screen size -- without this, a
+                                // picked photo whose compression the OS
+                                // skipped (a real, observed case) gets
+                                // decoded at its full original resolution
+                                // just to draw a 96px circle, which is real
+                                // main-thread work that can visibly stall
+                                // the UI right when this preview first
+                                // appears.
+                                cacheWidth: (96 * MediaQuery.devicePixelRatioOf(context)).round(),
+                                cacheHeight: (96 * MediaQuery.devicePixelRatioOf(context)).round(),
                               ),
                             )
                           : UserAvatar(avatarUrl: profile.avatarUrl, login: profile.login, size: 96),
