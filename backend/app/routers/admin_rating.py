@@ -13,14 +13,24 @@ from app.core.deps import get_current_admin
 from app.core.storage import delete_by_key, save_upload, url_for_key
 from app.database import get_db
 from app.models.rating import Rank, Season, SeasonHistory
-from app.rating import assert_rank_range_free, end_season, get_active_season, get_rating_settings
+from app.models.user import User
+from app.rating import (
+    assert_rank_range_free,
+    end_season,
+    get_active_season,
+    get_or_create_user_rating,
+    get_rating_settings,
+    grant_rating_points,
+)
 from app.schemas.rating import (
+    GrantRatingPointsIn,
     RankOut,
     RatingSettingsIn,
     RatingSettingsOut,
     ReorderRanksIn,
     SeasonCreateIn,
     SeasonOut,
+    UserPointsOut,
 )
 
 router = APIRouter(prefix="/admin/rating", tags=["admin-rating"])
@@ -284,3 +294,26 @@ def end_season_endpoint(season_id: int, db: Session = Depends(get_db), _admin=De
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     db.refresh(season)
     return SeasonOut.model_validate(season, from_attributes=True)
+
+
+# --- Ручная корректировка очков ---------------------------------------------
+
+
+@router.post("/users/{user_id}/grant-points", response_model=UserPointsOut)
+def grant_points(user_id: int, payload: GrantRatingPointsIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    """Admin-only manual rating adjustment -- reuses grant_rating_points,
+    the SAME function Quest rewards already call, never a second way
+    points get added. Useful for correcting a mistake, running an event,
+    or (as originally added for) seeding realistic test accounts across
+    the rank ladder without having to play through hundreds of real
+    lessons. `points` is a delta, floored so a large negative adjustment
+    can never leave a user below 0."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    rating = get_or_create_user_rating(db, user.id)
+    grant_rating_points(db, user, payload.points)
+    rating.total_points = max(0, rating.total_points)
+    db.commit()
+    db.refresh(rating)
+    return UserPointsOut(user_id=user.id, total_points=rating.total_points)

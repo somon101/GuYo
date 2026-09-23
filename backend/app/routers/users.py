@@ -61,6 +61,26 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db), _admin: Admi
     return user
 
 
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(user_id: int, db: Session = Depends(get_db), _admin: Admin = Depends(get_current_admin)):
+    """Permanently removes a user and everything scoped to them -- every
+    other table's own user_id column is declared ondelete="CASCADE"
+    (UserRating, WordProgress, Lesson/LessonWord/LessonExercise,
+    UserAchievement, SeasonHistory, UserQuestWordDay, LearningSession, ...),
+    so this one delete is enough; nothing here re-implements that cleanup
+    by hand. Mainly for removing test/bot accounts (e.g. ones seeded to
+    exercise the rating ladder) without leaving orphaned rows anywhere --
+    a REAL user's own account is never deleted through any UI path today,
+    only this direct admin call."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    avatar_key = user.avatar_key
+    db.delete(user)
+    db.commit()
+    delete_by_key(avatar_key)
+
+
 def _profile_out(db: Session, user: User) -> UserProfileOut:
     return UserProfileOut(
         id=user.id,

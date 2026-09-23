@@ -148,3 +148,20 @@ class UserRatingOut(BaseModel):
     points_to_next_rank: int | None
     history: list[SeasonHistoryOut]
     points_per_learned_word: int
+
+
+class GrantRatingPointsIn(BaseModel):
+    # Signed -- a negative value withdraws points (still floored at 0 by
+    # grant_rating_points' own caller-independent behavior is NOT assumed
+    # here; see admin_rating.py's endpoint for the actual clamp), same
+    # "delta, not an absolute" shape grant_rating_points itself already
+    # takes everywhere else it's called (Quest rewards).
+    points: int
+
+
+class UserPointsOut(BaseModel):
+    """Just enough to confirm an admin rating adjustment landed -- not the
+    full UserRatingOut (no season/rank/history needed for this one call)."""
+
+    user_id: int
+    total_points: int
