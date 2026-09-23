@@ -34,18 +34,20 @@ class RankIcon extends StatelessWidget {
       // showing a brief empty circle first, same fix already applied to
       // UserAvatar.
       final cacheSize = (size * MediaQuery.devicePixelRatioOf(context)).round();
-      return ClipOval(
-        child: CachedNetworkImage(
-          imageUrl: ApiClient.instance.mediaUrl(url),
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          memCacheWidth: cacheSize,
-          memCacheHeight: cacheSize,
-          fadeInDuration: Duration.zero,
-          placeholder: (_, _) => _fallback(),
-          errorWidget: (_, _, _) => _fallback(),
-        ),
+      // contain, and deliberately NOT clipped to a circle: these are
+      // shield/medal artworks with their own transparent background and
+      // their own shape -- cropping them into a circle cut the crests,
+      // wings and laurels right off and made them look squashed.
+      return CachedNetworkImage(
+        imageUrl: ApiClient.instance.mediaUrl(url),
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        memCacheWidth: cacheSize,
+        memCacheHeight: cacheSize,
+        fadeInDuration: Duration.zero,
+        placeholder: (_, _) => _fallback(),
+        errorWidget: (_, _, _) => _fallback(),
       );
     }
     return _fallback();

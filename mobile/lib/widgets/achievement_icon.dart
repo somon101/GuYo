@@ -28,18 +28,19 @@ class AchievementIcon extends StatelessWidget {
     Widget child;
     if (url != null && url.isNotEmpty) {
       final cacheSize = (size * MediaQuery.devicePixelRatioOf(context)).round();
-      child = ClipOval(
-        child: CachedNetworkImage(
-          imageUrl: ApiClient.instance.mediaUrl(url),
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          memCacheWidth: cacheSize,
-          memCacheHeight: cacheSize,
-          fadeInDuration: Duration.zero,
-          placeholder: (_, _) => _fallbackIcon(color),
-          errorWidget: (_, _, _) => _fallbackIcon(color),
-        ),
+      // contain, and deliberately NOT clipped to a circle -- see RankIcon's
+      // own note: these badges have their own shape and transparent
+      // background, and a circular crop cut their edges off.
+      child = CachedNetworkImage(
+        imageUrl: ApiClient.instance.mediaUrl(url),
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        memCacheWidth: cacheSize,
+        memCacheHeight: cacheSize,
+        fadeInDuration: Duration.zero,
+        placeholder: (_, _) => _fallbackIcon(color),
+        errorWidget: (_, _, _) => _fallbackIcon(color),
       );
     } else {
       child = _fallbackIcon(color);
