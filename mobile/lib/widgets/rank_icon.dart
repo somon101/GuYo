@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/user_rating.dart';
@@ -25,13 +26,25 @@ class RankIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final url = rank?.iconUrl;
     if (url != null && url.isNotEmpty) {
+      // CachedNetworkImage persists the decoded file to disk the first time
+      // it loads, so the SAME rank icon (only 7 ranks exist, reused across
+      // every leaderboard row and every screen) renders instantly on every
+      // later view -- a cold app restart included -- instead of every row
+      // in a long leaderboard list re-fetching it over the network and
+      // showing a brief empty circle first, same fix already applied to
+      // UserAvatar.
+      final cacheSize = (size * MediaQuery.devicePixelRatioOf(context)).round();
       return ClipOval(
-        child: Image.network(
-          ApiClient.instance.mediaUrl(url),
+        child: CachedNetworkImage(
+          imageUrl: ApiClient.instance.mediaUrl(url),
           width: size,
           height: size,
           fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => _fallback(),
+          memCacheWidth: cacheSize,
+          memCacheHeight: cacheSize,
+          fadeInDuration: Duration.zero,
+          placeholder: (_, _) => _fallback(),
+          errorWidget: (_, _, _) => _fallback(),
         ),
       );
     }
