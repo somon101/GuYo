@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.achievements import CONDITION_TYPES, streak_days_count
+from app.achievements import CONDITION_TYPES, lessons_completed_count, streak_days_count, words_learned_count
 from app.core.deps import get_current_admin, get_current_user
 from app.core.security import hash_password
 from app.core.storage import delete_by_key, save_bytes, url_for_key
@@ -16,6 +16,7 @@ from app.rating import (
     get_or_create_user_rating,
     get_rating_settings,
     next_rank_for_points,
+    rank_position_for_user,
 )
 from app.schemas.achievement import UserAchievementOut
 from app.schemas.rating import SeasonHistoryOut, SeasonOut, UserRatingOut, rank_public_out
@@ -87,6 +88,8 @@ def _profile_out(db: Session, user: User) -> UserProfileOut:
         login=user.login,
         avatar_url=url_for_key(user.avatar_key),
         current_streak_days=streak_days_count(db, user),
+        lessons_completed=lessons_completed_count(db, user),
+        words_learned=words_learned_count(db, user),
     )
 
 
@@ -250,4 +253,5 @@ def get_my_rating(db: Session = Depends(get_db), user: User = Depends(get_curren
         points_to_next_rank=(next_rank.min_points - rating.total_points) if next_rank else None,
         history=history,
         points_per_learned_word=get_rating_settings(db).points_per_learned_word,
+        rank_position=rank_position_for_user(db, rank, rating) if rank else None,
     )

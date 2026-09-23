@@ -139,7 +139,14 @@ class UserRatingOut(BaseModel):
     award_word_points_if_new already grants on every newly-learned word
     (app/rating/service.py) -- included here so the "Квесты" screen's
     always-visible "изучение новых слов" system tile can show the real
-    configured reward without a second settings surface."""
+    configured reward without a second settings surface.
+
+    `rank_position` is this user's own real 1-based place among everyone
+    currently in the SAME rank (see app/rating/service.py's
+    rank_position_for_user) -- the same ordering the "Топ-100" own-rank
+    leaderboard itself uses, never capped at 100. None when the user has
+    no current rank at all (no ranks configured, or a gap in the ladder).
+    """
 
     total_points: int
     season: SeasonOut | None
@@ -148,6 +155,7 @@ class UserRatingOut(BaseModel):
     points_to_next_rank: int | None
     history: list[SeasonHistoryOut]
     points_per_learned_word: int
+    rank_position: int | None
 
 
 class GrantRatingPointsIn(BaseModel):

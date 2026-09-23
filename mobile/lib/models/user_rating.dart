@@ -136,6 +136,11 @@ class UserRating {
   /// слов" system tile, never a second, quest-specific setting.
   final int pointsPerLearnedWord;
 
+  /// This user's own real 1-based place among everyone currently in the
+  /// SAME rank -- the exact position the own-rank leaderboard would show
+  /// them at, never capped at its top-100. Null when they have no rank.
+  final int? rankPosition;
+
   UserRating({
     required this.totalPoints,
     required this.season,
@@ -144,6 +149,7 @@ class UserRating {
     required this.pointsToNextRank,
     required this.history,
     required this.pointsPerLearnedWord,
+    required this.rankPosition,
   });
 
   factory UserRating.fromJson(Map<String, dynamic> json) {
@@ -157,6 +163,7 @@ class UserRating {
           .map((e) => SeasonHistoryEntry.fromJson(e as Map<String, dynamic>))
           .toList(),
       pointsPerLearnedWord: json['points_per_learned_word'] as int,
+      rankPosition: json['rank_position'] as int?,
     );
   }
 }

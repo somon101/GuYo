@@ -156,7 +156,7 @@ void main() {
     await tester.tap(find.text('Уроки'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithIcon(TextButton, Icons.flag_outlined));
+    await tester.tap(find.text('Квесты'));
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
     expect(find.text('Квесты'), findsWidgets);

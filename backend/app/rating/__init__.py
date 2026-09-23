@@ -12,6 +12,7 @@ from app.rating.service import (
     leaderboard_global,
     next_rank_for_points,
     ordered_enabled_ranks,
+    rank_position_for_user,
     ranks_overlap,
 )
 
@@ -29,5 +30,6 @@ __all__ = [
     "leaderboard_global",
     "next_rank_for_points",
     "ordered_enabled_ranks",
+    "rank_position_for_user",
     "ranks_overlap",
 ]

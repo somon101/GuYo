@@ -47,7 +47,7 @@ void main() {
     await tester.tap(find.text('Уроки'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithIcon(TextButton, Icons.bookmark_outline));
+    await tester.tap(find.text('Мои слова'));
     await tester.pumpAndSettle();
     expect(find.text('Мои изученные слова'), findsOneWidget);
 

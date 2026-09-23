@@ -3,6 +3,7 @@ app/achievements/. Nothing here reads or writes Achievement/UserAchievement,
 and nothing in app/achievements/ reads or writes any model imported below.
 """
 
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -178,6 +179,24 @@ def leaderboard_for_rank(db: Session, rank: Rank, limit: int = LEADERBOARD_LIMIT
     if rank.max_points is not None:
         query = query.filter(UserRating.total_points <= rank.max_points)
     return query.order_by(UserRating.total_points.desc(), UserRating.user_id.asc()).limit(limit).all()
+
+
+def rank_position_for_user(db: Session, rank: Rank, rating: UserRating) -> int:
+    """This user's own 1-based place among everyone currently in the SAME
+    rank -- the real position, not capped at the leaderboard's top-100
+    (a user sitting 250th in their rank gets 250, not "off the board").
+    Ordered exactly like leaderboard_for_rank does (points desc, then
+    user_id asc as the tie-break), so the number shown on the Profile
+    screen always matches where that user actually appears on the
+    "Топ-100" board itself."""
+    query = db.query(func.count(UserRating.user_id)).filter(UserRating.total_points >= rank.min_points)
+    if rank.max_points is not None:
+        query = query.filter(UserRating.total_points <= rank.max_points)
+    ahead = query.filter(
+        (UserRating.total_points > rating.total_points)
+        | ((UserRating.total_points == rating.total_points) & (UserRating.user_id < rating.user_id))
+    ).scalar()
+    return (ahead or 0) + 1
 
 
 def leaderboard_global(db: Session, limit: int = LEADERBOARD_LIMIT) -> list[UserRating]:

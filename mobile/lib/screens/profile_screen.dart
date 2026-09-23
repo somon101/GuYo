@@ -8,34 +8,30 @@ import 'package:image_picker/image_picker.dart';
 import '../api/api_client.dart';
 import '../models/user_profile.dart';
 import '../models/user_rating.dart';
+import '../theme/app_colors.dart';
+import '../widgets/achievement_icon.dart';
 import '../widgets/rank_icon.dart';
 import '../widgets/user_avatar.dart';
+import 'achievements_screen.dart';
 import 'all_ranks_screen.dart';
 
-const List<String> _russianMonthsGenitive = [
-  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
-];
-
-/// "Получено 21 сентября 2026" -- from `earnedAt`, which the backend always
-/// sends as a server timestamp (see UserAchievement.earned_at), never the
-/// phone's own clock.
-String _formatEarnedDate(DateTime date) {
-  final local = date.toLocal();
-  return '${local.day} ${_russianMonthsGenitive[local.month - 1]} ${local.year}';
-}
-
 /// "Профиль": the user's own identity (avatar, login, their permanent
-/// user_id) plus their achievements -- both fetched from the backend, which
-/// is the sole source of truth for whether an achievement is earned (see
-/// backend/app/achievements/). This screen only renders what it's given
-/// and uploads/removes an avatar file; nothing about earning logic lives
-/// here.
+/// user_id), their three headline counters, their current rank, and a
+/// compact strip of achievements -- all fetched from the backend, which is
+/// the sole source of truth for every one of those numbers (see
+/// backend/app/achievements/ and backend/app/rating/). This screen only
+/// renders what it's given and uploads/removes an avatar file; nothing
+/// about earning or ranking logic lives here.
+///
+/// Its State is public so HomeScreen's own app bar can open this screen's
+/// settings sheet from the gear button it shows while this tab is active
+/// (see HomeScreen's `_profileKey`) -- the sheet itself, and everything it
+/// does, still belongs entirely to this screen.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  State<ProfileScreen> createState() => ProfileScreenState();
 }
 
 // Persisted locally purely so the unlock celebration is shown at most once
@@ -45,7 +41,7 @@ class ProfileScreen extends StatefulWidget {
 const _seenAchievementsKey = 'guyo_seen_achievement_ids';
 final _localStorage = FlutterSecureStorage();
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   String? _loadError;
   UserProfile? _profile;
@@ -252,18 +248,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
     messenger.showSnackBar(SnackBar(content: Text(text)));
   }
 
-  void _showAvatarOptions() {
+  /// The gear button's own sheet -- the ONLY way to change the avatar now
+  /// (tapping the photo itself no longer opens anything). More settings
+  /// will live here later; photo is simply all there is today.
+  void openSettings() {
     final hasAvatar = _profile?.avatarUrl != null;
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Настройки',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                ),
+              ),
+            ),
             ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Выбрать фотографию'),
+              leading: const Icon(Icons.photo_library_outlined, color: AppColors.primary),
+              title: const Text('Изменить фотографию'),
               onTap: () {
                 Navigator.of(sheetContext).pop();
                 _pickAndUploadAvatar();
@@ -281,6 +291,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _openAchievements() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => AchievementsScreen(achievements: _achievements)),
+    );
+  }
+
+  Future<void> _openRanks() async {
+    final rating = _rating;
+    if (rating == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => AllRanksScreen(rating: rating)),
     );
   }
 
@@ -315,135 +339,221 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     final profile = _profile!;
+    final rating = _rating;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       children: [
-        Center(
-          child: Column(
-            children: [
-              GestureDetector(
-                onTap: _isUpdatingAvatar ? null : _showAvatarOptions,
-                child: Stack(
-                  alignment: Alignment.bottomRight,
-                  children: [
-                    Opacity(
-                      opacity: _isUpdatingAvatar ? 0.5 : 1,
-                      child: _pendingAvatarBytes != null
-                          ? ClipOval(
-                              child: Image.memory(
-                                _pendingAvatarBytes!,
-                                width: 96,
-                                height: 96,
-                                fit: BoxFit.cover,
-                                gaplessPlayback: true,
-                                // Bounds the decode to roughly this circle's
-                                // own on-screen size -- without this, a
-                                // picked photo whose compression the OS
-                                // skipped (a real, observed case) gets
-                                // decoded at its full original resolution
-                                // just to draw a 96px circle, which is real
-                                // main-thread work that can visibly stall
-                                // the UI right when this preview first
-                                // appears.
-                                cacheWidth: (96 * MediaQuery.devicePixelRatioOf(context)).round(),
-                                cacheHeight: (96 * MediaQuery.devicePixelRatioOf(context)).round(),
-                              ),
-                            )
-                          : UserAvatar(avatarUrl: profile.avatarUrl, login: profile.login, size: 96),
-                    ),
-                    if (_isUpdatingAvatar)
-                      const Positioned.fill(child: Center(child: CircularProgressIndicator(strokeWidth: 2)))
-                    else
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Theme.of(context).colorScheme.primary,
-                          border: Border.all(color: Theme.of(context).colorScheme.surface, width: 2),
-                        ),
-                        child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(profile.login, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 4),
-              Text('ID: ${profile.id}', style: const TextStyle(fontSize: 13, color: Colors.black45)),
-              const SizedBox(height: 10),
-              _StreakBadge(days: profile.currentStreakDays),
-            ],
-          ),
+        _ProfileHeader(
+          profile: profile,
+          pendingAvatarBytes: _pendingAvatarBytes,
+          isUpdatingAvatar: _isUpdatingAvatar,
         ),
-        const SizedBox(height: 28),
-        if (_rating != null) _RatingSection(rating: _rating!),
-        const SizedBox(height: 28),
+        const SizedBox(height: 20),
         Row(
           children: [
-            const Text('Достижения', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-            const SizedBox(width: 8),
-            if (_achievements.isNotEmpty)
-              Text(
-                '${_achievements.where((a) => a.earned).length} / ${_achievements.length}',
-                style: const TextStyle(fontSize: 13, color: Colors.black45, fontWeight: FontWeight.w600),
+            Expanded(
+              child: _StatCard(
+                icon: Icons.local_fire_department_rounded,
+                iconColor: const Color(0xFFFF7A29),
+                iconBackground: const Color(0xFFFFF0E6),
+                label: 'Серий',
+                value: '${profile.currentStreakDays} ${_dayWord(profile.currentStreakDays)}',
               ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _StatCard(
+                icon: Icons.menu_book_rounded,
+                iconColor: AppColors.primary,
+                iconBackground: const Color(0xFFEDEEFC),
+                label: 'Уроки',
+                value: '${profile.lessonsCompleted}',
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _StatCard(
+                icon: Icons.star_rounded,
+                iconColor: AppColors.primary,
+                iconBackground: const Color(0xFFEDEEFC),
+                label: 'Слова',
+                value: '${profile.wordsLearned}',
+              ),
+            ),
           ],
         ),
-        const SizedBox(height: 12),
-        if (_achievements.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Text('Пока нет доступных достижений', style: TextStyle(color: Colors.black54)),
-          )
-        else
-          for (final achievement in _achievements) _AchievementTile(achievement: achievement),
+        const SizedBox(height: 16),
+        if (rating != null) _RankCard(rating: rating, onTap: _openRanks),
+        const SizedBox(height: 16),
+        _AchievementsCard(achievements: _achievements, onTap: _openAchievements),
       ],
     );
   }
 }
 
-/// "N дней подряд" -- `days` is computed entirely server-side
-/// (backend/app/achievements/conditions.py's streak_days_count, the SAME
-/// number the "Активность" achievement condition_type uses), reusing
-/// UserActivityDay as its one source of truth. Never a locally-tracked
-/// counter: a fresh login on another device shows this exact same value.
-class _StreakBadge extends StatelessWidget {
-  final int days;
-  const _StreakBadge({required this.days});
-
-  String _dayWord(int n) {
-    final mod100 = n % 100;
-    if (mod100 >= 11 && mod100 <= 14) return 'дней';
-    switch (n % 10) {
-      case 1:
-        return 'день';
-      case 2:
-      case 3:
-      case 4:
-        return 'дня';
-      default:
-        return 'дней';
-    }
+String _dayWord(int n) {
+  final mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 14) return 'дней';
+  switch (n % 10) {
+    case 1:
+      return 'день';
+    case 2:
+    case 3:
+    case 4:
+      return 'дня';
+    default:
+      return 'дней';
   }
+}
+
+/// Avatar + name + permanent id, with the decorative QR badge on the right.
+/// The avatar itself is NOT tappable any more -- changing the photo goes
+/// through the gear's settings sheet only (see ProfileScreenState.
+/// openSettings), which is why the old camera overlay is gone too.
+class _ProfileHeader extends StatelessWidget {
+  final UserProfile profile;
+  final Uint8List? pendingAvatarBytes;
+  final bool isUpdatingAvatar;
+
+  const _ProfileHeader({
+    required this.profile,
+    required this.pendingAvatarBytes,
+    required this.isUpdatingAvatar,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final active = days > 0;
-    final color = active ? Colors.orange.shade700 : Colors.black38;
+    const size = 88.0;
+    final cacheSize = (size * MediaQuery.devicePixelRatioOf(context)).round();
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(color: AppColors.primary.withValues(alpha: 0.12), blurRadius: 16, offset: const Offset(0, 4)),
+            ],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Opacity(
+                opacity: isUpdatingAvatar ? 0.5 : 1,
+                child: pendingAvatarBytes != null
+                    ? ClipOval(
+                        child: Image.memory(
+                          pendingAvatarBytes!,
+                          width: size,
+                          height: size,
+                          fit: BoxFit.cover,
+                          gaplessPlayback: true,
+                          // Bounds the decode to roughly this circle's own
+                          // on-screen size -- without it a picked photo
+                          // whose compression the OS skipped gets decoded
+                          // at full resolution just to draw this circle.
+                          cacheWidth: cacheSize,
+                          cacheHeight: cacheSize,
+                        ),
+                      )
+                    : UserAvatar(avatarUrl: profile.avatarUrl, login: profile.login, size: size),
+              ),
+              if (isUpdatingAvatar) const CircularProgressIndicator(strokeWidth: 2),
+            ],
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                profile.login,
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text('ID: ${profile.id}', style: const TextStyle(fontSize: 14, color: AppColors.secondaryText)),
+            ],
+          ),
+        ),
+        // Decorative only for now, by design -- there is no QR feature in
+        // the app yet, so this deliberately isn't tappable rather than
+        // offering a button that does nothing.
+        Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFEDEFF7)),
+          ),
+          child: const Icon(Icons.qr_code_rounded, color: AppColors.primary, size: 22),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBackground;
+  final String label;
+  final String value;
+
+  const _StatCard({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBackground,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
-        color: active ? Colors.orange.withValues(alpha: 0.1) : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFEDEFF7)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 12, offset: const Offset(0, 4)),
+        ],
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(active ? Icons.local_fire_department_rounded : Icons.local_fire_department_outlined, color: color, size: 16),
-          const SizedBox(width: 5),
-          Text(
-            active ? '$days ${_dayWord(days)} подряд' : 'Начните серию сегодня',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color),
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(color: iconBackground, shape: BoxShape.circle),
+            child: Icon(icon, color: iconColor, size: 17),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 11, color: AppColors.secondaryText, fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                ),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                    maxLines: 1,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -451,21 +561,20 @@ class _StreakBadge extends StatelessWidget {
   }
 }
 
-/// "Рейтинг" -- entirely separate from achievements below: its own
-/// backend system (see backend/app/rating/), its own visual block. Shows
-/// the current rank/points/progress-to-next-rank, and (compactly) past
-/// seasons' frozen results. Everything here is exactly what the backend
-/// sent; this widget never computes a rank or a progress fraction itself
-/// beyond simple arithmetic on numbers the backend already gave it.
-class _RatingSection extends StatelessWidget {
+/// The current rank, its real position within that same rank, the points,
+/// and the climb to the next one -- every number straight from
+/// GET /users/me/rating, none recomputed here. Tapping anywhere opens the
+/// full ladder ("Все уровни"), which the chevron stands for.
+class _RankCard extends StatelessWidget {
   final UserRating rating;
-  const _RatingSection({required this.rating});
+  final VoidCallback onTap;
+  const _RankCard({required this.rating, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final rank = rating.rank;
     final nextRank = rating.nextRank;
-    final color = rank != null ? parseHexColor(rank.color) : Colors.grey;
+    final color = rank != null ? parseHexColor(rank.color) : AppColors.primary;
 
     double? progress;
     if (rank != null && nextRank != null) {
@@ -475,242 +584,175 @@ class _RatingSection extends StatelessWidget {
       }
     }
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Text('Рейтинг', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-              const Spacer(),
-              if (rating.season != null)
-                Text(
-                  rating.season!.name,
-                  style: const TextStyle(fontSize: 12, color: Colors.black45, fontWeight: FontWeight.w600),
-                ),
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFEDEFF7)),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.035), blurRadius: 14, offset: const Offset(0, 5)),
             ],
           ),
-          const SizedBox(height: 14),
-          Row(
+          child: Column(
             children: [
-              RankIcon(rank: rank, color: color, size: 48),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      rank?.name ?? 'Без ранга',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: color),
+              Row(
+                children: [
+                  RankIcon(rank: rank, color: color, size: 64),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          rank?.name ?? 'Без ранга',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _positionLabel(rating),
+                          style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Icon(Icons.workspace_premium_rounded, size: 16, color: color),
+                            const SizedBox(width: 5),
+                            Text(
+                              '${rating.totalPoints} очков',
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text('${rating.totalPoints} очков', style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                  ),
+                  const Icon(Icons.chevron_right, color: Color(0xFFB9BEDA), size: 22),
+                ],
+              ),
+              if (progress != null && nextRank != null) ...[
+                const SizedBox(height: 14),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 7,
+                    backgroundColor: const Color(0xFFEDEFF7),
+                    valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Text(
+                      'До следующего уровня',
+                      style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${rating.totalPoints} / ${nextRank.minPoints}',
+                      style: const TextStyle(fontSize: 12, color: AppColors.secondaryText, fontWeight: FontWeight.w700),
+                    ),
                   ],
                 ),
-              ),
+              ],
             ],
           ),
-          if (progress != null && nextRank != null) ...[
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 6,
-                backgroundColor: Colors.grey.shade200,
-                valueColor: AlwaysStoppedAnimation(color),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'До «${nextRank.name}»: ${rating.pointsToNextRank} очков',
-              style: const TextStyle(fontSize: 11, color: Colors.black45),
-            ),
-          ],
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => AllRanksScreen(rating: rating)),
-              ),
-              icon: const Icon(Icons.military_tech_outlined, size: 18),
-              label: const Text('Все уровни'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: color,
-                side: BorderSide(color: color.withValues(alpha: 0.4)),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-              ),
-            ),
-          ),
-          if (rating.history.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Divider(height: 1, color: color.withValues(alpha: 0.15)),
-            const SizedBox(height: 10),
-            const Text(
-              'История сезонов',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.black45),
-            ),
-            const SizedBox(height: 6),
-            for (final entry in rating.history) _SeasonHistoryRow(entry: entry),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _SeasonHistoryRow extends StatelessWidget {
-  final SeasonHistoryEntry entry;
-  const _SeasonHistoryRow({required this.entry});
-
-  @override
-  Widget build(BuildContext context) {
-    final rank = entry.rank;
-    final color = rank != null ? parseHexColor(rank.color) : Colors.black45;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(entry.seasonName, style: const TextStyle(fontSize: 12, color: Colors.black87)),
-          ),
-          if (rank != null) ...[
-            Container(width: 6, height: 6, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
-            const SizedBox(width: 5),
-            Text(rank.name, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
-            const SizedBox(width: 8),
-          ],
-          Text('${entry.points}', style: const TextStyle(fontSize: 12, color: Colors.black45)),
-        ],
-      ),
-    );
-  }
-}
-
-class _AchievementTile extends StatelessWidget {
-  final UserAchievement achievement;
-  const _AchievementTile({required this.achievement});
-
-  @override
-  Widget build(BuildContext context) {
-    final earned = achievement.earned;
-    final locked = achievement.isLocked;
-    final color = parseHexColor(achievement.color);
-    final title = locked ? 'Скрытое достижение' : achievement.title!;
-    final description = locked ? 'Условие неизвестно' : achievement.description!;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: earned ? color.withValues(alpha: 0.08) : Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: earned ? color.withValues(alpha: 0.4) : Colors.grey.shade300),
-      ),
-      child: Row(
-        children: [
-          _AchievementIcon(achievement: achievement, dimmed: !earned, size: 44),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: earned ? Colors.black87 : Colors.black54,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(description, style: const TextStyle(fontSize: 13, color: Colors.black54)),
-                if (earned && achievement.earnedAt != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'Получено ${_formatEarnedDate(achievement.earnedAt!)}',
-                    style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
-                  ),
-                ],
-                if (!earned && !locked) ...[
-                  const SizedBox(height: 6),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: LinearProgressIndicator(
-                      value: achievement.conditionValue == 0
-                          ? 0
-                          : (achievement.currentValue! / achievement.conditionValue!).clamp(0.0, 1.0),
-                      minHeight: 5,
-                      backgroundColor: Colors.grey.shade200,
-                      valueColor: AlwaysStoppedAnimation(color),
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    '${achievement.currentValue} / ${achievement.conditionValue}',
-                    style: const TextStyle(fontSize: 11, color: Colors.black45),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          if (earned)
-            Icon(Icons.check_circle, color: color, size: 22)
-          else
-            Icon(Icons.lock_outline, color: Colors.grey.shade400, size: 20),
-        ],
-      ),
-    );
-  }
-}
-
-
-/// The achievement's own uploaded icon -- never a substitute/generic image
-/// -- shown at full brightness once earned, dimmed while locked/unearned
-/// (including the hidden "mystery" state, which still uses the admin's
-/// real icon, just darkened, per spec). Falls back to a generic badge only
-/// when no icon was ever uploaded (or it fails to load), tinted by the
-/// achievement's own color.
-class _AchievementIcon extends StatelessWidget {
-  final UserAchievement achievement;
-  final bool dimmed;
-  final double size;
-  const _AchievementIcon({required this.achievement, required this.dimmed, required this.size});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = parseHexColor(achievement.color);
-    final url = achievement.iconUrl;
-    Widget child;
-    if (url != null && url.isNotEmpty) {
-      child = ClipOval(
-        child: Image.network(
-          ApiClient.instance.mediaUrl(url),
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => _fallbackIcon(color),
         ),
-      );
-    } else {
-      child = _fallbackIcon(color);
-    }
-    return Opacity(opacity: dimmed ? 0.35 : 1, child: child);
+      ),
+    );
   }
 
-  Widget _fallbackIcon(Color color) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(shape: BoxShape.circle, color: color.withValues(alpha: 0.15)),
-      child: Icon(Icons.emoji_events_rounded, color: color, size: size * 0.55),
+  String _positionLabel(UserRating rating) {
+    final rank = rating.rank;
+    final position = rating.rankPosition;
+    if (rank == null) return 'Ранг пока не присвоен';
+    if (position == null) return rank.name;
+    return '$position место • ${rank.name}';
+  }
+}
+
+/// A compact strip of achievement icons plus the earned/total count --
+/// the full list lives on its own screen now (see AchievementsScreen),
+/// which the chevron and the count both lead to.
+class _AchievementsCard extends StatelessWidget {
+  final List<UserAchievement> achievements;
+  final VoidCallback onTap;
+  const _AchievementsCard({required this.achievements, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final earnedCount = achievements.where((a) => a.earned).length;
+    // Earned ones first so the strip always shows what the user actually
+    // has, even when the full list is long -- the rest keep the backend's
+    // own order behind them.
+    final ordered = [
+      ...achievements.where((a) => a.earned),
+      ...achievements.where((a) => !a.earned),
+    ];
+    final shown = ordered.take(6).toList();
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: achievements.isEmpty ? null : onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFEDEFF7)),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.035), blurRadius: 14, offset: const Offset(0, 5)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Text(
+                    'Достижения',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                  ),
+                  const Spacer(),
+                  if (achievements.isNotEmpty)
+                    Text(
+                      '$earnedCount / ${achievements.length}',
+                      style: const TextStyle(fontSize: 13, color: AppColors.secondaryText, fontWeight: FontWeight.w700),
+                    ),
+                  const SizedBox(width: 2),
+                  const Icon(Icons.chevron_right, color: Color(0xFFB9BEDA), size: 22),
+                ],
+              ),
+              if (achievements.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(top: 10),
+                  child: Text('Пока нет доступных достижений', style: TextStyle(color: AppColors.secondaryText)),
+                )
+              else ...[
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    for (final achievement in shown) ...[
+                      AchievementIcon(achievement: achievement, dimmed: !achievement.earned, size: 44),
+                      if (achievement != shown.last) const Spacer(),
+                    ],
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -744,19 +786,24 @@ class _AchievementUnlockedDialog extends StatelessWidget {
                   color: parseHexColor(achievement.color).withValues(alpha: 0.15),
                   boxShadow: [BoxShadow(color: parseHexColor(achievement.color).withValues(alpha: 0.5), blurRadius: 28, spreadRadius: 2)],
                 ),
-                child: _AchievementIcon(achievement: achievement, dimmed: false, size: 88),
+                child: AchievementIcon(achievement: achievement, dimmed: false, size: 88),
               ),
               const SizedBox(height: 18),
-              const Text('Достижение получено!', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.black45, letterSpacing: 0.5)),
+              const Text('Достижение получено!', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondaryText, letterSpacing: 0.5)),
               const SizedBox(height: 6),
-              Text(achievement.title!, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800), textAlign: TextAlign.center),
+              Text(achievement.title!, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark), textAlign: TextAlign.center),
               const SizedBox(height: 8),
-              Text(achievement.description!, style: const TextStyle(fontSize: 14, color: Colors.black54), textAlign: TextAlign.center),
+              Text(achievement.description!, style: const TextStyle(fontSize: 14, color: AppColors.secondaryText), textAlign: TextAlign.center),
               const SizedBox(height: 22),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: () => Navigator.of(context).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  ),
                   child: const Text('Отлично!'),
                 ),
               ),

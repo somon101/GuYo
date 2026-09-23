@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/lesson.dart';
+import '../theme/app_colors.dart';
 import 'build_word_screen.dart';
 import 'lesson_results_screen.dart';
 import 'listen_word_screen.dart';
@@ -30,7 +33,14 @@ import 'true_or_false_screen.dart';
 /// was learned -- no "Начать урок" button, a finished lesson is history.
 class LessonDetailScreen extends StatefulWidget {
   final int lessonId;
-  const LessonDetailScreen({super.key, required this.lessonId});
+  // Set only by the "Продолжить" button on the "Уроки" list's in-progress
+  // card: jumps straight into the exercise sequence the moment this
+  // screen's own first load finishes, instead of waiting for a tap on
+  // "Начать урок" -- the exact same _startLesson() flow either way, this
+  // just skips the one extra tap. Ignored for an already-completed lesson
+  // (nothing to start) or one with no available exercises.
+  final bool autoStart;
+  const LessonDetailScreen({super.key, required this.lessonId, this.autoStart = false});
 
   @override
   State<LessonDetailScreen> createState() => _LessonDetailScreenState();
@@ -41,6 +51,11 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
   String? _loadError;
   Lesson? _lesson;
   bool _isRunning = false;
+  // One-shot: _load() also runs again at the end of every _startLesson()
+  // pass (to refresh word/status state) and on pull-to-refresh -- without
+  // this guard, autoStart would re-trigger itself forever the moment its
+  // own run finishes.
+  bool _autoStartTriggered = false;
 
   @override
   void initState() {
@@ -61,6 +76,10 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
         _lesson = lesson;
         _isLoading = false;
       });
+      if (widget.autoStart && !_autoStartTriggered && !lesson.isCompleted && lesson.exerciseKeys.isNotEmpty) {
+        _autoStartTriggered = true;
+        unawaited(_startLesson());
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -197,6 +216,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
 
     final lesson = _lesson!;
     final learnedCount = lesson.words.where((w) => w.isLearned).length;
+    final tint = lesson.isCompleted ? AppColors.success : AppColors.primary;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -204,38 +224,53 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
         if (lesson.isCompleted)
           Container(
             margin: const EdgeInsets.only(bottom: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.green.shade300),
+              color: AppColors.successLight,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.success.withValues(alpha: 0.25)),
             ),
             child: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.green.shade600),
-                const SizedBox(width: 8),
-                const Text('Урок пройден', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
+                const Icon(Icons.check_circle, color: AppColors.success),
+                const SizedBox(width: 10),
+                const Text('Урок пройден', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
               ],
             ),
           ),
-        Text(
-          'Изучено $learnedCount из ${lesson.words.length}',
-          style: const TextStyle(color: Colors.black54, fontSize: 13),
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: LinearProgressIndicator(
-            value: lesson.words.isEmpty ? 0.0 : learnedCount / lesson.words.length,
-            minHeight: 8,
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: tint.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: tint.withValues(alpha: 0.2)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Изучено $learnedCount из ${lesson.words.length} слов',
+                style: const TextStyle(color: AppColors.secondaryText, fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: lesson.words.isEmpty ? 0.0 : learnedCount / lesson.words.length,
+                  minHeight: 8,
+                  backgroundColor: tint.withValues(alpha: 0.15),
+                  valueColor: AlwaysStoppedAnimation(tint),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 20),
-        Text('Слова урока', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
+        const Text('Слова урока', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 10),
         for (final word in lesson.words) _LessonWordTile(word: word),
         if (!lesson.isCompleted) ...[
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
           if (lesson.exerciseKeys.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
@@ -257,7 +292,11 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
                       )
                     : const Icon(Icons.play_arrow_rounded),
                 label: Text(_isRunning ? 'Загрузка…' : 'Начать урок'),
-                style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                ),
               ),
             ),
         ],
@@ -281,12 +320,15 @@ class _LessonWordTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       decoration: BoxDecoration(
-        color: word.isLearned ? Colors.green.shade50 : Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: word.isLearned ? Colors.green.shade300 : Colors.grey.shade300),
+        color: word.isLearned ? AppColors.successLight : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: word.isLearned ? AppColors.success.withValues(alpha: 0.25) : const Color(0xFFEDEFF7)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 3)),
+        ],
       ),
       child: Row(
         children: [
@@ -294,16 +336,20 @@ class _LessonWordTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(word.word, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                Text(word.word, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
                 if (word.translation != null && word.translation!.isNotEmpty)
-                  Text(word.translation!, style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                  Text(word.translation!, style: const TextStyle(fontSize: 14, color: AppColors.secondaryText)),
               ],
             ),
           ),
           if (word.isLearned)
-            Icon(Icons.check_circle, color: Colors.green.shade600, size: 20)
+            const Icon(Icons.check_circle, color: AppColors.success, size: 22)
           else
-            Text('${word.score}', style: const TextStyle(fontSize: 14, color: Colors.black54)),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(color: const Color(0xFFF2F3FA), borderRadius: BorderRadius.circular(20)),
+              child: Text('${word.score}', style: const TextStyle(fontSize: 13, color: AppColors.secondaryText, fontWeight: FontWeight.w600)),
+            ),
         ],
       ),
     );

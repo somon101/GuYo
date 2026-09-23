@@ -182,10 +182,9 @@ void main() {
     await _login(tester);
     await tester.tap(find.text('Профиль'));
     await tester.pumpAndSettle(const Duration(seconds: 2));
-    await tester.fling(find.byType(ListView), const Offset(0, -400), 1000);
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Все уровни'));
+    // The rank card itself is the way in now -- its chevron stands for
+    // what used to be a separate "Все уровни" button.
+    await tester.tap(find.text('РангСредний'));
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
     expect(find.text('Все уровни'), findsWidgets, reason: 'the AppBar title, at least');

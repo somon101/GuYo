@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/user_rating.dart';
+import '../theme/app_colors.dart';
 import '../widgets/rank_icon.dart';
 
 /// "Все уровни" -- the full rank ladder as one connected progress path,
@@ -80,7 +81,7 @@ class _AllRanksScreenState extends State<AllRanksScreen> {
       );
     }
     if (_ranks.isEmpty) {
-      return const Center(child: Text('Уровни ещё не настроены', style: TextStyle(color: Colors.black54)));
+      return const Center(child: Text('Уровни ещё не настроены', style: TextStyle(color: AppColors.secondaryText)));
     }
 
     final totalPoints = widget.rating.totalPoints;
@@ -92,25 +93,36 @@ class _AllRanksScreenState extends State<AllRanksScreen> {
     // "Рейтинг" block already renders that same edge case.
     final currentIndex = currentId == null ? -1 : _ranks.indexWhere((r) => r.id == currentId);
 
-    return ListView.builder(
+    final history = widget.rating.history;
+    return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-      itemCount: _ranks.length,
-      itemBuilder: (context, index) {
-        final rank = _ranks[index];
-        final status = index < currentIndex
-            ? _RankStatus.passed
-            : index == currentIndex
-                ? _RankStatus.current
-                : _RankStatus.future;
-        return _RankNode(
-          rank: rank,
-          status: status,
-          isFirst: index == 0,
-          isLast: index == _ranks.length - 1,
-          segmentToNextFilled: index < currentIndex,
-          totalPoints: totalPoints,
-        );
-      },
+      children: [
+        for (var index = 0; index < _ranks.length; index++)
+          _RankNode(
+            rank: _ranks[index],
+            status: index < currentIndex
+                ? _RankStatus.passed
+                : index == currentIndex
+                    ? _RankStatus.current
+                    : _RankStatus.future,
+            isFirst: index == 0,
+            isLast: index == _ranks.length - 1,
+            segmentToNextFilled: index < currentIndex,
+            totalPoints: totalPoints,
+          ),
+        // Past seasons live here rather than on the Profile screen: they're
+        // the same rating system's own history, and this is the screen that
+        // shows that system in full.
+        if (history.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          const Text(
+            'История сезонов',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+          ),
+          const SizedBox(height: 10),
+          for (final entry in history) _SeasonHistoryRow(entry: entry),
+        ],
+      ],
     );
   }
 }
@@ -144,7 +156,7 @@ class _RankNode extends StatelessWidget {
     final isCurrent = status == _RankStatus.current;
     final isPassed = status == _RankStatus.passed;
     final iconSize = isCurrent ? 72.0 : 56.0;
-    final connectorColor = isPassed ? color : Colors.grey.shade300;
+    final connectorColor = isPassed ? color : const Color(0xFFEDEFF7);
 
     return IntrinsicHeight(
       child: Row(
@@ -178,7 +190,7 @@ class _RankNode extends StatelessWidget {
                           child: Container(
                             padding: const EdgeInsets.all(2),
                             decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
-                            child: Icon(Icons.check_circle, color: Colors.green.shade600, size: 18),
+                            child: const Icon(Icons.check_circle, color: AppColors.success, size: 18),
                           ),
                         ),
                       if (status == _RankStatus.future)
@@ -187,7 +199,7 @@ class _RankNode extends StatelessWidget {
                           right: -2,
                           child: Container(
                             padding: const EdgeInsets.all(3),
-                            decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.grey.shade400),
+                            decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFB9BEDA)),
                             child: const Icon(Icons.lock, color: Colors.white, size: 12),
                           ),
                         ),
@@ -232,9 +244,9 @@ class _RankCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: isCurrent ? color.withValues(alpha: 0.08) : Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isCurrent ? color.withValues(alpha: 0.5) : Colors.grey.shade200, width: isCurrent ? 1.5 : 1),
+        color: isCurrent ? color.withValues(alpha: 0.08) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: isCurrent ? color.withValues(alpha: 0.5) : const Color(0xFFEDEFF7), width: isCurrent ? 1.5 : 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,7 +259,7 @@ class _RankCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: isCurrent ? 18 : 15,
                     fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w700,
-                    color: isFuture ? Colors.black45 : Colors.black87,
+                    color: isFuture ? AppColors.secondaryText : AppColors.primaryDark,
                   ),
                 ),
               ),
@@ -261,13 +273,13 @@ class _RankCard extends StatelessWidget {
                   ),
                 )
               else if (status == _RankStatus.passed)
-                Icon(Icons.check_circle, color: Colors.green.shade600, size: 18)
+                const Icon(Icons.check_circle, color: AppColors.success, size: 18)
               else
-                Icon(Icons.lock_outline, color: Colors.grey.shade400, size: 16),
+                const Icon(Icons.lock_outline, color: Color(0xFFB9BEDA), size: 16),
             ],
           ),
           const SizedBox(height: 3),
-          Text(_pointsRangeLabel(), style: const TextStyle(fontSize: 12, color: Colors.black45)),
+          Text(_pointsRangeLabel(), style: const TextStyle(fontSize: 12, color: AppColors.secondaryText)),
           if (isCurrent && rank.maxPoints != null) ...[
             const SizedBox(height: 10),
             ClipRRect(
@@ -275,22 +287,67 @@ class _RankCard extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: ((totalPoints - rank.minPoints) / (rank.maxPoints! + 1 - rank.minPoints)).clamp(0.0, 1.0),
                 minHeight: 6,
-                backgroundColor: Colors.grey.shade200,
+                backgroundColor: const Color(0xFFEDEFF7),
                 valueColor: AlwaysStoppedAnimation(color),
               ),
             ),
             const SizedBox(height: 4),
             Text(
               'Осталось ${rank.maxPoints! + 1 - totalPoints} очков до следующего уровня',
-              style: const TextStyle(fontSize: 11, color: Colors.black45),
+              style: const TextStyle(fontSize: 11, color: AppColors.secondaryText),
             ),
           ] else if (isFuture) ...[
             const SizedBox(height: 4),
             Text(
               'Нужно ещё ${rank.minPoints - totalPoints} очков',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: 11, color: AppColors.secondaryText, fontWeight: FontWeight.w600),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+
+/// One finished season's frozen result -- never recomputed from the user's
+/// CURRENT points (see the backend's SeasonHistory: that snapshot is fixed
+/// the moment a season ends).
+class _SeasonHistoryRow extends StatelessWidget {
+  final SeasonHistoryEntry entry;
+  const _SeasonHistoryRow({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    final rank = entry.rank;
+    final color = rank != null ? parseHexColor(rank.color) : AppColors.secondaryText;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEDEFF7)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              entry.seasonName,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (rank != null) ...[
+            Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
+            const SizedBox(width: 6),
+            Text(rank.name, style: TextStyle(fontSize: 13, color: color, fontWeight: FontWeight.w700)),
+            const SizedBox(width: 10),
+          ],
+          Text(
+            '${entry.points}',
+            style: const TextStyle(fontSize: 13, color: AppColors.secondaryText, fontWeight: FontWeight.w700),
+          ),
         ],
       ),
     );

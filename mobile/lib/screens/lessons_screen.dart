@@ -2,22 +2,23 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../models/lesson.dart';
+import '../theme/app_colors.dart';
 import 'learned_words_screen.dart';
 import 'lesson_create_screen.dart';
 import 'lesson_detail_screen.dart';
 import 'quests_screen.dart';
 
 /// "Уроки": the new primary progress system's own tab. Shows this
-/// dictionary's FULL, permanent lesson history as a sequential chain --
+/// dictionary's FULL, permanent lesson history as a flat list of cards --
 /// every lesson the user has ever created, each with its own real status
 /// (never a locally-invented one) -- rendered NEWEST first (highest
 /// number at the top): the backend's own list (GET .../lessons) stays
 /// oldest-first as its stable order, this screen just reverses it for
-/// display, with one extra unlocked link leading at the top for creating
+/// display, with one extra unlocked card leading at the top for creating
 /// the next lesson once the current last one is fully complete (or there
 /// isn't one yet). Lessons are never deleted or replaced (see the
-/// backend's Lesson model): completing one just reveals the next link in
-/// the chain, it never removes the one before it.
+/// backend's Lesson model): completing one just reveals the next card, it
+/// never removes the one before it.
 ///
 /// This screen owns none of the actual lesson mechanics -- word selection,
 /// exercises, scoring, the learning threshold -- all of that is unchanged
@@ -65,9 +66,9 @@ class _LessonsScreenState extends State<LessonsScreen> {
     }
   }
 
-  Future<void> _openLesson(int lessonId) async {
+  Future<void> _openLesson(int lessonId, {bool autoStart = false}) async {
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => LessonDetailScreen(lessonId: lessonId)),
+      MaterialPageRoute(builder: (_) => LessonDetailScreen(lessonId: lessonId, autoStart: autoStart)),
     );
     await _load();
   }
@@ -97,20 +98,13 @@ class _LessonsScreenState extends State<LessonsScreen> {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 12, 16, 0),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                TextButton.icon(
-                  onPressed: _openQuests,
-                  icon: const Icon(Icons.flag_outlined),
-                  label: const Text('Квесты'),
-                ),
-                TextButton.icon(
-                  onPressed: _openLearnedWords,
-                  icon: const Icon(Icons.bookmark_outline),
-                  label: const Text('Мои слова'),
-                ),
+                _TopPillButton(icon: Icons.menu_book_outlined, label: 'Мои слова', onTap: _openLearnedWords),
+                const SizedBox(width: 10),
+                _TopPillButton(icon: Icons.flag_outlined, label: 'Квесты', onTap: _openQuests),
               ],
             ),
           ),
@@ -147,9 +141,9 @@ class _LessonsScreenState extends State<LessonsScreen> {
     }
 
     final lessons = _lessons;
-    // A new link is only ever added once the current last lesson is fully
+    // A new card is only ever added once the current last lesson is fully
     // complete -- exactly the backend's own creation rule (POST /lessons
-    // 409s otherwise), mirrored here purely for what the chain displays.
+    // 409s otherwise), mirrored here purely for what the list displays.
     final canCreateNext = lessons.isEmpty || lessons.last.isCompleted;
     final nextNumber = lessons.isEmpty ? 1 : lessons.last.number + 1;
     final completedCount = lessons.where((l) => l.isCompleted).length;
@@ -160,204 +154,321 @@ class _LessonsScreenState extends State<LessonsScreen> {
     // counting down from the highest number, so "Урок 3, Урок 2, Урок 1"
     // reads top to bottom instead of the other way around.
     final reversedLessons = lessons.reversed.toList();
-    final nodeCount = reversedLessons.length + (canCreateNext ? 1 : 0);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
       children: [
-        Text(
+        const Text(
           'Уроки',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.primary),
+          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           lessons.isEmpty ? 'Создайте первый урок, чтобы начать' : 'Пройдено $completedCount из ${lessons.length}',
-          style: const TextStyle(color: Colors.black54, fontSize: 13),
+          style: const TextStyle(color: AppColors.secondaryText, fontSize: 14),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 22),
         if (canCreateNext)
-          _ChainNode(
-            isFirst: true,
-            isLast: nodeCount == 1,
-            state: _ChainNodeState.unlocked,
+          _LessonCard(
+            state: _LessonCardState.unlocked,
+            number: nextNumber,
             title: 'Урок $nextNumber',
             subtitle: lessons.isEmpty ? 'Создать урок' : 'Доступен для создания',
             progress: null,
             onTap: _createNextLesson,
           ),
-        for (var i = 0; i < reversedLessons.length; i++)
-          _ChainNode(
-            isFirst: !canCreateNext && i == 0,
-            isLast: i == reversedLessons.length - 1,
-            state: reversedLessons[i].isCompleted ? _ChainNodeState.completed : _ChainNodeState.inProgress,
-            title: 'Урок ${reversedLessons[i].number}',
-            subtitle: reversedLessons[i].isCompleted
-                ? 'Пройден'
-                : 'Изучено ${reversedLessons[i].learnedCount} из ${reversedLessons[i].wordCount}',
-            progress: reversedLessons[i].wordCount == 0 ? 0.0 : reversedLessons[i].learnedCount / reversedLessons[i].wordCount,
-            onTap: () => _openLesson(reversedLessons[i].id),
+        for (final lesson in reversedLessons)
+          _LessonCard(
+            state: lesson.isCompleted ? _LessonCardState.completed : _LessonCardState.inProgress,
+            number: lesson.number,
+            title: 'Урок ${lesson.number}',
+            subtitle: 'Изучено ${lesson.learnedCount} из ${lesson.wordCount} слов',
+            progress: lesson.wordCount == 0 ? 0.0 : lesson.learnedCount / lesson.wordCount,
+            onTap: () => _openLesson(lesson.id),
+            onContinue: lesson.isCompleted ? null : () => _openLesson(lesson.id, autoStart: true),
           ),
       ],
     );
   }
 }
 
-enum _ChainNodeState { completed, inProgress, unlocked }
+/// One of the two compact pill buttons at the top ("Мои слова"/"Квесты"):
+/// a small icon + label, very light fill, thin border, fully rounded --
+/// same actions LessonsScreen already had (open the learned-words list /
+/// the quests list), just restyled from a plain TextButton.
+class _TopPillButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _TopPillButton({required this.icon, required this.label, required this.onTap});
 
-/// One link of the vertical lesson chain: a status circle (with a subtle
-/// progress ring while in progress) connected by a line to its neighbors
-/// above/below, and a tappable, softly-shadowed, state-tinted card.
-/// Adapted from the general "sequential chain of steps, done vs. not-done
-/// look different" idea (not any particular reference design/colors/
-/// assets) to GuYo's own indigo/emerald Material style.
-class _ChainNode extends StatelessWidget {
-  final bool isFirst;
-  final bool isLast;
-  final _ChainNodeState state;
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(30),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(30),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: const Color(0xFFE3E6F5)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: AppColors.primary),
+              const SizedBox(width: 6),
+              Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primaryDark)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum _LessonCardState { completed, inProgress, unlocked }
+
+/// One lesson, as a flat, self-contained card -- no connecting line to its
+/// neighbors, clearly separated from the page background by its own
+/// surface/border/shadow. Colors follow AppColors: indigo/blue for the
+/// in-progress lesson (its badge, progress bar, and "Продолжить" button,
+/// which jumps straight into the exercise sequence -- see
+/// LessonDetailScreen's autoStart), soft green for a completed one, grey
+/// for the still-locked "create the next one" card.
+class _LessonCard extends StatelessWidget {
+  final _LessonCardState state;
+  final int number;
   final String title;
   final String subtitle;
   final double? progress;
   final VoidCallback onTap;
+  // Only set for an in-progress lesson -- jumps straight into the exercise
+  // sequence instead of opening the word-list screen first, same
+  // underlying flow as its own "Начать урок"/"Продолжить" button, just
+  // reachable without that extra tap.
+  final VoidCallback? onContinue;
 
-  const _ChainNode({
-    required this.isFirst,
-    required this.isLast,
+  const _LessonCard({
     required this.state,
+    required this.number,
     required this.title,
     required this.subtitle,
     required this.progress,
     required this.onTap,
+    this.onContinue,
   });
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final lineColor = Colors.grey.shade300;
-    final List<Color> gradientColors;
+    final bool isActive = state == _LessonCardState.inProgress;
+    final Color badgeColor;
     final Color tint;
-    final IconData icon;
     switch (state) {
-      case _ChainNodeState.completed:
-        gradientColors = [Colors.green.shade400, Colors.teal.shade600];
-        tint = Colors.green.shade600;
-        icon = Icons.check_rounded;
-      case _ChainNodeState.inProgress:
-        gradientColors = [scheme.primary, Colors.indigo.shade900];
-        tint = scheme.primary;
-        icon = Icons.menu_book_rounded;
-      case _ChainNodeState.unlocked:
-        gradientColors = [Colors.grey.shade400, Colors.grey.shade500];
+      case _LessonCardState.completed:
+        badgeColor = AppColors.success;
+        tint = AppColors.success;
+      case _LessonCardState.inProgress:
+        badgeColor = AppColors.primary;
+        tint = AppColors.primary;
+      case _LessonCardState.unlocked:
+        badgeColor = Colors.grey.shade400;
         tint = Colors.grey.shade500;
-        icon = Icons.add_rounded;
     }
 
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(
-            width: 44,
-            child: Column(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Material(
+        color: isActive ? AppColors.primary.withValues(alpha: 0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: isActive ? AppColors.primary.withValues(alpha: 0.22) : const Color(0xFFEDEFF7)),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.035), blurRadius: 14, offset: const Offset(0, 5)),
+              ],
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(width: 3, height: 14, color: isFirst ? Colors.transparent : lineColor),
-                SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: Stack(
-                    alignment: Alignment.center,
+                _LessonBadge(state: state, color: badgeColor, number: number),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (state == _ChainNodeState.inProgress && progress != null && progress! > 0)
-                        SizedBox(
-                          width: 44,
-                          height: 44,
-                          child: CircularProgressIndicator(
-                            value: progress,
-                            strokeWidth: 3,
-                            backgroundColor: scheme.primary.withValues(alpha: 0.15),
-                            valueColor: AlwaysStoppedAnimation(Colors.amber.shade600),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                            ),
                           ),
-                        ),
-                      Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            colors: gradientColors,
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          boxShadow: [
-                            BoxShadow(color: tint.withValues(alpha: 0.45), blurRadius: 10, offset: const Offset(0, 3)),
+                          if (state == _LessonCardState.completed)
+                            Container(
+                              width: 24,
+                              height: 24,
+                              decoration: const BoxDecoration(color: AppColors.successLight, shape: BoxShape.circle),
+                              child: Icon(Icons.check_rounded, color: AppColors.success, size: 15),
+                            )
+                          else if (state == _LessonCardState.unlocked)
+                            Icon(Icons.add_circle_outline, color: tint, size: 20)
+                          else
+                            const Icon(Icons.chevron_right, color: Color(0xFFB9BEDA), size: 20),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      if (state == _LessonCardState.completed)
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppColors.successLight,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Text(
+                                'Пройден',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.success),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${((progress ?? 1) * 100).round()}%',
+                              style: const TextStyle(fontSize: 13, color: AppColors.secondaryText, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        )
+                      else
+                        Text(subtitle, style: const TextStyle(fontSize: 13, color: AppColors.secondaryText)),
+                      if (isActive) ...[
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: LinearProgressIndicator(
+                                  value: progress ?? 0,
+                                  minHeight: 6,
+                                  backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                                  valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${(((progress ?? 0) * 100).round())}%',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                            ),
+                            if (onContinue != null) ...[
+                              const SizedBox(width: 10),
+                              _ContinueButton(onTap: onContinue!),
+                            ],
                           ],
                         ),
-                        child: Icon(icon, color: Colors.white, size: 19),
-                      ),
+                      ],
                     ],
                   ),
                 ),
-                Expanded(child: Container(width: 3, color: isLast ? Colors.transparent : lineColor)),
               ],
             ),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Material(
-                color: state == _ChainNodeState.unlocked ? Colors.grey.shade50 : tint.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(16),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: onTap,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: state == _ChainNodeState.unlocked
-                            ? Colors.grey.shade300
-                            : tint.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                title,
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.grey.shade900),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                subtitle,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: state == _ChainNodeState.completed
-                                      ? Colors.green.shade700
-                                      : state == _ChainNodeState.unlocked
-                                          ? Colors.black45
-                                          : Colors.black54,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(
-                          state == _ChainNodeState.unlocked ? Icons.add_circle_outline : Icons.chevron_right,
-                          color: state == _ChainNodeState.unlocked ? tint : Colors.black38,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The circular lesson-number badge: a solid colored circle, a very soft
+/// halo behind it, and -- only for the currently in-progress lesson -- a
+/// small, light checkmark marker floating at its top-right corner (purely
+/// this position's own visual marker, not a "completed" claim; a locked/
+/// unlocked or a truly completed badge never gets one, the completed
+/// state already has its own checkmark next to the title instead).
+class _LessonBadge extends StatelessWidget {
+  final _LessonCardState state;
+  final Color color;
+  final int number;
+  const _LessonBadge({required this.state, required this.color, required this.number});
+
+  @override
+  Widget build(BuildContext context) {
+    final size = state == _LessonCardState.inProgress ? 60.0 : 52.0;
+    return SizedBox(
+      width: size + 10,
+      height: size + 10,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            left: 5,
+            top: 5,
+            child: Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color,
+                boxShadow: [
+                  BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 16, spreadRadius: 1),
+                ],
               ),
+              alignment: Alignment.center,
+              child: state == _LessonCardState.unlocked
+                  ? const Icon(Icons.add_rounded, color: Colors.white, size: 24)
+                  : Text('$number', style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w800)),
             ),
           ),
+          if (state == _LessonCardState.inProgress)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: AppColors.successLight,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: const Icon(Icons.check_rounded, color: AppColors.success, size: 12),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+}
+
+class _ContinueButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _ContinueButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.primary,
+      borderRadius: BorderRadius.circular(30),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(30),
+        onTap: onTap,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          child: Text(
+            'Продолжить',
+            style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
+          ),
+        ),
       ),
     );
   }

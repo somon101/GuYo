@@ -150,8 +150,12 @@ void main() {
       // both correct, so this only checks the section is present at all.
       expect(find.text('Рейтинг'), findsWidgets);
       expect(find.text('ТестРанг'), findsOneWidget, reason: 'the only enabled rank should show as current');
-      expect(find.text(seasonName), findsOneWidget);
       expect(find.text('$pointsBefore очков'), findsOneWidget);
+      expect(
+        find.textContaining('место • ТестРанг'),
+        findsOneWidget,
+        reason: 'the rank card shows a real position inside the user own rank',
+      );
 
       // Learn the word through the REAL exercise/answers pipeline.
       final createLessonRes = await http.post(

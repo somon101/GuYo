@@ -10,12 +10,19 @@ class UserProfile {
   final String login;
   final String? avatarUrl;
   final int currentStreakDays;
+  // The same counters the "Уроки"/"Слова" achievement condition_types are
+  // measured against (app/achievements/conditions.py) -- never a second,
+  // profile-only way of counting either one.
+  final int lessonsCompleted;
+  final int wordsLearned;
 
   UserProfile({
     required this.id,
     required this.login,
     required this.avatarUrl,
     required this.currentStreakDays,
+    required this.lessonsCompleted,
+    required this.wordsLearned,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -24,6 +31,8 @@ class UserProfile {
       login: json['login'] as String,
       avatarUrl: json['avatar_url'] as String?,
       currentStreakDays: json['current_streak_days'] as int,
+      lessonsCompleted: json['lessons_completed'] as int,
+      wordsLearned: json['words_learned'] as int,
     );
   }
 }

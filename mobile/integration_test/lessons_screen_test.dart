@@ -249,7 +249,7 @@ void main() {
       expect(find.text('Доступен для создания'), findsOneWidget);
 
       // --- Мои слова: all 3 lesson words now show up there ---
-      await tester.tap(find.widgetWithIcon(TextButton, Icons.bookmark_outline));
+      await tester.tap(find.text('Мои слова'));
       await tester.pumpAndSettle();
       expect(find.text('Мои изученные слова'), findsOneWidget);
       expect(find.text('Без категории'), findsOneWidget);

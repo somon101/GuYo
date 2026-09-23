@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
+import '../theme/app_colors.dart';
 import 'lessons_screen.dart';
 import 'login_screen.dart';
 import 'main_menu_screen.dart';
@@ -52,6 +53,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<GuyoDictionary> _dictionaries = [];
   GuyoDictionary? _selectedDictionary;
   int _selectedTabIndex = 0;
+  // Lets the app bar's own settings gear (shown only while Профиль is
+  // the active tab) open that screen's settings sheet -- the sheet and
+  // everything in it still belong entirely to ProfileScreen.
+  final GlobalKey<ProfileScreenState> _profileKey = GlobalKey<ProfileScreenState>();
 
   @override
   void initState() {
@@ -235,17 +240,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // tabs; no ValueKey needed since nothing about either depends on
         // `selected`.
         const RatingScreen(),
-        const ProfileScreen(),
+        ProfileScreen(key: _profileKey),
       ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    // Профиль is the one tab that isn't dictionary-scoped at all, so the
+    // language switcher is meaningless there -- it shows its own settings
+    // gear instead (which opens ProfileScreen's own sheet, logout
+    // included), matching that screen's design.
+    final isProfileTab = _selectedTabIndex == 4;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('GuYo'),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        title: const _GuyoWordmark(),
         actions: [
+          if (isProfileTab)
+            IconButton(
+              tooltip: 'Настройки',
+              icon: const Icon(Icons.settings_outlined, color: AppColors.primary),
+              onPressed: () => _profileKey.currentState?.openSettings(),
+            )
+          else ...[
           Builder(
             builder: (context) {
               final options = _languageOptions(_dictionaries);
@@ -297,19 +316,70 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               PopupMenuItem(value: 'logout', child: Text('Выйти')),
             ],
           ),
+          ],
         ],
       ),
       body: _buildBody(),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedTabIndex,
-        onDestinationSelected: (index) => setState(() => _selectedTabIndex = index),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Главная'),
-          NavigationDestination(icon: Icon(Icons.auto_stories_outlined), label: 'Уроки'),
-          NavigationDestination(icon: Icon(Icons.fitness_center_outlined), label: 'Практика'),
-          NavigationDestination(icon: Icon(Icons.leaderboard_outlined), label: 'Рейтинг'),
-          NavigationDestination(icon: Icon(Icons.person_outline), label: 'Профиль'),
-        ],
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          height: 64,
+          backgroundColor: Colors.white,
+          indicatorColor: AppColors.primary.withValues(alpha: 0.12),
+          indicatorShape: const StadiumBorder(),
+          labelTextStyle: WidgetStateProperty.resolveWith(
+            (states) => TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: states.contains(WidgetState.selected) ? AppColors.primary : AppColors.secondaryText,
+            ),
+          ),
+          iconTheme: WidgetStateProperty.resolveWith(
+            (states) => IconThemeData(
+              size: 22,
+              color: states.contains(WidgetState.selected) ? AppColors.primary : AppColors.secondaryText,
+            ),
+          ),
+        ),
+        child: NavigationBar(
+          selectedIndex: _selectedTabIndex,
+          onDestinationSelected: (index) => setState(() => _selectedTabIndex = index),
+          destinations: const [
+            NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Главная'),
+            NavigationDestination(icon: Icon(Icons.auto_stories_outlined), label: 'Уроки'),
+            NavigationDestination(icon: Icon(Icons.fitness_center_outlined), label: 'Практика'),
+            NavigationDestination(icon: Icon(Icons.leaderboard_outlined), label: 'Рейтинг'),
+            NavigationDestination(icon: Icon(Icons.person_outline), label: 'Профиль'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The "GuYo" wordmark: the same text as before, just painted with the
+/// brand's own indigo-to-violet gradient instead of a flat color, so the
+/// app bar reads as a logo rather than a plain title. Shown on every tab.
+class _GuyoWordmark extends StatelessWidget {
+  const _GuyoWordmark();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShaderMask(
+      shaderCallback: (bounds) => const LinearGradient(
+        colors: [AppColors.primary, Color(0xFF8B5CF6)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ).createShader(bounds),
+      child: const Text(
+        'GuYo',
+        style: TextStyle(
+          fontSize: 26,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -0.5,
+          // Painted over by the shader above -- must stay opaque white for
+          // the gradient to show through at full strength.
+          color: Colors.white,
+        ),
       ),
     );
   }

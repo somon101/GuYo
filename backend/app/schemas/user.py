@@ -25,13 +25,16 @@ class UserProfileOut(BaseModel):
     in Postgres, never on the device, so a login from a different phone
     sees the exact same values.
 
-    `current_streak_days` reuses app/achievements/conditions.py's own
-    streak_days_count -- the SAME number the "Активность" achievement
-    condition_type is evaluated against -- never a second definition of
-    "streak", and shown here even when no admin has configured any
-    streak-based achievement at all."""
+    `current_streak_days`, `lessons_completed` and `words_learned` all
+    reuse app/achievements/conditions.py's own counters -- the SAME numbers
+    the "Активность"/"Уроки"/"Слова" achievement condition_types are
+    evaluated against -- never a second definition of any of them, and
+    shown here even when no admin has configured a matching achievement at
+    all."""
 
     id: int
     login: str
     avatar_url: str | None
     current_streak_days: int
+    lessons_completed: int
+    words_learned: int

@@ -67,7 +67,7 @@ void main() {
     await tester.tap(find.text('Профиль'));
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
-    expect(find.textContaining('подряд'), findsOneWidget, reason: 'the streak badge renders with a real count');
+    expect(find.text('Серий'), findsOneWidget, reason: 'the streak stat card renders');
     expect(find.textContaining('$streakDays'), findsWidgets, reason: 'shows the exact backend-computed number');
 
     // Re-fetch straight from the backend to confirm avatar_url/streak

@@ -336,7 +336,7 @@ class _OptionTile extends StatelessWidget {
               Expanded(
                 child: Text(option.word, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: textColor)),
               ),
-              if (trailing != null) trailing,
+              ?trailing,
             ],
           ),
         ),
