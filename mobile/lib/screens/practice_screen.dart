@@ -1,151 +1,67 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
-import '../exercises/exercise_type.dart';
+import '../exercises/practice_catalog.dart';
 import '../models/dictionary.dart';
-import 'build_phrase_by_ear_screen.dart';
-import 'build_phrase_screen.dart';
-
-/// One practice exercise type's entry in the "Практика" list -- adding a
-/// future exercise (e.g. a word-based drill) is just one more entry here,
-/// nothing about this screen or its layout is tied to "Собери фразу"
-/// specifically.
-class _PracticeExerciseDef {
-  final String title;
-  final String description;
-  final IconData icon;
-  final WidgetBuilder builder;
-
-  const _PracticeExerciseDef({
-    required this.title,
-    required this.description,
-    required this.icon,
-    required this.builder,
-  });
-}
+import '../theme/app_colors.dart';
+import '../widgets/exercise_tile.dart';
 
 /// "Практика": self-directed training outside the Уроки sequence, entirely
-/// independent of lesson order/completion. Every exercise listed here
-/// draws its words/phrases from "Мои слова" (already-learned words) --
-/// never from words the user hasn't learned yet -- via the same backend
-/// data "Мои слова"/"Мои фразы" already use.
+/// independent of lesson order/completion. Every exercise shown here draws
+/// its words/phrases from "Мои слова" (already-learned words) -- never
+/// from words the user hasn't learned yet -- via the same backend data
+/// "Мои слова"/"Мои фразы" already use.
+///
+/// The screen itself knows nothing about which exercises exist: it renders
+/// whatever exercises/practice_catalog.dart lists, as a grid of the shared
+/// [ExerciseTile]. Adding a practice type is one entry in that catalog,
+/// with nothing to change here.
 class PracticeScreen extends StatelessWidget {
   final GuyoDictionary dictionary;
   const PracticeScreen({super.key, required this.dictionary});
 
-  List<_PracticeExerciseDef> get _exercises => [
-        _PracticeExerciseDef(
-          title: buildPhraseExerciseType.label,
-          description: 'Восстановите пропущенное слово по переводу',
-          icon: buildPhraseExerciseType.icon,
-          builder: (_) => BuildPhraseScreen(dictionary: dictionary),
-        ),
-        _PracticeExerciseDef(
-          title: buildPhraseByEarExerciseType.label,
-          description: 'Прослушайте фразу и соберите её из слов',
-          icon: buildPhraseByEarExerciseType.icon,
-          builder: (_) => BuildPhraseByEarScreen(dictionary: dictionary),
-        ),
-      ];
-
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.indigo.shade50, Colors.white],
-              ),
+    final exercises = practiceExercises(dictionary);
+
+    return Container(
+      color: AppColors.canvas,
+      child: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+          children: [
+            const Text(
+              'Практика',
+              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
             ),
-          ),
-        ),
-        SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-            children: [
-              Text(
-                'Практика',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.indigo.shade700),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Тренируйтесь самостоятельно, вне уроков',
-                style: TextStyle(color: Colors.black54, fontSize: 13),
-              ),
-              const SizedBox(height: 20),
-              for (final exercise in _exercises) ...[
-                _PracticeCard(exercise: exercise),
-                const SizedBox(height: 12),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PracticeCard extends StatelessWidget {
-  final _PracticeExerciseDef exercise;
-  const _PracticeCard({required this.exercise});
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        child: Material(
-          color: Colors.white.withValues(alpha: 0.7),
-          child: InkWell(
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: exercise.builder)),
-            child: Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.9), width: 1.2),
-                boxShadow: [
-                  BoxShadow(color: Colors.indigo.withValues(alpha: 0.08), blurRadius: 18, offset: const Offset(0, 8)),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [Colors.indigo.shade400, Colors.indigo.shade700],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+            const SizedBox(height: 2),
+            const Text(
+              'Тренируйтесь самостоятельно, вне уроков',
+              style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+            ),
+            const SizedBox(height: 18),
+            if (exercises.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Text(
+                  'Упражнений пока нет',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.secondaryText),
+                ),
+              )
+            else
+              ExerciseGrid(
+                tiles: [
+                  for (final exercise in exercises)
+                    ExerciseTile(
+                      icon: exercise.type.icon,
+                      title: exercise.type.label,
+                      description: exercise.description,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: exercise.builder),
                       ),
                     ),
-                    child: Icon(exercise.icon, color: Colors.white, size: 24),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(exercise.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 2),
-                        Text(
-                          exercise.description,
-                          style: const TextStyle(fontSize: 13, color: Colors.black54),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right, color: Colors.black38),
                 ],
               ),
-            ),
-          ),
+          ],
         ),
       ),
     );
