@@ -345,13 +345,22 @@ void main() {
       expect(find.text('Урок 2'), findsOneWidget);
       expect(find.text('Доступен для создания'), findsOneWidget);
 
-      // --- Мои слова: all 3 lesson words now show up there ---
+      // --- Мои слова: all 3 lesson words now show up there. Reached from
+      // Профиль, which is where the user's own vocabulary lives now. ---
+      await tester.tap(find.text('Профиль'));
+      await tester.pumpAndSettle(const Duration(seconds: 2));
       await tester.tap(find.text('Мои слова'));
-      await tester.pumpAndSettle();
+      await tester.pumpAndSettle(const Duration(seconds: 2));
       expect(find.text('Мои слова'), findsOneWidget);
       expect(find.text('Без категории'), findsOneWidget);
       expect(find.text('3 слова'), findsOneWidget);
       await tester.pageBack();
+      await tester.pumpAndSettle();
+      // Scoped to the bottom bar: Профиль also has an "Уроки" counter
+      // card, so a bare text finder would match two widgets here.
+      await tester.tap(
+        find.descendant(of: find.byType(NavigationBar), matching: find.text('Уроки')),
+      );
       await tester.pumpAndSettle();
     },
   );

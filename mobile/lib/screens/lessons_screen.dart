@@ -3,7 +3,6 @@ import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../models/lesson.dart';
 import '../theme/app_colors.dart';
-import 'learned_words_screen.dart';
 import 'lesson_create_screen.dart';
 import 'lesson_detail_screen.dart';
 
@@ -79,34 +78,14 @@ class _LessonsScreenState extends State<LessonsScreen> {
     await _load();
   }
 
-  Future<void> _openLearnedWords() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => LearnedWordsScreen(dictionary: widget.dictionary)),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    // Nothing above the chain any more: "Квесты" moved to Главная (a
+    // season-wide system was never part of the lesson chain) and "Мои
+    // слова" moved to Профиль (the user's own vocabulary belongs with the
+    // rest of what they have earned, not inside one lesson list).
     return SafeArea(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                // "Квесты" is gone from here on purpose: quests are a
-                // season-wide system, not part of the lesson chain, and
-                // now live in their own block on Главная.
-                _TopPillButton(icon: Icons.menu_book_outlined, label: 'Мои слова', onTap: _openLearnedWords),
-              ],
-            ),
-          ),
-          Expanded(
-            child: RefreshIndicator(onRefresh: _load, child: _buildBody()),
-          ),
-        ],
-      ),
+      child: RefreshIndicator(onRefresh: _load, child: _buildBody()),
     );
   }
 
@@ -182,44 +161,6 @@ class _LessonsScreenState extends State<LessonsScreen> {
             onContinue: lesson.isCompleted ? null : () => _openLesson(lesson.id, autoStart: true),
           ),
       ],
-    );
-  }
-}
-
-/// One of the two compact pill buttons at the top ("Мои слова"/"Квесты"):
-/// a small icon + label, very light fill, thin border, fully rounded --
-/// same actions LessonsScreen already had (open the learned-words list /
-/// the quests list), just restyled from a plain TextButton.
-class _TopPillButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _TopPillButton({required this.icon, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(30),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(30),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: const Color(0xFFE3E6F5)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: AppColors.primary),
-              const SizedBox(width: 6),
-              Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primaryDark)),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

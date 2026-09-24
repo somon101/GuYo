@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import '../api/api_client.dart';
+import '../models/dictionary.dart';
 import '../models/user_profile.dart';
 import '../models/user_rating.dart';
 import '../theme/app_colors.dart';
@@ -14,6 +15,7 @@ import '../widgets/rank_icon.dart';
 import '../widgets/user_avatar.dart';
 import 'achievements_screen.dart';
 import 'all_ranks_screen.dart';
+import 'learned_words_screen.dart';
 
 /// "Профиль": the user's own identity (avatar, login, their permanent
 /// user_id), their three headline counters, their current rank, and a
@@ -28,7 +30,12 @@ import 'all_ranks_screen.dart';
 /// (see HomeScreen's `_profileKey`) -- the sheet itself, and everything it
 /// does, still belongs entirely to this screen.
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  /// Only used to open "Мои слова", which IS language-scoped. The profile
+  /// itself still is not: nothing else here changes with the selected
+  /// language, and this tab is deliberately not rebuilt when it changes.
+  final GuyoDictionary dictionary;
+
+  const ProfileScreen({super.key, required this.dictionary});
 
   @override
   State<ProfileScreen> createState() => ProfileScreenState();
@@ -294,6 +301,15 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// Opens the app's existing "Мои слова" screen -- the same one, with all
+  /// of its own search, filters and categories. This is a way in, not a
+  /// second copy of it.
+  Future<void> _openLearnedWords() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => LearnedWordsScreen(dictionary: widget.dictionary)),
+    );
+  }
+
   Future<void> _openAchievements() async {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => AchievementsScreen(achievements: _achievements)),
@@ -376,8 +392,11 @@ class ProfileScreenState extends State<ProfileScreen> {
                 icon: Icons.star_rounded,
                 iconColor: AppColors.primary,
                 iconBackground: const Color(0xFFEDEEFC),
-                label: 'Слова',
+                label: 'Мои слова',
                 value: '${profile.wordsLearned}',
+                // Still the same counter it always was -- it just leads
+                // somewhere now.
+                onTap: _openLearnedWords,
               ),
             ),
           ],
@@ -503,20 +522,36 @@ class _StatCard extends StatelessWidget {
   final String label;
   final String value;
 
+  /// Set only on a card that leads somewhere; the plain counters stay
+  /// plain counters.
+  final VoidCallback? onTap;
+
   const _StatCard({
     required this.icon,
     required this.iconColor,
     required this.iconBackground,
     required this.label,
     required this.value,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: _content(),
+      ),
+    );
+  }
+
+  Widget _content() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFEDEFF7)),
         boxShadow: [
@@ -538,10 +573,17 @@ class _StatCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  label,
-                  style: const TextStyle(fontSize: 11, color: AppColors.secondaryText, fontWeight: FontWeight.w600),
-                  maxLines: 1,
+                // Scaled down rather than clipped: three of these share
+                // one row, so a longer label must shrink to fit instead of
+                // losing its last letters.
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    label,
+                    style: const TextStyle(fontSize: 11, color: AppColors.secondaryText, fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                  ),
                 ),
                 FittedBox(
                   fit: BoxFit.scaleDown,

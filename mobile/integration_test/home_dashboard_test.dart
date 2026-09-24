@@ -26,6 +26,7 @@ import 'package:integration_test/integration_test.dart';
 
 import 'package:guyo_app/config.dart';
 import 'package:guyo_app/main.dart';
+import 'package:guyo_app/screens/learned_words_screen.dart';
 import 'package:guyo_app/widgets/quest_ui.dart';
 import 'package:guyo_app/widgets/user_avatar.dart';
 
@@ -179,7 +180,7 @@ void main() {
     }
   });
 
-  testWidgets('"Словарь" is gone from Главная, and "Квесты" is gone from Уроки', (tester) async {
+  testWidgets('the lesson chain carries nothing but lessons', (tester) async {
     await _login(tester);
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
@@ -187,11 +188,29 @@ void main() {
 
     await tester.tap(find.text('Уроки'));
     await tester.pumpAndSettle(const Duration(seconds: 2));
-    expect(find.text('Мои слова'), findsOneWidget, reason: '"Мои слова" stays on Уроки');
     expect(
       find.text('Квесты'),
       findsNothing,
-      reason: 'quests are a season-wide system now and live on Главная, not inside Уроки',
+      reason: 'quests are a season-wide system and live on Главная, not inside Уроки',
+    );
+    expect(
+      find.text('Мои слова'),
+      findsNothing,
+      reason: "the user's own vocabulary lives on Профиль, not above the lesson chain",
+    );
+
+    // ...and it is reachable there, opening the app's existing screen.
+    await tester.tap(find.text('Профиль'));
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+    expect(find.text('Мои слова'), findsOneWidget, reason: 'the words card replaced the plain "Слова" counter');
+    expect(find.text('Слова'), findsNothing);
+
+    await tester.tap(find.text('Мои слова'));
+    await tester.pumpAndSettle(const Duration(seconds: 3));
+    expect(
+      find.byType(LearnedWordsScreen),
+      findsOneWidget,
+      reason: 'the SAME screen as before, not a new one',
     );
   });
 }

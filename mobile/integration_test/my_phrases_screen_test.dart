@@ -1,5 +1,5 @@
 // Covers "Мои фразы" end to end against the real backend/UI wiring:
-//   - reachable from "Мои слова" (which is itself reached from "Уроки");
+//   - reachable from "Мои слова" (which is itself reached from "Профиль");
 //   - a phrase whose every word is already learned by the user shows up,
 //     with its translation.
 //
@@ -44,8 +44,9 @@ void main() {
   testWidgets('a phrase with every word learned appears under Мои фразы, with its translation', (tester) async {
     await _login(tester);
 
-    await tester.tap(find.text('Уроки'));
-    await tester.pumpAndSettle();
+    // "Мои слова" lives on Профиль now, not above the lesson chain.
+    await tester.tap(find.text('Профиль'));
+    await tester.pumpAndSettle(const Duration(seconds: 2));
 
     await tester.tap(find.text('Мои слова'));
     await tester.pumpAndSettle();

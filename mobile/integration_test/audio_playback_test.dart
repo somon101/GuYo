@@ -151,8 +151,9 @@ void main() {
 
       // --- Мои слова: the imported word is listed on the shared word
       // card, which plays its own recording... ---
-      await tester.tap(find.text('Уроки'));
-      await tester.pumpAndSettle();
+      // "Мои слова" lives on Профиль now, not above the lesson chain.
+      await tester.tap(find.text('Профиль'));
+      await tester.pumpAndSettle(const Duration(seconds: 2));
       await tester.tap(find.text('Мои слова'));
       await tester.pumpAndSettle();
 
