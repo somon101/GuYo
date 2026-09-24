@@ -8,6 +8,7 @@ import '../models/dictionary.dart';
 import '../models/exercise.dart';
 import '../models/learning.dart';
 import '../models/lesson.dart';
+import '../models/notification.dart';
 import '../models/phrase.dart';
 import '../models/quest.dart';
 import '../models/user_profile.dart';
@@ -471,15 +472,47 @@ class ApiClient {
     return UserProfile.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
-  /// Uploads [bytes] (read from whatever the user picked) as the new
-  /// avatar, replacing any existing one -- the backend rejects anything
-  /// that isn't a real, reasonably sized image rather than this client
-  /// pre-guessing what's valid.
+  // --- Слоганы и уведомления ------------------------------------------
+
+  /// This user's greeting line for today.
   ///
-  /// [req.send] has an explicit timeout -- without one, a stalled/flaky
-  /// mobile connection left this Future waiting forever with no error and
-  /// no way for the UI to ever leave its "uploading" state, which looked
-  /// exactly like a permanent freeze.
+  /// The backend draws it once per day and holds it, so calling this again
+  /// the same day returns the same line (see backend/app/slogans/). Null
+  /// when an admin has no enabled slogans at all -- the caller falls back
+  /// to the app's own built-in line rather than greeting with a blank row.
+  Future<String?> fetchTodaySlogan() async {
+    final res = await http.get(_uri('/slogans/today'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    return body['text'] as String?;
+  }
+
+  /// Everything in this user's inbox, newest first, with the unread count
+  /// the bell's dot is drawn from.
+  Future<NotificationInbox> fetchNotifications() async {
+    final res = await http.get(_uri('/notifications'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    return NotificationInbox.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  /// Just the number behind the bell's dot -- its own call so the app bar
+  /// never pulls the whole inbox to decide whether to show one.
+  Future<int> fetchUnreadNotificationCount() async {
+    final res = await http.get(_uri('/notifications/unread-count'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    return body['unread_count'] as int;
+  }
+
+  /// Marks every message read and returns the refreshed inbox.
+  Future<NotificationInbox> markAllNotificationsRead() async {
+    final res = await http.post(_uri('/notifications/read-all'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    return NotificationInbox.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  // --- Профиль ---------------------------------------------------------
+
   /// Saves the fields the "Настройки" screen edits. Only what is passed
   /// is sent, and only what is sent is changed -- editing one field never
   /// blanks another. The photo is not here: it is a file and has its own
@@ -507,6 +540,15 @@ class ApiClient {
     return UserProfile.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
+  /// Uploads [bytes] (read from whatever the user picked) as the new
+  /// avatar, replacing any existing one -- the backend rejects anything
+  /// that isn't a real, reasonably sized image rather than this client
+  /// pre-guessing what's valid.
+  ///
+  /// [req.send] has an explicit timeout -- without one, a stalled/flaky
+  /// mobile connection left this Future waiting forever with no error and
+  /// no way for the UI to ever leave its "uploading" state, which looked
+  /// exactly like a permanent freeze.
   Future<UserProfile> uploadMyAvatar(List<int> bytes, String filename, {String? mimeType}) async {
     final t = await token;
     final req = http.MultipartRequest('POST', _uri('/users/me/avatar'))

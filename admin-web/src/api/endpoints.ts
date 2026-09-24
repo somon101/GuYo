@@ -2,6 +2,7 @@ import { api } from "./client";
 import type {
   Achievement,
   AchievementVisibility,
+  AdminNotification,
   AdminUser,
   AnalyticsDictionary,
   Category,
@@ -14,6 +15,7 @@ import type {
   Rank,
   RatingSettings,
   Season,
+  Slogan,
   TranslationLanguage,
   UserPhraseAnalytics,
   Word,
@@ -791,5 +793,66 @@ export async function deleteQuest(id: number): Promise<void> {
 
 export async function reorderQuests(ids: number[]): Promise<Quest[]> {
   const { data } = await api.put("/admin/quests/order", { quest_ids: ids });
+  return data;
+}
+
+// --- Слоганы -------------------------------------------------------------------
+
+export async function listSlogans(): Promise<Slogan[]> {
+  const { data } = await api.get("/admin/slogans");
+  return data;
+}
+
+export interface SloganInput {
+  text: string;
+  enabled: boolean;
+  order?: number;
+}
+
+export async function createSlogan(input: SloganInput): Promise<Slogan> {
+  const { data } = await api.post("/admin/slogans", input);
+  return data;
+}
+
+// Only the fields passed are changed, so toggling a slogan off never
+// rewrites its text.
+export async function updateSlogan(id: number, input: Partial<SloganInput>): Promise<Slogan> {
+  const { data } = await api.patch(`/admin/slogans/${id}`, input);
+  return data;
+}
+
+export async function reorderSlogans(sloganIds: number[]): Promise<Slogan[]> {
+  const { data } = await api.put("/admin/slogans/order", { slogan_ids: sloganIds });
+  return data;
+}
+
+export async function deleteSlogan(id: number): Promise<void> {
+  await api.delete(`/admin/slogans/${id}`);
+}
+
+// --- Уведомления ---------------------------------------------------------------
+
+// Sends one message to one user. Goes through the same backend service any
+// future automatic rule will use -- this is a caller of it, not a second way
+// to create notifications.
+export async function sendNotification(input: {
+  userId: number;
+  title?: string;
+  body: string;
+}): Promise<AdminNotification> {
+  const { data } = await api.post("/admin/notifications", {
+    user_id: input.userId,
+    title: input.title || null,
+    body: input.body,
+  });
+  return data;
+}
+
+// Everything sent, newest first -- or one user's thread. Will include
+// automatically sent messages once rules exist, since they are the same rows.
+export async function listSentNotifications(userId?: number): Promise<AdminNotification[]> {
+  const { data } = await api.get("/admin/notifications", {
+    params: userId !== undefined ? { user_id: userId } : undefined,
+  });
   return data;
 }

@@ -10,6 +10,8 @@ const navItems = [
   { to: "/achievements", label: "Достижения" },
   { to: "/rating", label: "Рейтинг" },
   { to: "/quests", label: "Квесты" },
+  { to: "/slogans", label: "Слоганы" },
+  { to: "/notifications", label: "Уведомления" },
   { to: "/analytics", label: "Аналитика" },
 ];
 

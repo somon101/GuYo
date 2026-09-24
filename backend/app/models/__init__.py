@@ -13,7 +13,9 @@ from app.models.user import User
 from app.models.word import Word, WordForm, WordTranslation
 from app.models.word_level import WordLevel
 from app.models.word_progress import WordProgress
+from app.models.notification import Notification
 from app.models.quest import Quest, UserQuestWordDay
+from app.models.slogan import Slogan, UserDailySlogan
 
 __all__ = [
     "Admin",
@@ -45,6 +47,9 @@ __all__ = [
     "UserRating",
     "UserWordPoints",
     "WordLevel",
+    "Notification",
     "Quest",
+    "Slogan",
+    "UserDailySlogan",
     "UserQuestWordDay",
 ]

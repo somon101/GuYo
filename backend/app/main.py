@@ -14,6 +14,7 @@ from app.routers import (
     admin_analytics,
     admin_quests,
     admin_rating,
+    admin_slogans,
     admin_word_levels,
     auth,
     categories,
@@ -21,10 +22,12 @@ from app.routers import (
     exercises,
     learning,
     lessons,
+    notifications,
     phrase_categories,
     phrases,
     quests,
     rating,
+    slogans,
     users,
     word_levels,
     words,
@@ -79,9 +82,13 @@ app.include_router(admin_achievements.router)
 app.include_router(admin_rating.router)
 app.include_router(admin_word_levels.router)
 app.include_router(admin_quests.router)
+app.include_router(admin_slogans.router)
+app.include_router(notifications.admin_router)
 app.include_router(quests.router)
 app.include_router(rating.router)
 app.include_router(word_levels.router)
+app.include_router(slogans.router)
+app.include_router(notifications.router)
 
 
 @app.get("/health")

@@ -4,6 +4,8 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Layout } from "./components/Layout";
 import { LoginPage } from "./pages/LoginPage";
 import { UsersPage } from "./pages/UsersPage";
+import { SlogansPage } from "./pages/SlogansPage";
+import { NotificationsPage } from "./pages/NotificationsPage";
 import { DictionariesPage } from "./pages/DictionariesPage";
 import { DictionaryDetailPage } from "./pages/DictionaryDetailPage";
 import { WordsListPage } from "./pages/WordsListPage";
@@ -209,6 +211,26 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <QuestsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/slogans"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SlogansPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <NotificationsPage />
                 </Layout>
               </ProtectedRoute>
             }

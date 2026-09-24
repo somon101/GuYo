@@ -308,3 +308,33 @@ export interface Quest {
   enabled: boolean;
   order: number;
 }
+
+// --- Слоганы -------------------------------------------------------------------
+// The greeting lines shown under a user's name on Главная. The backend draws
+// one per user per day and holds it, so an admin edits the pool, not what any
+// one person sees right now.
+
+export interface Slogan {
+  id: number;
+  text: string;
+  enabled: boolean;
+  order: number;
+  created_at: string;
+}
+
+// --- Уведомления ---------------------------------------------------------------
+// One inbox row per message. `source` is provenance -- "manual" for a message
+// an admin wrote here, and whatever a future automatic rule stamps. Both are
+// the same kind of row.
+
+export interface AdminNotification {
+  id: number;
+  user_id: number;
+  user_login: string;
+  title: string | null;
+  body: string;
+  source: string;
+  is_read: boolean;
+  read_at: string | null;
+  created_at: string;
+}

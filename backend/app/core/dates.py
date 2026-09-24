@@ -5,10 +5,17 @@ the host happens to be configured with, not guaranteed).
 - `utc_today()`: the activity streak (app/achievements/) and season dates
   (app/rating/) -- unchanged, still UTC.
 - `dushanbe_today()`: Quests' daily one-word-per-day limit
-  (app/quests/service.py) -- GuYo is a Tajik-language app, so a quest's
-  own "new day" boundary is explicitly Asia/Dushanbe local time, not UTC
-  and never the user's own device timezone (a traveling user must see the
-  same reset moment as everyone else)."""
+  (app/quests/service.py) and the greeting slogan's own day
+  (app/slogans/service.py) -- GuYo is a Tajik-language app, so a "new day"
+  boundary is explicitly Asia/Dushanbe local time, not UTC and never the
+  user's own device timezone (a traveling user must see the same reset
+  moment as everyone else).
+
+  Note the one deliberate exception, which is NOT a server concern at all:
+  the greeting's sun/moon icon is chosen from the DEVICE's own clock in
+  the Flutter app (mobile/lib/theme/time_of_day.dart). Nothing here is
+  involved in it -- a user in Berlin must see their own evening even
+  though their slogan turns over on Dushanbe's midnight."""
 
 from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo

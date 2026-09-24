@@ -5,6 +5,7 @@ import '../theme/app_colors.dart';
 import 'home_dashboard_screen.dart';
 import 'lessons_screen.dart';
 import 'login_screen.dart';
+import 'notifications_screen.dart';
 import 'practice_screen.dart';
 import 'profile_screen.dart';
 import 'rating_screen.dart';
@@ -383,19 +384,90 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 /// no badge -- a permanent red dot would claim something the app cannot
 /// actually tell the user. Tapping it says so plainly rather than doing
 /// nothing at all.
-class _NotificationsButton extends StatelessWidget {
+/// The bell in the top bar: opens the inbox, and carries a dot while
+/// anything in it is unread.
+///
+/// The count comes from its own cheap endpoint rather than the whole
+/// inbox, and is re-read whenever the app comes back to the foreground or
+/// the user returns from the notifications screen -- a message sent while
+/// the app was open should not need a restart to show up.
+class _NotificationsButton extends StatefulWidget {
   const _NotificationsButton();
+
+  @override
+  State<_NotificationsButton> createState() => _NotificationsButtonState();
+}
+
+class _NotificationsButtonState extends State<_NotificationsButton> with WidgetsBindingObserver {
+  int _unread = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refresh();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refresh();
+  }
+
+  Future<void> _refresh() async {
+    try {
+      final count = await ApiClient.instance.fetchUnreadNotificationCount();
+      if (!mounted) return;
+      setState(() => _unread = count);
+    } catch (_) {
+      // A failed count must never break the app bar -- the dot simply
+      // stays as it was until the next refresh.
+    }
+  }
+
+  Future<void> _open() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+    );
+    // Opening the inbox marks everything read, so the dot is re-checked
+    // rather than assumed cleared.
+    await _refresh();
+  }
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
       tooltip: 'Уведомления',
-      icon: const Icon(Icons.notifications_none_rounded, color: AppColors.primaryDark),
-      onPressed: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Уведомлений пока нет'), duration: Duration(seconds: 2)),
-        );
-      },
+      onPressed: _open,
+      icon: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Icon(Icons.notifications_none_rounded, color: AppColors.primaryDark),
+          if (_unread > 0)
+            Positioned(
+              right: -2,
+              top: -2,
+              child: Container(
+                // Keyed so a test can assert the indicator itself rather
+                // than a coloured box -- same convention the exercise
+                // screens use for their own hooks.
+                key: const ValueKey('notifications-unread-dot'),
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4056),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.canvas, width: 1.5),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

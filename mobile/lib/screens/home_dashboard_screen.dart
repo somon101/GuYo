@@ -5,9 +5,14 @@ import '../models/quest.dart';
 import '../models/user_profile.dart';
 import '../theme/app_colors.dart';
 import '../theme/slogans.dart';
+import '../theme/time_of_day.dart';
 import '../widgets/quest_ui.dart';
 import '../widgets/user_avatar.dart';
 import 'season_quests_screen.dart';
+
+/// The app's own slogan fetch, as a plain function so the default
+/// [BackendSloganSource] can be a const value.
+Future<String?> fetchTodaySloganFromApi() => ApiClient.instance.fetchTodaySlogan();
 
 /// "Главная": the greeting and the season block, nothing else.
 ///
@@ -27,8 +32,9 @@ class HomeDashboardScreen extends StatefulWidget {
   /// instead of pushing a second copy of that screen.
   final VoidCallback onOpenProfile;
 
-  /// Swappable so a future admin-managed slogan list can replace the
-  /// built-in one without touching this widget (see SloganSource).
+  /// Where the greeting's line comes from. Swappable by construction --
+  /// the default asks the admin-curated set and falls back to the built-in
+  /// list; a test hands in a fixed one (see SloganSource).
   final SloganSource sloganSource;
 
   const HomeDashboardScreen({
@@ -36,7 +42,7 @@ class HomeDashboardScreen extends StatefulWidget {
     required this.dictionary,
     required this.onOpenLessons,
     required this.onOpenProfile,
-    this.sloganSource = const LocalSloganSource(),
+    this.sloganSource = const BackendSloganSource(fetch: fetchTodaySloganFromApi),
   });
 
   @override
@@ -48,6 +54,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   String? _loadError;
   SeasonQuestOverview? _overview;
   UserProfile? _profile;
+  // The admin-curated line for today, or the built-in fallback -- resolved
+  // by the source, never decided here.
+  String? _slogan;
 
   @override
   void initState() {
@@ -65,11 +74,13 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       final results = await Future.wait([
         ApiClient.instance.fetchSeasonQuestOverview(widget.dictionary.id),
         ApiClient.instance.fetchMyProfile(),
+        widget.sloganSource.today(),
       ]);
       if (!mounted) return;
       setState(() {
         _overview = results[0] as SeasonQuestOverview;
         _profile = results[1] as UserProfile;
+        _slogan = results[2] as String;
         _isLoading = false;
       });
     } catch (_) {
@@ -109,7 +120,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       children: [
         _Greeting(
           profile: _profile,
-          slogan: widget.sloganSource.current(),
+          slogan: _slogan,
           onOpenProfile: widget.onOpenProfile,
         ),
         const SizedBox(height: 18),
@@ -145,7 +156,11 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 /// screen uses, never a second rendering of it.
 class _Greeting extends StatelessWidget {
   final UserProfile? profile;
-  final String slogan;
+
+  /// Null only while the first load is still in flight -- the row keeps
+  /// its height rather than appearing late and shifting everything below.
+  final String? slogan;
+
   final VoidCallback onOpenProfile;
 
   const _Greeting({required this.profile, required this.slogan, required this.onOpenProfile});
@@ -172,15 +187,29 @@ class _Greeting extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                login.isEmpty ? 'Привет!' : 'Привет, $login ☀️',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      login.isEmpty ? 'Привет!' : 'Привет, $login',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primaryDark,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  // Sun, dusk or moon, decided from THIS DEVICE's clock --
+                  // see theme/time_of_day.dart.
+                  const DayPartIcon(size: 19),
+                ],
               ),
               const SizedBox(height: 2),
               Text(
-                slogan,
+                slogan ?? '',
                 style: const TextStyle(fontSize: 13.5, color: AppColors.secondaryText),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
