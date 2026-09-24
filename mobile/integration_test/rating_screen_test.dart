@@ -1,6 +1,8 @@
 // Covers the "Рейтинг" tab end to end against the real backend:
 //   - the tab shows only the CALLER's own current rank's leaderboard, with
 //     no control to switch ranks;
+//   - the first three places are the podium and the compact list picks up
+//     at fourth, so nobody is listed twice;
 //   - "Глобальный рейтинг" opens a separate top-100 across every rank.
 //
 // Run with:
@@ -18,6 +20,7 @@ import 'package:integration_test/integration_test.dart';
 
 import 'package:guyo_app/config.dart';
 import 'package:guyo_app/main.dart';
+import 'package:guyo_app/screens/rating_screen.dart';
 
 Future<void> _login(WidgetTester tester) async {
   await tester.pumpWidget(const GuyoApp());
@@ -72,7 +75,36 @@ void main() {
     expect(find.text('testuser'), findsOneWidget, reason: 'the caller appears in their own leaderboard');
     expect(find.byType(DropdownButton), findsNothing, reason: 'no rank switcher of any kind');
 
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Глобальный рейтинг'));
+    // The board's own top three are the podium, and the compact list below
+    // starts at fourth place -- read straight from the API so this cannot
+    // pass on a hardcoded name.
+    final boardRes = await http.get(
+      Uri.parse('$apiBaseUrl/rating/leaderboard'),
+      headers: {'Authorization': 'Bearer $userToken'},
+    );
+    final entries = (jsonDecode(utf8.decode(boardRes.bodyBytes)) as Map)['entries'] as List<dynamic>;
+    if (entries.length > LeaderboardPodium.placeCount) {
+      expect(find.byType(LeaderboardPodium), findsOneWidget);
+      final fourth = entries[LeaderboardPodium.placeCount] as Map<String, dynamic>;
+      expect(
+        find.descendant(
+          of: find.widgetWithText(LeaderboardRow, fourth['login'] as String),
+          matching: find.text('${fourth['position']}'),
+        ),
+        findsOneWidget,
+        reason: 'the compact list opens at fourth place, right where the podium ended',
+      );
+      for (var i = 0; i < LeaderboardPodium.placeCount; i++) {
+        final podiumLogin = (entries[i] as Map<String, dynamic>)['login'] as String;
+        expect(
+          find.widgetWithText(LeaderboardRow, podiumLogin),
+          findsNothing,
+          reason: 'a podium place must not be repeated in the list below',
+        );
+      }
+    }
+
+    await tester.tap(find.text('Глобальный рейтинг'));
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
     expect(find.text('Глобальный рейтинг'), findsWidgets);
