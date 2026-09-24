@@ -251,7 +251,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // per-language, so switching languages must not rebuild it. The
         // dictionary is passed only so its "Мои слова" card opens the
         // right language's words.
-        ProfileScreen(key: _profileKey, dictionary: selected),
+        ProfileScreen(
+          key: _profileKey,
+          dictionary: selected,
+          onOpenLessons: () => setState(() => _selectedTabIndex = 1),
+        ),
       ],
     );
   }

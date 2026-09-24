@@ -35,7 +35,17 @@ class ProfileScreen extends StatefulWidget {
   /// language, and this tab is deliberately not rebuilt when it changes.
   final GuyoDictionary dictionary;
 
-  const ProfileScreen({super.key, required this.dictionary});
+  /// Switches the app to the "Уроки" tab. Уроки is a sibling tab rather
+  /// than a route, so the profile asks the shell to switch instead of
+  /// pushing a second copy of that screen -- the same way Главная's
+  /// "Квест дня" already reaches it.
+  final VoidCallback onOpenLessons;
+
+  const ProfileScreen({
+    super.key,
+    required this.dictionary,
+    required this.onOpenLessons,
+  });
 
   @override
   State<ProfileScreen> createState() => ProfileScreenState();
@@ -383,7 +393,10 @@ class ProfileScreenState extends State<ProfileScreen> {
                 iconColor: AppColors.primary,
                 iconBackground: const Color(0xFFEDEEFC),
                 label: 'Уроки',
+                // Still the backend's own completed-lessons count -- the
+                // card just leads to the lesson chain now.
                 value: '${profile.lessonsCompleted}',
+                onTap: widget.onOpenLessons,
               ),
             ),
             const SizedBox(width: 10),

@@ -27,6 +27,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:guyo_app/config.dart';
 import 'package:guyo_app/main.dart';
 import 'package:guyo_app/screens/learned_words_screen.dart';
+import 'package:guyo_app/screens/lessons_screen.dart';
 import 'package:guyo_app/widgets/quest_ui.dart';
 import 'package:guyo_app/widgets/user_avatar.dart';
 
@@ -212,5 +213,16 @@ void main() {
       findsOneWidget,
       reason: 'the SAME screen as before, not a new one',
     );
+
+    // The lessons counter next to it is a way in too: it switches to the
+    // existing Уроки tab rather than pushing a second copy of it. Scoped
+    // to the profile's own body, since the bottom bar also says "Уроки".
+    await tester.pageBack();
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+    await tester.tap(
+      find.descendant(of: find.byType(ListView), matching: find.text('Уроки')),
+    );
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+    expect(find.byType(LessonsScreen), findsOneWidget, reason: 'the existing lesson chain, not a new screen');
   });
 }
