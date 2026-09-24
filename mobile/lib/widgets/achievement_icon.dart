@@ -1,8 +1,7 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import '../api/api_client.dart';
 import '../models/user_profile.dart';
 import 'rank_icon.dart';
+import 'remote_image.dart';
 
 /// One achievement's own uploaded icon -- never a substitute/generic image
 /// -- shown at full brightness once earned, dimmed while locked/unearned
@@ -27,20 +26,17 @@ class AchievementIcon extends StatelessWidget {
     final url = achievement.iconUrl;
     Widget child;
     if (url != null && url.isNotEmpty) {
-      final cacheSize = (size * MediaQuery.devicePixelRatioOf(context)).round();
       // contain, and deliberately NOT clipped to a circle -- see RankIcon's
       // own note: these badges have their own shape and transparent
-      // background, and a circular crop cut their edges off.
-      child = CachedNetworkImage(
-        imageUrl: ApiClient.instance.mediaUrl(url),
+      // background, and a circular crop cut their edges off. RemoteImage
+      // is what keeps a non-square badge from being squeezed into the
+      // square box on top of that.
+      child = RemoteImage(
+        url: url,
         width: size,
         height: size,
         fit: BoxFit.contain,
-        memCacheWidth: cacheSize,
-        memCacheHeight: cacheSize,
-        fadeInDuration: Duration.zero,
-        placeholder: (_, _) => _fallbackIcon(color),
-        errorWidget: (_, _, _) => _fallbackIcon(color),
+        fallbackBuilder: () => _fallbackIcon(color),
       );
     } else {
       child = _fallbackIcon(color);

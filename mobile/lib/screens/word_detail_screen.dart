@@ -1,8 +1,8 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../theme/app_colors.dart';
 import '../widgets/audio_button.dart';
+import '../widgets/remote_image.dart';
 import '../widgets/word_card.dart';
 
 /// One word's own card, opened from any word list's chevron. Deliberately
@@ -58,12 +58,12 @@ class WordDetailScreen extends StatelessWidget {
                   if (hasImage) ...[
                     ClipRRect(
                       borderRadius: BorderRadius.circular(14),
-                      child: CachedNetworkImage(
-                        imageUrl: ApiClient.instance.mediaUrl(imageUrl!),
+                      child: RemoteImage(
+                        url: imageUrl!,
                         height: 150,
                         width: double.infinity,
                         fit: BoxFit.cover,
-                        errorWidget: (_, _, _) => const SizedBox.shrink(),
+                        fallbackBuilder: () => const SizedBox(height: 150),
                       ),
                     ),
                     const SizedBox(height: 14),

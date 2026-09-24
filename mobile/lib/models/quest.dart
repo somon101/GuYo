@@ -56,16 +56,24 @@ class QuestSeason {
   final int id;
   final String name;
   final String? iconUrl;
+  final DateTime startsAt;
   final DateTime? endsAt;
 
-  QuestSeason({required this.id, required this.name, required this.iconUrl, required this.endsAt});
+  QuestSeason({
+    required this.id,
+    required this.name,
+    required this.iconUrl,
+    required this.startsAt,
+    required this.endsAt,
+  });
 
   factory QuestSeason.fromJson(Map<String, dynamic> json) {
     return QuestSeason(
       id: json['id'] as int,
       name: json['name'] as String,
       iconUrl: json['icon_url'] as String?,
-      endsAt: json['ends_at'] == null ? null : DateTime.parse(json['ends_at'] as String),
+      startsAt: DateTime.parse(json['starts_at'] as String).toLocal(),
+      endsAt: json['ends_at'] == null ? null : DateTime.parse(json['ends_at'] as String).toLocal(),
     );
   }
 }
@@ -82,9 +90,14 @@ class QuestSeason {
 class SeasonQuestOverview {
   final QuestSeason? season;
 
-  /// Whole days left in the season, already rounded by the backend. Null
-  /// when the season has no scheduled end -- there is no countdown to show.
+  /// The season's own timeline, both already rounded by the backend:
+  /// whole days left, and how many whole days the season runs in total.
+  /// Both null when the season has no scheduled end -- then there is
+  /// neither a countdown nor a range to draw. Deliberately separate from
+  /// quest progress below: the two mean different things and must never
+  /// share a bar.
   final int? daysLeft;
+  final int? daysTotal;
 
   /// Rating points earned today: newly learned words plus quest rewards.
   final int pointsToday;
@@ -107,6 +120,7 @@ class SeasonQuestOverview {
   SeasonQuestOverview({
     required this.season,
     required this.daysLeft,
+    required this.daysTotal,
     required this.pointsToday,
     required this.totalPoints,
     required this.rank,
@@ -122,6 +136,7 @@ class SeasonQuestOverview {
     return SeasonQuestOverview(
       season: json['season'] == null ? null : QuestSeason.fromJson(json['season'] as Map<String, dynamic>),
       daysLeft: json['days_left'] as int?,
+      daysTotal: json['days_total'] as int?,
       pointsToday: json['points_today'] as int,
       totalPoints: json['total_points'] as int,
       rank: json['rank'] == null ? null : RankSummary.fromJson(json['rank'] as Map<String, dynamic>),

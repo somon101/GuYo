@@ -79,10 +79,14 @@ class SeasonQuestOverviewOut(BaseModel):
     """
 
     # The active season, or null when no season is running right now.
-    # `days_left` is null for a season with no scheduled end (it ends when
-    # an admin says so, so there is no countdown to show).
+    # `days_left` and `days_total` are both null for a season with no
+    # scheduled end (it ends when an admin says so, so there is neither a
+    # countdown nor a range to show). Together they are the season's own
+    # timeline: how much of it is gone and how much is left -- deliberately
+    # NOT the same thing as quest progress, which is counted below.
     season: SeasonOut | None
     days_left: int | None
+    days_total: int | None
 
     # Rating points this user earned TODAY: the words they learned plus
     # the quest rewards they collected, on the same Asia/Dushanbe day

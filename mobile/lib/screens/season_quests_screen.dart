@@ -174,8 +174,14 @@ class _SeasonQuestsScreenState extends State<SeasonQuestsScreen> {
   }
 }
 
-/// The big season banner: the admin's own season picture at full size,
-/// the season's name and its real remaining time.
+/// The big season banner.
+///
+/// Three clearly separate layers rather than one soft pile: the gradient
+/// is atmosphere, the artwork sits on its own white plate, and the
+/// season's dates and remaining time live in their own panel. The quest
+/// counter deliberately does NOT appear here -- it is a different measure
+/// from "how much of the season is left", and the two sharing a bar was
+/// exactly what made this block hard to read.
 class _SeasonBanner extends StatelessWidget {
   final SeasonQuestOverview overview;
   const _SeasonBanner({required this.overview});
@@ -183,9 +189,8 @@ class _SeasonBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final season = overview.season;
-    final days = overview.daysLeft;
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -194,72 +199,65 @@ class _SeasonBanner extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(AppShapes.bannerRadius),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SeasonIcon(iconUrl: season?.iconUrl, size: 92),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (season != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(AppShapes.pillRadius),
-                    ),
-                    child: Text(
-                      season.name,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Квесты сезона',
-                  style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Выполняй задания, получай очки и повышай свой ранг.',
-                  style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText, height: 1.35),
-                ),
-                const SizedBox(height: 10),
-                Row(
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SeasonIconPlate(iconUrl: season?.iconUrl, iconSize: 78),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.schedule_rounded, size: 15, color: AppColors.secondaryText),
-                    const SizedBox(width: 5),
-                    Expanded(
-                      child: Text(
-                        season == null
-                            ? 'Сейчас нет активного сезона'
-                            : days == null
-                                ? 'Без срока окончания'
-                                : daysLeftLabel(days),
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primaryDark,
+                    if (season != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(AppShapes.pillRadius),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        child: Text(
+                          season.name,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primaryDark,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Квесты сезона',
+                      style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Выполняй задания, получай очки и повышай свой ранг.',
+                      style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText, height: 1.35),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                QuestProgressBar(
-                  value: overview.questsDoneToday,
-                  target: overview.questsTotal,
-                  label: '${overview.questsDoneToday} / ${overview.questsTotal}',
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
+          const SizedBox(height: 14),
+          if (season == null)
+            const Text(
+              'Сейчас нет активного сезона',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
+            )
+          else
+            SeasonTimeline(
+              startsAt: season.startsAt,
+              endsAt: season.endsAt,
+              daysLeft: overview.daysLeft,
+              daysTotal: overview.daysTotal,
+            ),
         ],
       ),
     );

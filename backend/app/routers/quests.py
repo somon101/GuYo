@@ -116,13 +116,18 @@ def get_season_quest_overview(
     sync_season_states(db)
     season = get_active_season(db)
 
-    # Whole days remaining, rounded UP: with half a day to go the season
-    # still has "1 день", and only a season that is actually over shows 0.
-    # Null for a season with no scheduled end -- there is no countdown.
+    # The season's own timeline, in whole days rounded UP: with half a day
+    # to go the season still has "1 день", and only a season that is
+    # actually over shows 0. Both null for a season with no scheduled end
+    # -- there is nothing to count down to and no range to draw.
     days_left = None
+    days_total = None
     if season is not None and season.ends_at is not None:
-        remaining = (season.ends_at - utc_now()).total_seconds()
-        days_left = max(0, math.ceil(remaining / 86400))
+        now = utc_now()
+        days_left = max(0, math.ceil((season.ends_at - now).total_seconds() / 86400))
+        # At least 1, so a same-day season is a full bar rather than a
+        # division by zero.
+        days_total = max(1, math.ceil((season.ends_at - season.starts_at).total_seconds() / 86400))
 
     rating = get_or_create_user_rating(db, user.id)
     rank = current_rank_for_points(db, rating.total_points)
@@ -156,6 +161,7 @@ def get_season_quest_overview(
     return SeasonQuestOverviewOut(
         season=_season_out(season) if season is not None else None,
         days_left=days_left,
+        days_total=days_total,
         points_today=points_today,
         total_points=rating.total_points,
         rank=rank_public_out(rank),

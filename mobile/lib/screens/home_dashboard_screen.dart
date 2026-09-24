@@ -196,7 +196,19 @@ class _SeasonBlock extends StatelessWidget {
       child: Column(
         children: [
           _SeasonHeaderRow(overview: overview, onOpen: onOpen),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
+          // The season's own stretch of time, on its own surface -- kept
+          // apart from the quest numbers below, which measure something
+          // else entirely.
+          if (overview.season != null)
+            SeasonTimeline(
+              startsAt: overview.season!.startsAt,
+              endsAt: overview.season!.endsAt,
+              daysLeft: overview.daysLeft,
+              daysTotal: overview.daysTotal,
+              compact: true,
+            ),
+          const SizedBox(height: 12),
           _StatsCard(overview: overview),
           const SizedBox(height: 12),
           DailyQuestCard(
@@ -226,7 +238,11 @@ class _SeasonHeaderRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: Row(
           children: [
-            SeasonIcon(iconUrl: overview.season?.iconUrl, size: 52),
+            SeasonIconPlate(
+              iconUrl: overview.season?.iconUrl,
+              iconSize: 46,
+              padding: const EdgeInsets.all(7),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -255,36 +271,14 @@ class _SeasonHeaderRow extends StatelessWidget {
   }
 }
 
-/// "Сезон 01 · 24 дня осталось" -- built from the real season and the
-/// backend's own day count, and degrading honestly when either is absent.
+/// The line under "Квесты сезона" -- the season's own name, or an honest
+/// note when none is running. The remaining time is NOT repeated here: it
+/// has its own panel directly below, and saying it twice was part of what
+/// made the block read as a jumble.
 String seasonSubtitle(SeasonQuestOverview overview) {
   final season = overview.season;
   if (season == null) return 'Сейчас нет активного сезона';
-  final days = overview.daysLeft;
-  if (days == null) return season.name;
-  return '${season.name} · ${daysLeftLabel(days)}';
-}
-
-/// "24 дня осталось" with the right Russian plural for the number.
-String daysLeftLabel(int days) {
-  if (days <= 0) return 'Завершается';
-  final mod100 = days % 100;
-  final String word;
-  if (mod100 >= 11 && mod100 <= 14) {
-    word = 'дней';
-  } else {
-    switch (days % 10) {
-      case 1:
-        word = 'день';
-      case 2:
-      case 3:
-      case 4:
-        word = 'дня';
-      default:
-        word = 'дней';
-    }
-  }
-  return '$days $word осталось';
+  return season.name;
 }
 
 class _StatsCard extends StatelessWidget {

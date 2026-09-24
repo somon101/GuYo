@@ -1,10 +1,10 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../models/learning.dart';
 import '../models/word.dart';
 import '../theme/app_colors.dart';
+import '../widgets/remote_image.dart';
 import '../widgets/word_card.dart';
 import 'my_phrases_screen.dart';
 import 'word_detail_screen.dart';
@@ -462,10 +462,13 @@ class _CategoryHeader extends StatelessWidget {
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: iconUrl != null && iconUrl.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: ApiClient.instance.mediaUrl(iconUrl),
+                    ? RemoteImage(
+                        url: iconUrl,
+                        width: 40,
+                        height: 40,
                         fit: BoxFit.contain,
-                        errorWidget: (_, _, _) => const Icon(Icons.folder_outlined, color: AppColors.primary, size: 20),
+                        fallbackBuilder: () =>
+                            const Icon(Icons.folder_outlined, color: AppColors.primary, size: 20),
                       )
                     : const Icon(Icons.folder_outlined, color: AppColors.primary, size: 20),
               ),

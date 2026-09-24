@@ -1,7 +1,6 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import '../api/api_client.dart';
 import '../models/user_rating.dart';
+import 'remote_image.dart';
 
 /// "#RRGGBB" -> Color -- the one place every rank/achievement color string
 /// from the backend gets parsed, shared so it's never redefined per screen.
@@ -26,28 +25,21 @@ class RankIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final url = rank?.iconUrl;
     if (url != null && url.isNotEmpty) {
-      // CachedNetworkImage persists the decoded file to disk the first time
-      // it loads, so the SAME rank icon (only 7 ranks exist, reused across
-      // every leaderboard row and every screen) renders instantly on every
-      // later view -- a cold app restart included -- instead of every row
-      // in a long leaderboard list re-fetching it over the network and
-      // showing a brief empty circle first, same fix already applied to
-      // UserAvatar.
-      final cacheSize = (size * MediaQuery.devicePixelRatioOf(context)).round();
-      // contain, and deliberately NOT clipped to a circle: these are
-      // shield/medal artworks with their own transparent background and
-      // their own shape -- cropping them into a circle cut the crests,
-      // wings and laurels right off and made them look squashed.
-      return CachedNetworkImage(
-        imageUrl: ApiClient.instance.mediaUrl(url),
+      // Through RemoteImage, which disk-caches these (only 7 ranks exist,
+      // reused across every leaderboard row and every screen) and decodes
+      // them without deforming: rank artworks are wide shields, roughly
+      // 1450x830, and forcing that into a square decode crushed them --
+      // see RemoteImage's own note.
+      //
+      // contain, and deliberately NOT clipped to a circle: these badges
+      // have their own transparent background and their own shape, and a
+      // circular crop cut the crests, wings and laurels right off.
+      return RemoteImage(
+        url: url,
         width: size,
         height: size,
         fit: BoxFit.contain,
-        memCacheWidth: cacheSize,
-        memCacheHeight: cacheSize,
-        fadeInDuration: Duration.zero,
-        placeholder: (_, _) => _fallback(),
-        errorWidget: (_, _, _) => _fallback(),
+        fallbackBuilder: _fallback,
       );
     }
     return _fallback();

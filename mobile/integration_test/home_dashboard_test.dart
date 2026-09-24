@@ -85,17 +85,30 @@ void main() {
     expect(season, isNotNull, reason: 'this test needs an active season on the backend');
 
     final daysLeft = data['days_left'] as int?;
+    final daysTotal = data['days_total'] as int?;
     expect(daysLeft, isNotNull, reason: 'this test needs a season with a scheduled end');
+    expect(daysTotal, isNotNull, reason: 'a season with an end also has a length');
     expect(
       find.textContaining('${season!['name']}'),
       findsOneWidget,
       reason: "the block names the backend's OWN active season",
     );
+
+    // --- The season's own stretch of time, in its own panel ---
     expect(
-      find.textContaining('$daysLeft'),
-      findsWidgets,
+      find.byType(SeasonTimeline),
+      findsOneWidget,
+      reason: 'the season range is its own panel, not a bar floating on the banner gradient',
+    );
+    expect(
+      find.text(daysLeftLabel(daysLeft!)),
+      findsOneWidget,
       reason: "the countdown is the backend's own day count",
     );
+    final start = DateTime.parse(season['starts_at'] as String).toLocal();
+    final end = DateTime.parse(season['ends_at'] as String).toLocal();
+    expect(find.text(shortDate(start)), findsOneWidget, reason: 'the range shows where the season began');
+    expect(find.text(shortDate(end)), findsOneWidget, reason: 'and where it ends');
 
     // --- Stats: every one of them cross-checked against the API ---
     // Scoped to their own StatColumn, since a reward badge elsewhere on
@@ -138,6 +151,11 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 3));
 
     expect(find.text('Квесты'), findsWidgets, reason: 'the season quests screen opened');
+    expect(
+      find.byType(SeasonTimeline),
+      findsOneWidget,
+      reason: 'the banner shows the season range once, and only the season range',
+    );
     expect(find.text('Ежедневные квесты'), findsOneWidget);
     expect(
       find.text('${data['quests_done_today']} / ${data['quests_total']}'),
