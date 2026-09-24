@@ -35,3 +35,12 @@ mobile/**/Pods/
 Thumbs.db
 .vscode/
 .idea/
+
+# --- Claude Code / Spec Kit ---
+# Spec Kit installs its skills under .claude/skills and they ARE shared --
+# they are what gives every session the same /speckit-* workflow. Anything
+# else Claude Code writes here is this machine's own runtime state (and,
+# per Spec Kit's own warning, the place an agent may drop credentials), so
+# ignore the folder and re-include only the skills.
+.claude/*
+!.claude/skills/
