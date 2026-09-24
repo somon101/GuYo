@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/word.dart';
 import '../widgets/audio_button.dart';
+import 'lesson_exercise_flow.dart';
 
 /// A drag-free "tap word, then tap its translation" matching drill, as one
 /// of a Lesson's exercises.
@@ -36,7 +37,7 @@ class MatchingScreen extends StatefulWidget {
   State<MatchingScreen> createState() => _MatchingScreenState();
 }
 
-class _MatchingScreenState extends State<MatchingScreen> {
+class _MatchingScreenState extends State<MatchingScreen> with LessonExerciseFlow {
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -47,17 +48,13 @@ class _MatchingScreenState extends State<MatchingScreen> {
   int? _selectedRightId;
   int _mistakes = 0;
   bool _awaitingMismatchClear = false;
-  bool _lessonCompleted = false;
   // Every match's score submission is fire-and-forget for a snappy per-tap
-  // feel, EXCEPT the one that finishes the round: whether the round-complete
-  // view should also say "Урок пройден!" depends on the LAST submission's
-  // `lesson_completed`, so that one specific completion is awaited (see
-  // `_evaluateIfReady`) before the complete view is allowed to render --
-  // otherwise a round that finishes the whole lesson on its last match could
-  // flash the complete view without the congratulation simply because the
-  // network call hadn't resolved yet.
+  // feel, EXCEPT the one that finishes the round: the lesson moves straight
+  // on to the next exercise once this board is done, and that exercise's own
+  // round is built from these very scores -- so the last match waits for
+  // every submission to actually land before handing control back.
   final List<Future<void>> _pendingSubmits = [];
-  bool _roundReadyToShowComplete = false;
+  bool _roundFinished = false;
 
   @override
   void initState() {
@@ -65,9 +62,9 @@ class _MatchingScreenState extends State<MatchingScreen> {
     _load();
   }
 
-  /// Fetches a fresh round from the backend -- called on first open AND on
-  /// every "Играть ещё раз", so a replay is a genuinely new shuffle of the
-  /// same fixed lesson words, not a client-side reshuffle of a stale list.
+  /// Fetches a fresh round from the backend. Called once per visit: a
+  /// lesson plays each exercise through once and then moves on, and
+  /// repeating is a property of the lesson, not of this board.
   Future<void> _load() async {
     setState(() {
       _isLoading = true;
@@ -84,6 +81,9 @@ class _MatchingScreenState extends State<MatchingScreen> {
         _startRound(usable);
       } else {
         setState(() => _isLoading = false);
+        // Nothing here can be matched -- skip this exercise instead of
+        // stalling the lesson on an empty board.
+        finishExercise();
       }
     } catch (_) {
       if (!mounted) return;
@@ -111,7 +111,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
       _mistakes = 0;
       _awaitingMismatchClear = false;
       _isLoading = false;
-      _roundReadyToShowComplete = false;
+      _roundFinished = false;
       _pendingSubmits.clear();
     });
   }
@@ -149,13 +149,14 @@ class _MatchingScreenState extends State<MatchingScreen> {
       _showFeedback('Правильно', isError: false);
 
       if (_matchedIds.length == left.length) {
-        // This match just finished the round -- wait for every submission
-        // (this one included) to resolve before showing the complete view,
-        // so "Урок пройден!" reflects this exact match's real outcome.
+        // This match just finished the board -- wait for every submission
+        // (this one included) to land, then hand control straight back to
+        // the lesson runner so the next exercise starts by itself.
         final pending = List<Future<void>>.from(_pendingSubmits);
         Future.wait(pending).then((_) {
           if (!mounted) return;
-          setState(() => _roundReadyToShowComplete = true);
+          setState(() => _roundFinished = true);
+          finishExercise();
         });
       }
     } else {
@@ -177,9 +178,8 @@ class _MatchingScreenState extends State<MatchingScreen> {
     late final Future<void> future;
     future = ApiClient.instance
         .submitLessonAnswer(widget.lessonId, 'matching', wordId: wordId, isCorrect: isCorrect)
-        .then((result) {
-      if (result.lessonCompleted) _lessonCompleted = true;
-    }).catchError((_) {
+        .then<void>((_) {})
+        .catchError((_) {
       // The score update failed to save -- the round itself still plays
       // out locally; there's nothing actionable to show mid-round for a
       // single failed save.
@@ -233,7 +233,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
     }
 
     final isFullyMatched = _matchedIds.length == left.length;
-    final isRoundComplete = isFullyMatched && _roundReadyToShowComplete;
+    final isRoundComplete = isFullyMatched && _roundFinished;
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -246,21 +246,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
           ),
           const SizedBox(height: 12),
           if (isRoundComplete)
-            Expanded(
-              child: _RoundCompleteView(
-                onPlayAgain: _load,
-                mistakes: _mistakes,
-                lessonCompleted: _lessonCompleted,
-                // Always a plain pop back to whoever pushed this screen --
-                // the lesson-runner sequencer (LessonDetailScreen), not a
-                // jump straight to a standalone completion screen. Even
-                // when this round happens to be the one that finishes the
-                // lesson, the sequencer still needs control back so it can
-                // move on to (or skip past) the rest of the exercise
-                // sequence before showing the lesson's own results screen.
-                onBackToLesson: () => Navigator.of(context).pop(),
-              ),
-            )
+            const Expanded(child: LessonExerciseHandoff())
           else if (isFullyMatched)
             // Every pair is matched but the last match's score submission
             // hasn't resolved yet -- a brief, real (not padded) wait rather
@@ -416,56 +402,6 @@ class _MatchCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _RoundCompleteView extends StatelessWidget {
-  final VoidCallback onPlayAgain;
-  final int mistakes;
-  final bool lessonCompleted;
-  final VoidCallback onBackToLesson;
-
-  const _RoundCompleteView({
-    required this.onPlayAgain,
-    required this.mistakes,
-    required this.lessonCompleted,
-    required this.onBackToLesson,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.check_circle, color: Colors.green, size: 56),
-          const SizedBox(height: 12),
-          const Text('Раунд завершён!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          Text(
-            mistakes == 0 ? 'Без единой ошибки' : 'Ошибок: $mistakes',
-            style: const TextStyle(color: Colors.black54),
-          ),
-          if (lessonCompleted) ...[
-            const SizedBox(height: 8),
-            const Text('Урок пройден!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600)),
-          ],
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: onBackToLesson,
-            icon: Icon(lessonCompleted ? Icons.emoji_events_outlined : Icons.arrow_back),
-            label: Text(lessonCompleted ? 'Продолжить' : 'К уроку'),
-          ),
-          const SizedBox(height: 8),
-          if (!lessonCompleted)
-            OutlinedButton.icon(
-              onPressed: onPlayAgain,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Играть ещё раз'),
-            ),
-        ],
       ),
     );
   }

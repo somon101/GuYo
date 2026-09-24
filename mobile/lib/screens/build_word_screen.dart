@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/exercise.dart';
 import '../widgets/audio_button.dart';
+import 'lesson_exercise_flow.dart';
 
 /// One letter button/slot's contents, with a unique instance id so two
 /// identical letters (e.g. HELLO's two L's) are always distinguishable and
@@ -36,7 +37,7 @@ class BuildWordScreen extends StatefulWidget {
   State<BuildWordScreen> createState() => _BuildWordScreenState();
 }
 
-class _BuildWordScreenState extends State<BuildWordScreen> {
+class _BuildWordScreenState extends State<BuildWordScreen> with LessonExerciseFlow {
   bool _isLoading = true;
   String? _errorMessage;
   BuildWordRound? _round;
@@ -48,7 +49,6 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
   List<Color?> _slotColors = [];
   bool _isLocked = false; // true briefly while a correct answer celebrates before advancing
   bool _hasChecked = false; // true once "Проверить" has been pressed for the current letters
-  bool _lessonCompleted = false;
 
   @override
   void initState() {
@@ -73,6 +73,10 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
       });
       if (round.items.isNotEmpty) {
         _loadItem(0);
+      } else {
+        // Nothing left for this exercise to test -- skip it instead of
+        // stalling the lesson on a dead end.
+        finishExercise();
       }
     } catch (_) {
       if (!mounted) return;
@@ -147,16 +151,13 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
     });
 
     // Awaited (not fire-and-forget) alongside the celebratory delay: the
-    // LAST item's submission deciding `lesson_completed` must be known
-    // before this word's turn ends, otherwise a round that completes the
-    // whole lesson on its final word could render "Упражнение завершено!"
-    // without "Урок пройден!" simply because the network call hadn't
-    // resolved yet.
+    // Awaited before the word's turn ends so the score is actually saved
+    // before the lesson moves on -- the next exercise's own round is built
+    // from these scores, and the results screen at the end reads them too.
     final submit = ApiClient.instance
         .submitLessonAnswer(widget.lessonId, 'build_word', wordId: item.wordId, isCorrect: allCorrect)
-        .then((result) {
-      if (result.lessonCompleted) _lessonCompleted = true;
-    }).catchError((_) {
+        .then<void>((_) {})
+        .catchError((_) {
       // The score update failed to save -- the round still advances; there's
       // nothing actionable to show mid-round for a single failed save.
     });
@@ -172,6 +173,8 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
       _loadItem(_currentIndex + 1);
     } else {
       setState(() => _currentIndex = round.items.length); // past the last index marks completion
+      // Last word built -- the lesson runner takes over straight away.
+      finishExercise();
     }
   }
 
@@ -207,15 +210,7 @@ class _BuildWordScreenState extends State<BuildWordScreen> {
     }
 
     if (_currentIndex >= round.items.length) {
-      return _RoundCompleteView(
-        correctCount: _correctCount,
-        total: round.items.length,
-        lessonCompleted: _lessonCompleted,
-        onPlayAgain: _load,
-        // Always a plain pop back to the lesson-runner sequencer -- see
-        // matching_screen.dart's identical comment.
-        onBackToLesson: () => Navigator.of(context).pop(),
-      );
+      return const LessonExerciseHandoff();
     }
 
     final item = round.items[_currentIndex];
@@ -366,54 +361,6 @@ class _LetterButton extends StatelessWidget {
           ),
           child: Text(letter, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
         ),
-      ),
-    );
-  }
-}
-
-class _RoundCompleteView extends StatelessWidget {
-  final int correctCount;
-  final int total;
-  final bool lessonCompleted;
-  final VoidCallback onPlayAgain;
-  final VoidCallback onBackToLesson;
-  const _RoundCompleteView({
-    required this.correctCount,
-    required this.total,
-    required this.lessonCompleted,
-    required this.onPlayAgain,
-    required this.onBackToLesson,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.check_circle, color: Colors.green, size: 56),
-          const SizedBox(height: 12),
-          const Text('Упражнение завершено!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          Text('Собрано слов: $correctCount из $total', style: const TextStyle(color: Colors.black54)),
-          if (lessonCompleted) ...[
-            const SizedBox(height: 8),
-            const Text('Урок пройден!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600)),
-          ],
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: onBackToLesson,
-            icon: Icon(lessonCompleted ? Icons.emoji_events_outlined : Icons.arrow_back),
-            label: Text(lessonCompleted ? 'Продолжить' : 'К уроку'),
-          ),
-          const SizedBox(height: 8),
-          if (!lessonCompleted)
-            OutlinedButton.icon(
-              onPressed: onPlayAgain,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Играть ещё раз'),
-            ),
-        ],
       ),
     );
   }

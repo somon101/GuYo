@@ -9,8 +9,13 @@
 //   - tapping "Начать урок" auto-opens Сопоставление first (no previously-
 //     learned pool exists yet, so "Правда или ложь" isn't part of the
 //     sequence at all for this very first lesson -- see EXERCISE_AVAILABILITY
-//     in lessons.py), then auto-advances to Собери слово once that round is
-//     backed out of;
+//     in lessons.py), then auto-advances to Собери слово the moment that
+//     round's last answer lands: no completion panel, no "Играть ещё раз",
+//     no "К уроку", nothing to tap in between;
+//   - one pass (matching +20, build_word +30 = 50) leaves the words below
+//     the learned threshold, so the single results screen reports the
+//     lesson unfinished and offers "Повторить урок"; the repeat runs the
+//     same sequence again over the words still short and finishes them;
 //   - answering correctly raises each specific word's own score (never a
 //     lesson-wide total); once every word crosses the admin threshold, the
 //     sequence ends and the lesson's own RESULTS screen shows "Урок пройден"
@@ -34,8 +39,11 @@
 //   - user testuser/123456
 //   - an English dictionary with exactly 6 words, none of them already
 //     learned/in a lesson (this repo's dev data already has exactly 6:
-//     apple/book/house/cat/doggo/dog), and default exercise/threshold
-//     settings (threshold 60, matching +20, build_word +30)
+//     apple/book/house/cat/doggo/dog), and matching +20 / build_word +30.
+//     The learned threshold is read from the backend at run time, not
+//     assumed. listen_word and speaking_word are switched off for the
+//     duration of this file (see _exercisesOffDuringThisFile) so the
+//     sequence under test does not change when a word gains audio.
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -71,6 +79,33 @@ Future<void> _openLessonsTab(WidgetTester tester) async {
   await tester.tap(find.text('Уроки'));
   await tester.pumpAndSettle();
 }
+
+Future<String> _adminToken() async {
+  final res = await http.post(
+    Uri.parse('$apiBaseUrl/auth/admin/login'),
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({'login': 'admin', 'password': '123456'}),
+  );
+  return (jsonDecode(res.body) as Map)['access_token'] as String;
+}
+
+Future<void> _setExerciseEnabled(String token, String exerciseKey, bool enabled) async {
+  await http.put(
+    Uri.parse('$apiBaseUrl/exercise-settings/$exerciseKey'),
+    headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+    body: jsonEncode({'word_count': 10, 'enabled': enabled}),
+  );
+}
+
+/// The exercises this file drives by hand. Everything else is switched off
+/// for the duration of the run, and switched back on afterwards.
+///
+/// Which exercises a lesson offers depends on the DATA -- listen_word, for
+/// instance, appears as soon as the fixture's words have audio. This file
+/// is about the lesson RUNNER (one continuous pass, nothing to tap between
+/// exercises), so it pins the set rather than silently changing meaning
+/// when a word gains a recording.
+const List<String> _exercisesOffDuringThisFile = ['listen_word', 'speaking_word'];
 
 Future<String> _userToken() async {
   final res = await http.post(
@@ -123,6 +158,38 @@ String _readCurrentBuildWordCorrectWord(WidgetTester tester) {
   return key.substring(firstDash + 1);
 }
 
+/// Plays every word of the "Собери слово" round currently on screen.
+///
+/// Driven by what is actually rendered rather than by a fixed count: the
+/// round only ever contains the words still short of the threshold, so its
+/// length differs between the first pass and a repeat.
+Future<void> _buildAllWordsCorrectly(WidgetTester tester) async {
+  var played = 0;
+  while (find.byWidgetPredicate((w) {
+    final key = w.key;
+    return key is ValueKey<String> && key.value.startsWith('build-word-active-');
+  }).evaluate().isNotEmpty) {
+    await _buildWordCorrectly(tester, _readCurrentBuildWordCorrectWord(tester));
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+    played++;
+    if (played > 15) fail('build_word round never ended -- more items than a lesson can hold');
+  }
+  expect(played, greaterThan(0), reason: 'the round should have had at least one word to build');
+}
+
+/// The score a word must reach to count as learned: the top word level's
+/// own lower bound. Read from the backend rather than assumed, so a
+/// changed level ladder fails loudly here instead of quietly breaking the
+/// pass/fail assertions further down.
+Future<int> _learnedThreshold(String token) async {
+  final res = await http.get(
+    Uri.parse('$apiBaseUrl/word-levels'),
+    headers: {'Authorization': 'Bearer $token'},
+  );
+  final levels = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
+  return (levels.last as Map<String, dynamic>)['min_points'] as int;
+}
+
 Future<void> _matchAllCorrectly(WidgetTester tester, List<int> wordIds) async {
   for (final id in wordIds) {
     await tester.tap(find.byKey(ValueKey('match-left-$id')));
@@ -132,8 +199,32 @@ Future<void> _matchAllCorrectly(WidgetTester tester, List<int> wordIds) async {
   }
 }
 
+/// A lesson is one continuous run: between two exercises, and between the
+/// last exercise and the results, the user must never be shown a
+/// completion panel or asked to tap anything to continue.
+void _expectNoBetweenExerciseScreen() {
+  expect(find.text('Упражнение завершено!'), findsNothing);
+  expect(find.text('Раунд завершён!'), findsNothing);
+  expect(find.text('Играть ещё раз'), findsNothing);
+  expect(find.text('К уроку'), findsNothing);
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    final admin = await _adminToken();
+    for (final key in _exercisesOffDuringThisFile) {
+      await _setExerciseEnabled(admin, key, false);
+    }
+  });
+
+  tearDownAll(() async {
+    final admin = await _adminToken();
+    for (final key in _exercisesOffDuringThisFile) {
+      await _setExerciseEnabled(admin, key, true);
+    }
+  });
 
   testWidgets(
     'random lesson: "Начать урок" auto-runs Сопоставление then Собери слово with no manual picking, '
@@ -187,47 +278,53 @@ void main() {
       expect(find.text('Сопоставление'), findsOneWidget);
       expect(find.textContaining('Правильно: 0/3'), findsOneWidget);
 
-      // --- Matching, played twice (each correct match is +20): total +40 ---
+      // One pass over this fixture is worth matching (+20) + build_word
+      // (+30) = 50 per word, so it takes two passes to clear the bar.
+      // Both facts are checked against the backend's own ladder rather
+      // than assumed, so a changed fixture fails here with a clear reason.
+      final threshold = await _learnedThreshold(token);
+      expect(50, lessThan(threshold), reason: 'one pass must leave the lesson unfinished');
+      expect(100, greaterThanOrEqualTo(threshold), reason: 'two passes must finish it');
+
+      // --- Pass 1: Сопоставление, then Собери слово, with NOTHING between ---
       await _matchAllCorrectly(tester, wordIds);
-      expect(find.text('Раунд завершён!'), findsOneWidget);
-      expect(find.text('Урок пройден!'), findsNothing, reason: '+20 alone must stay below the threshold (60)');
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Играть ещё раз'));
-      await tester.pumpAndSettle(const Duration(seconds: 1));
+      await tester.pumpAndSettle(const Duration(seconds: 3));
+
+      _expectNoBetweenExerciseScreen();
+      expect(find.text('Собери слово'), findsOneWidget, reason: 'the next exercise started on its own');
+
+      await _buildAllWordsCorrectly(tester);
+      await tester.pumpAndSettle(const Duration(seconds: 3));
+
+      // Every available exercise has now seen every word, so the ONE
+      // results screen appears by itself -- again with nothing in between.
+      _expectNoBetweenExerciseScreen();
+      expect(find.textContaining('результаты'), findsOneWidget);
+
+      // Still short of the threshold, so the lesson is NOT passed and the
+      // repeat is offered instead of "Готово".
+      expect(find.text('Урок пройден'), findsNothing);
+      expect(find.textContaining('Достигли нужного уровня: 0 из 3'), findsOneWidget);
+      expect(find.text('Повторить урок'), findsOneWidget);
+
+      // --- Pass 2: the repeat runs the same sequence over the words that
+      // are still short, and finishes them ---
+      await tester.tap(find.text('Повторить урок'));
+      await tester.pumpAndSettle(const Duration(seconds: 3));
+      expect(find.text('Сопоставление'), findsOneWidget, reason: 'the repeat restarts the sequence by itself');
 
       await _matchAllCorrectly(tester, wordIds);
-      expect(find.text('Раунд завершён!'), findsOneWidget);
-      expect(find.text('Урок пройден!'), findsNothing, reason: '+40 total must still stay below the threshold (60)');
-      await tester.tap(find.widgetWithText(FilledButton, 'К уроку'));
-      await tester.pumpAndSettle(const Duration(seconds: 1));
+      await tester.pumpAndSettle(const Duration(seconds: 3));
 
-      // --- Sequencer auto-advances to Собери слово (no menu, no tap) ---
+      _expectNoBetweenExerciseScreen();
       expect(find.text('Собери слово'), findsOneWidget);
 
-      // --- Build word, once (+30): total 40+30 = 70 >= threshold (60) ---
-      for (var i = 0; i < wordIds.length; i++) {
-        final word = _readCurrentBuildWordCorrectWord(tester);
-        await _buildWordCorrectly(tester, word);
-        await tester.pumpAndSettle(const Duration(seconds: 1));
-      }
+      await _buildAllWordsCorrectly(tester);
+      await tester.pumpAndSettle(const Duration(seconds: 4));
 
-      expect(find.text('Упражнение завершено!'), findsOneWidget);
-      expect(find.textContaining('Собрано слов: 3 из 3'), findsOneWidget);
-      expect(
-        find.text('Урок пройден!'),
-        findsOneWidget,
-        reason: 'every word should now be at 70 >= the 60 threshold',
-      );
-
-      // This is the round that finished the lesson -- its own "Продолжить"
-      // just pops back to the sequencer (never straight to a standalone
-      // completion screen); the sequence is exhausted right after (both
-      // exercise types have now been attempted), so the lesson's own
-      // results screen comes up next.
-      await tester.tap(find.widgetWithText(FilledButton, 'Продолжить'));
-      await tester.pumpAndSettle(const Duration(seconds: 2));
-
+      _expectNoBetweenExerciseScreen();
       expect(find.textContaining('результаты'), findsOneWidget);
-      expect(find.text('Урок пройден'), findsOneWidget);
+      expect(find.text('Урок пройден'), findsOneWidget, reason: 'every word is now at 100 >= the threshold');
       expect(find.text('Готово'), findsOneWidget);
       expect(find.text('Повторить урок'), findsNothing);
       await tester.tap(find.text('Готово'));

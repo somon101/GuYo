@@ -2,6 +2,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/lesson.dart';
+import 'lesson_exercise_flow.dart';
 
 /// "Услышь слово", as one of a Lesson's exercises: the backend hands back a
 /// round built from THIS lesson's own words (see ApiClient.
@@ -23,7 +24,7 @@ class ListenWordScreen extends StatefulWidget {
   State<ListenWordScreen> createState() => _ListenWordScreenState();
 }
 
-class _ListenWordScreenState extends State<ListenWordScreen> {
+class _ListenWordScreenState extends State<ListenWordScreen> with LessonExerciseFlow {
   bool _isLoading = true;
   String? _errorMessage;
   List<ListenWordItem> _items = [];
@@ -31,7 +32,6 @@ class _ListenWordScreenState extends State<ListenWordScreen> {
   int _correctCount = 0;
   ListenWordOption? _selected;
   bool _isLocked = false;
-  bool _lessonCompleted = false;
 
   final _player = AudioPlayer();
   bool _isPlayingAudio = false;
@@ -64,6 +64,9 @@ class _ListenWordScreenState extends State<ListenWordScreen> {
         _isLocked = false;
         _isLoading = false;
       });
+      // Nothing left for this exercise to test -- skip it instead of
+      // stalling the lesson on a dead end.
+      if (round.items.isEmpty) finishExercise();
       if (round.items.isNotEmpty) _playAudio();
     } catch (_) {
       if (!mounted) return;
@@ -101,13 +104,15 @@ class _ListenWordScreenState extends State<ListenWordScreen> {
       if (correct) _correctCount++;
     });
 
+    // The result itself is no longer read here: whether the lesson is
+    // complete is decided once, at the end, by the lesson's own results
+    // screen. Still awaited, so the answer is saved before the lesson
+    // moves on to the next exercise.
     final submit = ApiClient.instance
         .submitLessonAnswer(widget.lessonId, 'listen_word', wordId: item.wordId, isCorrect: correct)
-        .then((result) {
-      if (result.lessonCompleted) _lessonCompleted = true;
-    }).catchError((_) {
-      // The score update failed to save -- surfaced once at round-complete
-      // rather than interrupting the quiz flow item by item.
+        .then<void>((_) {})
+        .catchError((_) {
+      // A failed score update must never interrupt the flow item by item.
     });
     await Future.wait([submit, Future.delayed(const Duration(milliseconds: 700))]);
 
@@ -117,7 +122,12 @@ class _ListenWordScreenState extends State<ListenWordScreen> {
       _selected = null;
       _isLocked = false;
     });
-    if (_index < _items.length) _playAudio();
+    if (_index < _items.length) {
+      _playAudio();
+    } else {
+      // Last item answered -- the lesson runner takes over straight away.
+      finishExercise();
+    }
   }
 
   @override
@@ -162,16 +172,7 @@ class _ListenWordScreenState extends State<ListenWordScreen> {
           const SizedBox(height: 16),
           Expanded(
             child: isRoundComplete
-                ? _RoundCompleteView(
-                    correctCount: _correctCount,
-                    total: _items.length,
-                    lessonCompleted: _lessonCompleted,
-                    onPlayAgain: _load,
-                    // Always a plain pop back to the lesson-runner
-                    // sequencer -- see matching_screen.dart's identical
-                    // comment.
-                    onBackToLesson: () => Navigator.of(context).pop(),
-                  )
+                ? const LessonExerciseHandoff()
                 : Column(
                     // Carries the current item's own (correct) word_id for
                     // integration tests to read -- otherwise a test would
@@ -340,47 +341,6 @@ class _OptionTile extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _RoundCompleteView extends StatelessWidget {
-  final int correctCount;
-  final int total;
-  final bool lessonCompleted;
-  final VoidCallback onPlayAgain;
-  final VoidCallback onBackToLesson;
-
-  const _RoundCompleteView({
-    required this.correctCount,
-    required this.total,
-    required this.lessonCompleted,
-    required this.onPlayAgain,
-    required this.onBackToLesson,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.check_circle, color: Colors.green, size: 56),
-          const SizedBox(height: 12),
-          const Text('Упражнение завершено!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          Text('Правильно: $correctCount из $total', style: const TextStyle(color: Colors.black54)),
-          if (lessonCompleted) ...[
-            const SizedBox(height: 8),
-            const Text('Урок пройден!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600)),
-          ],
-          const SizedBox(height: 20),
-          FilledButton.icon(onPressed: onBackToLesson, icon: const Icon(Icons.arrow_back), label: const Text('К уроку')),
-          const SizedBox(height: 8),
-          if (!lessonCompleted)
-            OutlinedButton.icon(onPressed: onPlayAgain, icon: const Icon(Icons.refresh), label: const Text('Играть ещё раз')),
-        ],
       ),
     );
   }

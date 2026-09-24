@@ -3,6 +3,7 @@ import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../api/api_client.dart';
 import '../models/lesson.dart';
+import 'lesson_exercise_flow.dart';
 
 enum _MicState { idle, recording, processing, result }
 
@@ -28,13 +29,12 @@ class SpeakingWordScreen extends StatefulWidget {
   State<SpeakingWordScreen> createState() => _SpeakingWordScreenState();
 }
 
-class _SpeakingWordScreenState extends State<SpeakingWordScreen> {
+class _SpeakingWordScreenState extends State<SpeakingWordScreen> with LessonExerciseFlow {
   bool _isLoading = true;
   String? _errorMessage;
   SpeakingWordRound? _round;
   int _index = 0;
   int _correctCount = 0;
-  bool _lessonCompleted = false;
 
   final SpeechToText _speech = SpeechToText();
   bool _speechChecked = false;
@@ -79,6 +79,11 @@ class _SpeakingWordScreenState extends State<SpeakingWordScreen> {
       _speechChecked = true;
       _speechAvailable = available;
     });
+    if (!available) {
+      // This device cannot run this exercise at all. A lesson must not
+      // stall on it, so move on to the next one and say why in passing.
+      finishExercise(skippedBecause: 'Произнеси слово пропущено: распознавание речи недоступно');
+    }
   }
 
   Future<void> _load() async {
@@ -95,6 +100,12 @@ class _SpeakingWordScreenState extends State<SpeakingWordScreen> {
         _correctCount = 0;
         _isLoading = false;
       });
+      // Nothing left for this exercise to test -- skip it instead of
+      // stalling the lesson on a dead end.
+      if (round.items.isEmpty) {
+        finishExercise();
+        return;
+      }
       _resetItemState();
     } catch (_) {
       if (!mounted) return;
@@ -154,9 +165,7 @@ class _SpeakingWordScreenState extends State<SpeakingWordScreen> {
 
     final submit = ApiClient.instance
         .submitLessonAnswer(widget.lessonId, 'speaking_word', wordId: item.wordId, isCorrect: correct)
-        .then((res) {
-      if (res.lessonCompleted) _lessonCompleted = true;
-    }).catchError((_) {});
+        .then<void>((_) {}).catchError((_) {});
     await Future.wait([submit, Future.delayed(const Duration(milliseconds: 1100))]);
 
     if (!mounted) return;
@@ -170,6 +179,8 @@ class _SpeakingWordScreenState extends State<SpeakingWordScreen> {
       _resetItemState();
     } else {
       setState(() => _index = round.items.length); // past the last index marks completion
+      // Last word spoken -- the lesson runner takes over straight away.
+      finishExercise();
     }
   }
 
@@ -237,15 +248,7 @@ class _SpeakingWordScreenState extends State<SpeakingWordScreen> {
     }
 
     if (_index >= round.items.length) {
-      return _RoundCompleteView(
-        correctCount: _correctCount,
-        total: round.items.length,
-        lessonCompleted: _lessonCompleted,
-        onPlayAgain: _load,
-        // Always a plain pop back to the lesson-runner sequencer -- see
-        // matching_screen.dart's identical comment.
-        onBackToLesson: () => Navigator.of(context).pop(),
-      );
+      return const LessonExerciseHandoff();
     }
 
     final item = round.items[_index];
@@ -510,46 +513,5 @@ class _StateLabel extends StatelessWidget {
           ],
         );
     }
-  }
-}
-
-class _RoundCompleteView extends StatelessWidget {
-  final int correctCount;
-  final int total;
-  final bool lessonCompleted;
-  final VoidCallback onPlayAgain;
-  final VoidCallback onBackToLesson;
-
-  const _RoundCompleteView({
-    required this.correctCount,
-    required this.total,
-    required this.lessonCompleted,
-    required this.onPlayAgain,
-    required this.onBackToLesson,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.check_circle, color: Colors.green, size: 56),
-          const SizedBox(height: 12),
-          const Text('Упражнение завершено!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          Text('Правильно: $correctCount из $total', style: const TextStyle(color: Colors.black54)),
-          if (lessonCompleted) ...[
-            const SizedBox(height: 8),
-            const Text('Урок пройден!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600)),
-          ],
-          const SizedBox(height: 20),
-          FilledButton.icon(onPressed: onBackToLesson, icon: const Icon(Icons.arrow_back), label: const Text('К уроку')),
-          const SizedBox(height: 8),
-          if (!lessonCompleted)
-            OutlinedButton.icon(onPressed: onPlayAgain, icon: const Icon(Icons.refresh), label: const Text('Играть ещё раз')),
-        ],
-      ),
-    );
   }
 }

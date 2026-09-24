@@ -179,17 +179,18 @@ void main() {
         await tester.tap(find.text('Начать урок'));
         await tester.pumpAndSettle(const Duration(seconds: 2));
 
-        // --- First in the sequence: Произнеси слово, degrades gracefully ---
+        // --- Произнеси слово comes first in the sequence, but this target
+        // has no speech recognizer, so the exercise cannot run at all. It
+        // skips ITSELF and the lesson carries on -- never a dead end the
+        // user has to back out of by hand, and never a faked result. ---
+        await tester.pumpAndSettle(const Duration(seconds: 3));
         expect(
-          find.textContaining('недоступно'),
-          findsOneWidget,
-          reason: 'no speech recognizer on the Windows test target -- must degrade gracefully, never fake a result',
+          find.byKey(const ValueKey('speaking-word-mic-button')),
+          findsNothing,
+          reason: 'nothing to record with -- the mic must not be offered',
         );
-        expect(find.byKey(const ValueKey('speaking-word-mic-button')), findsNothing);
-        await tester.pageBack();
-        await tester.pumpAndSettle(const Duration(seconds: 1));
 
-        // --- Sequencer auto-advances to Услышь слово ---
+        // --- Sequencer moved on to Услышь слово by itself ---
         expect(find.textContaining('Правильно: 0/2'), findsOneWidget, reason: 'only red/blue have audio -- 2 items');
 
         // Item order isn't guaranteed, and BOTH word_ids can appear as
@@ -210,10 +211,12 @@ void main() {
           await tester.tap(correctOption);
           await tester.pumpAndSettle(const Duration(milliseconds: 900));
         }
-        expect(find.text('Упражнение завершено!'), findsOneWidget);
-        expect(find.textContaining('Правильно: 2 из 2'), findsOneWidget, reason: 'both answered with their own correct word_id');
-        await tester.tap(find.widgetWithText(FilledButton, 'К уроку'));
-        await tester.pumpAndSettle(const Duration(seconds: 2));
+        // The round's last answer hands control straight back to the
+        // lesson runner -- no completion panel, no button to tap.
+        await tester.pumpAndSettle(const Duration(seconds: 3));
+        expect(find.text('Упражнение завершено!'), findsNothing);
+        expect(find.text('К уроку'), findsNothing);
+        expect(find.text('Играть ещё раз'), findsNothing);
 
         // --- Sequence exhausted: the lesson's own results screen ---
         // green never got any real exercise (no audio for listen_word, no
