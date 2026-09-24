@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
+import { API_URL } from "../api/client";
 import {
   createCategory,
+  deleteCategoryIcon,
   exportDictionary,
   getDictionary,
   getDictionaryImportJob,
   listCategories,
+  setCategoryIcon,
   startDictionaryImport,
   type ImportJob,
 } from "../api/endpoints";
@@ -14,6 +17,10 @@ import { Modal } from "../components/Modal";
 import { LanguageSectionTabs } from "../components/LanguageSectionTabs";
 
 const IMPORT_JOB_POLL_MS = 1500;
+
+function mediaUrl(path: string | null): string | null {
+  return path ? `${API_URL}${path}` : null;
+}
 
 // The import itself runs on the backend as a job, entirely independent of
 // this component's lifetime -- so the one piece of state that actually
@@ -228,12 +235,22 @@ export function DictionaryDetailPage() {
       ) : (
         <ul className="flex flex-col gap-3">
           {categories.map((c) => (
-            <li key={c.id}>
+            <li
+              key={c.id}
+              className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-4"
+            >
+              <CategoryIcon
+                dictionaryId={dictionaryId}
+                category={c}
+                onChanged={(updated) =>
+                  setCategories((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
+                }
+              />
               <Link
                 to={`/dictionaries/${dictionaryId}/categories/${c.id}`}
-                className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4 hover:bg-slate-50"
+                className="flex min-w-0 flex-1 items-center justify-between gap-3 hover:text-indigo-600"
               >
-                <span className="font-medium text-slate-900" translate="no">
+                <span className="truncate font-medium text-slate-900" translate="no">
                   {c.name}
                 </span>
                 <span className="shrink-0 text-sm text-slate-400">{c.word_count} слов</span>
@@ -253,6 +270,93 @@ export function DictionaryDetailPage() {
           onClose={() => setIsModalOpen(false)}
         />
       )}
+    </div>
+  );
+}
+
+/** One category's picture, uploaded and cleared right here: each is its own
+ * PUT/DELETE on that category, so there is nothing to "save" afterwards.
+ * A category with no icon shows a neutral placeholder -- exactly what the
+ * mobile app falls back to when icon_url is null. */
+function CategoryIcon({
+  dictionaryId,
+  category,
+  onChanged,
+}: {
+  dictionaryId: number;
+  category: Category;
+  onChanged: (category: Category) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isBusy, setIsBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const url = mediaUrl(category.icon_url);
+
+  async function handleFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    // Same input is reused for every replace, so clear it either way.
+    e.target.value = "";
+    if (!file) return;
+    setIsBusy(true);
+    setError(null);
+    try {
+      onChanged(await setCategoryIcon(dictionaryId, category.id, file));
+    } catch {
+      setError("Не удалось загрузить иконку");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function handleRemove() {
+    setIsBusy(true);
+    setError(null);
+    try {
+      onChanged(await deleteCategoryIcon(dictionaryId, category.id));
+    } catch {
+      setError("Не удалось удалить иконку");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex shrink-0 flex-col items-center gap-1">
+      <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg bg-slate-100">
+        {url ? (
+          <img src={url} alt="" className="h-full w-full object-contain" />
+        ) : (
+          <span className="text-lg text-slate-400">📁</span>
+        )}
+      </div>
+      <div className="flex items-center gap-2 text-xs">
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={isBusy}
+          className="text-indigo-600 hover:underline disabled:opacity-50"
+        >
+          {category.icon_url ? "Заменить" : "Иконка"}
+        </button>
+        {category.icon_url && (
+          <button
+            type="button"
+            onClick={handleRemove}
+            disabled={isBusy}
+            className="text-rose-600 hover:underline disabled:opacity-50"
+          >
+            Убрать
+          </button>
+        )}
+      </div>
+      {error && <p className="text-xs text-rose-600">{error}</p>}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFile}
+        className="hidden"
+      />
     </div>
   );
 }

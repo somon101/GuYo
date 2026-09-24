@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../models/word.dart';
+import '../widgets/word_card.dart';
 
 /// Word selection for a new lesson: either a random count (1-15) or a
 /// manual, per-word pick (also capped at 15), grouped by category so
@@ -26,6 +27,9 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
   bool _isLoading = true;
   String? _loadError;
   List<GuyoWord> _candidates = [];
+  // Only decides each card's level stripe; failing to load it just leaves
+  // the stripes neutral.
+  List<WordLevelSummary> _levels = [];
 
   _Mode _mode = _Mode.random;
   int _randomCount = 5;
@@ -38,6 +42,27 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
   void initState() {
     super.initState();
     _load();
+    _loadLevels();
+  }
+
+  Future<void> _loadLevels() async {
+    try {
+      final levels = await ApiClient.instance.fetchWordLevels();
+      if (!mounted) return;
+      setState(() => _levels = levels);
+    } catch (_) {
+      // Neutral stripes are an acceptable degraded state.
+    }
+  }
+
+  void _toggleWord(int wordId) {
+    setState(() {
+      if (_selectedIds.contains(wordId)) {
+        _selectedIds.remove(wordId);
+      } else if (_selectedIds.length < _maxLessonWords) {
+        _selectedIds.add(wordId);
+      }
+    });
   }
 
   Future<void> _load() async {
@@ -223,21 +248,24 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
             subtitle: Text('${groups[categoryName]!.length} слов'),
             children: [
               for (final word in groups[categoryName]!)
-                CheckboxListTile(
-                  key: ValueKey('lesson-word-checkbox-${word.id}'),
-                  dense: true,
-                  title: Text(word.word),
-                  subtitle: word.translation.isNotEmpty ? Text(word.translation) : null,
-                  value: _selectedIds.contains(word.id),
-                  onChanged: (checked) {
-                    setState(() {
-                      if (checked == true) {
-                        if (_selectedIds.length < _maxLessonWords) _selectedIds.add(word.id);
-                      } else {
-                        _selectedIds.remove(word.id);
-                      }
-                    });
-                  },
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: WordCard(
+                    word: word.word,
+                    transcription: word.transcription,
+                    translation: word.translation,
+                    audioUrl: word.wordAudioUrl,
+                    level: WordLevelView.resolve(word.wordLevelId, word.wordLevelName, _levels),
+                    selected: _selectedIds.contains(word.id),
+                    onTap: () => _toggleWord(word.id),
+                    trailing: Checkbox(
+                      key: ValueKey('lesson-word-checkbox-${word.id}'),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      value: _selectedIds.contains(word.id),
+                      onChanged: (_) => _toggleWord(word.id),
+                    ),
+                  ),
                 ),
             ],
           ),

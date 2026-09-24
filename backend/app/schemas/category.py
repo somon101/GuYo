@@ -15,3 +15,7 @@ class CategoryOut(BaseModel):
     name: str
     created_at: datetime
     word_count: int = 0
+    # Resolved from icon_key by the router (never the raw key) -- null
+    # when no icon was uploaded, which is the client's cue to draw its
+    # own generic folder icon instead.
+    icon_url: str | None = None

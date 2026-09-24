@@ -49,7 +49,7 @@ void main() {
 
     await tester.tap(find.text('Мои слова'));
     await tester.pumpAndSettle();
-    expect(find.text('Мои изученные слова'), findsOneWidget);
+    expect(find.text('Мои слова'), findsOneWidget);
 
     await tester.tap(find.text('Мои фразы'));
     await tester.pumpAndSettle();

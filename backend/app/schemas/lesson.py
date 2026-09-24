@@ -33,6 +33,13 @@ class LessonWordOut(BaseModel):
     # path, just the same ladder applied to a Lesson word's own score.
     word_level_id: int | None = None
     word_level_name: str | None = None
+    # Carried so a lesson's word list can render the SAME shared word
+    # card every other list uses (pronunciation + play buttons), rather
+    # than a reduced variant of it.
+    transcription: str | None = None
+    word_audio_url: str | None = None
+    translation_audio_url: str | None = None
+    image_url: str | None = None
 
 
 class LessonOut(BaseModel):

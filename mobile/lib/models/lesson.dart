@@ -15,6 +15,13 @@ class LessonWord {
   // system.
   final int? wordLevelId;
   final String? wordLevelName;
+  // Carried so a lesson's word list renders the SAME shared word card
+  // (widgets/word_card.dart) every other list uses, and its chevron can
+  // open the same word detail screen, without a second fetch.
+  final String? transcription;
+  final String? wordAudioUrl;
+  final String? translationAudioUrl;
+  final String? imageUrl;
 
   LessonWord({
     required this.wordId,
@@ -24,6 +31,10 @@ class LessonWord {
     required this.isLearned,
     this.wordLevelId,
     this.wordLevelName,
+    this.transcription,
+    this.wordAudioUrl,
+    this.translationAudioUrl,
+    this.imageUrl,
   });
 
   factory LessonWord.fromJson(Map<String, dynamic> json) {
@@ -35,6 +46,10 @@ class LessonWord {
       isLearned: json['is_learned'] as bool,
       wordLevelId: json['word_level_id'] as int?,
       wordLevelName: json['word_level_name'] as String?,
+      transcription: json['transcription'] as String?,
+      wordAudioUrl: json['word_audio_url'] as String?,
+      translationAudioUrl: json['translation_audio_url'] as String?,
+      imageUrl: json['image_url'] as String?,
     );
   }
 }

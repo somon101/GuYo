@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/lesson.dart';
 import '../models/word.dart';
+import '../theme/app_colors.dart';
+import '../widgets/word_card.dart';
 
 /// Shown once a "Начать урок" run has walked every available exercise type
 /// (see LessonDetailScreen._startLesson) -- the ONE place a lesson's
@@ -138,16 +140,10 @@ class _OutcomeBanner extends StatelessWidget {
   }
 }
 
-/// Position-based red-to-green color for a word level -- same purely
-/// visual mapping learned_words_screen.dart's own _wordLevelColor uses
-/// (the backend decides which level a word is in and the levels' order;
-/// only "what color goes at this position" is left to the client).
-Color _wordLevelColor(int index, int total) {
-  if (total <= 1) return const Color(0xFF43A047);
-  final t = index / (total - 1);
-  return Color.lerp(const Color(0xFFE53935), const Color(0xFF43A047), t)!;
-}
-
+/// One word's result: the app's shared word card, plus the progress bar
+/// that is this screen's whole point -- how far this word still is from
+/// its required level. The score and the level are the backend's own
+/// (see the class docstring); only the bar is drawn here.
 class _WordProgressRow extends StatelessWidget {
   final LessonWord word;
   final List<WordLevelSummary> levels;
@@ -155,59 +151,25 @@ class _WordProgressRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final levelIndex = word.wordLevelId == null ? -1 : levels.indexWhere((l) => l.id == word.wordLevelId);
-    final levelColor = levelIndex == -1 ? null : _wordLevelColor(levelIndex, levels.length);
-    final color = word.isLearned ? Colors.green.shade600 : (levelColor ?? Colors.orange.shade700);
+    final level = WordLevelView.resolve(word.wordLevelId, word.wordLevelName, levels);
+    final color = word.isLearned ? AppColors.success : level.color;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: word.isLearned ? Colors.green.shade50 : Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: word.isLearned ? Colors.green.shade300 : Colors.grey.shade300),
-      ),
-      child: Column(
+    return WordCard(
+      word: word.word,
+      transcription: word.transcription,
+      translation: word.translation,
+      audioUrl: word.wordAudioUrl,
+      level: level,
+      trailing: word.isLearned ? const Icon(Icons.check_circle, color: AppColors.success, size: 18) : null,
+      footer: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(word.word, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                    if (word.translation != null && word.translation!.isNotEmpty)
-                      Text(word.translation!, style: const TextStyle(fontSize: 13, color: Colors.black54)),
-                  ],
-                ),
-              ),
-              if (word.isLearned)
-                Icon(Icons.check_circle, color: Colors.green.shade600, size: 20)
-              else if (word.wordLevelName != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.13),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: color.withValues(alpha: 0.5)),
-                  ),
-                  child: Text(
-                    word.wordLevelName!,
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
-                  ),
-                )
-              else
-                Text('${word.score}', style: const TextStyle(fontSize: 13, color: Colors.black54)),
-            ],
-          ),
-          const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(5),
             child: LinearProgressIndicator(
               value: (word.score / 100).clamp(0.0, 1.0),
               minHeight: 5,
-              backgroundColor: Colors.grey.shade200,
+              backgroundColor: const Color(0xFFEDEFF7),
               valueColor: AlwaysStoppedAnimation(color),
             ),
           ),

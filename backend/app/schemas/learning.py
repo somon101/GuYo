@@ -27,3 +27,8 @@ class LearnedCategoryOut(BaseModel):
     category_id: int | None
     category_name: str
     learned_count: int
+    # The category's own uploaded picture (see Category.icon_key) --
+    # null both for "Без категории" and for a real category whose icon
+    # an admin hasn't set yet; the client draws its generic folder icon
+    # in either case.
+    icon_url: str | None = None

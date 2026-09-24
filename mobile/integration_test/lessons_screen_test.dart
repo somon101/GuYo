@@ -251,9 +251,9 @@ void main() {
       // --- Мои слова: all 3 lesson words now show up there ---
       await tester.tap(find.text('Мои слова'));
       await tester.pumpAndSettle();
-      expect(find.text('Мои изученные слова'), findsOneWidget);
+      expect(find.text('Мои слова'), findsOneWidget);
       expect(find.text('Без категории'), findsOneWidget);
-      expect(find.text('3'), findsOneWidget);
+      expect(find.text('3 слова'), findsOneWidget);
       await tester.pageBack();
       await tester.pumpAndSettle();
     },

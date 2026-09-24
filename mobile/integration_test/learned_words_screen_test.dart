@@ -18,6 +18,7 @@ import 'package:integration_test/integration_test.dart';
 
 import 'package:guyo_app/config.dart';
 import 'package:guyo_app/main.dart';
+import 'package:guyo_app/widgets/word_card.dart';
 
 Future<void> _login(WidgetTester tester) async {
   await tester.pumpWidget(const GuyoApp());
@@ -131,14 +132,34 @@ void main() {
 
     await tester.tap(find.text('Мои слова'));
     await tester.pumpAndSettle();
-    expect(find.text('Мои изученные слова'), findsOneWidget);
+    expect(find.text('Мои слова'), findsOneWidget);
 
-    // The new word has no category -- reach it via "Без категории".
+    // One screen now: the word sits right under its own category's header,
+    // no drill-down step at all.
+    expect(find.text('Без категории'), findsOneWidget);
+    expect(find.text(wordText), findsOneWidget, reason: 'an in-progress word must now be listed at all');
+    // Pinned to THIS word's own card: every other in-progress word in the
+    // dev dictionary falls in the same whole-range level created above.
+    expect(
+      find.descendant(of: find.widgetWithText(WordCard, wordText), matching: find.text(levelName)),
+      findsOneWidget,
+      reason: 'tagged with the level its score actually falls in',
+    );
+
+    // Search matches the TRANSLATION too, not just the original word.
+    await tester.enterText(find.byType(TextField).first, 'x');
+    await tester.pumpAndSettle();
+    expect(find.text(wordText), findsOneWidget, reason: 'searching the translation must find the word');
+
+    // Collapsing the group hides its words; expanding brings them back.
+    await tester.enterText(find.byType(TextField).first, '');
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Без категории'));
     await tester.pumpAndSettle();
-
-    expect(find.text(wordText), findsOneWidget, reason: 'an in-progress word must now be listed at all');
-    expect(find.text(levelName), findsOneWidget, reason: 'tagged with the level its score actually falls in');
+    expect(find.text(wordText), findsNothing, reason: 'the header chevron collapses the group');
+    await tester.tap(find.text('Без категории'));
+    await tester.pumpAndSettle();
+    expect(find.text(wordText), findsOneWidget);
 
     // Cleanup: this level was never used by any quest, so (unlike
     // quests_screen_test.dart's own level) it can be deleted outright

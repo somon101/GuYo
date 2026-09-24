@@ -88,6 +88,35 @@ export async function createCategory(dictionaryId: number, name: string): Promis
   return data;
 }
 
+/** Replaces this category's picture. Multipart, same shape as the rank and
+ * achievement icon uploads -- the backend stores it under categories/{id}
+ * and deletes whatever was there before. */
+export async function setCategoryIcon(
+  dictionaryId: number,
+  categoryId: number,
+  icon: File,
+): Promise<Category> {
+  const form = new FormData();
+  form.append("icon", icon);
+  const { data } = await api.put(
+    `/dictionaries/${dictionaryId}/categories/${categoryId}/icon`,
+    form,
+  );
+  return data;
+}
+
+/** Removes this category's picture; the app falls back to its own generic
+ * folder icon the moment icon_url comes back null. */
+export async function deleteCategoryIcon(
+  dictionaryId: number,
+  categoryId: number,
+): Promise<Category> {
+  const { data } = await api.delete(
+    `/dictionaries/${dictionaryId}/categories/${categoryId}/icon`,
+  );
+  return data;
+}
+
 export interface CreateWordInput {
   word: string;
   translation: string;

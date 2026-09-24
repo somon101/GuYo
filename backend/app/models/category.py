@@ -22,6 +22,10 @@ class Category(Base):
         ForeignKey("dictionaries.id", ondelete="CASCADE"), nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(String(128), nullable=False)
+    # Optional per-category picture an admin uploads (storage key, same
+    # convention as rank/achievement icons -- see app/core/storage.py).
+    # Null means the client falls back to its own generic folder icon.
+    icon_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     dictionary: Mapped["Dictionary"] = relationship()

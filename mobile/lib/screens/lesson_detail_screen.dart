@@ -3,13 +3,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/lesson.dart';
+import '../models/word.dart';
 import '../theme/app_colors.dart';
+import '../widgets/word_card.dart';
 import 'build_word_screen.dart';
 import 'lesson_results_screen.dart';
 import 'listen_word_screen.dart';
 import 'matching_screen.dart';
 import 'speaking_word_screen.dart';
 import 'true_or_false_screen.dart';
+import 'word_detail_screen.dart';
 
 /// One lesson's own screen: its fixed word set, each word's own cumulative
 /// score/learned status, and one "Начать урок" button. Reached by tapping a
@@ -56,11 +59,42 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
   // this guard, autoStart would re-trigger itself forever the moment its
   // own run finishes.
   bool _autoStartTriggered = false;
+  // Only decides the shared word card's stripe color; a failure to load it
+  // leaves the cards uncolored rather than failing the lesson.
+  List<WordLevelSummary> _levels = [];
 
   @override
   void initState() {
     super.initState();
     _load();
+    _loadLevels();
+  }
+
+  Future<void> _loadLevels() async {
+    try {
+      final levels = await ApiClient.instance.fetchWordLevels();
+      if (!mounted) return;
+      setState(() => _levels = levels);
+    } catch (_) {
+      // Colorless cards are an acceptable degraded state.
+    }
+  }
+
+  void _openWord(LessonWord word) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => WordDetailScreen(
+          word: word.word,
+          transcription: word.transcription,
+          translation: word.translation,
+          wordAudioUrl: word.wordAudioUrl,
+          translationAudioUrl: word.translationAudioUrl,
+          imageUrl: word.imageUrl,
+          score: word.score,
+          level: WordLevelView.resolve(word.wordLevelId, word.wordLevelName, _levels),
+        ),
+      ),
+    );
   }
 
   Future<void> _load() async {
@@ -268,7 +302,18 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
         const SizedBox(height: 20),
         const Text('Слова урока', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
         const SizedBox(height: 10),
-        for (final word in lesson.words) _LessonWordTile(word: word),
+        for (final word in lesson.words)
+          WordCard(
+            word: word.word,
+            transcription: word.transcription,
+            translation: word.translation,
+            audioUrl: word.wordAudioUrl,
+            level: WordLevelView.resolve(word.wordLevelId, word.wordLevelName, _levels),
+            onTap: () => _openWord(word),
+            trailing: word.isLearned
+                ? const Icon(Icons.check_circle, color: AppColors.success, size: 18)
+                : const Icon(Icons.chevron_right, size: 18, color: Color(0xFFB9BEDA)),
+          ),
         if (!lesson.isCompleted) ...[
           const SizedBox(height: 12),
           if (lesson.exerciseKeys.isEmpty)
@@ -312,46 +357,3 @@ const Map<String, String> _exerciseLabels = {
   'speaking_word': 'Произнеси слово',
   'listen_word': 'Услышь слово',
 };
-
-class _LessonWordTile extends StatelessWidget {
-  final LessonWord word;
-  const _LessonWordTile({required this.word});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      decoration: BoxDecoration(
-        color: word.isLearned ? AppColors.successLight : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: word.isLearned ? AppColors.success.withValues(alpha: 0.25) : const Color(0xFFEDEFF7)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 3)),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(word.word, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
-                if (word.translation != null && word.translation!.isNotEmpty)
-                  Text(word.translation!, style: const TextStyle(fontSize: 14, color: AppColors.secondaryText)),
-              ],
-            ),
-          ),
-          if (word.isLearned)
-            const Icon(Icons.check_circle, color: AppColors.success, size: 22)
-          else
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: const Color(0xFFF2F3FA), borderRadius: BorderRadius.circular(20)),
-              child: Text('${word.score}', style: const TextStyle(fontSize: 13, color: AppColors.secondaryText, fontWeight: FontWeight.w600)),
-            ),
-        ],
-      ),
-    );
-  }
-}

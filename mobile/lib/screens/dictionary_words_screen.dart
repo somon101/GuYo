@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../models/word.dart';
-import '../widgets/audio_button.dart';
+import '../widgets/word_card.dart';
+import 'word_detail_screen.dart';
 
 class DictionaryWordsScreen extends StatefulWidget {
   final GuyoDictionary dictionary;
@@ -14,11 +15,25 @@ class DictionaryWordsScreen extends StatefulWidget {
 
 class _DictionaryWordsScreenState extends State<DictionaryWordsScreen> {
   late Future<List<GuyoWord>> _future;
+  // The level ladder only decides each card's color; a failure to load it
+  // leaves the cards uncolored rather than failing the whole list.
+  List<WordLevelSummary> _levels = [];
 
   @override
   void initState() {
     super.initState();
     _future = ApiClient.instance.fetchWords(widget.dictionary.id);
+    _loadLevels();
+  }
+
+  Future<void> _loadLevels() async {
+    try {
+      final levels = await ApiClient.instance.fetchWordLevels();
+      if (!mounted) return;
+      setState(() => _levels = levels);
+    } catch (_) {
+      // Colorless cards are an acceptable degraded state.
+    }
   }
 
   Future<void> _reload() async {
@@ -26,6 +41,24 @@ class _DictionaryWordsScreenState extends State<DictionaryWordsScreen> {
       _future = ApiClient.instance.fetchWords(widget.dictionary.id);
     });
     await _future;
+    await _loadLevels();
+  }
+
+  void _openWord(GuyoWord word) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => WordDetailScreen(
+          word: word.word,
+          transcription: word.transcription,
+          translation: word.translation,
+          wordAudioUrl: word.wordAudioUrl,
+          translationAudioUrl: word.translationAudioUrl,
+          imageUrl: word.imageUrl,
+          score: word.score,
+          level: WordLevelView.resolve(word.wordLevelId, word.wordLevelName, _levels),
+        ),
+      ),
+    );
   }
 
   @override
@@ -65,91 +98,23 @@ class _DictionaryWordsScreenState extends State<DictionaryWordsScreen> {
               ],
             );
           }
-          return ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             itemCount: words.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) => _WordTile(word: words[index]),
+            itemBuilder: (context, index) {
+              final word = words[index];
+              return WordCard(
+                word: word.word,
+                transcription: word.transcription,
+                translation: word.translation,
+                audioUrl: word.wordAudioUrl,
+                level: WordLevelView.resolve(word.wordLevelId, word.wordLevelName, _levels),
+                onTap: () => _openWord(word),
+                trailing: const Icon(Icons.chevron_right, size: 18, color: Color(0xFFB9BEDA)),
+              );
+            },
           );
         },
-      ),
-    );
-  }
-}
-
-class _WordTile extends StatelessWidget {
-  final GuyoWord word;
-  const _WordTile({required this.word});
-
-  @override
-  Widget build(BuildContext context) {
-    // Every optional field (transcription, image, word/translation audio)
-    // is rendered only when present -- their absence is a normal state,
-    // never an error or an empty placeholder.
-    final hasImage = word.imageUrl != null && word.imageUrl!.isNotEmpty;
-    final hasTranscription = word.transcription != null && word.transcription!.isNotEmpty;
-    final hasWordAudio = word.wordAudioUrl != null && word.wordAudioUrl!.isNotEmpty;
-    final hasTranslationAudio =
-        word.translationAudioUrl != null && word.translationAudioUrl!.isNotEmpty;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (hasImage) ...[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                ApiClient.instance.mediaUrl(word.imageUrl!),
-                width: 56,
-                height: 56,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const SizedBox(width: 56, height: 56),
-              ),
-            ),
-            const SizedBox(width: 14),
-          ],
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      word.word,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                    ),
-                    if (hasWordAudio) ...[
-                      const SizedBox(width: 6),
-                      AudioButton(url: ApiClient.instance.mediaUrl(word.wordAudioUrl!)),
-                    ],
-                  ],
-                ),
-                if (hasTranscription)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      word.transcription!,
-                      style: const TextStyle(fontSize: 14, color: Colors.black45),
-                    ),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Row(
-                    children: [
-                      Text(word.translation, style: const TextStyle(fontSize: 16)),
-                      if (hasTranslationAudio) ...[
-                        const SizedBox(width: 6),
-                        AudioButton(url: ApiClient.instance.mediaUrl(word.translationAudioUrl!)),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

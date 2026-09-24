@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.deps import Principal, get_current_admin, get_current_principal
+from app.core.storage import delete_by_key, save_upload, url_for_key
 from app.database import get_db
 from app.models.category import Category
 from app.models.dictionary import Dictionary
@@ -41,6 +42,7 @@ def list_categories(
     for category, word_count in rows:
         out = CategoryOut.model_validate(category)
         out.word_count = word_count
+        out.icon_url = url_for_key(category.icon_key)
         result.append(out)
     return result
 
@@ -73,4 +75,68 @@ def create_category(
     db.refresh(category)
     out = CategoryOut.model_validate(category)
     out.word_count = 0
+    out.icon_url = None
+    return out
+
+
+def _get_category_or_404(db: Session, dictionary_id: int, category_id: int) -> Category:
+    category = db.get(Category, category_id)
+    if category is None or category.dictionary_id != dictionary_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+    return category
+
+
+@router.put(
+    "/dictionaries/{dictionary_id}/categories/{category_id}/icon", response_model=CategoryOut
+)
+def set_category_icon(
+    dictionary_id: int,
+    category_id: int,
+    icon: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """Replaces this category's own picture -- the one shown next to its
+    name wherever words are grouped by category. Same storage-key handling
+    every other uploaded image in this project uses (see app/core/storage.py):
+    the previous file is only removed once the new one is safely saved."""
+    category = _get_category_or_404(db, dictionary_id, category_id)
+    new_key = save_upload(icon, subdir=f"categories/{category.id}")
+    if new_key is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Пустой файл")
+
+    old_key = category.icon_key
+    category.icon_key = new_key
+    db.commit()
+    delete_by_key(old_key)
+    db.refresh(category)
+
+    word_count = db.query(func.count(Word.id)).filter(Word.category_id == category.id).scalar() or 0
+    out = CategoryOut.model_validate(category)
+    out.word_count = word_count
+    out.icon_url = url_for_key(category.icon_key)
+    return out
+
+
+@router.delete(
+    "/dictionaries/{dictionary_id}/categories/{category_id}/icon", response_model=CategoryOut
+)
+def delete_category_icon(
+    dictionary_id: int,
+    category_id: int,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """Clears the picture; the client falls back to its own generic folder
+    icon the moment `icon_url` comes back null."""
+    category = _get_category_or_404(db, dictionary_id, category_id)
+    old_key = category.icon_key
+    category.icon_key = None
+    db.commit()
+    delete_by_key(old_key)
+
+    word_count = db.query(func.count(Word.id)).filter(Word.category_id == category.id).scalar() or 0
+    out = CategoryOut.model_validate(category)
+    out.word_count = word_count
+    out.icon_url = None
     return out

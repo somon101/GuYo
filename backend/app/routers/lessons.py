@@ -30,11 +30,18 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_admin, get_current_user
+from app.core.storage import url_for_key
 from app.database import get_db
 from app.achievements import check_and_grant_achievements, record_activity
 from app.rating import award_word_points_if_new
 from app.exercises import EXERCISE_TYPES, build_word, listen_word, matching, speaking_word, true_or_false
-from app.exercises.common import get_eligible_words, get_points, get_threshold, is_exercise_enabled
+from app.exercises.common import (
+    fill_word_progress,
+    get_eligible_words,
+    get_points,
+    get_threshold,
+    is_exercise_enabled,
+)
 from app.models.dictionary import Dictionary
 from app.models.learning_settings import LearningSettings
 from app.models.lesson import Lesson, LessonExercise, LessonWord
@@ -131,6 +138,10 @@ def _lesson_to_out(db: Session, lesson: Lesson, threshold: int) -> LessonOut:
                 is_learned=score >= threshold,
                 word_level_id=level.id if level else None,
                 word_level_name=level.name if level else None,
+                transcription=w.transcription,
+                word_audio_url=url_for_key(w.word_audio_key),
+                translation_audio_url=url_for_key(primary.audio_key) if primary else None,
+                image_url=url_for_key(w.image_key),
             )
         )
 
@@ -214,9 +225,11 @@ def get_lesson_candidate_words(
     _get_published_dictionary_or_404(db, dictionary_id)
     threshold = get_threshold(db)
     words = get_eligible_words(db, user.id, dictionary_id, threshold)
-    return LessonCandidateWordsOut(
-        dictionary_id=dictionary_id, available_count=len(words), words=[word_to_out(w) for w in words]
-    )
+    out = [word_to_out(w) for w in words]
+    # So the picker's word cards carry the same score/level every other
+    # word list shows -- the shared helper, never a second classification.
+    fill_word_progress(db, user.id, out, [w.id for w in words])
+    return LessonCandidateWordsOut(dictionary_id=dictionary_id, available_count=len(words), words=out)
 
 
 @router.get("/lessons/active", response_model=LessonOut)

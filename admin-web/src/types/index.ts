@@ -61,6 +61,10 @@ export interface Category {
   name: string;
   created_at: string;
   word_count: number;
+  /** Uploaded per-category picture, same storage-key convention as rank and
+   * achievement icons. Null means no icon is set -- the mobile app then
+   * draws its own generic folder icon. */
+  icon_url: string | null;
 }
 
 export interface Word {

@@ -14,6 +14,7 @@ from app.core.deps import Principal, get_current_admin, get_current_principal
 from app.core.languages import is_valid_translation_language
 from app.core.storage import MEDIA_ROOT, delete_by_key, save_bytes, save_upload, url_for_key
 from app.database import SessionLocal, get_db
+from app.exercises.common import fill_word_progress
 from app.models.category import Category
 from app.models.dictionary import Dictionary
 from app.models.import_job import ImportJob
@@ -118,7 +119,14 @@ def list_words(
     if category_id is not None:
         query = query.filter(Word.category_id == category_id)
     words = query.order_by(Word.id).all()
-    return [word_to_out(w) for w in words]
+    out = [word_to_out(w) for w in words]
+    # A logged-in user also gets their OWN progress on each word (score, and
+    # which reinforcement level that score falls into), so the shared word
+    # card shows the same status pill here as it does in "Мои слова". An
+    # admin has no per-word progress of their own, so these stay null.
+    if principal.role == "user":
+        fill_word_progress(db, principal.id, out, [w.id for w in words])
+    return out
 
 
 @router.post(

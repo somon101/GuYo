@@ -14,7 +14,7 @@ from app.models.learning_settings import LearningSettings
 from app.models.lesson import Lesson
 from app.models.word import Word
 from app.models.word_progress import WordProgress
-from app.word_levels import top_level_threshold
+from app.word_levels import level_for_score_in, ordered_enabled_levels, top_level_threshold
 
 DEFAULT_THRESHOLD = 60
 # (correct, incorrect) points, only used when an admin hasn't configured a
@@ -75,6 +75,30 @@ def get_eligible_words(db: Session, user_id: int, dictionary_id: int, threshold:
         .subquery()
     )
     return db.query(Word).filter(Word.dictionary_id == dictionary_id, ~Word.id.in_(learned_ids)).all()
+
+
+def fill_word_progress(db: Session, user_id: int, words_out: list, word_ids: list[int]) -> None:
+    """Fills each WordOut's own `score`/`word_level_id`/`word_level_name`
+    with THIS user's progress, in place. One query for the scores and one
+    for the level ladder no matter how many words -- and the same
+    ordered_enabled_levels/level_for_score_in pair every other caller uses,
+    so a word's level here can never disagree with the one Quests or
+    "Мои слова" would show for the same score."""
+    if not word_ids:
+        return
+    scores = {
+        row.word_id: row.score
+        for row in db.query(WordProgress)
+        .filter(WordProgress.user_id == user_id, WordProgress.word_id.in_(word_ids))
+        .all()
+    }
+    levels = ordered_enabled_levels(db)
+    for out in words_out:
+        score = scores.get(out.id, 0)
+        level = level_for_score_in(levels, score)
+        out.score = score
+        out.word_level_id = level.id if level else None
+        out.word_level_name = level.name if level else None
 
 
 def lesson_words_pending(db: Session, lesson: Lesson, threshold: int) -> list[Word]:

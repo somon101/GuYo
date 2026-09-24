@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core.deps import get_current_user
+from app.core.storage import url_for_key
 from app.database import get_db
 from app.models.category import Category
 from app.models.dictionary import Dictionary
@@ -279,17 +280,22 @@ def list_learned_word_categories(
     _get_published_dictionary_or_404(db, dictionary_id)
     threshold = _get_threshold(db)
     query = (
-        db.query(Word.category_id, Category.name, func.count(WordProgress.id))
+        db.query(Word.category_id, Category.name, func.count(WordProgress.id), Category.icon_key)
         .join(WordProgress, WordProgress.word_id == Word.id)
         .outerjoin(Category, Category.id == Word.category_id)
         .filter(WordProgress.user_id == user.id, Word.dictionary_id == dictionary_id)
     )
     if not include_in_progress:
         query = query.filter(WordProgress.score >= threshold)
-    rows = query.group_by(Word.category_id, Category.name).order_by(Category.name).all()
+    rows = query.group_by(Word.category_id, Category.name, Category.icon_key).order_by(Category.name).all()
     return [
-        LearnedCategoryOut(category_id=category_id, category_name=name or "Без категории", learned_count=count)
-        for category_id, name, count in rows
+        LearnedCategoryOut(
+            category_id=category_id,
+            category_name=name or "Без категории",
+            learned_count=count,
+            icon_url=url_for_key(icon_key),
+        )
+        for category_id, name, count, icon_key in rows
     ]
 
 
