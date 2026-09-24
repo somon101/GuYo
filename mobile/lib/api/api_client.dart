@@ -480,6 +480,33 @@ class ApiClient {
   /// mobile connection left this Future waiting forever with no error and
   /// no way for the UI to ever leave its "uploading" state, which looked
   /// exactly like a permanent freeze.
+  /// Saves the fields the "Настройки" screen edits. Only what is passed
+  /// is sent, and only what is sent is changed -- editing one field never
+  /// blanks another. The photo is not here: it is a file and has its own
+  /// upload/delete calls below.
+  Future<UserProfile> updateMyProfile({
+    String? login,
+    String? firstName,
+    String? lastName,
+    String? email,
+  }) async {
+    final body = <String, dynamic>{
+      if (login != null) 'login': login,
+      if (firstName != null) 'first_name': firstName,
+      if (lastName != null) 'last_name': lastName,
+      if (email != null) 'email': email,
+    };
+    final res = await http.patch(
+      _uri('/users/me/profile'),
+      headers: {...await _authHeaders(), 'Content-Type': 'application/json'},
+      body: jsonEncode(body),
+    );
+    // _throwWithDetail, not the plain check: a taken login or email comes
+    // back as a 409 whose own message is the only useful thing to show.
+    await _throwWithDetail(res);
+    return UserProfile.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
   Future<UserProfile> uploadMyAvatar(List<int> bytes, String filename, {String? mimeType}) async {
     final t = await token;
     final req = http.MultipartRequest('POST', _uri('/users/me/avatar'))

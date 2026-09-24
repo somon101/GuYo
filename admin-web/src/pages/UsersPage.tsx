@@ -67,14 +67,21 @@ export function UsersPage() {
               <tr>
                 <th className="px-4 py-3 font-medium">ID</th>
                 <th className="px-4 py-3 font-medium">Логин</th>
+                <th className="px-4 py-3 font-medium">Имя</th>
+                <th className="px-4 py-3 font-medium">Почта</th>
                 <th className="px-4 py-3 font-medium">Дата создания</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {users.map((u) => (
                 <tr key={u.id}>
-                  <td className="px-4 py-3 text-slate-500">{u.id}</td>
+                  {/* The 9-digit account number, not the internal key. */}
+                  <td className="px-4 py-3 font-mono text-slate-500">{u.public_id}</td>
                   <td className="px-4 py-3 font-medium text-slate-900" translate="no">{u.login}</td>
+                  <td className="px-4 py-3 text-slate-500" translate="no">
+                    {[u.first_name, u.last_name].filter(Boolean).join(" ") || "—"}
+                  </td>
+                  <td className="px-4 py-3 text-slate-500" translate="no">{u.email ?? "—"}</td>
                   <td className="px-4 py-3 text-slate-500">{formatDate(u.created_at)}</td>
                 </tr>
               ))}
@@ -89,6 +96,9 @@ export function UsersPage() {
 function CreateUserForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -97,11 +107,15 @@ function CreateUserForm({ onCreated, onCancel }: { onCreated: () => void; onCanc
     setError(null);
     setIsSubmitting(true);
     try {
-      await createUser(login, password);
+      await createUser({ login, password, firstName, lastName, email });
       onCreated();
     } catch (err) {
       if (isAxiosError(err) && err.response?.status === 409) {
-        setError("Такой логин уже занят");
+        // The backend says WHICH one is taken -- login or email.
+        const detail = err.response?.data?.detail as string | undefined;
+        setError(detail ?? "Такой логин уже занят");
+      } else if (isAxiosError(err) && err.response?.status === 422) {
+        setError("Проверьте поля: имя, фамилия и корректный адрес почты обязательны");
       } else {
         setError("Не удалось создать пользователя");
       }
@@ -113,9 +127,9 @@ function CreateUserForm({ onCreated, onCancel }: { onCreated: () => void; onCanc
   return (
     <form
       onSubmit={handleSubmit}
-      className="mb-6 flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5 sm:flex-row sm:items-end"
+      className="mb-6 grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-white p-5 sm:grid-cols-3"
     >
-      <div className="flex-1">
+      <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Логин</label>
         <input
           className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
@@ -126,7 +140,7 @@ function CreateUserForm({ onCreated, onCancel }: { onCreated: () => void; onCanc
           minLength={3}
         />
       </div>
-      <div className="flex-1">
+      <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Пароль</label>
         <input
           type="password"
@@ -137,7 +151,35 @@ function CreateUserForm({ onCreated, onCancel }: { onCreated: () => void; onCanc
           minLength={4}
         />
       </div>
-      <div className="flex gap-2">
+      <div>
+        <label className="mb-1 block text-sm font-medium text-slate-700">Имя</label>
+        <input
+          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          value={firstName}
+          onChange={(e) => setFirstName(e.target.value)}
+          required
+        />
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium text-slate-700">Фамилия</label>
+        <input
+          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          value={lastName}
+          onChange={(e) => setLastName(e.target.value)}
+          required
+        />
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium text-slate-700">Электронная почта</label>
+        <input
+          type="email"
+          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+      </div>
+      <div className="flex items-end gap-2">
         <button
           type="submit"
           disabled={isSubmitting}

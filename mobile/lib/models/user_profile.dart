@@ -7,7 +7,20 @@
 /// the exact same values. Mirrors the backend's UserProfileOut exactly.
 class UserProfile {
   final int id;
+
+  /// The 9-digit account number shown as "ID" in the profile. `id` above
+  /// is the internal key the backend uses for relations and the auth
+  /// token; it is never displayed.
+  final int publicId;
+
   final String login;
+
+  /// Null on accounts created before these fields existed -- the settings
+  /// screen shows an empty field rather than inventing anything.
+  final String? firstName;
+  final String? lastName;
+  final String? email;
+
   final String? avatarUrl;
   final int currentStreakDays;
   // The same counters the "Уроки"/"Слова" achievement condition_types are
@@ -18,7 +31,11 @@ class UserProfile {
 
   UserProfile({
     required this.id,
+    required this.publicId,
     required this.login,
+    required this.firstName,
+    required this.lastName,
+    required this.email,
     required this.avatarUrl,
     required this.currentStreakDays,
     required this.lessonsCompleted,
@@ -28,7 +45,11 @@ class UserProfile {
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
       id: json['id'] as int,
+      publicId: json['public_id'] as int,
       login: json['login'] as String,
+      firstName: json['first_name'] as String?,
+      lastName: json['last_name'] as String?,
+      email: json['email'] as String?,
       avatarUrl: json['avatar_url'] as String?,
       currentStreakDays: json['current_streak_days'] as int,
       lessonsCompleted: json['lessons_completed'] as int,

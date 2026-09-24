@@ -24,8 +24,15 @@ export const TRANSLATION_LANGUAGE_LABELS: Record<TranslationLanguage, string> = 
 };
 
 export interface AdminUser {
+  /** Internal key -- what the delete and grant-points endpoints take. */
   id: number;
+  /** The 9-digit account number people see. Shown as "ID" in the table. */
+  public_id: number;
   login: string;
+  /** Null on accounts created before these fields existed. */
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
   created_at: string;
 }
 

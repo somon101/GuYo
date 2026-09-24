@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.achievements import CONDITION_TYPES, lessons_completed_count, streak_days_count, words_learned_count
 from app.core.deps import get_current_admin, get_current_user
+from app.core.public_id import generate_public_id
 from app.core.security import hash_password
 from app.core.storage import delete_by_key, save_bytes, url_for_key
 from app.database import get_db
@@ -21,7 +22,7 @@ from app.rating import (
 )
 from app.schemas.achievement import UserAchievementOut
 from app.schemas.rating import SeasonHistoryOut, SeasonOut, UserRatingOut, rank_public_out
-from app.schemas.user import UserCreate, UserOut, UserProfileOut
+from app.schemas.user import UserCreate, UserOut, UserProfileOut, UserUpdateIn
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -52,11 +53,25 @@ def list_users(db: Session = Depends(get_db), _admin: Admin = Depends(get_curren
 
 @router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def create_user(payload: UserCreate, db: Session = Depends(get_db), _admin: Admin = Depends(get_current_admin)):
-    exists = db.query(User).filter(User.login == payload.login).first()
-    if exists is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Login already taken")
+    """Creates an account. Name, surname and email are required here and
+    only here -- the columns stay nullable so accounts made before they
+    existed keep working (see app/models/user.py).
 
-    user = User(login=payload.login, password_hash=hash_password(payload.password))
+    The 9-digit account number is generated, never supplied: it is the
+    user's permanent public identity and nobody gets to pick it."""
+    if db.query(User).filter(User.login == payload.login).first() is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Login already taken")
+    if db.query(User).filter(User.email == payload.email).first() is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Этот адрес почты уже занят")
+
+    user = User(
+        public_id=generate_public_id(db),
+        login=payload.login,
+        password_hash=hash_password(payload.password),
+        first_name=payload.first_name.strip(),
+        last_name=payload.last_name.strip(),
+        email=payload.email,
+    )
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -86,7 +101,11 @@ def delete_user(user_id: int, db: Session = Depends(get_db), _admin: Admin = Dep
 def _profile_out(db: Session, user: User) -> UserProfileOut:
     return UserProfileOut(
         id=user.id,
+        public_id=user.public_id,
         login=user.login,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        email=user.email,
         avatar_url=url_for_key(user.avatar_key),
         current_streak_days=streak_days_count(db, user),
         lessons_completed=lessons_completed_count(db, user),
@@ -96,6 +115,49 @@ def _profile_out(db: Session, user: User) -> UserProfileOut:
 
 @router.get("/me/profile", response_model=UserProfileOut)
 def get_my_profile(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _profile_out(db, user)
+
+
+@router.patch("/me/profile", response_model=UserProfileOut)
+def update_my_profile(
+    payload: UserUpdateIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """What the "Настройки" screen saves. Only the fields actually sent
+    are changed, so editing one thing never blanks another.
+
+    The photo is not here -- it is a file, and keeps its own upload/delete
+    endpoints below. Neither is the account number, which is permanent, or
+    the password, which is its own operation.
+
+    Login and email are unique, so both are checked against OTHER accounts
+    before the write; the database's own constraints are still what
+    ultimately guarantee it."""
+    fields = payload.model_dump(exclude_unset=True)
+
+    if "login" in fields:
+        login = fields["login"].strip()
+        taken = db.query(User).filter(User.login == login, User.id != user.id).first()
+        if taken is not None:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Этот логин уже занят")
+        user.login = login
+
+    if "email" in fields:
+        email = fields["email"]
+        if email is not None:
+            taken = db.query(User).filter(User.email == email, User.id != user.id).first()
+            if taken is not None:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Этот адрес почты уже занят")
+        user.email = email
+
+    if "first_name" in fields:
+        user.first_name = fields["first_name"].strip() if fields["first_name"] else None
+    if "last_name" in fields:
+        user.last_name = fields["last_name"].strip() if fields["last_name"] else None
+
+    db.commit()
+    db.refresh(user)
     return _profile_out(db, user)
 
 

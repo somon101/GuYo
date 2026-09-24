@@ -17,6 +17,7 @@ import '../widgets/user_avatar.dart';
 import 'achievements_screen.dart';
 import 'all_ranks_screen.dart';
 import 'learned_words_screen.dart';
+import 'profile_settings_screen.dart';
 
 /// "Профиль": the user's own identity (avatar, login, their permanent
 /// user_id), their three headline counters, their current rank, and a
@@ -162,14 +163,14 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _pickAndUploadAvatar() async {
+  Future<UserProfile?> _pickAndUploadAvatar() async {
     final picker = ImagePicker();
     final XFile? picked;
     try {
       picked = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, imageQuality: 85);
     } catch (e) {
       _showSnack('Не удалось открыть галерею: $e');
-      return;
+      return null;
     }
     if (picked == null) {
       // Distinguishes a real "nothing picked" from every other silent
@@ -178,7 +179,7 @@ class ProfileScreenState extends State<ProfileScreen> {
       // crop step, for instance), which otherwise looks identical to
       // every other kind of silent no-op.
       _showSnack('Файл не выбран');
-      return;
+      return null;
     }
 
     // picker.pickImage() backgrounds this Activity for as long as the
@@ -191,7 +192,7 @@ class ProfileScreenState extends State<ProfileScreen> {
     // inside State.setState) that aborted this whole function silently
     // before it ever reached readAsBytes(), which is exactly what looked
     // like "picks a photo, screen goes blank, nothing ever happens".
-    if (!mounted) return;
+    if (!mounted) return null;
     // Set BEFORE reading any bytes, not after -- readAsBytes() opens the
     // picked content:// URI through the OS, which on a real device can
     // take a real, visible moment (or throw, see below), and previously
@@ -210,15 +211,15 @@ class ProfileScreenState extends State<ProfileScreen> {
       // "picks a photo, then nothing happens at all" this was chasing.
       if (mounted) setState(() => _isUpdatingAvatar = false);
       _showSnack('Не удалось прочитать фото: $e');
-      return;
+      return null;
     }
-    if (!mounted) return;
+    if (!mounted) return null;
     // Optimistic preview -- set BEFORE the network call even starts, so
     // there is no window at all where the screen shows nothing new.
     setState(() => _pendingAvatarBytes = bytes);
     try {
       final profile = await ApiClient.instance.uploadMyAvatar(bytes, picked.name, mimeType: picked.mimeType);
-      if (!mounted) return;
+      if (!mounted) return null;
       setState(() {
         _profile = profile;
         _pendingAvatarBytes = null;
@@ -228,6 +229,7 @@ class ProfileScreenState extends State<ProfileScreen> {
       // failed to actually RENDER (bad network, a stale cached widget)
       // looked identical to "nothing happened at all".
       _showSnack('Фото обновлено');
+      return profile;
     } on ApiException catch (e) {
       if (mounted) setState(() => _pendingAvatarBytes = null);
       _showSnack(e.message);
@@ -241,22 +243,25 @@ class ProfileScreenState extends State<ProfileScreen> {
     } finally {
       if (mounted) setState(() => _isUpdatingAvatar = false);
     }
+    return null;
   }
 
-  Future<void> _removeAvatar() async {
+  Future<UserProfile?> _removeAvatar() async {
     setState(() {
       _isUpdatingAvatar = true;
       _pendingAvatarBytes = null;
     });
     try {
       final profile = await ApiClient.instance.deleteMyAvatar();
-      if (!mounted) return;
+      if (!mounted) return null;
       setState(() => _profile = profile);
+      return profile;
     } catch (_) {
       _showSnack('Не удалось удалить фото');
     } finally {
       if (mounted) setState(() => _isUpdatingAvatar = false);
     }
+    return null;
   }
 
   void _showSnack(String text) {
@@ -264,52 +269,6 @@ class ProfileScreenState extends State<ProfileScreen> {
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(SnackBar(content: Text(text)));
-  }
-
-  /// The gear button's own sheet -- the ONLY way to change the avatar now
-  /// (tapping the photo itself no longer opens anything). More settings
-  /// will live here later; photo is simply all there is today.
-  void openSettings() {
-    final hasAvatar = _profile?.avatarUrl != null;
-    showModalBottomSheet(
-      context: context,
-      showDragHandle: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Настройки',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
-                ),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined, color: AppColors.primary),
-              title: const Text('Изменить фотографию'),
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                _pickAndUploadAvatar();
-              },
-            ),
-            if (hasAvatar)
-              ListTile(
-                leading: const Icon(Icons.delete_outline, color: Colors.red),
-                title: const Text('Удалить фотографию', style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  _removeAvatar();
-                },
-              ),
-          ],
-        ),
-      ),
-    );
   }
 
   /// Opens the app's existing "Мои слова" screen -- the same one, with all
@@ -333,6 +292,32 @@ class ProfileScreenState extends State<ProfileScreen> {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => AllRanksScreen(rating: rating)),
     );
+  }
+
+  /// The gear button opens the "Настройки" screen -- login, photo, name,
+  /// surname and email, each editable there. It is a screen rather than
+  /// the old photo-only sheet because changing the photo is no longer the
+  /// only thing settings does.
+  ///
+  /// The avatar actions are handed over rather than reimplemented: that
+  /// path carries real-device fixes worth keeping in exactly one place
+  /// (see _pickAndUploadAvatar).
+  void openSettings() {
+    final profile = _profile;
+    if (profile == null) return;
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => ProfileSettingsScreen(
+              profile: profile,
+              onPickPhoto: _pickAndUploadAvatar,
+              onRemovePhoto: _removeAvatar,
+            ),
+          ),
+        )
+        // Whatever was saved came back from the backend already; reloading
+        // keeps this screen showing exactly what the server now holds.
+        .then((_) => _load());
   }
 
   @override
@@ -551,7 +536,12 @@ class _ProfileHeader extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 2),
-              Text('ID: ${profile.id}', style: const TextStyle(fontSize: 14, color: AppColors.secondaryText)),
+              // The 9-digit account number -- `id` is internal and never
+              // shown.
+              Text(
+                'ID: ${profile.publicId}',
+                style: const TextStyle(fontSize: 14, color: AppColors.secondaryText),
+              ),
             ],
           ),
         ),
