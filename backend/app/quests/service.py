@@ -9,11 +9,13 @@ get_points, same as Lessons), and rating's own grant function
 """
 
 import random
+from datetime import datetime, time, timezone
 
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.dates import dushanbe_today
+from app.core.dates import DUSHANBE_TZ, dushanbe_today
 from app.exercises.common import get_points, get_threshold
 from app.models.quest import Quest, UserQuestWordDay
 from app.models.user import User
@@ -35,6 +37,33 @@ def _words_used_today(db: Session, user_id: int) -> set[int]:
         .filter(UserQuestWordDay.user_id == user_id, UserQuestWordDay.used_date == today)
         .all()
     }
+
+
+def quest_completions_today(db: Session, user_id: int) -> dict[int, int]:
+    """How many words each quest has successfully consumed today, keyed by
+    quest id. Counted straight from the UserQuestWordDay rows the quest
+    flow already writes on every success -- there is no separate progress
+    table, so this can never drift from what actually happened.
+
+    Quests with nothing done today simply aren't in the returned map."""
+    today = dushanbe_today()
+    rows = (
+        db.query(UserQuestWordDay.quest_id, func.count(UserQuestWordDay.id))
+        .filter(UserQuestWordDay.user_id == user_id, UserQuestWordDay.used_date == today)
+        .group_by(UserQuestWordDay.quest_id)
+        .all()
+    )
+    return {quest_id: count for quest_id, count in rows}
+
+
+def dushanbe_day_bounds_utc(day=None) -> tuple[datetime, datetime]:
+    """The UTC instants one Asia/Dushanbe day starts and ends at -- what a
+    timestamp column (UserWordPoints.awarded_at) has to be compared
+    against to mean "today" on the same clock quests reset on."""
+    day = day or dushanbe_today()
+    start_local = datetime.combine(day, time.min, tzinfo=DUSHANBE_TZ)
+    end_local = datetime.combine(day, time.max, tzinfo=DUSHANBE_TZ)
+    return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)
 
 
 def candidate_words_for_quest(db: Session, user: User, quest: Quest, dictionary_id: int) -> list[Word]:

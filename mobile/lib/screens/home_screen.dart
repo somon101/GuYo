@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../theme/app_colors.dart';
+import 'home_dashboard_screen.dart';
 import 'lessons_screen.dart';
 import 'login_screen.dart';
-import 'main_menu_screen.dart';
 import 'practice_screen.dart';
 import 'profile_screen.dart';
 import 'rating_screen.dart';
@@ -24,13 +24,13 @@ import 'rating_screen.dart';
 /// `_visible_to`), so this screen doesn't need to (and must not try to)
 /// second-guess publish status on its own.
 ///
-/// Bottom nav: "Главная" (MainMenuScreen -- whatever doesn't have its own
-/// tab, currently just "Словарь"), "Уроки" (LessonsScreen -- the
-/// sequential lesson chain), "Практика" (PracticeScreen -- self-directed
-/// drills over already-learned words/phrases, independent of lesson
-/// order), "Рейтинг" (RatingScreen -- the user's own-rank leaderboard,
-/// never dictionary-scoped) and "Профиль". Switching tabs never touches
-/// the language selection above; every dictionary-scoped tab just renders
+/// Bottom nav: "Главная" (HomeDashboardScreen -- the greeting and the
+/// season-quests block), "Уроки" (LessonsScreen -- the sequential lesson
+/// chain), "Практика" (PracticeScreen -- self-directed drills over
+/// already-learned words/phrases, independent of lesson order), "Рейтинг"
+/// (RatingScreen -- the user's own-rank leaderboard, never
+/// dictionary-scoped) and "Профиль". Switching tabs never touches the
+/// language selection above; every dictionary-scoped tab just renders
 /// against whichever one is currently selected.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -231,7 +231,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return IndexedStack(
       index: _selectedTabIndex,
       children: [
-        MainMenuScreen(key: ValueKey('menu-${selected.id}'), dictionary: selected),
+        HomeDashboardScreen(
+          key: ValueKey('home-${selected.id}'),
+          dictionary: selected,
+          // "Квест дня" is carried out in Уроки, which is a sibling tab
+          // rather than a route -- so the dashboard asks the shell to
+          // switch instead of pushing anything.
+          onOpenLessons: () => setState(() => _selectedTabIndex = 1),
+        ),
         LessonsScreen(key: ValueKey('lessons-${selected.id}'), dictionary: selected),
         PracticeScreen(key: ValueKey('practice-${selected.id}'), dictionary: selected),
         // Neither tab below is dictionary-scoped at all (identity/
@@ -253,9 +260,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // included), matching that screen's design.
     final isProfileTab = _selectedTabIndex == 4;
     return Scaffold(
+      backgroundColor: AppColors.canvas,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.canvas,
         surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        titleSpacing: 16,
         title: const _GuyoWordmark(),
         actions: [
           if (isProfileTab)
@@ -307,6 +317,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               );
             },
           ),
+          const _NotificationsButton(),
           PopupMenuButton<String>(
             tooltip: 'Ещё',
             onSelected: (value) {
@@ -352,6 +363,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The notifications bell in the top bar.
+///
+/// Purely the design's own element for now: GuYo has no notification
+/// system, no API and no unread state behind it, so it deliberately shows
+/// no badge -- a permanent red dot would claim something the app cannot
+/// actually tell the user. Tapping it says so plainly rather than doing
+/// nothing at all.
+class _NotificationsButton extends StatelessWidget {
+  const _NotificationsButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: 'Уведомления',
+      icon: const Icon(Icons.notifications_none_rounded, color: AppColors.primaryDark),
+      onPressed: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Уведомлений пока нет'), duration: Duration(seconds: 2)),
+        );
+      },
     );
   }
 }

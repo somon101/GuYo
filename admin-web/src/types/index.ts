@@ -294,6 +294,10 @@ export interface Quest {
   word_level_name: string;
   exercise_key: string;
   reward_points: number;
+  /** How many successful attempts count as "done for today" -- the goal a
+   * user's progress bar fills toward. NOT a reward rule: every success
+   * still grants reward_points, target reached or not. */
+  daily_target: number;
   enabled: boolean;
   order: number;
 }

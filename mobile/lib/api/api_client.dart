@@ -577,6 +577,21 @@ class ApiClient {
     return list.map((e) => AvailableQuest.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  /// Everything the "Квесты сезона" block on Главная and the season
+  /// quests screen need, in one round trip -- the active season with its
+  /// admin-uploaded icon, this user's rating standing, and their quest
+  /// progress today. A read-only view over the season/rating/quest
+  /// systems that already exist; nothing here is a second source of any
+  /// of those numbers.
+  Future<SeasonQuestOverview> fetchSeasonQuestOverview(int dictionaryId) async {
+    final res = await http.get(
+      _uri('/quests/overview').replace(queryParameters: {'dictionary_id': '$dictionaryId'}),
+      headers: await _authHeaders(),
+    );
+    await _throwIfUnauthorized(res);
+    return SeasonQuestOverview.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
   Future<QuestRound> fetchQuestRound(int questId, int dictionaryId) async {
     final res = await http.get(
       _uri('/quests/$questId/round').replace(queryParameters: {'dictionary_id': '$dictionaryId'}),

@@ -1,3 +1,5 @@
+import 'user_rating.dart';
+
 /// Quests: a system entirely separate from achievements/rating's own
 /// models -- mirrors the backend's AvailableQuestOut/QuestRoundOut/
 /// QuestAnswerOut exactly. The backend decides eligibility, round content,
@@ -11,6 +13,14 @@ class AvailableQuest {
   final int rewardPoints;
   final bool available;
 
+  /// How many successful attempts count as "done for today" (the admin's
+  /// own per-quest setting), how many the user has actually made since the
+  /// daily reset, and whether that target is met. All three come straight
+  /// from the backend -- the client never counts completions itself.
+  final int dailyTarget;
+  final int completedToday;
+  final bool isDoneToday;
+
   AvailableQuest({
     required this.id,
     required this.name,
@@ -18,6 +28,9 @@ class AvailableQuest {
     required this.exerciseKey,
     required this.rewardPoints,
     required this.available,
+    required this.dailyTarget,
+    required this.completedToday,
+    required this.isDoneToday,
   });
 
   factory AvailableQuest.fromJson(Map<String, dynamic> json) {
@@ -28,6 +41,98 @@ class AvailableQuest {
       exerciseKey: json['exercise_key'] as String,
       rewardPoints: json['reward_points'] as int,
       available: json['available'] as bool,
+      dailyTarget: json['daily_target'] as int,
+      completedToday: json['completed_today'] as int,
+      isDoneToday: json['is_done_today'] as bool,
+    );
+  }
+}
+
+/// The season a user is currently playing, as the quests section shows it.
+/// Mirrors the backend's SeasonOut: `iconUrl` is the picture an admin
+/// uploaded in the season settings, and is the ONLY season image the app
+/// ever renders.
+class QuestSeason {
+  final int id;
+  final String name;
+  final String? iconUrl;
+  final DateTime? endsAt;
+
+  QuestSeason({required this.id, required this.name, required this.iconUrl, required this.endsAt});
+
+  factory QuestSeason.fromJson(Map<String, dynamic> json) {
+    return QuestSeason(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      iconUrl: json['icon_url'] as String?,
+      endsAt: json['ends_at'] == null ? null : DateTime.parse(json['ends_at'] as String),
+    );
+  }
+}
+
+/// Everything the "Квесты сезона" block on Главная and the season quests
+/// screen render, in one round trip -- mirrors the backend's
+/// SeasonQuestOverviewOut.
+///
+/// Every number here is the backend's own: the season comes from the
+/// season system, the rank position is the same one the Profile screen
+/// shows, the points are counted from the rating ledgers, and quest
+/// progress is counted from the quest completions themselves. This screen
+/// computes none of it and holds no second copy of it.
+class SeasonQuestOverview {
+  final QuestSeason? season;
+
+  /// Whole days left in the season, already rounded by the backend. Null
+  /// when the season has no scheduled end -- there is no countdown to show.
+  final int? daysLeft;
+
+  /// Rating points earned today: newly learned words plus quest rewards.
+  final int pointsToday;
+  final int totalPoints;
+  final RankSummary? rank;
+
+  /// The user's real place within their own rank.
+  final int? rankPosition;
+
+  final int questsDoneToday;
+  final int questsTotal;
+
+  /// The permanent "изучение новых слов" quest: what one newly learned
+  /// word is worth right now, and how many were learned today.
+  final int pointsPerLearnedWord;
+  final int wordsLearnedToday;
+
+  final List<AvailableQuest> quests;
+
+  SeasonQuestOverview({
+    required this.season,
+    required this.daysLeft,
+    required this.pointsToday,
+    required this.totalPoints,
+    required this.rank,
+    required this.rankPosition,
+    required this.questsDoneToday,
+    required this.questsTotal,
+    required this.pointsPerLearnedWord,
+    required this.wordsLearnedToday,
+    required this.quests,
+  });
+
+  factory SeasonQuestOverview.fromJson(Map<String, dynamic> json) {
+    return SeasonQuestOverview(
+      season: json['season'] == null ? null : QuestSeason.fromJson(json['season'] as Map<String, dynamic>),
+      daysLeft: json['days_left'] as int?,
+      pointsToday: json['points_today'] as int,
+      totalPoints: json['total_points'] as int,
+      rank: json['rank'] == null ? null : RankSummary.fromJson(json['rank'] as Map<String, dynamic>),
+      rankPosition: json['rank_position'] as int?,
+      questsDoneToday: json['quests_done_today'] as int,
+      questsTotal: json['quests_total'] as int,
+      pointsPerLearnedWord: json['points_per_learned_word'] as int,
+      wordsLearnedToday: json['words_learned_today'] as int,
+      quests: (json['quests'] as List<dynamic>)
+          .map((e) => AvailableQuest.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 }

@@ -6,7 +6,6 @@ import '../theme/app_colors.dart';
 import 'learned_words_screen.dart';
 import 'lesson_create_screen.dart';
 import 'lesson_detail_screen.dart';
-import 'quests_screen.dart';
 
 /// "Уроки": the new primary progress system's own tab. Shows this
 /// dictionary's FULL, permanent lesson history as a flat list of cards --
@@ -86,12 +85,6 @@ class _LessonsScreenState extends State<LessonsScreen> {
     );
   }
 
-  Future<void> _openQuests() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => QuestsScreen(dictionary: widget.dictionary)),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -102,9 +95,10 @@ class _LessonsScreenState extends State<LessonsScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                // "Квесты" is gone from here on purpose: quests are a
+                // season-wide system, not part of the lesson chain, and
+                // now live in their own block on Главная.
                 _TopPillButton(icon: Icons.menu_book_outlined, label: 'Мои слова', onTap: _openLearnedWords),
-                const SizedBox(width: 10),
-                _TopPillButton(icon: Icons.flag_outlined, label: 'Квесты', onTap: _openQuests),
               ],
             ),
           ),

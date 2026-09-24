@@ -1,0 +1,419 @@
+import 'package:flutter/material.dart';
+import '../api/api_client.dart';
+import '../models/dictionary.dart';
+import '../models/quest.dart';
+import '../models/user_profile.dart';
+import '../theme/app_colors.dart';
+import '../theme/slogans.dart';
+import '../widgets/quest_ui.dart';
+import '../widgets/user_avatar.dart';
+import 'season_quests_screen.dart';
+
+/// "Главная": the greeting and the season block, nothing else.
+///
+/// Replaces the old menu-of-links screen. Every number shown here is the
+/// backend's own, fetched in one call (GET /quests/overview) that reads
+/// the season, rating and quest systems that already exist -- this screen
+/// owns no state and computes nothing.
+class HomeDashboardScreen extends StatefulWidget {
+  final GuyoDictionary dictionary;
+
+  /// Switches the app to the "Уроки" tab -- where the "изучение новых
+  /// слов" quest is actually carried out.
+  final VoidCallback onOpenLessons;
+
+  /// Swappable so a future admin-managed slogan list can replace the
+  /// built-in one without touching this widget (see SloganSource).
+  final SloganSource sloganSource;
+
+  const HomeDashboardScreen({
+    super.key,
+    required this.dictionary,
+    required this.onOpenLessons,
+    this.sloganSource = const LocalSloganSource(),
+  });
+
+  @override
+  State<HomeDashboardScreen> createState() => _HomeDashboardScreenState();
+}
+
+class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
+  bool _isLoading = true;
+  String? _loadError;
+  SeasonQuestOverview? _overview;
+  UserProfile? _profile;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
+    try {
+      final results = await Future.wait([
+        ApiClient.instance.fetchSeasonQuestOverview(widget.dictionary.id),
+        ApiClient.instance.fetchMyProfile(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _overview = results[0] as SeasonQuestOverview;
+        _profile = results[1] as UserProfile;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _loadError = 'Не удалось загрузить данные';
+      });
+    }
+  }
+
+  Future<void> _openSeasonQuests() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SeasonQuestsScreen(
+          dictionary: widget.dictionary,
+          onOpenLessons: widget.onOpenLessons,
+        ),
+      ),
+    );
+    // Coming back from a quest attempt changes points and progress.
+    _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.canvas,
+      child: RefreshIndicator(onRefresh: _load, child: _buildBody()),
+    );
+  }
+
+  Widget _buildBody() {
+    final overview = _overview;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      children: [
+        _Greeting(profile: _profile, slogan: widget.sloganSource.current()),
+        const SizedBox(height: 18),
+        if (_isLoading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 60),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_loadError != null)
+          GuyoCard(
+            child: Column(
+              children: [
+                Text(_loadError!, textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                FilledButton(onPressed: _load, child: const Text('Повторить')),
+              ],
+            ),
+          )
+        else if (overview != null)
+          _SeasonBlock(
+            overview: overview,
+            onOpen: _openSeasonQuests,
+            onOpenLessons: widget.onOpenLessons,
+          ),
+      ],
+    );
+  }
+}
+
+/// Avatar + "Привет, {имя}" + the day's slogan. The avatar is the user's
+/// real uploaded photo when they have one, and the app's existing
+/// generated default when they don't -- the same UserAvatar the Profile
+/// screen uses, never a second rendering of it.
+class _Greeting extends StatelessWidget {
+  final UserProfile? profile;
+  final String slogan;
+
+  const _Greeting({required this.profile, required this.slogan});
+
+  @override
+  Widget build(BuildContext context) {
+    final login = profile?.login ?? '';
+    return Row(
+      children: [
+        UserAvatar(avatarUrl: profile?.avatarUrl, login: login, size: 54),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                login.isEmpty ? 'Привет!' : 'Привет, $login ☀️',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                slogan,
+                style: const TextStyle(fontSize: 13.5, color: AppColors.secondaryText),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The one big block on Главная: the season header with its own icon, the
+/// three live stats, and the featured "Квест дня".
+class _SeasonBlock extends StatelessWidget {
+  final SeasonQuestOverview overview;
+  final VoidCallback onOpen;
+  final VoidCallback onOpenLessons;
+
+  const _SeasonBlock({required this.overview, required this.onOpen, required this.onOpenLessons});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: AppColors.seasonCardGradient,
+        ),
+        borderRadius: BorderRadius.circular(AppShapes.bannerRadius),
+      ),
+      child: Column(
+        children: [
+          _SeasonHeaderRow(overview: overview, onOpen: onOpen),
+          const SizedBox(height: 14),
+          _StatsCard(overview: overview),
+          const SizedBox(height: 12),
+          DailyQuestCard(
+            pointsPerLearnedWord: overview.pointsPerLearnedWord,
+            wordsLearnedToday: overview.wordsLearnedToday,
+            onTap: onOpenLessons,
+            compact: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SeasonHeaderRow extends StatelessWidget {
+  final SeasonQuestOverview overview;
+  final VoidCallback onOpen;
+
+  const _SeasonHeaderRow({required this.overview, required this.onOpen});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppShapes.rowRadius),
+      onTap: onOpen,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: Row(
+          children: [
+            SeasonIcon(iconUrl: overview.season?.iconUrl, size: 52),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Квесты сезона',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    seasonSubtitle(overview),
+                    style: const TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.primary),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// "Сезон 01 · 24 дня осталось" -- built from the real season and the
+/// backend's own day count, and degrading honestly when either is absent.
+String seasonSubtitle(SeasonQuestOverview overview) {
+  final season = overview.season;
+  if (season == null) return 'Сейчас нет активного сезона';
+  final days = overview.daysLeft;
+  if (days == null) return season.name;
+  return '${season.name} · ${daysLeftLabel(days)}';
+}
+
+/// "24 дня осталось" with the right Russian plural for the number.
+String daysLeftLabel(int days) {
+  if (days <= 0) return 'Завершается';
+  final mod100 = days % 100;
+  final String word;
+  if (mod100 >= 11 && mod100 <= 14) {
+    word = 'дней';
+  } else {
+    switch (days % 10) {
+      case 1:
+        word = 'день';
+      case 2:
+      case 3:
+      case 4:
+        word = 'дня';
+      default:
+        word = 'дней';
+    }
+  }
+  return '$days $word осталось';
+}
+
+class _StatsCard extends StatelessWidget {
+  final SeasonQuestOverview overview;
+  const _StatsCard({required this.overview});
+
+  @override
+  Widget build(BuildContext context) {
+    return GuyoCard(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      radius: AppShapes.rowRadius,
+      child: Column(
+        children: [
+          IntrinsicHeight(
+            child: Row(
+              children: [
+                Expanded(
+                  child: StatColumn(
+                    icon: Icons.star_rounded,
+                    value: '+${overview.pointsToday}',
+                    label: 'очков сегодня',
+                    iconColor: AppColors.rewardText,
+                  ),
+                ),
+                const StatDivider(),
+                Expanded(
+                  child: StatColumn(
+                    icon: Icons.emoji_events_rounded,
+                    value: overview.rankPosition == null ? '—' : '#${overview.rankPosition}',
+                    label: 'место в рейтинге',
+                  ),
+                ),
+                const StatDivider(),
+                Expanded(
+                  child: StatColumn(
+                    icon: Icons.check_box_rounded,
+                    value: '${overview.questsDoneToday}/${overview.questsTotal}',
+                    label: 'заданий выполнено',
+                    iconColor: AppColors.success,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          QuestProgressBar(
+            value: overview.questsDoneToday,
+            target: overview.questsTotal,
+            label: overview.questsTotal == 0
+                ? '0%'
+                : '${(overview.questsDoneToday / overview.questsTotal * 100).round()}%',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Квест дня": the permanent "изучение новых слов" quest.
+///
+/// NOT a new mechanic -- it is the existing system quest, whose reward
+/// already fires wherever a word is first learned (Уроки/Практика/Квесты
+/// all share the one award path). It has no attempt flow of its own, so
+/// tapping it goes to "Уроки", where new words are actually learned.
+class DailyQuestCard extends StatelessWidget {
+  final int pointsPerLearnedWord;
+  final int wordsLearnedToday;
+  final VoidCallback onTap;
+
+  /// The tighter variant used inside the season block on Главная.
+  final bool compact;
+
+  const DailyQuestCard({
+    super.key,
+    required this.pointsPerLearnedWord,
+    required this.wordsLearnedToday,
+    required this.onTap,
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final chipSize = compact ? 44.0 : 52.0;
+    return GuyoCard(
+      onTap: onTap,
+      radius: compact ? AppShapes.rowRadius : AppShapes.cardRadius,
+      padding: EdgeInsets.all(compact ? 12 : 16),
+      child: Row(
+        children: [
+          RoundIconChip(
+            icon: Icons.local_fire_department_rounded,
+            size: chipSize,
+            gradient: AppColors.dailyQuestGradient,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Квест дня',
+                  style: TextStyle(
+                    fontSize: compact ? 13 : 15,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primaryDark,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Изучай новые слова',
+                  style: TextStyle(fontSize: compact ? 12.5 : 13.5, color: AppColors.secondaryText),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  wordsLearnedToday == 0
+                      ? 'Сегодня пока ни одного'
+                      : 'Сегодня изучено: $wordsLearnedToday',
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.primary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          RewardBadge(points: pointsPerLearnedWord),
+        ],
+      ),
+    );
+  }
+}

@@ -739,6 +739,8 @@ export interface QuestInput {
   wordLevelId: number;
   exerciseKey: string;
   rewardPoints: number;
+  /** Successful attempts per day that count as "done". Minimum 1. */
+  dailyTarget: number;
   enabled: boolean;
   order: number;
 }
@@ -749,6 +751,7 @@ function questBody(input: QuestInput) {
     word_level_id: input.wordLevelId,
     exercise_key: input.exerciseKey,
     reward_points: input.rewardPoints,
+    daily_target: input.dailyTarget,
     enabled: input.enabled,
     order: input.order,
   };

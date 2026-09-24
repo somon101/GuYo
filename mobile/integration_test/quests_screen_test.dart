@@ -1,6 +1,6 @@
-// Covers "Квесты" end to end against the real backend: word levels ->
+// Covers "Квесты сезона" end to end against the real backend: word levels ->
 // quest configured for a level -> a word already at that level -> the
-// Квесты screen shows it as available -> a real UI answer -> reinforcement
+// the season quests screen shows it as available -> a real UI answer -> reinforcement
 // points change on WordProgress + a rating reward is granted.
 //
 // Run with:
@@ -153,13 +153,14 @@ void main() {
     final pointsBefore = (jsonDecode(ratingBeforeRes.body) as Map)['total_points'] as int;
 
     await _login(tester);
-    await tester.tap(find.text('Уроки'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Квесты'));
+    // Quests now live in their own season block on Главная, not behind a
+    // pill on the Уроки screen.
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+    await tester.tap(find.text('Квесты сезона'));
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
     expect(find.text('Квесты'), findsWidgets);
+    expect(find.text('Ежедневные квесты'), findsOneWidget);
     expect(find.text('E2E Квест'), findsOneWidget);
 
     await tester.tap(find.text('E2E Квест'));

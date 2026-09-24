@@ -164,7 +164,7 @@ export function QuestsPage() {
                 </div>
                 <p className="mt-0.5 text-xs text-slate-500">
                   Уровень «{quest.word_level_name}» · {EXERCISE_LABELS[quest.exercise_key] ?? quest.exercise_key} · награда +
-                  {quest.reward_points}
+                  {quest.reward_points} · {quest.daily_target} раз в день
                 </p>
               </div>
               <div className="flex shrink-0 gap-3">
@@ -204,6 +204,7 @@ function QuestForm({
   const [wordLevelId, setWordLevelId] = useState(quest?.word_level_id ?? wordLevels[0]?.id ?? 0);
   const [exerciseKey, setExerciseKey] = useState(quest?.exercise_key ?? exerciseTypes[0] ?? "");
   const [rewardPoints, setRewardPoints] = useState(quest?.reward_points ?? 10);
+  const [dailyTarget, setDailyTarget] = useState(quest?.daily_target ?? 1);
   const [enabled, setEnabled] = useState(quest?.enabled ?? true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -215,11 +216,16 @@ function QuestForm({
       setError("Заполните все поля");
       return;
     }
+    if (dailyTarget < 1) {
+      setError("Цель за день не может быть меньше 1");
+      return;
+    }
     const input: QuestInput = {
       name: name.trim(),
       wordLevelId,
       exerciseKey,
       rewardPoints,
+      dailyTarget,
       enabled,
       order: quest?.order ?? 0,
     };
@@ -288,6 +294,21 @@ function QuestForm({
             value={rewardPoints}
             onChange={(e) => setRewardPoints(Number(e.target.value))}
           />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Цель за день</label>
+          <input
+            type="number"
+            min={1}
+            className="w-32 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            value={dailyTarget}
+            onChange={(e) => setDailyTarget(Number(e.target.value))}
+          />
+          <p className="mt-1 max-w-48 text-xs text-slate-400">
+            Сколько раз за день нужно выполнить квест, чтобы он считался пройденным. Награда начисляется за каждое
+            выполнение независимо от цели.
+          </p>
         </div>
       </div>
 

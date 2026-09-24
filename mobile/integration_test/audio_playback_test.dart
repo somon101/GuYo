@@ -9,10 +9,10 @@
 // ZIP through the same backend endpoint Admin Web uses -- this file only
 // drives the UI, it never builds the ZIP itself.
 //
-// Only covers "Словарь" -- "Сопоставление" now lives inside a lesson (see
-// lessons_screen.dart) rather than being reachable directly from the main
-// menu, and driving a full lesson creation here would test the Уроки flow
-// rather than audio rendering, which is this file's one job.
+// Goes through "Мои слова" -> the word's own card, which is where a Word
+// with audio is shown now that the standalone "Словарь" screen is gone.
+// That card is the one place BOTH recordings (the word's and its
+// translation's) render together, which is exactly what this file checks.
 //
 // Run with:
 //   python .../prepare_audio_test_word.py
@@ -26,8 +26,9 @@ import 'package:integration_test/integration_test.dart';
 
 import 'package:guyo_app/config.dart';
 import 'package:guyo_app/main.dart';
-import 'package:guyo_app/screens/dictionary_words_screen.dart';
+import 'package:guyo_app/screens/word_detail_screen.dart';
 import 'package:guyo_app/widgets/audio_button.dart';
+import 'package:guyo_app/widgets/word_card.dart';
 
 const _word = 'audiotestword';
 
@@ -39,6 +40,68 @@ Future<Map<String, String>> _adminHeaders() async {
   );
   final token = (jsonDecode(res.body) as Map)['access_token'] as String;
   return {'Authorization': 'Bearer $token'};
+}
+
+Future<String> _userToken() async {
+  final res = await http.post(
+    Uri.parse('$apiBaseUrl/auth/login'),
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({'login': 'testuser', 'password': '123456'}),
+  );
+  return (jsonDecode(res.body) as Map)['access_token'] as String;
+}
+
+/// Gives testuser progress on the imported word so it shows up under
+/// "Мои слова" at all -- real lesson answers, the same way progress is
+/// created anywhere else.
+///
+/// Answers CORRECTLY until the lesson completes, deliberately: a backend
+/// only allows one incomplete lesson per (user, dictionary), so a lesson
+/// left half-finished here would block every later test in the suite from
+/// creating its own. Finishing it leaves the fixture exactly as it was
+/// found.
+Future<void> _giveWordProgress(int wordId) async {
+  final token = await _userToken();
+  final headers = {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'};
+  final lessonRes = await http.post(
+    Uri.parse('$apiBaseUrl/lessons'),
+    headers: headers,
+    body: jsonEncode({
+      'dictionary_id': 1,
+      'word_ids': [wordId],
+    }),
+  );
+  final lesson = jsonDecode(lessonRes.body) as Map<String, dynamic>;
+  final lessonId = lesson['id'] as int?;
+  if (lessonId == null) {
+    throw StateError('could not create a lesson for the audio test word: ${lessonRes.body}');
+  }
+  final exerciseKey = (lesson['exercise_keys'] as List<dynamic>).first as String;
+
+  // Capped rather than while(true): if the scoring settings ever make the
+  // threshold unreachable this way, the test should fail loudly instead of
+  // looping forever.
+  for (var attempt = 0; attempt < 12; attempt++) {
+    await http.post(
+      Uri.parse('$apiBaseUrl/lessons/$lessonId/exercises/$exerciseKey/answers'),
+      headers: headers,
+      body: jsonEncode({'word_id': wordId, 'is_correct': true}),
+    );
+    final check = await http.get(
+      Uri.parse('$apiBaseUrl/lessons/$lessonId'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if ((jsonDecode(check.body) as Map)['is_completed'] == true) return;
+  }
+  throw StateError('lesson $lessonId never completed -- it would block later tests');
+}
+
+Future<int?> _testWordId() async {
+  final h = await _adminHeaders();
+  final wordsRes = await http.get(Uri.parse('$apiBaseUrl/dictionaries/1/words'), headers: h);
+  final words = jsonDecode(wordsRes.body) as List;
+  final match = words.where((w) => w['word'] == _word).cast<Map<String, dynamic>?>().firstOrNull;
+  return match?['id'] as int?;
 }
 
 Future<void> _cleanupTestWord() async {
@@ -78,23 +141,39 @@ Future<void> _login(WidgetTester tester) async {
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('audio buttons render for a ZIP-imported word in Словарь', (tester) async {
+  testWidgets('audio buttons render for a ZIP-imported word in Мои слова', (tester) async {
     try {
+      final wordId = await _testWordId();
+      expect(wordId, isNotNull, reason: 'prepare_audio_test_word.py must have imported the word first');
+      await _giveWordProgress(wordId!);
+
       await _login(tester);
 
-      // --- Словарь: the imported word shows BOTH its own and its Tajik
-      // translation's play button, and tapping one doesn't crash. ---
-      await tester.tap(find.text('Словарь'));
+      // --- Мои слова: the imported word is listed on the shared word
+      // card, which plays its own recording... ---
+      await tester.tap(find.text('Уроки'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Мои слова'));
       await tester.pumpAndSettle();
 
-      expect(find.text(_word), findsOneWidget, reason: 'imported word should be visible in Словарь');
+      expect(find.text(_word), findsOneWidget, reason: 'imported word should be visible in Мои слова');
+      expect(
+        find.descendant(of: find.widgetWithText(WordCard, _word), matching: find.byType(AudioButton)),
+        findsOneWidget,
+        reason: "the word's own recording should play straight from the list",
+      );
 
-      final audioButtonsInWordList = find.descendant(
-        of: find.byType(DictionaryWordsScreen),
+      // ...and its own card shows BOTH recordings: the word's and its
+      // Tajik translation's.
+      await tester.tap(find.text(_word));
+      await tester.pumpAndSettle();
+
+      final audioButtonsOnCard = find.descendant(
+        of: find.byType(WordDetailScreen),
         matching: find.byType(AudioButton),
       );
       expect(
-        audioButtonsInWordList,
+        audioButtonsOnCard,
         findsAtLeastNWidgets(2),
         reason: 'both word audio and translation audio buttons should render (this word has both)',
       );

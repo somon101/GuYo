@@ -7,7 +7,17 @@ rating ledger.
 
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -26,15 +36,24 @@ class Quest(Base):
     (see app/exercises/common.py's get_points) -- there is no second,
     quest-specific reinforcement-points setting. `reward_points` is purely
     the ADDITIONAL rating bonus on top of that, and is the only thing this
-    model defines that Lessons don't already have."""
+    model defines that Lessons don't already have.
+
+    `daily_target` is how many successful attempts count as "this quest is
+    done for today" -- purely the goal a progress bar fills toward, NOT a
+    second reward rule: every successful attempt still grants
+    `reward_points` exactly as before, target reached or not. Progress
+    itself is counted from the UserQuestWordDay rows that already exist
+    (one per word this quest consumed today), never stored separately."""
 
     __tablename__ = "quests"
+    __table_args__ = (CheckConstraint("daily_target >= 1", name="ck_quest_daily_target_positive"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     word_level_id: Mapped[int] = mapped_column(ForeignKey("word_levels.id", ondelete="RESTRICT"), nullable=False)
     exercise_key: Mapped[str] = mapped_column(String(64), nullable=False)
     reward_points: Mapped[int] = mapped_column(Integer, nullable=False)
+    daily_target: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -21,6 +21,10 @@ class QuestCreateIn(BaseModel):
     word_level_id: int
     exercise_key: str
     reward_points: int = Field(ge=0)
+    # How many successful attempts count as "done for today" -- the goal a
+    # user's progress bar fills toward. Never a second reward rule: every
+    # success still grants reward_points, target reached or not.
+    daily_target: int = Field(default=1, ge=1)
     enabled: bool = True
     order: int = 0
 
@@ -30,6 +34,7 @@ class QuestUpdateIn(BaseModel):
     word_level_id: int | None = None
     exercise_key: str | None = None
     reward_points: int | None = Field(default=None, ge=0)
+    daily_target: int | None = Field(default=None, ge=1)
     enabled: bool | None = None
     order: int | None = None
 
@@ -37,7 +42,8 @@ class QuestUpdateIn(BaseModel):
 def _out(quest: Quest, level_name: str) -> QuestOut:
     return QuestOut(
         id=quest.id, name=quest.name, word_level_id=quest.word_level_id, word_level_name=level_name,
-        exercise_key=quest.exercise_key, reward_points=quest.reward_points, enabled=quest.enabled, order=quest.order,
+        exercise_key=quest.exercise_key, reward_points=quest.reward_points, daily_target=quest.daily_target,
+        enabled=quest.enabled, order=quest.order,
     )
 
 
@@ -81,7 +87,8 @@ def create_quest(payload: QuestCreateIn, db: Session = Depends(get_db), _admin=D
 
     quest = Quest(
         name=payload.name.strip(), word_level_id=payload.word_level_id, exercise_key=payload.exercise_key,
-        reward_points=payload.reward_points, enabled=payload.enabled, order=payload.order,
+        reward_points=payload.reward_points, daily_target=payload.daily_target, enabled=payload.enabled,
+        order=payload.order,
     )
     db.add(quest)
     db.commit()
@@ -110,6 +117,8 @@ def update_quest(quest_id: int, payload: QuestUpdateIn, db: Session = Depends(ge
         quest.name = payload.name.strip()
     if payload.reward_points is not None:
         quest.reward_points = payload.reward_points
+    if payload.daily_target is not None:
+        quest.daily_target = payload.daily_target
     if payload.enabled is not None:
         quest.enabled = payload.enabled
     if payload.order is not None:
