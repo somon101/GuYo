@@ -22,6 +22,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:guyo_app/config.dart';
@@ -29,6 +30,7 @@ import 'package:guyo_app/main.dart';
 import 'package:guyo_app/screens/learned_words_screen.dart';
 import 'package:guyo_app/screens/lessons_screen.dart';
 import 'package:guyo_app/widgets/quest_ui.dart';
+import 'package:guyo_app/widgets/remote_image.dart';
 import 'package:guyo_app/widgets/user_avatar.dart';
 
 Future<String> _userToken() async {
@@ -66,6 +68,18 @@ Future<void> _login(WidgetTester tester) async {
   await tester.pumpAndSettle(const Duration(seconds: 3));
   expect(find.text('Главная'), findsOneWidget, reason: 'should reach the home screen');
 }
+
+/// The smallest valid PNG -- this test only needs A photo to exist, not a
+/// particular one.
+List<int> _tinyPng() => [
+      0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
+      0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+      0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00,
+      0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x60, 0x00, 0x00, 0x00,
+      0x02, 0x00, 0x01, 0xFF, 0xFF, 0x03, 0x00, 0x00, 0x06, 0x00, 0x05, 0x57,
+      0xBF, 0xAB, 0xD4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+      0x42, 0x60, 0x82,
+    ];
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -179,6 +193,44 @@ void main() {
         reason: "each quest's progress is the backend's own count against its own target",
       );
     }
+  });
+
+  testWidgets('the greeting photo opens Профиль, and the profile photo opens full size', (tester) async {
+    // A real stored photo is the precondition for the viewer -- with none,
+    // the circle holds a generated letter and is deliberately not
+    // tappable. Uploaded through the app's OWN existing endpoint; nothing
+    // new stores anything here.
+    final token = await _userToken();
+    final upload = http.MultipartRequest('POST', Uri.parse('$apiBaseUrl/users/me/avatar'))
+      ..headers['Authorization'] = 'Bearer $token'
+      ..files.add(http.MultipartFile.fromBytes('avatar', _tinyPng(), filename: 'a.png', contentType: MediaType('image', 'png')));
+    final uploadRes = await upload.send();
+    expect(uploadRes.statusCode, anyOf(200, 201), reason: 'the test needs testuser to have a photo');
+
+    await _login(tester);
+    await tester.pumpAndSettle(const Duration(seconds: 3));
+
+    // --- Главная: the small photo under the logo leads to Профиль ---
+    await tester.tap(find.byType(UserAvatar).first);
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+    expect(find.text('Мои слова'), findsOneWidget, reason: 'the profile tab is showing');
+
+    // --- Профиль: the photo opens full size, and closing comes back ---
+    await tester.tap(find.byType(UserAvatar).first);
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+    expect(find.byIcon(Icons.close_rounded), findsOneWidget, reason: 'the viewer opened over the profile');
+    // The small circle crops to fill; the full-size view must not.
+    final enlarged = find.byKey(const ValueKey('profile-photo-full'));
+    expect(enlarged, findsOneWidget, reason: 'the stored photo is shown at full size');
+    expect(
+      tester.widget<RemoteImage>(enlarged).fit,
+      BoxFit.contain,
+      reason: 'letterboxed at full size, never stretched or cropped out of proportion',
+    );
+
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pumpAndSettle(const Duration(seconds: 2));
+    expect(find.text('Мои слова'), findsOneWidget, reason: 'closing returns to Профиль');
   });
 
   testWidgets('the lesson chain carries nothing but lessons', (tester) async {

@@ -238,6 +238,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           // rather than a route -- so the dashboard asks the shell to
           // switch instead of pushing anything.
           onOpenLessons: () => setState(() => _selectedTabIndex = 1),
+          onOpenProfile: () => setState(() => _selectedTabIndex = 4),
         ),
         LessonsScreen(key: ValueKey('lessons-${selected.id}'), dictionary: selected),
         PracticeScreen(key: ValueKey('practice-${selected.id}'), dictionary: selected),

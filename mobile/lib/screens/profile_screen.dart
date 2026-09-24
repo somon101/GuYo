@@ -12,6 +12,7 @@ import '../models/user_rating.dart';
 import '../theme/app_colors.dart';
 import '../widgets/achievement_icon.dart';
 import '../widgets/rank_icon.dart';
+import '../widgets/remote_image.dart';
 import '../widgets/user_avatar.dart';
 import 'achievements_screen.dart';
 import 'all_ranks_screen.dart';
@@ -453,48 +454,92 @@ class _ProfileHeader extends StatelessWidget {
     required this.isUpdatingAvatar,
   });
 
+  /// There is only something to enlarge when the user actually has a
+  /// photo -- either one already stored, or one they just picked that is
+  /// still uploading. With neither, the circle holds a generated letter,
+  /// and blowing that up full screen would be a tap leading nowhere worth
+  /// going, so the avatar simply isn't tappable then.
+  bool get _hasPhoto =>
+      pendingAvatarBytes != null || (profile.avatarUrl != null && profile.avatarUrl!.isNotEmpty);
+
+  void _openViewer(BuildContext context) {
+    Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        // Over the profile rather than instead of it: the screen stays
+        // behind the dimmed backdrop, so closing is plainly "back to
+        // where I was".
+        opaque: false,
+        barrierDismissible: true,
+        barrierColor: Colors.black.withValues(alpha: 0.82),
+        pageBuilder: (_, _, _) => _AvatarViewer(
+          avatarUrl: profile.avatarUrl,
+          pendingBytes: pendingAvatarBytes,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const size = 88.0;
     final cacheSize = (size * MediaQuery.devicePixelRatioOf(context)).round();
+
+    final avatar = Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(color: AppColors.primary.withValues(alpha: 0.12), blurRadius: 16, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Opacity(
+            opacity: isUpdatingAvatar ? 0.5 : 1,
+            child: pendingAvatarBytes != null
+                ? ClipOval(
+                    child: Image.memory(
+                      pendingAvatarBytes!,
+                      width: size,
+                      height: size,
+                      fit: BoxFit.cover,
+                      gaplessPlayback: true,
+                      // Bounds the decode to roughly this circle's own
+                      // on-screen size -- without it a picked photo whose
+                      // compression the OS skipped gets decoded at full
+                      // resolution just to draw this circle. ONE axis
+                      // only: giving both squashes a portrait photo into a
+                      // square before the crop even runs (see
+                      // widgets/remote_image.dart).
+                      cacheWidth: cacheSize,
+                    ),
+                  )
+                : UserAvatar(avatarUrl: profile.avatarUrl, login: profile.login, size: size),
+          ),
+          if (isUpdatingAvatar) const CircularProgressIndicator(strokeWidth: 2),
+        ],
+      ),
+    );
+
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(3),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(color: AppColors.primary.withValues(alpha: 0.12), blurRadius: 16, offset: const Offset(0, 4)),
-            ],
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Opacity(
-                opacity: isUpdatingAvatar ? 0.5 : 1,
-                child: pendingAvatarBytes != null
-                    ? ClipOval(
-                        child: Image.memory(
-                          pendingAvatarBytes!,
-                          width: size,
-                          height: size,
-                          fit: BoxFit.cover,
-                          gaplessPlayback: true,
-                          // Bounds the decode to roughly this circle's own
-                          // on-screen size -- without it a picked photo
-                          // whose compression the OS skipped gets decoded
-                          // at full resolution just to draw this circle.
-                          cacheWidth: cacheSize,
-                          cacheHeight: cacheSize,
-                        ),
-                      )
-                    : UserAvatar(avatarUrl: profile.avatarUrl, login: profile.login, size: size),
-              ),
-              if (isUpdatingAvatar) const CircularProgressIndicator(strokeWidth: 2),
-            ],
-          ),
-        ),
+        // Tapping shows the photo full size. Changing it still goes
+        // through the gear's settings sheet only -- this is a viewer, not
+        // a second way to upload.
+        if (_hasPhoto)
+          Semantics(
+            button: true,
+            label: 'Открыть фото профиля',
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _openViewer(context),
+              child: avatar,
+            ),
+          )
+        else
+          avatar,
         const SizedBox(width: 16),
         Expanded(
           child: Column(
@@ -524,6 +569,71 @@ class _ProfileHeader extends StatelessWidget {
           child: const Icon(Icons.qr_code_rounded, color: AppColors.primary, size: 22),
         ),
       ],
+    );
+  }
+}
+
+/// The profile photo at full size, over the profile screen.
+///
+/// Shows the very same photo the circle above does -- the one already
+/// stored by the existing avatar system, or the one being uploaded right
+/// now. It only displays; nothing here picks, uploads or stores anything.
+///
+/// BoxFit.contain, unlike the circle's crop: at full size the point is to
+/// see the whole photo as it really is, so it is letterboxed rather than
+/// cropped or stretched.
+class _AvatarViewer extends StatelessWidget {
+  final String? avatarUrl;
+  final Uint8List? pendingBytes;
+
+  const _AvatarViewer({required this.avatarUrl, required this.pendingBytes});
+
+  @override
+  Widget build(BuildContext context) {
+    final bytes = pendingBytes;
+    final url = avatarUrl;
+
+    // Keyed so a test can tell this apart from the small circle behind it
+    // and from the rank/achievement artwork on the same screen -- the same
+    // convention the exercise screens already use for their own hooks.
+    const photoKey = ValueKey('profile-photo-full');
+    final Widget photo = bytes != null
+        ? Image.memory(bytes, key: photoKey, fit: BoxFit.contain, gaplessPlayback: true)
+        : RemoteImage(
+            key: photoKey,
+            url: url ?? '',
+            fit: BoxFit.contain,
+            fallbackBuilder: () => const Icon(Icons.person_rounded, size: 96, color: Colors.white54),
+          );
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: GestureDetector(
+        // Anywhere outside the photo closes it, the way a lightbox does.
+        behavior: HitTestBehavior.opaque,
+        onTap: () => Navigator.of(context).maybePop(),
+        child: SafeArea(
+          child: Stack(
+            children: [
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: photo,
+                ),
+              ),
+              Positioned(
+                top: 4,
+                right: 4,
+                child: IconButton(
+                  tooltip: 'Закрыть',
+                  icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                  onPressed: () => Navigator.of(context).maybePop(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

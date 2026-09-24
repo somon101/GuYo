@@ -22,6 +22,11 @@ class HomeDashboardScreen extends StatefulWidget {
   /// слов" quest is actually carried out.
   final VoidCallback onOpenLessons;
 
+  /// Switches the app to the "Профиль" tab. Профиль is a sibling tab
+  /// rather than a route, so the greeting asks the shell to switch
+  /// instead of pushing a second copy of that screen.
+  final VoidCallback onOpenProfile;
+
   /// Swappable so a future admin-managed slogan list can replace the
   /// built-in one without touching this widget (see SloganSource).
   final SloganSource sloganSource;
@@ -30,6 +35,7 @@ class HomeDashboardScreen extends StatefulWidget {
     super.key,
     required this.dictionary,
     required this.onOpenLessons,
+    required this.onOpenProfile,
     this.sloganSource = const LocalSloganSource(),
   });
 
@@ -101,7 +107,11 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
-        _Greeting(profile: _profile, slogan: widget.sloganSource.current()),
+        _Greeting(
+          profile: _profile,
+          slogan: widget.sloganSource.current(),
+          onOpenProfile: widget.onOpenProfile,
+        ),
         const SizedBox(height: 18),
         if (_isLoading)
           const Padding(
@@ -136,15 +146,26 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 class _Greeting extends StatelessWidget {
   final UserProfile? profile;
   final String slogan;
+  final VoidCallback onOpenProfile;
 
-  const _Greeting({required this.profile, required this.slogan});
+  const _Greeting({required this.profile, required this.slogan, required this.onOpenProfile});
 
   @override
   Widget build(BuildContext context) {
     final login = profile?.login ?? '';
     return Row(
       children: [
-        UserAvatar(avatarUrl: profile?.avatarUrl, login: login, size: 54),
+        // The photo is the way into Профиль -- the same screen the bottom
+        // bar reaches, never a second copy of it.
+        Semantics(
+          button: true,
+          label: 'Открыть профиль',
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onOpenProfile,
+            child: UserAvatar(avatarUrl: profile?.avatarUrl, login: login, size: 54),
+          ),
+        ),
         const SizedBox(width: 14),
         Expanded(
           child: Column(
