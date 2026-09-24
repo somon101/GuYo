@@ -8,19 +8,20 @@ referenced), never any model or table.
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.core.dates import utc_today
+from app.core.dates import as_utc, utc_now
 from app.core.deps import get_current_admin
 from app.core.storage import delete_by_key, save_upload, url_for_key
 from app.database import get_db
-from app.models.rating import Rank, Season, SeasonHistory
+from app.models.rating import SEASON_COMPLETED, SEASON_SCHEDULED, Rank, Season, SeasonHistory
 from app.models.user import User
 from app.rating import (
     assert_rank_range_free,
+    assert_season_period_free,
     end_season,
-    get_active_season,
     get_or_create_user_rating,
     get_rating_settings,
     grant_rating_points,
+    sync_season_states,
 )
 from app.schemas.rating import (
     GrantRatingPointsIn,
@@ -30,6 +31,7 @@ from app.schemas.rating import (
     ReorderRanksIn,
     SeasonCreateIn,
     SeasonOut,
+    SeasonUpdateIn,
     UserPointsOut,
 )
 
@@ -257,43 +259,177 @@ def delete_rank(rank_id: int, db: Session = Depends(get_db), _admin=Depends(get_
 # --- Сезоны ------------------------------------------------------------------
 
 
+def _season_out(s: Season) -> SeasonOut:
+    return SeasonOut(
+        id=s.id,
+        name=s.name,
+        starts_at=s.starts_at,
+        ends_at=s.ends_at,
+        ended_at=s.ended_at,
+        status=s.status,
+        icon_url=url_for_key(s.icon_key),
+    )
+
+
+def _get_season_or_404(db: Session, season_id: int) -> Season:
+    season = db.get(Season, season_id)
+    if season is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Season not found")
+    return season
+
+
 @router.get("/seasons", response_model=list[SeasonOut])
 def list_seasons(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
-    seasons = db.query(Season).order_by(Season.id.desc()).all()
-    return [SeasonOut.model_validate(s, from_attributes=True) for s in seasons]
+    """Brings the schedule up to date before listing it, so the admin can
+    never be looking at a season the stored period says has already ended
+    or already begun -- the background sweep does the same thing on its own
+    clock, this just makes the page never lag behind it."""
+    sync_season_states(db)
+    seasons = db.query(Season).order_by(Season.starts_at.desc(), Season.id.desc()).all()
+    return [_season_out(s) for s in seasons]
 
 
 @router.post("/seasons", response_model=SeasonOut, status_code=status.HTTP_201_CREATED)
 def create_season(payload: SeasonCreateIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
-    """Only one season may be active at a time -- start the next one only
-    after ending the current one (POST .../seasons/{id}/end)."""
-    if get_active_season(db) is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Текущий сезон ещё не завершён -- сначала завершите его",
-        )
-    season = Season(name=payload.name.strip(), start_date=payload.start_date or utc_today())
+    """Creates a season for a period. Several may be queued up in advance
+    as long as their periods don't collide -- and a period that begins
+    exactly when another ends is NOT a collision (see
+    assert_season_period_free).
+
+    Always created as `scheduled`: whether it should actually be live is
+    decided by sync_season_states alone, from the stored period, so there
+    is only ever one implementation of "which season is active".
+    """
+    sync_season_states(db)
+    starts_at = as_utc(payload.starts_at) if payload.starts_at else utc_now()
+    ends_at = as_utc(payload.ends_at) if payload.ends_at else None
+    try:
+        assert_season_period_free(db, starts_at=starts_at, ends_at=ends_at)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+    season = Season(name=payload.name.strip(), starts_at=starts_at, ends_at=ends_at, status=SEASON_SCHEDULED)
     db.add(season)
     db.commit()
+    sync_season_states(db)
     db.refresh(season)
-    return SeasonOut.model_validate(season, from_attributes=True)
+    return _season_out(season)
+
+
+@router.patch("/seasons/{season_id}", response_model=SeasonOut)
+def update_season(
+    season_id: int,
+    payload: SeasonUpdateIn,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """Edits a season's name or period. A COMPLETED season is refused
+    outright: its result is already frozen into SeasonHistory, and moving
+    its period afterwards would make that history describe a period the
+    season no longer claims to have had.
+
+    Giving the ACTIVE season an `ends_at` is the normal way to unblock
+    scheduling the next one -- and if that moment is already in the past,
+    the sync below ends it right here, exactly as the scheduler would."""
+    season = _get_season_or_404(db, season_id)
+    if season.status == SEASON_COMPLETED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Завершённый сезон нельзя изменить -- его результат уже в истории",
+        )
+
+    starts_at = as_utc(payload.starts_at) if payload.starts_at else season.starts_at
+    if payload.clear_ends_at:
+        ends_at = None
+    elif payload.ends_at is not None:
+        ends_at = as_utc(payload.ends_at)
+    else:
+        ends_at = season.ends_at
+
+    try:
+        assert_season_period_free(db, starts_at=starts_at, ends_at=ends_at, exclude_id=season.id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+    if payload.name is not None:
+        season.name = payload.name.strip()
+    season.starts_at = starts_at
+    season.ends_at = ends_at
+    db.commit()
+    sync_season_states(db)
+    db.refresh(season)
+    return _season_out(season)
+
+
+@router.delete("/seasons/{season_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_season(season_id: int, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    """Only a SCHEDULED season can be deleted -- one that never ran and so
+    left nothing behind. An active season must be ended (that is what
+    writes its history), and a completed one is history."""
+    season = _get_season_or_404(db, season_id)
+    if season.status != SEASON_SCHEDULED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Удалить можно только запланированный сезон",
+        )
+    icon_key = season.icon_key
+    db.delete(season)
+    db.commit()
+    delete_by_key(icon_key)
+
+
+@router.put("/seasons/{season_id}/icon", response_model=SeasonOut)
+def set_season_icon(
+    season_id: int,
+    icon: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """Stores a picture for this season, same validation and storage-key
+    convention as a rank icon. Nothing displays it yet -- it is kept so
+    the season already has one when something does."""
+    season = _get_season_or_404(db, season_id)
+    _read_validated_icon(icon)
+    new_key = save_upload(icon, subdir="seasons/icons")
+    old_key = season.icon_key
+    season.icon_key = new_key
+    db.commit()
+    delete_by_key(old_key)
+    db.refresh(season)
+    return _season_out(season)
+
+
+@router.delete("/seasons/{season_id}/icon", response_model=SeasonOut)
+def delete_season_icon(season_id: int, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    season = _get_season_or_404(db, season_id)
+    old_key = season.icon_key
+    season.icon_key = None
+    db.commit()
+    delete_by_key(old_key)
+    db.refresh(season)
+    return _season_out(season)
 
 
 @router.post("/seasons/{season_id}/end", response_model=SeasonOut)
 def end_season_endpoint(season_id: int, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
-    """Freezes every user's current points/rank into SeasonHistory, then
-    applies the configured seasonal reset (see app/rating/service.py's
-    end_season) -- irreversible, so this is the one rating action that
-    genuinely changes every user's data at once."""
-    season = db.get(Season, season_id)
-    if season is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Season not found")
+    """Ends a season by hand, at any moment, regardless of the period it
+    was given -- the manual half of the two ways a season can end. Freezes
+    every user's current points/rank into SeasonHistory, then applies the
+    configured seasonal reset (see app/rating/service.py's end_season):
+    irreversible, and the one rating action that genuinely changes every
+    user's data at once.
+
+    The sync afterwards is what makes a hand-off immediate: if the next
+    season's start has already arrived, it goes live in the same request
+    rather than waiting for the background sweep."""
+    season = _get_season_or_404(db, season_id)
     try:
         end_season(db, season)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    sync_season_states(db)
     db.refresh(season)
-    return SeasonOut.model_validate(season, from_attributes=True)
+    return _season_out(season)
 
 
 # --- Ручная корректировка очков ---------------------------------------------

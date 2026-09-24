@@ -603,13 +603,68 @@ export async function listSeasons(): Promise<Season[]> {
   return data;
 }
 
-export async function createSeason(name: string): Promise<Season> {
-  const { data } = await api.post("/admin/rating/seasons", { name });
+export interface SeasonInput {
+  name: string;
+  /** ISO datetime. Omitted means "starts now". */
+  startsAt?: string;
+  /** ISO datetime. Omitted means "no scheduled end" -- only an admin ends it. */
+  endsAt?: string;
+}
+
+// Several seasons may exist at once as long as their periods don't collide.
+// A period starting exactly when another ends is NOT a collision: the
+// backend hands over at that moment (409 with a readable reason otherwise).
+export async function createSeason(input: SeasonInput): Promise<Season> {
+  const { data } = await api.post("/admin/rating/seasons", {
+    name: input.name,
+    starts_at: input.startsAt,
+    ends_at: input.endsAt,
+  });
+  return data;
+}
+
+export interface SeasonUpdateInput {
+  name?: string;
+  startsAt?: string;
+  endsAt?: string;
+  /** Turns a scheduled end back into "manual only" -- distinct from simply
+   * not sending endsAt, which leaves it unchanged. */
+  clearEndsAt?: boolean;
+}
+
+// Only a season that hasn't completed can be edited; a completed one is
+// already frozen into every user's history.
+export async function updateSeason(id: number, input: SeasonUpdateInput): Promise<Season> {
+  const { data } = await api.patch(`/admin/rating/seasons/${id}`, {
+    name: input.name,
+    starts_at: input.startsAt,
+    ends_at: input.endsAt,
+    clear_ends_at: input.clearEndsAt,
+  });
+  return data;
+}
+
+// Only a SCHEDULED season can be deleted -- one that never ran, so it left
+// no history behind.
+export async function deleteSeason(id: number): Promise<void> {
+  await api.delete(`/admin/rating/seasons/${id}`);
+}
+
+export async function setSeasonIcon(id: number, icon: File): Promise<Season> {
+  const form = new FormData();
+  form.append("icon", icon);
+  const { data } = await api.put(`/admin/rating/seasons/${id}/icon`, form);
+  return data;
+}
+
+export async function deleteSeasonIcon(id: number): Promise<Season> {
+  const { data } = await api.delete(`/admin/rating/seasons/${id}/icon`);
   return data;
 }
 
 // Freezes every user's current points/rank into that season's history and
-// applies the configured reset -- irreversible.
+// applies the configured reset -- irreversible. The manual half of the two
+// ways a season ends; the other is its own ends_at arriving.
 export async function endSeason(id: number): Promise<Season> {
   const { data } = await api.post(`/admin/rating/seasons/${id}/end`);
   return data;

@@ -6,18 +6,19 @@ here reads or writes an Achievement/UserAchievement row, and nothing there
 reads or writes any table below.
 """
 
-from datetime import date, datetime
+from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
-    Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -26,6 +27,10 @@ from app.database import Base
 RESET_MODE_FIXED = "fixed"
 RESET_MODE_PERCENT = "percent"
 
+# A season that exists and has a period, but whose start moment hasn't
+# arrived yet -- the status that makes "create several seasons in advance"
+# possible without ever having two live ones.
+SEASON_SCHEDULED = "scheduled"
 SEASON_ACTIVE = "active"
 SEASON_COMPLETED = "completed"
 
@@ -88,20 +93,53 @@ class Rank(Base):
 
 
 class Season(Base):
-    """One rating season. Exactly one Season may be `status="active"` at a
-    time (enforced in app/routers/admin_rating.py, not here) -- creating a
-    new season requires the previous one to already be `"completed"`.
+    """One rating season, with its own id, its own period and its own
+    status -- any number of them may exist at once, but at most ONE may be
+    `status="active"`, which the partial unique index below enforces at the
+    database level (the same idiom Lesson uses for its own "at most one
+    incomplete" rule) rather than relying on router code alone.
+
+    The three statuses are a lifecycle, never set by hand from two
+    different places: a season is created `"scheduled"`, becomes
+    `"active"` when `starts_at` arrives, and becomes `"completed"` either
+    when `ends_at` arrives or when an admin ends it early. The single
+    function that makes every one of those transitions is
+    app/rating/service.py's `sync_season_states` -- so the state after a
+    backend restart is decided by the stored period, not by whatever
+    happened to be in memory.
+
+    Two moments, deliberately separate:
+      - `ends_at` is the PLANNED end an admin scheduled. Null means "ends
+        only when an admin says so" -- and blocks scheduling anything
+        after it, since nothing can know when it frees up.
+      - `ended_at` is when the season ACTUALLY ended, written once by
+        `end_season`. Null until then.
+
     Ending a season is the one moment SeasonHistory rows get written and
     every user's UserRating.total_points gets reset; a completed Season
     row itself is never edited afterwards, only ever read."""
 
     __tablename__ = "seasons"
+    __table_args__ = (
+        Index(
+            "uq_single_active_season",
+            "status",
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    start_date: Mapped[date] = mapped_column(Date, nullable=False)
-    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default=SEASON_ACTIVE, server_default=SEASON_ACTIVE)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default=SEASON_SCHEDULED, server_default=SEASON_SCHEDULED
+    )
+    # An admin-uploaded picture for the season, same storage-key convention
+    # as Rank.icon_key. Stored only for now -- nothing renders it yet.
+    icon_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

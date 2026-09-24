@@ -248,14 +248,26 @@ export interface Rank {
   enabled: boolean;
 }
 
-export type SeasonStatus = "active" | "completed";
+// "scheduled" is a season that exists with a period but hasn't started
+// yet -- what makes queueing several seasons in advance possible without
+// ever having two live at once.
+export type SeasonStatus = "scheduled" | "active" | "completed";
 
 export interface Season {
   id: number;
   name: string;
-  start_date: string;
-  end_date: string | null;
+  /** ISO datetime. When the season begins. */
+  starts_at: string;
+  /** ISO datetime, or null for "ends only when an admin ends it". The
+   * PLANNED end -- reaching it ends the season automatically. */
+  ends_at: string | null;
+  /** ISO datetime, or null while the season hasn't ended. When it
+   * ACTUALLY ended, which may be earlier than ends_at if an admin ended
+   * it by hand. */
+  ended_at: string | null;
   status: SeasonStatus;
+  /** Stored for later use; nothing renders it in the app yet. */
+  icon_url: string | null;
 }
 
 // --- Уровни слов и квесты -----------------------------------------------------

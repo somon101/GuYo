@@ -3,15 +3,18 @@ app/achievements/. Nothing here reads or writes Achievement/UserAchievement,
 and nothing in app/achievements/ reads or writes any model imported below.
 """
 
+from datetime import datetime
+
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.dates import utc_today
+from app.core.dates import utc_now
 from app.models.rating import (
     RESET_MODE_FIXED,
     SEASON_ACTIVE,
     SEASON_COMPLETED,
+    SEASON_SCHEDULED,
     Rank,
     RatingSettings,
     Season,
@@ -208,6 +211,130 @@ def get_active_season(db: Session) -> Season | None:
     return db.query(Season).filter(Season.status == SEASON_ACTIVE).first()
 
 
+# --- Season periods and their lifecycle --------------------------------------
+#
+# Every season owns a half-open period [starts_at, ends_at): the end moment
+# belongs to the NEXT season, not this one. That is exactly what makes
+# "season A ends at the same moment season B begins" a legal, conflict-free
+# schedule rather than an overlap -- and it is the same rule both the
+# overlap check and sync_season_states below apply, never two.
+
+
+def seasons_overlap(
+    a_start: datetime,
+    a_end: datetime | None,
+    b_start: datetime,
+    b_end: datetime | None,
+) -> bool:
+    """True if two half-open periods share any moment. A null end means
+    "open-ended", i.e. it covers everything from its start onward."""
+    a_open = a_end is None
+    b_open = b_end is None
+    if a_open and b_open:
+        return True
+    if a_open:
+        return b_end > a_start
+    if b_open:
+        return a_end > b_start
+    return a_start < b_end and b_start < a_end
+
+
+def assert_season_period_free(
+    db: Session, *, starts_at: datetime, ends_at: datetime | None, exclude_id: int | None = None
+) -> None:
+    """Raises ValueError if this period would collide with a season that
+    hasn't finished yet. Completed seasons are never checked -- their
+    period is history and cannot conflict with anything live.
+
+    An open-ended season (no `ends_at`) gets its own message: nothing can
+    be scheduled after it, because nothing can know when it frees up. The
+    fix is for the admin to give that season an end moment first, not for
+    this code to guess one -- ending a season resets every user's points,
+    so it must never happen as a side effect of creating another."""
+    if ends_at is not None and ends_at <= starts_at:
+        raise ValueError("Дата окончания должна быть позже даты начала")
+
+    query = db.query(Season).filter(Season.status != SEASON_COMPLETED)
+    if exclude_id is not None:
+        query = query.filter(Season.id != exclude_id)
+    for other in query.order_by(Season.starts_at).all():
+        if not seasons_overlap(starts_at, ends_at, other.starts_at, other.ends_at):
+            continue
+        if other.ends_at is None:
+            raise ValueError(
+                f"У сезона «{other.name}» не задана дата окончания — "
+                "укажите её, чтобы запланировать следующий сезон"
+            )
+        raise ValueError(f"Период пересекается с сезоном «{other.name}»")
+
+
+def sync_season_states(db: Session, now: datetime | None = None) -> bool:
+    """The ONE place a season's status ever changes on its own. Idempotent
+    and safe to call as often as anything likes: it compares the stored
+    periods against `now` and does only what is actually due.
+
+    In order, because the order is what makes "A ends exactly when B
+    starts" come out right:
+      1. an active season whose `ends_at` has arrived is ended -- with its
+         SCHEDULED end recorded as the real end moment, so a backend that
+         was down over that moment still writes truthful history rather
+         than "ended whenever we noticed";
+      2. a scheduled season whose whole period already elapsed is closed
+         without any reset or history: it was never the live season, so
+         nobody earned anything in it and nobody's points may be touched
+         for it;
+      3. the earliest scheduled season whose start has arrived becomes
+         active -- only ever when no active season is left, which step 1
+         has just guaranteed for a back-to-back schedule.
+
+    Returns True if anything changed. Because every decision comes from
+    stored columns, a restart resumes exactly where it left off -- none of
+    this lives in memory."""
+    now = now or utc_now()
+    changed = False
+
+    # Locked, not just read: the background sweep and a request handler can
+    # both land here at the same moment, and ending a season twice would
+    # try to write every user's history row twice. The second caller blocks
+    # here until the first commits, then re-evaluates the filter and finds
+    # no active season at all -- so it simply moves on.
+    active = db.query(Season).filter(Season.status == SEASON_ACTIVE).with_for_update().first()
+    if active is not None and active.ends_at is not None and active.ends_at <= now:
+        end_season(db, active, at=active.ends_at)
+        changed = True
+
+    expired = (
+        db.query(Season)
+        .filter(
+            Season.status == SEASON_SCHEDULED,
+            Season.ends_at.is_not(None),
+            Season.ends_at <= now,
+        )
+        .all()
+    )
+    for season in expired:
+        season.status = SEASON_COMPLETED
+        season.ended_at = season.ends_at
+        changed = True
+    if expired:
+        db.commit()
+
+    if get_active_season(db) is None:
+        due = (
+            db.query(Season)
+            .filter(Season.status == SEASON_SCHEDULED, Season.starts_at <= now)
+            .order_by(Season.starts_at, Season.id)
+            .with_for_update()
+            .first()
+        )
+        if due is not None:
+            due.status = SEASON_ACTIVE
+            db.commit()
+            changed = True
+
+    return changed
+
+
 def apply_season_reset(points: int, settings: RatingSettings) -> int:
     """Never negative -- 0 is the floor regardless of reset mode or how
     large the configured reset value is."""
@@ -218,16 +345,24 @@ def apply_season_reset(points: int, settings: RatingSettings) -> int:
     return max(0, new_points)
 
 
-def end_season(db: Session, season: Season) -> None:
+def end_season(db: Session, season: Season, at: datetime | None = None) -> None:
     """The one moment a season's result becomes permanent history and
-    every user's current points get reset for the next one. Freezes
-    EVERY user's points/rank into SeasonHistory (even users with 0
+    every user's current points get reset for the next one -- reached both
+    by an admin ending a season by hand and by its own scheduled end
+    arriving (see sync_season_states), never by two implementations.
+    Freezes EVERY user's points/rank into SeasonHistory (even users with 0
     points, for a complete record) before touching a single
     UserRating.total_points, so a crash partway through never leaves a
     user's history missing while their points are already reset -- both
-    happen in the same transaction, committed once at the end."""
-    if season.status != SEASON_ACTIVE:
+    happen in the same transaction, committed once at the end.
+
+    `at` is the moment recorded as this season's real end; it defaults to
+    now, and the scheduler passes the season's own `ends_at` so a backend
+    that was down over that moment still records when the season actually
+    ended rather than when it was noticed."""
+    if season.status == SEASON_COMPLETED:
         raise ValueError("Сезон уже завершён")
+    ended_at = at or utc_now()
 
     settings = get_rating_settings(db)
     user_ids = [row[0] for row in db.query(User.id).all()]
@@ -246,5 +381,5 @@ def end_season(db: Session, season: Season) -> None:
         rating.total_points = apply_season_reset(rating.total_points, settings)
 
     season.status = SEASON_COMPLETED
-    season.end_date = utc_today()
+    season.ended_at = ended_at
     db.commit()

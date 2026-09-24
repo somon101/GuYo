@@ -1,3 +1,6 @@
+import asyncio
+import contextlib
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -5,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
+from app.rating.scheduler import run_season_scheduler
 from app.routers import (
     admin_achievements,
     admin_analytics,
@@ -30,7 +34,21 @@ settings = get_settings()
 
 Path(settings.media_root).mkdir(parents=True, exist_ok=True)
 
-app = FastAPI(title="GuYo API", version="0.1.0")
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Starts the season scheduler for the lifetime of the process. Its
+    very first sweep is the "catch up on everything that happened while we
+    were down" pass -- see app/rating/scheduler.py."""
+    task = asyncio.create_task(run_season_scheduler())
+    try:
+        yield
+    finally:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+
+app = FastAPI(title="GuYo API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

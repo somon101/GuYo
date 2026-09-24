@@ -22,3 +22,21 @@ def utc_today() -> date:
 
 def dushanbe_today() -> date:
     return datetime.now(timezone.utc).astimezone(DUSHANBE_TZ).date()
+
+
+def utc_now() -> datetime:
+    """The one server-side "right now" season scheduling compares against
+    (app/rating/service.py's sync_season_states) -- always tz-aware UTC,
+    so a comparison against a stored DateTime(timezone=True) can never
+    silently mix naive and aware values."""
+    return datetime.now(timezone.utc)
+
+
+def as_utc(value: datetime) -> datetime:
+    """Normalizes a datetime that crossed the API boundary. A client may
+    send an offset ("2026-10-01T00:00:00+05:00") or none at all
+    ("2026-10-01T00:00:00") -- a naive value is taken as UTC rather than
+    as the host's own local timezone, which is never guaranteed."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)

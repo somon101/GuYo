@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -78,16 +78,43 @@ class ReorderRanksIn(BaseModel):
 
 
 class SeasonOut(BaseModel):
+    """One season with its own id, period and status. `ends_at` is the
+    PLANNED end (null = only an admin can end it); `ended_at` is when it
+    actually ended (null until then) -- see app/models/rating.py's Season.
+    `icon_url` is stored and returned for the admin editor; nothing in the
+    app renders it yet."""
+
     id: int
     name: str
-    start_date: date
-    end_date: date | None
+    starts_at: datetime
+    ends_at: datetime | None
+    ended_at: datetime | None
     status: str
+    icon_url: str | None = None
 
 
 class SeasonCreateIn(BaseModel):
+    """`starts_at` defaults to now, i.e. "start this season immediately"
+    (it still only goes live through sync_season_states, so the status a
+    season ends up with is decided in exactly one place). A future
+    `starts_at` schedules it instead -- several may be queued up, as long
+    as their periods don't collide."""
+
     name: str = Field(min_length=1, max_length=255)
-    start_date: date | None = None
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+
+
+class SeasonUpdateIn(BaseModel):
+    """Every field optional -- only what's sent is changed. Completed
+    seasons are never editable (their result is already frozen into
+    SeasonHistory); `clear_ends_at` turns a scheduled end back into
+    "manual only", which is why it can't just be `ends_at: None`."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+    clear_ends_at: bool = False
 
 
 class SeasonHistoryOut(BaseModel):

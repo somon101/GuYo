@@ -1,6 +1,7 @@
 from app.rating.service import (
     apply_season_reset,
     assert_rank_range_free,
+    assert_season_period_free,
     award_word_points_if_new,
     current_rank_for_points,
     end_season,
@@ -14,11 +15,14 @@ from app.rating.service import (
     ordered_enabled_ranks,
     rank_position_for_user,
     ranks_overlap,
+    seasons_overlap,
+    sync_season_states,
 )
 
 __all__ = [
     "apply_season_reset",
     "assert_rank_range_free",
+    "assert_season_period_free",
     "award_word_points_if_new",
     "current_rank_for_points",
     "end_season",
@@ -32,4 +36,6 @@ __all__ = [
     "ordered_enabled_ranks",
     "rank_position_for_user",
     "ranks_overlap",
+    "seasons_overlap",
+    "sync_season_states",
 ]

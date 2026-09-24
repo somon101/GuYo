@@ -17,6 +17,7 @@ from app.rating import (
     get_rating_settings,
     next_rank_for_points,
     rank_position_for_user,
+    sync_season_states,
 )
 from app.schemas.achievement import UserAchievementOut
 from app.schemas.rating import SeasonHistoryOut, SeasonOut, UserRatingOut, rank_public_out
@@ -223,6 +224,11 @@ def get_my_rating(db: Session = Depends(get_db), user: User = Depends(get_curren
     touches Achievement/UserAchievement, and this never recomputes a past
     season's SeasonHistory row from the CURRENT rating -- that snapshot is
     permanent the moment a season ends."""
+    # Brings the season schedule up to date first, so "which season is
+    # running" is answered from the stored periods rather than from
+    # whenever the background sweep last ran (see app/rating/scheduler.py).
+    sync_season_states(db)
+
     rating = get_or_create_user_rating(db, user.id)
     rank = current_rank_for_points(db, rating.total_points)
     next_rank = next_rank_for_points(db, rating.total_points)

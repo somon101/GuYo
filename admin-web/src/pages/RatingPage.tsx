@@ -4,17 +4,21 @@ import { API_URL } from "../api/client";
 import {
   createRank,
   createSeason,
+  deleteSeason,
+  deleteSeasonIcon,
   deleteRank,
   endSeason,
   getRatingSettings,
   listRanks,
   listSeasons,
+  setSeasonIcon,
   reorderRanks,
   updateRank,
   updateRatingSettings,
+  updateSeason,
   type RankInput,
 } from "../api/endpoints";
-import type { Rank, RatingResetMode, RatingSettings, Season } from "../types";
+import type { Rank, RatingResetMode, RatingSettings, Season, SeasonStatus } from "../types";
 
 function mediaUrl(path: string | null): string | null {
   return path ? `${API_URL}${path}` : null;
@@ -476,104 +480,354 @@ function RankForm({ rank, onSaved, onCancel }: { rank: Rank | null; onSaved: (r:
 
 // --- Сезоны ---------------------------------------------------------------------
 
+// datetime-local speaks the admin's own wall clock and carries no offset;
+// the API speaks UTC. These two are the only place that conversion happens,
+// so a period entered as "1 October, 00:00" is stored as that exact moment
+// and read back as the same one.
+function toLocalInput(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fromLocalInput(value: string): string | undefined {
+  return value ? new Date(value).toISOString() : undefined;
+}
+
+function formatMoment(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
+}
+
+const STATUS_LABELS: Record<SeasonStatus, string> = {
+  scheduled: "Запланирован",
+  active: "Идёт сейчас",
+  completed: "Завершён",
+};
+
+const STATUS_CLASSES: Record<SeasonStatus, string> = {
+  scheduled: "bg-amber-100 text-amber-700",
+  active: "bg-indigo-100 text-indigo-700",
+  completed: "bg-slate-100 text-slate-500",
+};
+
 function SeasonsCard({ seasons, onChanged }: { seasons: Season[]; onChanged: () => void }) {
-  const [newName, setNewName] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [editing, setEditing] = useState<Season | null>(null);
+  const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const active = seasons.find((s) => s.status === "active");
-  const past = seasons.filter((s) => s.status !== "active");
+  function describeError(err: unknown, fallback: string): string {
+    const detail = axios.isAxiosError(err) ? (err.response?.data?.detail as string | undefined) : undefined;
+    return detail ?? fallback;
+  }
 
-  async function handleCreate(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    if (!newName.trim()) {
-      setError("Введите название сезона");
+  async function handleEnd(season: Season) {
+    if (
+      !confirm(
+        `Завершить «${season.name}»? Очки всех пользователей будут сброшены по текущим настройкам, а результат сохранится в истории. Это действие нельзя отменить.`,
+      )
+    )
       return;
-    }
-    setIsSubmitting(true);
+    setError(null);
+    setBusyId(season.id);
     try {
-      await createSeason(newName.trim());
-      setNewName("");
+      await endSeason(season.id);
       onChanged();
     } catch (err) {
-      const detail = axios.isAxiosError(err) ? (err.response?.data?.detail as string | undefined) : undefined;
-      setError(detail ?? "Не удалось создать сезон");
+      setError(describeError(err, "Не удалось завершить сезон"));
     } finally {
-      setIsSubmitting(false);
+      setBusyId(null);
     }
   }
 
-  async function handleEnd() {
-    if (!active) return;
-    if (!confirm(`Завершить «${active.name}»? Очки всех пользователей будут сброшены по текущим настройкам, а результат сохранится в истории. Это действие нельзя отменить.`))
-      return;
+  async function handleDelete(season: Season) {
+    if (!confirm(`Удалить запланированный сезон «${season.name}»?`)) return;
     setError(null);
-    setIsSubmitting(true);
+    setBusyId(season.id);
     try {
-      await endSeason(active.id);
+      await deleteSeason(season.id);
       onChanged();
     } catch (err) {
+      setError(describeError(err, "Не удалось удалить сезон"));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <SectionCard
+      title="Сезоны"
+      subtitle="Периоды не должны пересекаться. Сезон, начинающийся ровно в момент окончания предыдущего, — это не пересечение: передача происходит автоматически."
+    >
+      <button
+        onClick={() => {
+          setIsCreating(true);
+          setEditing(null);
+        }}
+        className="mb-3 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+      >
+        + Добавить сезон
+      </button>
+
+      {(isCreating || editing) && (
+        <SeasonForm
+          season={editing}
+          onSaved={() => {
+            setIsCreating(false);
+            setEditing(null);
+            onChanged();
+          }}
+          onCancel={() => {
+            setIsCreating(false);
+            setEditing(null);
+          }}
+        />
+      )}
+
+      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+
+      {seasons.length === 0 ? (
+        <p className="text-sm text-slate-500">Сезонов пока нет</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {seasons.map((s) => (
+            <li
+              key={s.id}
+              className={`flex items-center gap-3 rounded-lg border p-3 ${s.status === "active" ? "border-indigo-200 bg-indigo-50" : "border-slate-200 bg-white"}`}
+            >
+              <SeasonIcon season={s} onChanged={onChanged} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate font-medium text-slate-900">{s.name}</p>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_CLASSES[s.status]}`}>
+                    {STATUS_LABELS[s.status]}
+                  </span>
+                  <span className="shrink-0 text-xs text-slate-400">#{s.id}</span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  {formatMoment(s.starts_at)} —{" "}
+                  {s.status === "completed"
+                    ? formatMoment(s.ended_at)
+                    : s.ends_at
+                      ? formatMoment(s.ends_at)
+                      : "завершается вручную"}
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-3">
+                {s.status !== "completed" && (
+                  <button
+                    onClick={() => {
+                      setIsCreating(false);
+                      setEditing(s);
+                    }}
+                    className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                  >
+                    Изменить
+                  </button>
+                )}
+                {s.status === "active" && (
+                  <button
+                    onClick={() => handleEnd(s)}
+                    disabled={busyId === s.id}
+                    className="text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-60"
+                  >
+                    Завершить
+                  </button>
+                )}
+                {s.status === "scheduled" && (
+                  <button
+                    onClick={() => handleDelete(s)}
+                    disabled={busyId === s.id}
+                    className="text-sm text-slate-400 hover:text-red-600 disabled:opacity-60"
+                  >
+                    Удалить
+                  </button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </SectionCard>
+  );
+}
+
+/** A season's picture. Uploaded and cleared on its own endpoints, so there
+ * is nothing to save afterwards -- and nothing renders it in the app yet,
+ * it is only stored. */
+function SeasonIcon({ season, onChanged }: { season: Season; onChanged: () => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isBusy, setIsBusy] = useState(false);
+
+  async function handleFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setIsBusy(true);
+    try {
+      await setSeasonIcon(season.id, file);
+      onChanged();
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function handleRemove() {
+    setIsBusy(true);
+    try {
+      await deleteSeasonIcon(season.id);
+      onChanged();
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex shrink-0 flex-col items-center gap-1">
+      <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg bg-slate-100">
+        {season.icon_url ? (
+          <img src={mediaUrl(season.icon_url)!} alt="" className="h-full w-full object-contain" />
+        ) : (
+          <span className="text-sm text-slate-400">—</span>
+        )}
+      </div>
+      <div className="flex items-center gap-2 text-xs">
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={isBusy}
+          className="text-indigo-600 hover:underline disabled:opacity-50"
+        >
+          {season.icon_url ? "Заменить" : "Иконка"}
+        </button>
+        {season.icon_url && (
+          <button
+            type="button"
+            onClick={handleRemove}
+            disabled={isBusy}
+            className="text-rose-600 hover:underline disabled:opacity-50"
+          >
+            Убрать
+          </button>
+        )}
+      </div>
+      <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+    </div>
+  );
+}
+
+function SeasonForm({
+  season,
+  onSaved,
+  onCancel,
+}: {
+  season: Season | null;
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(season?.name ?? "");
+  const [startsAt, setStartsAt] = useState(toLocalInput(season?.starts_at ?? null));
+  const [hasEnd, setHasEnd] = useState(season ? season.ends_at !== null : false);
+  const [endsAt, setEndsAt] = useState(toLocalInput(season?.ends_at ?? null));
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!name.trim()) {
+      setError("Введите название сезона");
+      return;
+    }
+    if (hasEnd && !endsAt) {
+      setError("Укажите дату и время окончания");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      if (season) {
+        await updateSeason(season.id, {
+          name: name.trim(),
+          startsAt: fromLocalInput(startsAt),
+          endsAt: hasEnd ? fromLocalInput(endsAt) : undefined,
+          clearEndsAt: !hasEnd,
+        });
+      } else {
+        await createSeason({
+          name: name.trim(),
+          startsAt: fromLocalInput(startsAt),
+          endsAt: hasEnd ? fromLocalInput(endsAt) : undefined,
+        });
+      }
+      onSaved();
+    } catch (err) {
       const detail = axios.isAxiosError(err) ? (err.response?.data?.detail as string | undefined) : undefined;
-      setError(detail ?? "Не удалось завершить сезон");
+      setError(detail ?? "Не удалось сохранить сезон");
     } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <SectionCard title="Сезоны">
-      {active ? (
-        <div className="flex items-center justify-between rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3">
-          <div>
-            <p className="font-medium text-slate-900">{active.name}</p>
-            <p className="text-xs text-slate-500">Начат {active.start_date} · текущий сезон</p>
-          </div>
-          <button
-            onClick={handleEnd}
-            disabled={isSubmitting}
-            className="rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
-          >
-            Завершить сезон
-          </button>
+    <form onSubmit={handleSubmit} className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+      <div className="flex flex-wrap gap-4">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Название</label>
+          <input
+            className="w-56 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Сезон 3"
+          />
         </div>
-      ) : (
-        <form onSubmit={handleCreate} className="flex items-end gap-3">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Название нового сезона</label>
-            <input
-              className="w-56 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Сезон 3"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-          >
-            Начать сезон
-          </button>
-        </form>
-      )}
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Начало</label>
+          <input
+            type="datetime-local"
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            value={startsAt}
+            onChange={(e) => setStartsAt(e.target.value)}
+          />
+          <p className="mt-1 text-xs text-slate-400">Пусто — начать сразу</p>
+        </div>
+        <div>
+          <label className="mb-1 flex items-center gap-2 text-sm font-medium text-slate-700">
+            <input type="checkbox" checked={hasEnd} onChange={(e) => setHasEnd(e.target.checked)} />
+            Окончание
+          </label>
+          <input
+            type="datetime-local"
+            disabled={!hasEnd}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-400"
+            value={endsAt}
+            onChange={(e) => setEndsAt(e.target.value)}
+          />
+          <p className="mt-1 text-xs text-slate-400">
+            {hasEnd ? "Завершится автоматически" : "Только вручную"}
+          </p>
+        </div>
+      </div>
 
-      {past.length > 0 && (
-        <div className="mt-4">
-          <p className="mb-2 text-xs font-medium text-slate-500">История сезонов</p>
-          <ul className="flex flex-col gap-1.5">
-            {past.map((s) => (
-              <li key={s.id} className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2 text-sm">
-                <span className="text-slate-700">{s.name}</span>
-                <span className="text-xs text-slate-400">
-                  {s.start_date} — {s.end_date}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </SectionCard>
+      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+
+      <div className="mt-4 flex gap-2">
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+        >
+          {isSubmitting ? "Сохранение…" : season ? "Сохранить" : "Создать сезон"}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-white"
+        >
+          Отмена
+        </button>
+      </div>
+    </form>
   );
 }
