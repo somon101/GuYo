@@ -18,16 +18,23 @@ from app.models.dictionary import Dictionary
 from app.models.phrase import Phrase
 from app.models.user import User
 from app.models.word import Word
+from app.models.word_attempt import WordAttempt
 from app.models.word_progress import WordProgress
 from app.routers.lessons import _get_threshold
 from app.routers.phrases import _get_learned_word_tokens, _tokenize
+from app.word_levels import level_for_score_in, ordered_enabled_levels
 from app.schemas.analytics import (
     AnalyticsDictionaryOut,
+    ExerciseAttemptStatsOut,
     MissingWordOut,
     NearPhraseOut,
     OpenPhraseAnalyticsOut,
     UserPhraseAnalyticsOut,
+    UserWordProgressOut,
+    WordAttemptOut,
+    WordDiagnosticsOut,
     WordImpactOut,
+    WordLevelSummaryOut,
 )
 
 router = APIRouter(prefix="/admin/analytics", tags=["admin-analytics"])
@@ -183,4 +190,134 @@ def get_user_phrase_analytics(
         open_phrases=open_phrases,
         near_phrases=near_phrases,
         top_words=top_words,
+    )
+
+
+# --- Per-word diagnostics: WordProgress + WordAttempt, both read-only ------
+# Entirely separate concern from the phrase report above (that one reads
+# Word/Phrase/WordProgress; this reads WordProgress/WordAttempt) -- sharing
+# only the router prefix and the same "pick a user" step in Admin Web.
+
+
+def _word_level_summary(db: Session, score: int) -> WordLevelSummaryOut | None:
+    level = level_for_score_in(ordered_enabled_levels(db), score)
+    if level is None:
+        return None
+    return WordLevelSummaryOut(id=level.id, name=level.name, min_points=level.min_points, max_points=level.max_points)
+
+
+@router.get("/users/{user_id}/words", response_model=list[UserWordProgressOut])
+def list_user_word_progress(
+    user_id: int,
+    dictionary_id: int,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """Every Word in `dictionary_id` this user has a WordProgress row for
+    (i.e. has been through at least one real attempt at, ever, in a Lesson
+    or a Quest) -- the word-picker list on the admin's «Диагностика слова»
+    page. `total_attempts` is a plain count of WordAttempt, grouped once
+    here rather than N+1 queried per word."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if db.get(Dictionary, dictionary_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dictionary not found")
+
+    levels = ordered_enabled_levels(db)
+
+    attempt_counts = dict(
+        db.query(WordAttempt.word_id, func.count(WordAttempt.id))
+        .filter(WordAttempt.user_id == user_id)
+        .group_by(WordAttempt.word_id)
+        .all()
+    )
+
+    rows = (
+        db.query(Word, WordProgress)
+        .join(WordProgress, WordProgress.word_id == Word.id)
+        .filter(WordProgress.user_id == user_id, Word.dictionary_id == dictionary_id)
+        .order_by(WordProgress.updated_at.desc())
+        .all()
+    )
+
+    out: list[UserWordProgressOut] = []
+    for word, progress in rows:
+        primary = word.translations[0].text if word.translations else None
+        level = level_for_score_in(levels, progress.score)
+        out.append(
+            UserWordProgressOut(
+                word_id=word.id,
+                word=word.word,
+                translation=primary,
+                dictionary_id=word.dictionary_id,
+                score=progress.score,
+                level=WordLevelSummaryOut(id=level.id, name=level.name, min_points=level.min_points, max_points=level.max_points)
+                if level is not None
+                else None,
+                total_attempts=attempt_counts.get(word.id, 0),
+                updated_at=progress.updated_at,
+            )
+        )
+    return out
+
+
+@router.get("/users/{user_id}/words/{word_id}", response_model=WordDiagnosticsOut)
+def get_word_diagnostics(
+    user_id: int,
+    word_id: int,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """The full «Диагностика слова» picture for one (user, word): current
+    level/score (re-derived from WordProgress, never cached), and every
+    number below it computed by aggregating WordAttempt -- total, the
+    per-exercise breakdown, the last attempt, and the complete history --
+    never a second stored counter that could drift from it."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    word = db.get(Word, word_id)
+    if word is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Word not found")
+
+    progress = db.query(WordProgress).filter(WordProgress.user_id == user_id, WordProgress.word_id == word_id).first()
+    score = progress.score if progress is not None else 0
+
+    attempts = (
+        db.query(WordAttempt)
+        .filter(WordAttempt.user_id == user_id, WordAttempt.word_id == word_id)
+        .order_by(WordAttempt.created_at.asc())
+        .all()
+    )
+
+    by_exercise: dict[str, list[int]] = {}  # exercise_key -> [attempts, correct, errors]
+    for a in attempts:
+        bucket = by_exercise.setdefault(a.exercise_key, [0, 0, 0])
+        bucket[0] += 1
+        bucket[1 if a.is_correct else 2] += 1
+
+    total_correct = sum(1 for a in attempts if a.is_correct)
+    primary = word.translations[0].text if word.translations else None
+
+    def _attempt_out(a: WordAttempt) -> WordAttemptOut:
+        return WordAttemptOut(exercise_key=a.exercise_key, is_correct=a.is_correct, score_after=a.score_after, created_at=a.created_at)
+
+    return WordDiagnosticsOut(
+        user_id=user.id,
+        user_login=user.login,
+        word_id=word.id,
+        word=word.word,
+        translation=primary,
+        score=score,
+        level=_word_level_summary(db, score),
+        total_attempts=len(attempts),
+        total_correct=total_correct,
+        total_errors=len(attempts) - total_correct,
+        by_exercise=[
+            ExerciseAttemptStatsOut(exercise_key=key, total_attempts=a, total_correct=c, total_errors=e)
+            for key, (a, c, e) in by_exercise.items()
+        ],
+        last_attempt=_attempt_out(attempts[-1]) if attempts else None,
+        history=[_attempt_out(a) for a in attempts],
     )

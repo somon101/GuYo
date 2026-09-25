@@ -22,6 +22,7 @@ import { ListenWordSettingsPage } from "./pages/exercises/ListenWordSettingsPage
 import { WordLevelsSettingsPage } from "./pages/exercises/WordLevelsSettingsPage";
 import { QuestsPage } from "./pages/QuestsPage";
 import { UserAnalyticsPage } from "./pages/UserAnalyticsPage";
+import { WordDiagnosticsPage } from "./pages/WordDiagnosticsPage";
 import { AchievementsPage } from "./pages/AchievementsPage";
 import { RatingPage } from "./pages/RatingPage";
 
@@ -241,6 +242,16 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <UserAnalyticsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/analytics/users/:userId/words/:wordId"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <WordDiagnosticsPage />
                 </Layout>
               </ProtectedRoute>
             }

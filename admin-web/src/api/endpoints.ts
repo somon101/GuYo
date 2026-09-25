@@ -18,7 +18,9 @@ import type {
   Slogan,
   TranslationLanguage,
   UserPhraseAnalytics,
+  UserWordProgress,
   Word,
+  WordDiagnostics,
   WordForm,
   WordLevel,
   WordTranslation,
@@ -467,6 +469,21 @@ export async function getUserPhraseAnalytics(
   const { data } = await api.get(`/admin/analytics/users/${userId}`, {
     params: { dictionary_id: dictionaryId },
   });
+  return data;
+}
+
+export async function listUserWordProgress(
+  userId: number,
+  dictionaryId: number,
+): Promise<UserWordProgress[]> {
+  const { data } = await api.get(`/admin/analytics/users/${userId}/words`, {
+    params: { dictionary_id: dictionaryId },
+  });
+  return data;
+}
+
+export async function getWordDiagnostics(userId: number, wordId: number): Promise<WordDiagnostics> {
+  const { data } = await api.get(`/admin/analytics/users/${userId}/words/${wordId}`);
   return data;
 }
 

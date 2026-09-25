@@ -206,6 +206,60 @@ export interface UserPhraseAnalytics {
   top_words: WordImpact[];
 }
 
+// --- Диагностика слова -------------------------------------------------
+// WordProgress (level/score) + WordAttempt (every real answer, in a
+// Lesson or a Quest -- Practice writes none of this, see backend/app/
+// routers/practice.py). Every number here is already aggregated
+// server-side; this page only renders it.
+
+export interface WordLevelSummary {
+  id: number;
+  name: string;
+  min_points: number;
+  max_points: number | null;
+}
+
+export interface UserWordProgress {
+  word_id: number;
+  word: string;
+  translation: string | null;
+  dictionary_id: number;
+  score: number;
+  level: WordLevelSummary | null;
+  total_attempts: number;
+  updated_at: string;
+}
+
+export interface ExerciseAttemptStats {
+  exercise_key: string;
+  total_attempts: number;
+  total_correct: number;
+  total_errors: number;
+}
+
+export interface WordAttempt {
+  exercise_key: string;
+  is_correct: boolean;
+  score_after: number;
+  created_at: string;
+}
+
+export interface WordDiagnostics {
+  user_id: number;
+  user_login: string;
+  word_id: number;
+  word: string;
+  translation: string | null;
+  score: number;
+  level: WordLevelSummary | null;
+  total_attempts: number;
+  total_correct: number;
+  total_errors: number;
+  by_exercise: ExerciseAttemptStats[];
+  last_attempt: WordAttempt | null;
+  history: WordAttempt[];
+}
+
 // --- Достижения ------------------------------------------------------------
 // Achievement is the DEFINITION an admin edits here; whether/when a given
 // user actually earned it lives entirely on the backend (UserAchievement) --

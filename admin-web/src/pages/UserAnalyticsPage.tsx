@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   getUserPhraseAnalytics,
   listAnalyticsDictionaries,
+  listUserWordProgress,
   listUsers,
 } from "../api/endpoints";
 import type {
@@ -9,6 +11,7 @@ import type {
   AnalyticsDictionary,
   NearPhrase,
   UserPhraseAnalytics,
+  UserWordProgress,
   WordImpact,
 } from "../types";
 
@@ -32,6 +35,10 @@ export function UserAnalyticsPage() {
   const [analytics, setAnalytics] = useState<UserPhraseAnalytics | null>(null);
   const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+
+  const [words, setWords] = useState<UserWordProgress[] | null>(null);
+  const [isLoadingWords, setIsLoadingWords] = useState(false);
+  const [wordsError, setWordsError] = useState<string | null>(null);
 
   useEffect(() => {
     setIsLoadingOptions(true);
@@ -57,6 +64,19 @@ export function UserAnalyticsPage() {
       .then(setAnalytics)
       .catch(() => setAnalyticsError("Не удалось загрузить аналитику для этого пользователя"))
       .finally(() => setIsLoadingAnalytics(false));
+  }, [selectedUserId, selectedDictionaryId]);
+
+  useEffect(() => {
+    if (selectedUserId == null || selectedDictionaryId == null) {
+      setWords(null);
+      return;
+    }
+    setIsLoadingWords(true);
+    setWordsError(null);
+    listUserWordProgress(selectedUserId, selectedDictionaryId)
+      .then(setWords)
+      .catch(() => setWordsError("Не удалось загрузить список слов этого пользователя"))
+      .finally(() => setIsLoadingWords(false));
   }, [selectedUserId, selectedDictionaryId]);
 
   return (
@@ -105,16 +125,83 @@ export function UserAnalyticsPage() {
 
           {selectedUserId == null ? (
             <p className="text-sm text-slate-500">Выберите пользователя, чтобы увидеть аналитику.</p>
-          ) : isLoadingAnalytics ? (
-            <p className="text-sm text-slate-500">Загрузка аналитики…</p>
-          ) : analyticsError ? (
-            <p className="text-sm text-red-600">{analyticsError}</p>
-          ) : analytics ? (
-            <AnalyticsReport data={analytics} />
-          ) : null}
+          ) : (
+            <div className="flex flex-col gap-6">
+              {isLoadingWords ? (
+                <p className="text-sm text-slate-500">Загрузка слов…</p>
+              ) : wordsError ? (
+                <p className="text-sm text-red-600">{wordsError}</p>
+              ) : words ? (
+                <WordsSection userId={selectedUserId} words={words} />
+              ) : null}
+
+              {isLoadingAnalytics ? (
+                <p className="text-sm text-slate-500">Загрузка аналитики…</p>
+              ) : analyticsError ? (
+                <p className="text-sm text-red-600">{analyticsError}</p>
+              ) : analytics ? (
+                <AnalyticsReport data={analytics} />
+              ) : null}
+            </div>
+          )}
         </>
       )}
     </div>
+  );
+}
+
+/** Every Word this user has EVER attempted in this dictionary (a
+ * WordProgress row exists for it) -- the picker for «Диагностика слова».
+ * Level/score/attempt-count are already computed server-side; this only
+ * lists and links them. */
+function WordsSection({ userId, words }: { userId: number; words: UserWordProgress[] }) {
+  const [showAll, setShowAll] = useState(false);
+  if (words.length === 0) {
+    return (
+      <Section title="Изучаемые слова">
+        <p className="text-sm text-slate-500">У этого пользователя пока нет ни одной попытки ни по одному слову.</p>
+      </Section>
+    );
+  }
+  const visible = showAll ? words : words.slice(0, PAGE_SIZE);
+  return (
+    <Section title="Изучаемые слова">
+      <ul className="flex flex-col gap-1.5">
+        {visible.map((w) => (
+          <li key={w.word_id}>
+            <Link
+              to={`/analytics/users/${userId}/words/${w.word_id}`}
+              className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 hover:border-indigo-300 hover:bg-indigo-50/40"
+            >
+              <div className="min-w-0">
+                <span className="font-medium text-slate-900" translate="no">
+                  {w.word}
+                </span>
+                {w.translation && (
+                  <span className="ml-2 text-sm text-slate-500" translate="no">
+                    {w.translation}
+                  </span>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-3 text-xs">
+                <span className="text-slate-400">{w.total_attempts} попыт.</span>
+                <span className="font-medium text-slate-600">{w.score} очк.</span>
+                <span
+                  className={`rounded-full border px-2 py-0.5 font-medium ${
+                    w.level ? "border-indigo-200 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-slate-50 text-slate-500"
+                  }`}
+                >
+                  {w.level ? w.level.name : "без уровня"}
+                </span>
+              </div>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {words.length > PAGE_SIZE && (
+        <ShowAllButton expanded={showAll} onClick={() => setShowAll((v) => !v)} total={words.length} />
+      )}
+    </Section>
   );
 }
 

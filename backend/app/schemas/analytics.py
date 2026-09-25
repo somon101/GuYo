@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -65,3 +67,82 @@ class UserPhraseAnalyticsOut(BaseModel):
     # one locked phrase, sorted by how many phrases it would immediately
     # complete -- sorted descending by new_phrase_count.
     top_words: list[WordImpactOut]
+
+
+class WordLevelSummaryOut(BaseModel):
+    """The level a score currently falls in -- None when no enabled
+    WordLevel's range covers it (a gap in the ladder, or none configured
+    at all), rather than guessing a nearest level."""
+
+    id: int
+    name: str
+    min_points: int
+    max_points: int | None
+
+
+class UserWordProgressOut(BaseModel):
+    """One row of the word-picker list on a user's diagnostics page --
+    every Word this user has EVER attempted (has a WordProgress row for),
+    in this dictionary, regardless of current level."""
+
+    word_id: int
+    word: str
+    translation: str | None
+    dictionary_id: int
+    score: int
+    level: WordLevelSummaryOut | None
+    total_attempts: int
+    updated_at: datetime
+
+
+class ExerciseAttemptStatsOut(BaseModel):
+    """This user's lifetime record for one word, narrowed to one exercise
+    type -- computed by grouping WordAttempt, never a second stored
+    counter."""
+
+    exercise_key: str
+    total_attempts: int
+    total_correct: int
+    total_errors: int
+
+
+class WordAttemptOut(BaseModel):
+    """One row of WordAttempt, as-is -- the full, unfiltered history for
+    one (user, word). See app/models/word_attempt.py for what score_after
+    actually means."""
+
+    exercise_key: str
+    is_correct: bool
+    score_after: int
+    created_at: datetime
+
+
+class WordDiagnosticsOut(BaseModel):
+    """Everything Admin Web's «Диагностика слова» block needs for one
+    (user, word) pair, already aggregated server-side -- Admin Web only
+    renders this, it never computes a total/average/breakdown itself (see
+    app/routers/admin_analytics.py's own module docstring)."""
+
+    user_id: int
+    user_login: str
+
+    word_id: int
+    word: str
+    translation: str | None
+
+    score: int
+    level: WordLevelSummaryOut | None
+
+    total_attempts: int
+    total_correct: int
+    total_errors: int
+
+    # One entry per exercise_key that has EVER been attempted for this
+    # word -- an exercise never attempted simply doesn't appear, rather
+    # than showing a padded 0/0/0 row for every possible type.
+    by_exercise: list[ExerciseAttemptStatsOut]
+
+    last_attempt: WordAttemptOut | None
+    # Oldest first -- a time-series chart reads this left-to-right as-is,
+    # with no client-side sort.
+    history: list[WordAttemptOut]

@@ -48,6 +48,7 @@ from app.models.lesson import Lesson, LessonExercise, LessonWord
 from app.models.user import User
 from app.models.word_progress import WordProgress
 from app.routers.words import word_to_out
+from app.word_attempts import record_word_attempt
 from app.word_levels import level_for_score_in, ordered_enabled_levels
 from app.schemas.exercise import BuildWordRoundOut, ExerciseWordsOut, TrueOrFalseRoundOut
 from app.schemas.lesson import (
@@ -451,6 +452,17 @@ def submit_answer(
 
     progress.score = max(0, min(100, progress.score + delta))
     db.flush()  # this session's autoflush is off -- the completion check below must see this update
+
+    # Analytics only -- see app/models/word_attempt.py's own note. Never
+    # read by any scoring/level/achievement/rating decision.
+    record_word_attempt(
+        db,
+        user_id=user.id,
+        word_id=payload.word_id,
+        exercise_key=exercise_key,
+        is_correct=payload.is_correct,
+        score_after=progress.score,
+    )
 
     threshold = get_threshold(db)
     lesson_completed = _check_and_apply_lesson_completion(db, lesson, threshold)

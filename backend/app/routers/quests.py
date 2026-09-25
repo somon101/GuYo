@@ -26,6 +26,7 @@ from app.quests import (
     pick_quest_word,
     quest_completions_today,
 )
+from app.word_attempts import record_word_attempt
 from app.rating import (
     award_word_points_if_new,
     current_rank_for_points,
@@ -221,6 +222,17 @@ def submit_quest_answer(
     rating_before = get_or_create_user_rating(db, user.id).total_points
 
     new_score = complete_quest_attempt(db, user, quest, word, payload.is_correct)
+
+    # Analytics only -- see app/models/word_attempt.py's own note. Never
+    # read by any scoring/level/achievement/rating decision.
+    record_word_attempt(
+        db,
+        user_id=user.id,
+        word_id=word.id,
+        exercise_key=quest.exercise_key,
+        is_correct=payload.is_correct,
+        score_after=new_score,
+    )
 
     # A quest can push a word's reinforcement score across the SAME
     # learned threshold a Lesson answer would -- see app/exercises/
