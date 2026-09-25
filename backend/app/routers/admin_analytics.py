@@ -205,7 +205,10 @@ def _word_level_summary(db: Session, score: int) -> WordLevelSummaryOut | None:
     level = level_for_score_in(ordered_enabled_levels(db), score)
     if level is None:
         return None
-    return WordLevelSummaryOut(id=level.id, name=level.name, min_points=level.min_points, max_points=level.max_points)
+    return WordLevelSummaryOut(
+        id=level.id, name=level.name, min_points=level.min_points, max_points=level.max_points,
+        priority_weight=level.priority_weight,
+    )
 
 
 @router.get("/users/{user_id}/words", response_model=list[UserWordProgressOut])
@@ -330,4 +333,11 @@ def get_word_diagnostics(
         if priority.stability_band
         else None,
         days_since_last_attempt=priority.days_since_last_attempt,
+        recency_level=PriorityBandSummaryOut(id=priority.recency_band.id, name=priority.recency_band.name)
+        if priority.recency_band
+        else None,
+        level_contribution=priority.level_contribution,
+        recent_errors_contribution=priority.recent_errors_contribution,
+        recency_contribution=priority.recency_contribution,
+        stability_contribution=priority.stability_contribution,
     )

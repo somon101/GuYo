@@ -217,6 +217,7 @@ export interface WordLevelSummary {
   name: string;
   min_points: number;
   max_points: number | null;
+  priority_weight: number;
 }
 
 export interface UserWordProgress {
@@ -263,6 +264,11 @@ export interface WordDiagnostics {
   stability_percent: number | null;
   stability_level: { id: number; name: string } | null;
   days_since_last_attempt: number | null;
+  recency_level: { id: number; name: string } | null;
+  level_contribution: number;
+  recent_errors_contribution: number;
+  recency_contribution: number;
+  stability_contribution: number;
 }
 
 // --- Достижения ------------------------------------------------------------

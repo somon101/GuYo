@@ -12,6 +12,7 @@ import {
   listPriorityLevelBands,
   listRecencyBands,
   listStabilityBands,
+  listWordLevels,
   updatePriorityLevelBand,
   updatePrioritySettings,
   updateRecencyBand,
@@ -20,7 +21,9 @@ import {
   type RecencyBandInput,
   type StabilityBandInput,
 } from "../api/endpoints";
-import type { PriorityLevelBand, PriorityRecencyBand, PriorityStabilityBand, PrioritySettings } from "../types";
+import { InfoTooltip } from "../components/InfoTooltip";
+import { formatScoreRange, PRIORITY_ROLE_EFFECTS, priorityRoleBands } from "../lib/priorityRoles";
+import type { PriorityLevelBand, PriorityRecencyBand, PriorityStabilityBand, PrioritySettings, WordLevel } from "../types";
 
 const inputClass =
   "rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500";
@@ -55,13 +58,41 @@ export function PrioritySettingsPage() {
   );
 }
 
-function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+function Section({
+  title,
+  hint,
+  titleExtra,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  titleExtra?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <section className="mb-8">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</h2>
+      <h2 className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        {title}
+        {titleExtra}
+      </h2>
       {hint && <p className="mb-3 mt-1 text-xs text-slate-400">{hint}</p>}
       <div className={hint ? "" : "mt-3"}>{children}</div>
     </section>
+  );
+}
+
+/** Compact key/value list for inside an InfoTooltip -- the same "current
+ * setting, in plain numbers" shape every tooltip in this file uses. */
+function TooltipFacts({ rows }: { rows: { label: string; value: React.ReactNode }[] }) {
+  return (
+    <dl className="flex flex-col gap-1">
+      {rows.map((r, i) => (
+        <div key={i} className="flex items-baseline justify-between gap-3">
+          <dt className="text-slate-500">{r.label}</dt>
+          <dd className="font-medium text-slate-900">{r.value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -69,14 +100,18 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
 
 function WeightsSection() {
   const [settings, setSettings] = useState<PrioritySettings | null>(null);
+  const [wordLevels, setWordLevels] = useState<WordLevel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    getPrioritySettings()
-      .then(setSettings)
+    Promise.all([getPrioritySettings(), listWordLevels()])
+      .then(([s, levels]) => {
+        setSettings(s);
+        setWordLevels(levels);
+      })
       .catch(() => setError("Не удалось загрузить настройки"))
       .finally(() => setIsLoading(false));
   }, []);
@@ -97,11 +132,14 @@ function WeightsSection() {
     }
   }
 
-  function field(key: keyof PrioritySettings, label: string, hint?: string) {
+  function field(key: keyof PrioritySettings, label: string, hint?: string, tooltip?: React.ReactNode) {
     if (!settings) return null;
     return (
       <div key={key}>
-        <label className="mb-1 block text-sm font-medium text-slate-700">{label}</label>
+        <label className="mb-1 flex items-center gap-1.5 text-sm font-medium text-slate-700">
+          {label}
+          {tooltip}
+        </label>
         <input
           type="number"
           step="any"
@@ -114,8 +152,34 @@ function WeightsSection() {
     );
   }
 
+  const sortedLevels = [...wordLevels].sort((a, b) => a.min_points - b.min_points);
+
   return (
-    <Section title="Веса факторов" hint="Итог = сумма (значение фактора × его вес). Каждый фактор сам по себе — 0-100.">
+    <Section
+      title="Веса факторов"
+      hint="Итог = сумма (значение фактора × его вес). Каждый фактор сам по себе — 0-100."
+      titleExtra={
+        settings && (
+          <InfoTooltip label="Что такое Priority Score">
+            <p className="mb-2 font-medium text-slate-900">Priority Score</p>
+            <p className="mb-2">
+              Сумма 4 факторов, каждый умножен на свой вес ниже. Чем выше итог — тем срочнее слову нужно повторение.
+            </p>
+            <TooltipFacts
+              rows={[
+                { label: "Уровень слова", value: `× ${settings.weight_level}` },
+                { label: "Недавние ошибки", value: `× ${settings.weight_recent_errors}` },
+                { label: "Давность контакта", value: `× ${settings.weight_recency}` },
+                { label: "Стабильность", value: `× ${settings.weight_stability}` },
+              ]}
+            />
+            <p className="mt-2 text-slate-400">
+              Не хранится — пересчитывается заново при каждом обращении (например, при открытии диагностики слова).
+            </p>
+          </InfoTooltip>
+        )
+      }
+    >
       {isLoading ? (
         <p className="text-sm text-slate-500">Загрузка…</p>
       ) : !settings ? (
@@ -123,10 +187,68 @@ function WeightsSection() {
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-4">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {field("weight_level", "Уровень слова")}
-            {field("weight_recent_errors", "Недавние ошибки")}
-            {field("weight_recency", "Давность")}
-            {field("weight_stability", "Стабильность")}
+            {field(
+              "weight_level",
+              "Уровень слова",
+              undefined,
+              <InfoTooltip label="Как влияет уровень слова">
+                <p className="mb-2 font-medium text-slate-900">Фактор «Уровень слова»</p>
+                <p className="mb-2">
+                  У каждого уровня слова свой вклад (настраивается на странице «Уровни слов») — чем менее выучено слово,
+                  тем выше вклад:
+                </p>
+                {sortedLevels.length > 0 ? (
+                  <TooltipFacts
+                    rows={sortedLevels.map((l) => ({
+                      label: `${l.name} (${l.min_points}–${l.max_points ?? "∞"})`,
+                      value: l.priority_weight,
+                    }))}
+                  />
+                ) : (
+                  <p className="text-slate-400">Уровни слов пока не настроены.</p>
+                )}
+                <p className="mt-2 text-slate-400">Итоговый вклад в Priority = вклад уровня × этот вес.</p>
+              </InfoTooltip>,
+            )}
+            {field(
+              "weight_recent_errors",
+              "Недавние ошибки",
+              undefined,
+              <InfoTooltip label="Как влияют недавние ошибки">
+                <p className="mb-2 font-medium text-slate-900">Фактор «Недавние ошибки»</p>
+                <p className="mb-2">
+                  Считаем долю ошибок отдельно среди последних 5, 10 и 20 попыток, затем берём их взвешенное среднее с
+                  весами окон ниже. Чем больше вес у меньшего окна относительно большего, тем сильнее свежие результаты
+                  перевешивают старые.
+                </p>
+                <TooltipFacts
+                  rows={[
+                    { label: "Последние 5", value: settings.window5_weight },
+                    { label: "Последние 10", value: settings.window10_weight },
+                    { label: "Последние 20", value: settings.window20_weight },
+                  ]}
+                />
+                <p className="mt-2 text-slate-400">Итоговый вклад в Priority = (взвешенная доля ошибок × 100) × этот вес.</p>
+              </InfoTooltip>,
+            )}
+            {field(
+              "weight_recency",
+              "Давность",
+              undefined,
+              <InfoTooltip label="Как влияет давность контакта">
+                Насколько сильно диапазоны давности (раздел «Давность последнего контакта» ниже) сказываются на итоговом
+                Priority Score. Сам механизм и текущие диапазоны — в подсказке у того раздела.
+              </InfoTooltip>,
+            )}
+            {field(
+              "weight_stability",
+              "Стабильность",
+              undefined,
+              <InfoTooltip label="Как влияет стабильность">
+                Насколько сильно диапазоны стабильности (раздел «Стабильность» ниже) сказываются на итоговом Priority
+                Score. Сам механизм и текущие диапазоны — в подсказке у того раздела.
+              </InfoTooltip>,
+            )}
           </div>
           <div className="border-t border-slate-100 pt-4">
             <p className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-400">
@@ -139,7 +261,11 @@ function WeightsSection() {
             </div>
           </div>
           <div className="border-t border-slate-100 pt-4">
-            {field("stability_window", "Окно стабильности (попыток)", "Сколько последних попыток учитывается при расчёте стабильности.")}
+            {field(
+              "stability_window",
+              "Окно стабильности (попыток)",
+              "Сколько последних попыток учитывается при расчёте стабильности.",
+            )}
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -162,6 +288,7 @@ function WeightsSection() {
 
 function RecencySection() {
   const [bands, setBands] = useState<PriorityRecencyBand[]>([]);
+  const [weight, setWeight] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [editing, setEditing] = useState<PriorityRecencyBand | "new" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -178,6 +305,9 @@ function RecencySection() {
   }
   useEffect(() => {
     reload();
+    getPrioritySettings()
+      .then((s) => setWeight(s.weight_recency))
+      .catch(() => {});
   }, []);
 
   async function handleDelete(band: PriorityRecencyBand) {
@@ -191,7 +321,28 @@ function RecencySection() {
   }
 
   return (
-    <Section title="Давность последнего контакта" hint="Сколько дней слово не трогали → сколько это добавляет к Priority.">
+    <Section
+      title="Давность последнего контакта"
+      hint="Сколько дней слово не трогали → сколько это добавляет к Priority."
+      titleExtra={
+        <InfoTooltip label="Как считается давность">
+          <p className="mb-2 font-medium text-slate-900">Фактор «Давность последнего контакта»</p>
+          <p className="mb-2">
+            Считаем, сколько дней прошло с последней попытки по слову (0 = сегодня), и смотрим, в какой диапазон ниже
+            это попадает. Слово, которое давно не трогали, «дорожает» само по себе — даже без единой новой попытки,
+            просто потому что при каждом пересчёте проходит больше времени.
+          </p>
+          {bands.length > 0 && (
+            <TooltipFacts
+              rows={[...bands]
+                .sort((a, b) => a.min_days - b.min_days)
+                .map((b) => ({ label: `${b.name} (${b.min_days}–${b.max_days ?? "∞"} дн.)`, value: `+${b.contribution}` }))}
+            />
+          )}
+          {weight != null && <p className="mt-2 text-slate-400">Итоговый вклад в Priority = вклад диапазона × {weight}.</p>}
+        </InfoTooltip>
+      }
+    >
       <button onClick={() => setEditing("new")} className="mb-3 text-sm font-medium text-indigo-600 hover:text-indigo-700">
         + Добавить диапазон
       </button>
@@ -293,6 +444,7 @@ function RecencyForm({ band, onSaved, onCancel }: { band: PriorityRecencyBand | 
 
 function StabilitySection() {
   const [bands, setBands] = useState<PriorityStabilityBand[]>([]);
+  const [settings, setSettings] = useState<PrioritySettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [editing, setEditing] = useState<PriorityStabilityBand | "new" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -309,6 +461,9 @@ function StabilitySection() {
   }
   useEffect(() => {
     reload();
+    getPrioritySettings()
+      .then(setSettings)
+      .catch(() => {});
   }, []);
 
   async function handleDelete(band: PriorityStabilityBand) {
@@ -322,7 +477,29 @@ function StabilitySection() {
   }
 
   return (
-    <Section title="Стабильность" hint="Доля правильных ответов среди последних попыток (окно задаётся выше) → уровень стабильности → вклад.">
+    <Section
+      title="Стабильность"
+      hint="Доля правильных ответов среди последних попыток (окно задаётся выше) → уровень стабильности → вклад."
+      titleExtra={
+        <InfoTooltip label="Как считается стабильность">
+          <p className="mb-2 font-medium text-slate-900">Фактор «Стабильность»</p>
+          <p className="mb-2">
+            Отдельный от «Недавних ошибок» фактор — не дублирует их, а спрашивает про другое: не «сколько ошибок», а
+            «насколько ровно» отвечает пользователь. Берём % правильных ответов среди последних{" "}
+            {settings ? settings.stability_window : "N"} попыток (окно настраивается в разделе весов выше) и смотрим, в
+            какой диапазон ниже это попадает. Чем ниже процент — тем менее стабильно слово помнится, и тем выше вклад.
+          </p>
+          {bands.length > 0 && (
+            <TooltipFacts
+              rows={[...bands]
+                .sort((a, b) => a.min_percent - b.min_percent)
+                .map((b) => ({ label: `${b.name} (${b.min_percent}–${b.max_percent}%)`, value: `+${b.contribution}` }))}
+            />
+          )}
+          {settings && <p className="mt-2 text-slate-400">Итоговый вклад в Priority = вклад диапазона × {settings.weight_stability}.</p>}
+        </InfoTooltip>
+      }
+    >
       <button onClick={() => setEditing("new")} className="mb-3 text-sm font-medium text-indigo-600 hover:text-indigo-700">
         + Добавить диапазон
       </button>
@@ -455,6 +632,33 @@ function LevelBandsSection() {
         'Диапазоны финального Priority Score → Критический/Высокий/Средний/Низкий/Минимальный. Роль каждого уровня ' +
         "(автоурок, приоритет в квестах, отвлекающие варианты) определяется РАНГОМ среди этих диапазонов (самый верхний " +
         "= Критический, самый нижний = Минимальный), а не названием -- переименовать можно свободно."
+      }
+      titleExtra={
+        <InfoTooltip label="Что означают уровни приоритета">
+          <p className="mb-2 font-medium text-slate-900">Priority Level и где он используется</p>
+          <p className="mb-2">
+            У каждого диапазона ниже есть системная роль. Она назначается по РАНГУ (позиции по итоговому Score) —
+            переименование диапазона роль не меняет:
+          </p>
+          <ul className="mb-2 flex flex-col gap-1.5">
+            {PRIORITY_ROLE_EFFECTS.map(({ key, label, effect }) => {
+              const roles = priorityRoleBands(bands);
+              const band = roles[key];
+              return (
+                <li key={key}>
+                  <span className="font-medium text-slate-900">{label}</span>
+                  {band && (
+                    <span className="text-slate-400"> — сейчас «{band.name}» ({formatScoreRange(band.min_score, band.max_score)})</span>
+                  )}
+                  <div className="text-slate-500">{effect}</div>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="text-slate-400">
+            При меньше чем 5 включённых диапазонах некоторые роли указывают на один и тот же диапазон или ни на какой.
+          </p>
+        </InfoTooltip>
       }
     >
       <button onClick={() => setEditing("new")} className="mb-3 text-sm font-medium text-indigo-600 hover:text-indigo-700">

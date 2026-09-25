@@ -1,8 +1,34 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getWordDiagnostics } from "../api/endpoints";
+import {
+  getPrioritySettings,
+  getWordDiagnostics,
+  listPriorityLevelBands,
+  listRecencyBands,
+  listStabilityBands,
+} from "../api/endpoints";
 import { ActivityOverTimeChart, ExerciseBreakdownChart, ProportionBar, ScoreOverTimeChart } from "../components/MiniCharts";
-import type { WordAttempt, WordDiagnostics } from "../types";
+import { InfoTooltip } from "../components/InfoTooltip";
+import { PRIORITY_ROLE_EFFECTS, priorityRoleBands } from "../lib/priorityRoles";
+import type {
+  PriorityLevelBand,
+  PriorityRecencyBand,
+  PrioritySettings,
+  PriorityStabilityBand,
+  WordAttempt,
+  WordDiagnostics,
+} from "../types";
+
+/** Every Priority setting/band an explanatory tooltip on this page needs
+ * to describe the CURRENT configuration -- fetched once via the exact
+ * same admin endpoints PrioritySettingsPage itself uses (see
+ * ../api/endpoints.ts), never re-derived or hardcoded here. */
+interface PriorityConfig {
+  settings: PrioritySettings;
+  recencyBands: PriorityRecencyBand[];
+  stabilityBands: PriorityStabilityBand[];
+  levelBands: PriorityLevelBand[];
+}
 
 const PAGE_SIZE = 10;
 
@@ -41,6 +67,7 @@ function dayBucketKey(iso: string): string {
 export function WordDiagnosticsPage() {
   const { userId, wordId } = useParams<{ userId: string; wordId: string }>();
   const [data, setData] = useState<WordDiagnostics | null>(null);
+  const [config, setConfig] = useState<PriorityConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
@@ -53,6 +80,12 @@ export function WordDiagnosticsPage() {
       .then(setData)
       .catch(() => setError("Не удалось загрузить диагностику этого слова"))
       .finally(() => setIsLoading(false));
+    // Config for the explanatory tooltips -- not required for the page's
+    // own numbers (those all come from getWordDiagnostics above), so a
+    // failure here just means tooltips fall back to their generic text.
+    Promise.all([getPrioritySettings(), listRecencyBands(), listStabilityBands(), listPriorityLevelBands()])
+      .then(([settings, recencyBands, stabilityBands, levelBands]) => setConfig({ settings, recencyBands, stabilityBands, levelBands }))
+      .catch(() => {});
   }, [userId, wordId]);
 
   if (isLoading) return <p className="text-sm text-slate-500">Загрузка…</p>;
@@ -95,17 +128,46 @@ export function WordDiagnosticsPage() {
         </p>
       </div>
 
-      <DiagnosticsPanel data={data} />
+      <DiagnosticsPanel data={data} config={config} />
 
       <Section title="Общая статистика">
         <div className="grid grid-cols-3 gap-3">
-          <StatCard label="Попытки" value={data.total_attempts} />
+          <StatCard
+            label="Попытки"
+            value={data.total_attempts}
+            tooltip={
+              <InfoTooltip label="Влияют ли попытки на Priority">
+                Само количество попыток НЕ добавляет Priority-баллы напрямую — оно влияет только косвенно, через
+                факторы «Недавние ошибки» и «Стабильность», которым эта история нужна, чтобы вообще было что считать.
+              </InfoTooltip>
+            }
+          />
           <StatCard label="Правильные" value={data.total_correct} valueClassName="text-emerald-600" />
-          <StatCard label="Ошибки" value={data.total_errors} valueClassName="text-red-600" />
+          <StatCard
+            label="Ошибки"
+            value={data.total_errors}
+            valueClassName="text-red-600"
+            tooltip={
+              <InfoTooltip label="Как считаются ошибки">
+                Все ошибки за всё время, по всем упражнениям вместе. В Priority Score напрямую не идёт — используется
+                только через факторы «Недавние ошибки» (последние 5/10/20 попыток) и «Стабильность». Разбивка по
+                упражнениям ниже — та же самая история, просто сгруппированная по типу, а не отдельный счётчик.
+              </InfoTooltip>
+            }
+          />
         </div>
       </Section>
 
-      <Section title="Упражнения">
+      <Section
+        title="Упражнения"
+        titleExtra={
+          <InfoTooltip label="Учитываются ли ошибки по упражнениям в Priority">
+            Показывает, в каком именно упражнении слово даётся тяжелее всего — чисто для диагностики, чтобы понять
+            характер проблемы. Эти же ошибки уже один раз учтены в факторе «Недавние ошибки» (по всем упражнениям
+            вместе); здесь они не прибавляются к Priority Score повторно.
+          </InfoTooltip>
+        }
+      >
         <ExerciseBreakdownChart rows={exerciseRows} />
       </Section>
 
@@ -170,21 +232,64 @@ export function WordDiagnosticsPage() {
   );
 }
 
-/** The "at a glance" diagnostic block: level, score/range, and when this
- * word was last touched -- the facts an admin wants before reading the
- * detailed sections below. */
-function DiagnosticsPanel({ data }: { data: WordDiagnostics }) {
+/** Count of wrong answers among the LAST `window` attempts, oldest-first
+ * `history` sliced from the end -- pure display arithmetic (a count, not
+ * a weighted score) backing the "Недавние ошибки" tooltip with this
+ * word's real numbers; the actual weighted contribution always comes
+ * from the backend's own recent_errors_contribution, never re-derived
+ * here. */
+function recentErrorCount(history: WordAttempt[], window: number): { errors: number; total: number } {
+  const recent = history.slice(-window);
+  return { errors: recent.filter((a) => !a.is_correct).length, total: recent.length };
+}
+
+/** The "at a glance" diagnostic block: level, score/range, Priority and
+ * its 4 factors, and when this word was last touched -- the facts an
+ * admin wants before reading the detailed sections below. */
+function DiagnosticsPanel({ data, config }: { data: WordDiagnostics; config: PriorityConfig | null }) {
   const range = data.level
     ? data.level.max_points != null
       ? `${data.level.min_points}–${data.level.max_points}`
       : `от ${data.level.min_points}`
     : null;
+
+  const roles = config ? priorityRoleBands(config.levelBands) : null;
+  const currentRoleEffect = roles && data.priority_level
+    ? PRIORITY_ROLE_EFFECTS.find((r) => roles[r.key]?.id === data.priority_level!.id)
+    : undefined;
+
+  const e5 = recentErrorCount(data.history, 5);
+  const e10 = recentErrorCount(data.history, 10);
+  const e20 = recentErrorCount(data.history, 20);
+
+  const stabilityWindow = config?.settings.stability_window ?? null;
+  const stabilityRecent = stabilityWindow != null ? data.history.slice(-stabilityWindow) : [];
+
   return (
     <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
       <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Диагностика слова</p>
       <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
         <div>
-          <div className="text-xs text-slate-500">Уровень</div>
+          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            Уровень
+            <InfoTooltip label="Что означает уровень слова">
+              <p className="mb-2 font-medium text-slate-900">Уровень слова</p>
+              {data.level ? (
+                <>
+                  <p className="mb-2">
+                    Сейчас — «{data.level.name}», диапазон {data.level.min_points}–{data.level.max_points ?? "∞"} очков
+                    (границы и очки за упражнения редактируются на странице «Уровни слов»).
+                  </p>
+                  <p>
+                    Вклад этого уровня в Priority: {data.level.priority_weight} — один из 4 факторов, см. подсказку у
+                    «Priority» ниже.
+                  </p>
+                </>
+              ) : (
+                <p>Для текущих очков ({data.score}) нет подходящего диапазона в лестнице уровней.</p>
+              )}
+            </InfoTooltip>
+          </div>
           <div className="font-medium text-slate-900">{data.level ? data.level.name : "—"}</div>
         </div>
         <div>
@@ -207,21 +312,90 @@ function DiagnosticsPanel({ data }: { data: WordDiagnostics }) {
           )}
         </div>
         <div>
-          <div className="text-xs text-slate-500">Priority</div>
+          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            Priority
+            <InfoTooltip label="Как считается Priority">
+              <p className="mb-2 font-medium text-slate-900">
+                {data.level_contribution} + {data.recent_errors_contribution} + {data.recency_contribution} +{" "}
+                {data.stability_contribution} = {data.priority_score.toFixed(1)}
+              </p>
+              <TooltipFacts
+                rows={[
+                  { label: "Уровень слова", value: data.level_contribution },
+                  { label: "Недавние ошибки", value: data.recent_errors_contribution },
+                  { label: "Давность контакта", value: data.recency_contribution },
+                  { label: "Стабильность", value: data.stability_contribution },
+                ]}
+              />
+              <p className="mt-2">
+                Итог попадает в диапазон «{data.priority_level?.name ?? "—"}»
+                {currentRoleEffect ? ` (роль «${currentRoleEffect.label}») — ${currentRoleEffect.effect}.` : "."}
+              </p>
+              <p className="mt-2 text-slate-400">Пересчитывается заново при каждом открытии этой страницы, нигде не хранится.</p>
+            </InfoTooltip>
+          </div>
           <div className="font-medium text-slate-900">
             {data.priority_score.toFixed(1)}
             {data.priority_level && <span className="ml-1 font-normal text-slate-400">({data.priority_level.name})</span>}
           </div>
         </div>
         <div>
-          <div className="text-xs text-slate-500">Стабильность</div>
+          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            Недавние ошибки
+            <InfoTooltip label="Как считаются недавние ошибки">
+              <p className="mb-2">
+                Доля ошибок отдельно в последних 5, 10 и 20 попытках, взвешенная по настроенным весам окон — чем
+                больше вес у меньшего окна, тем сильнее свежие результаты перевешивают старые.
+              </p>
+              <TooltipFacts
+                rows={[
+                  { label: "Последние 5", value: `${e5.errors}/${e5.total} ошибок` },
+                  { label: "Последние 10", value: `${e10.errors}/${e10.total} ошибок` },
+                  { label: "Последние 20", value: `${e20.errors}/${e20.total} ошибок` },
+                ]}
+              />
+              <p className="mt-2">Вклад в Priority: {data.recent_errors_contribution}.</p>
+            </InfoTooltip>
+          </div>
+          <div className="font-medium text-slate-900">{data.recent_errors_contribution}</div>
+        </div>
+        <div>
+          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            Стабильность
+            <InfoTooltip label="Как считается стабильность">
+              <p className="mb-2">
+                {stabilityWindow != null
+                  ? `Среди последних ${stabilityWindow} попыток по этому слову ${stabilityRecent.filter((a) => a.is_correct).length} правильных из ${stabilityRecent.length} → ${data.stability_percent ?? "—"}%.`
+                  : `Процент правильных среди последних попыток → ${data.stability_percent ?? "—"}%.`}
+              </p>
+              {data.stability_level && (
+                <p>
+                  Это попадает в диапазон «{data.stability_level.name}», вклад в Priority: {data.stability_contribution}.
+                </p>
+              )}
+            </InfoTooltip>
+          </div>
           <div className="font-medium text-slate-900">
             {data.stability_percent != null ? `${Math.round(data.stability_percent)}%` : "—"}
             {data.stability_level && <span className="ml-1 font-normal text-slate-400">({data.stability_level.name})</span>}
           </div>
         </div>
         <div>
-          <div className="text-xs text-slate-500">Давность контакта</div>
+          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            Давность контакта
+            <InfoTooltip label="Как считается давность">
+              <p className="mb-2">
+                {data.days_since_last_attempt == null
+                  ? "По этому слову ещё не было попыток — давность не считается."
+                  : `С последней попытки прошло ${data.days_since_last_attempt} дн. Чем больше пройдёт времени без новой попытки, тем выше станет этот вклад — даже без единой новой попытки, просто при следующем пересчёте.`}
+              </p>
+              {data.recency_level && (
+                <p className="mt-2">
+                  Это попадает в диапазон «{data.recency_level.name}», вклад в Priority: {data.recency_contribution}.
+                </p>
+              )}
+            </InfoTooltip>
+          </div>
           <div className="font-medium text-slate-900">
             {data.days_since_last_attempt == null ? "—" : data.days_since_last_attempt === 0 ? "сегодня" : `${data.days_since_last_attempt} дн. назад`}
           </div>
@@ -231,11 +405,37 @@ function DiagnosticsPanel({ data }: { data: WordDiagnostics }) {
   );
 }
 
-function StatCard({ label, value, valueClassName }: { label: string; value: number; valueClassName?: string }) {
+function TooltipFacts({ rows }: { rows: { label: string; value: React.ReactNode }[] }) {
+  return (
+    <dl className="flex flex-col gap-1">
+      {rows.map((r, i) => (
+        <div key={i} className="flex items-baseline justify-between gap-3">
+          <dt className="text-slate-500">{r.label}</dt>
+          <dd className="font-medium text-slate-900">{r.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  valueClassName,
+  tooltip,
+}: {
+  label: string;
+  value: number;
+  valueClassName?: string;
+  tooltip?: React.ReactNode;
+}) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4">
       <div className={`text-2xl font-semibold ${valueClassName ?? "text-slate-900"}`}>{value}</div>
-      <div className="text-xs text-slate-500">{label}</div>
+      <div className="flex items-center gap-1.5 text-xs text-slate-500">
+        {label}
+        {tooltip}
+      </div>
     </div>
   );
 }
@@ -276,10 +476,13 @@ function bucketByDay(history: WordAttempt[]): { label: string; correct: number; 
   return [...byDay.values()];
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, titleExtra, children }: { title: string; titleExtra?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="mb-6">
-      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</h2>
+      <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        {title}
+        {titleExtra}
+      </h2>
       {children}
     </section>
   );

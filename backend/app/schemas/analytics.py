@@ -78,6 +78,10 @@ class WordLevelSummaryOut(BaseModel):
     name: str
     min_points: int
     max_points: int | None
+    # This level's own contribution to Priority (see app/priority/) --
+    # carried along so a diagnostics tooltip can explain the "Уровень
+    # слова" factor without a second fetch or re-deriving it.
+    priority_weight: float
 
 
 class UserWordProgressOut(BaseModel):
@@ -149,6 +153,15 @@ class WordDiagnosticsOut(BaseModel):
     stability_percent: int | None
     stability_level: PriorityBandSummaryOut | None
     days_since_last_attempt: int | None
+    recency_level: PriorityBandSummaryOut | None
+    # Each factor's own share of priority_score above (their sum), exactly
+    # as app/priority/calculate.py already computes them -- exposed so
+    # Admin Web's explanatory tooltips can show the real breakdown without
+    # ever re-deriving the formula client-side.
+    level_contribution: float
+    recent_errors_contribution: float
+    recency_contribution: float
+    stability_contribution: float
 
     # One entry per exercise_key that has EVER been attempted for this
     # word -- an exercise never attempted simply doesn't appear, rather
