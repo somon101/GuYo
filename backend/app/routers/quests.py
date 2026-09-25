@@ -27,6 +27,7 @@ from app.quests import (
     quest_completions_today,
 )
 from app.word_attempts import record_word_attempt
+from app.priority import maybe_create_adaptive_lesson
 from app.rating import (
     award_word_points_if_new,
     current_rank_for_points,
@@ -233,6 +234,11 @@ def submit_quest_answer(
         is_correct=payload.is_correct,
         score_after=new_score,
     )
+    # Priority's one automatic side effect -- see app/priority/lessons.py.
+    # A quest answer is just as valid a trigger as a Lesson one: a user
+    # doing quests between lessons (no active lesson at all) is exactly
+    # when this is most likely to actually create something.
+    maybe_create_adaptive_lesson(db, user, dictionary_id)
 
     # A quest can push a word's reinforcement score across the SAME
     # learned threshold a Lesson answer would -- see app/exercises/

@@ -117,6 +117,11 @@ class WordAttemptOut(BaseModel):
     created_at: datetime
 
 
+class PriorityBandSummaryOut(BaseModel):
+    id: int
+    name: str
+
+
 class WordDiagnosticsOut(BaseModel):
     """Everything Admin Web's «Диагностика слова» block needs for one
     (user, word) pair, already aggregated server-side -- Admin Web only
@@ -136,6 +141,14 @@ class WordDiagnosticsOut(BaseModel):
     total_attempts: int
     total_correct: int
     total_errors: int
+
+    # Priority -- an analytics layer on top of everything above (see
+    # app/priority/), computed fresh on every read, never stored.
+    priority_score: float
+    priority_level: PriorityBandSummaryOut | None
+    stability_percent: int | None
+    stability_level: PriorityBandSummaryOut | None
+    days_since_last_attempt: int | None
 
     # One entry per exercise_key that has EVER been attempted for this
     # word -- an exercise never attempted simply doesn't appear, rather

@@ -21,6 +21,7 @@ from app.exercises.common import get_learned_pool
 from app.models.dictionary import Dictionary
 from app.models.user import User
 from app.models.word import Word
+from app.priority.distractors import prefer_distractor_words
 from app.routers.words import word_to_out
 from app.schemas.exercise import BuildWordRoundOut, ExerciseWordsOut, TrueOrFalseItemOut, TrueOrFalseRoundOut
 from app.schemas.lesson import ListenWordItemOut, ListenWordOptionOut, ListenWordRoundOut, SpeakingWordItemOut, SpeakingWordRoundOut
@@ -33,8 +34,7 @@ MAX_SIBLINGS = 3
 
 def _siblings(db: Session, user: User, dictionary_id: int, threshold: int, target: Word, limit: int) -> list[Word]:
     pool = [w for w in get_learned_pool(db, user.id, dictionary_id, threshold) if w.id != target.id]
-    random.shuffle(pool)
-    return pool[:limit]
+    return prefer_distractor_words(db, user.id, pool)[:limit]
 
 
 def is_quest_word_feasible(db: Session, user: User, dictionary_id: int, threshold: int, exercise_key: str, word: Word) -> bool:
@@ -77,7 +77,7 @@ def build_true_or_false_round(db: Session, user: User, dictionary_id: int, thres
         shown_audio = url_for_key(target.translations[0].audio_key)
         is_correct = True
     else:
-        fake_word = random.choice(fake_candidates)
+        fake_word = prefer_distractor_words(db, user.id, fake_candidates)[0]
         shown_text = fake_word.translations[0].text
         shown_audio = url_for_key(fake_word.translations[0].audio_key)
         is_correct = False

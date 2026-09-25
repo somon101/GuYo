@@ -258,6 +258,11 @@ export interface WordDiagnostics {
   by_exercise: ExerciseAttemptStats[];
   last_attempt: WordAttempt | null;
   history: WordAttempt[];
+  priority_score: number;
+  priority_level: { id: number; name: string } | null;
+  stability_percent: number | null;
+  stability_level: { id: number; name: string } | null;
+  days_since_last_attempt: number | null;
 }
 
 // --- Достижения ------------------------------------------------------------
@@ -344,6 +349,55 @@ export interface WordLevel {
   name: string;
   min_points: number;
   max_points: number | null;
+  order: number;
+  enabled: boolean;
+  // How much a word at this level contributes to its own Priority Score
+  // (see the "Приоритет" settings page) -- an analytics layer on top of
+  // this ladder, edited here alongside the level's own range.
+  priority_weight: number;
+}
+
+// --- Приоритет -------------------------------------------------------------
+// Every number app/priority/calculate.py reads on the backend, editable
+// here and nowhere else (see backend/app/priority/'s own module
+// docstring) -- word-level weights live on WordLevel itself, above.
+
+export interface PrioritySettings {
+  weight_level: number;
+  weight_recent_errors: number;
+  weight_recency: number;
+  weight_stability: number;
+  window5_weight: number;
+  window10_weight: number;
+  window20_weight: number;
+  stability_window: number;
+}
+
+export interface PriorityRecencyBand {
+  id: number;
+  name: string;
+  min_days: number;
+  max_days: number | null;
+  contribution: number;
+  order: number;
+  enabled: boolean;
+}
+
+export interface PriorityStabilityBand {
+  id: number;
+  name: string;
+  min_percent: number;
+  max_percent: number;
+  contribution: number;
+  order: number;
+  enabled: boolean;
+}
+
+export interface PriorityLevelBand {
+  id: number;
+  name: string;
+  min_score: number;
+  max_score: number | null;
   order: number;
   enabled: boolean;
 }

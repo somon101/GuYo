@@ -11,6 +11,10 @@ import type {
   ExerciseSettings,
   Phrase,
   PhraseCategory,
+  PriorityLevelBand,
+  PriorityRecencyBand,
+  PrioritySettings,
+  PriorityStabilityBand,
   Quest,
   Rank,
   RatingSettings,
@@ -718,6 +722,7 @@ export interface WordLevelInput {
   maxPoints: number | null;
   enabled: boolean;
   order: number;
+  priorityWeight: number;
 }
 
 function wordLevelBody(input: WordLevelInput) {
@@ -727,6 +732,7 @@ function wordLevelBody(input: WordLevelInput) {
     ...(input.maxPoints === null ? { clear_max_points: true } : { max_points: input.maxPoints }),
     enabled: input.enabled,
     order: input.order,
+    priority_weight: input.priorityWeight,
   };
 }
 
@@ -737,6 +743,7 @@ export async function createWordLevel(input: WordLevelInput): Promise<WordLevel>
     ...(input.maxPoints !== null ? { max_points: input.maxPoints } : {}),
     enabled: input.enabled,
     order: input.order,
+    priority_weight: input.priorityWeight,
   });
   return data;
 }
@@ -754,6 +761,161 @@ export async function deleteWordLevel(id: number): Promise<void> {
 
 export async function reorderWordLevels(ids: number[]): Promise<WordLevel[]> {
   const { data } = await api.put("/admin/word-levels/order", { word_level_ids: ids });
+  return data;
+}
+
+// --- Приоритет ---------------------------------------------------------------
+
+export async function getPrioritySettings(): Promise<PrioritySettings> {
+  const { data } = await api.get("/admin/priority/settings");
+  return data;
+}
+
+export async function updatePrioritySettings(input: PrioritySettings): Promise<PrioritySettings> {
+  const { data } = await api.put("/admin/priority/settings", input);
+  return data;
+}
+
+export async function listRecencyBands(): Promise<PriorityRecencyBand[]> {
+  const { data } = await api.get("/admin/priority/recency-bands");
+  return data;
+}
+
+export interface RecencyBandInput {
+  name: string;
+  minDays: number;
+  maxDays: number | null;
+  contribution: number;
+  enabled: boolean;
+  order: number;
+}
+
+function recencyBandBody(input: RecencyBandInput) {
+  return {
+    name: input.name,
+    min_days: input.minDays,
+    ...(input.maxDays === null ? { clear_max_days: true } : { max_days: input.maxDays }),
+    contribution: input.contribution,
+    enabled: input.enabled,
+    order: input.order,
+  };
+}
+
+export async function createRecencyBand(input: RecencyBandInput): Promise<PriorityRecencyBand> {
+  const { data } = await api.post("/admin/priority/recency-bands", {
+    name: input.name,
+    min_days: input.minDays,
+    ...(input.maxDays !== null ? { max_days: input.maxDays } : {}),
+    contribution: input.contribution,
+    enabled: input.enabled,
+    order: input.order,
+  });
+  return data;
+}
+
+export async function updateRecencyBand(id: number, input: RecencyBandInput): Promise<PriorityRecencyBand> {
+  const { data } = await api.patch(`/admin/priority/recency-bands/${id}`, recencyBandBody(input));
+  return data;
+}
+
+export async function deleteRecencyBand(id: number): Promise<void> {
+  await api.delete(`/admin/priority/recency-bands/${id}`);
+}
+
+export async function reorderRecencyBands(ids: number[]): Promise<PriorityRecencyBand[]> {
+  const { data } = await api.put("/admin/priority/recency-bands/order", { band_ids: ids });
+  return data;
+}
+
+export async function listStabilityBands(): Promise<PriorityStabilityBand[]> {
+  const { data } = await api.get("/admin/priority/stability-bands");
+  return data;
+}
+
+export interface StabilityBandInput {
+  name: string;
+  minPercent: number;
+  maxPercent: number;
+  contribution: number;
+  enabled: boolean;
+  order: number;
+}
+
+function stabilityBandBody(input: StabilityBandInput) {
+  return {
+    name: input.name,
+    min_percent: input.minPercent,
+    max_percent: input.maxPercent,
+    contribution: input.contribution,
+    enabled: input.enabled,
+    order: input.order,
+  };
+}
+
+export async function createStabilityBand(input: StabilityBandInput): Promise<PriorityStabilityBand> {
+  const { data } = await api.post("/admin/priority/stability-bands", stabilityBandBody(input));
+  return data;
+}
+
+export async function updateStabilityBand(id: number, input: StabilityBandInput): Promise<PriorityStabilityBand> {
+  const { data } = await api.patch(`/admin/priority/stability-bands/${id}`, stabilityBandBody(input));
+  return data;
+}
+
+export async function deleteStabilityBand(id: number): Promise<void> {
+  await api.delete(`/admin/priority/stability-bands/${id}`);
+}
+
+export async function reorderStabilityBands(ids: number[]): Promise<PriorityStabilityBand[]> {
+  const { data } = await api.put("/admin/priority/stability-bands/order", { band_ids: ids });
+  return data;
+}
+
+export async function listPriorityLevelBands(): Promise<PriorityLevelBand[]> {
+  const { data } = await api.get("/admin/priority/level-bands");
+  return data;
+}
+
+export interface PriorityLevelBandInput {
+  name: string;
+  minScore: number;
+  maxScore: number | null;
+  enabled: boolean;
+  order: number;
+}
+
+function priorityLevelBandBody(input: PriorityLevelBandInput) {
+  return {
+    name: input.name,
+    min_score: input.minScore,
+    ...(input.maxScore === null ? { clear_max_score: true } : { max_score: input.maxScore }),
+    enabled: input.enabled,
+    order: input.order,
+  };
+}
+
+export async function createPriorityLevelBand(input: PriorityLevelBandInput): Promise<PriorityLevelBand> {
+  const { data } = await api.post("/admin/priority/level-bands", {
+    name: input.name,
+    min_score: input.minScore,
+    ...(input.maxScore !== null ? { max_score: input.maxScore } : {}),
+    enabled: input.enabled,
+    order: input.order,
+  });
+  return data;
+}
+
+export async function updatePriorityLevelBand(id: number, input: PriorityLevelBandInput): Promise<PriorityLevelBand> {
+  const { data } = await api.patch(`/admin/priority/level-bands/${id}`, priorityLevelBandBody(input));
+  return data;
+}
+
+export async function deletePriorityLevelBand(id: number): Promise<void> {
+  await api.delete(`/admin/priority/level-bands/${id}`);
+}
+
+export async function reorderPriorityLevelBands(ids: number[]): Promise<PriorityLevelBand[]> {
+  const { data } = await api.put("/admin/priority/level-bands/order", { band_ids: ids });
   return data;
 }
 

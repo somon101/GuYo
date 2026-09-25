@@ -8,6 +8,11 @@ class WordLevelOut(BaseModel):
     max_points: int | None
     order: int
     enabled: bool
+    # How much a word at this level contributes to its own Priority Score
+    # (see app/priority/) -- a GuYo-wide analytics layer on top of this
+    # ladder, never read by anything that decides score/threshold/
+    # achievements itself.
+    priority_weight: float
 
 
 class WordLevelCreateIn(BaseModel):
@@ -16,6 +21,7 @@ class WordLevelCreateIn(BaseModel):
     max_points: int | None = Field(default=None, ge=0)
     enabled: bool = True
     order: int = 0
+    priority_weight: float = 0
 
 
 class WordLevelUpdateIn(BaseModel):
@@ -25,6 +31,7 @@ class WordLevelUpdateIn(BaseModel):
     clear_max_points: bool = False
     enabled: bool | None = None
     order: int | None = None
+    priority_weight: float | None = None
 
 
 class ReorderWordLevelsIn(BaseModel):

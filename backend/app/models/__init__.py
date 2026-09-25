@@ -14,6 +14,7 @@ from app.models.word import Word, WordForm, WordTranslation
 from app.models.word_level import WordLevel
 from app.models.word_progress import WordProgress
 from app.models.word_attempt import WordAttempt
+from app.models.priority import PrioritySettings, PriorityRecencyBand, PriorityStabilityBand, PriorityLevelBand
 from app.models.notification import Notification
 from app.models.quest import Quest, UserQuestWordDay
 from app.models.slogan import Slogan, UserDailySlogan
@@ -38,6 +39,10 @@ __all__ = [
     "LessonExercise",
     "WordProgress",
     "WordAttempt",
+    "PrioritySettings",
+    "PriorityRecencyBand",
+    "PriorityStabilityBand",
+    "PriorityLevelBand",
     "LearningSettings",
     "Achievement",
     "UserAchievement",

@@ -12,6 +12,7 @@ from app.rating.scheduler import run_season_scheduler
 from app.routers import (
     admin_achievements,
     admin_analytics,
+    admin_priority,
     admin_quests,
     admin_rating,
     admin_slogans,
@@ -80,6 +81,7 @@ app.include_router(exercises.router)
 app.include_router(lessons.router)
 app.include_router(practice.router)
 app.include_router(admin_analytics.router)
+app.include_router(admin_priority.router)
 app.include_router(admin_achievements.router)
 app.include_router(admin_rating.router)
 app.include_router(admin_word_levels.router)

@@ -26,7 +26,7 @@ def list_word_levels(db: Session = Depends(get_db), _user=Depends(get_current_us
     return [
         WordLevelOut(
             id=level.id, name=level.name, min_points=level.min_points, max_points=level.max_points,
-            order=level.order, enabled=level.enabled,
+            order=level.order, enabled=level.enabled, priority_weight=level.priority_weight,
         )
         for level in levels
     ]

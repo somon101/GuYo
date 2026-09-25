@@ -13,6 +13,7 @@ from app.exercises.common import get_learned_pool, lesson_words_pending
 from app.models.lesson import Lesson
 from app.models.user import User
 from app.models.word import Word
+from app.priority.distractors import prefer_distractor_words
 from app.schemas.exercise import TrueOrFalseItemOut, TrueOrFalseRoundOut
 
 KEY = "true_or_false"
@@ -48,7 +49,7 @@ def build_round(db: Session, lesson: Lesson, threshold: int) -> TrueOrFalseRound
         if show_real or not fake_candidates:
             shown_text, shown_audio, is_correct = real_text, primary_audio(word), True
         else:
-            fake_word = random.choice(fake_candidates)
+            fake_word = prefer_distractor_words(db, lesson.user_id, fake_candidates)[0]
             shown_text, shown_audio, is_correct = primary_text(fake_word), primary_audio(fake_word), False
 
         items.append(

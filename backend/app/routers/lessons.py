@@ -47,6 +47,7 @@ from app.models.learning_settings import LearningSettings
 from app.models.lesson import Lesson, LessonExercise, LessonWord
 from app.models.user import User
 from app.models.word_progress import WordProgress
+from app.priority import maybe_create_adaptive_lesson
 from app.routers.words import word_to_out
 from app.word_attempts import record_word_attempt
 from app.word_levels import level_for_score_in, ordered_enabled_levels
@@ -325,6 +326,23 @@ def create_lesson(
         count = min(payload.random_count, len(eligible_ids))
         selected_ids = random.sample(sorted(eligible_ids), k=count)
 
+    lesson = build_lesson(db, user, dictionary, selected_ids, threshold)
+    db.commit()
+    db.refresh(lesson)
+    return _lesson_to_out(db, lesson, threshold)
+
+
+def build_lesson(
+    db: Session, user: User, dictionary: Dictionary, selected_ids: list[int], threshold: int, *, is_adaptive: bool = False
+) -> Lesson:
+    """The actual Lesson/LessonWord/LessonExercise construction, shared by
+    the HTTP endpoint above and app.priority.lessons's auto-created
+    adaptive lessons -- an adaptive lesson goes through the EXACT SAME
+    freeze-the-word-set-then-decide-exercises steps, just with `is_adaptive
+    =True` and a caller-chosen word set instead of one a user picked.
+    Does NOT commit -- the caller owns the transaction, so
+    app.priority.lessons can create the lesson in the same transaction as
+    the attempt that triggered it."""
     last_number = (
         db.query(func.max(Lesson.number))
         .filter(Lesson.user_id == user.id, Lesson.dictionary_id == dictionary.id)
@@ -332,7 +350,7 @@ def create_lesson(
         or 0
     )
 
-    lesson = Lesson(user_id=user.id, dictionary_id=dictionary.id, number=last_number + 1)
+    lesson = Lesson(user_id=user.id, dictionary_id=dictionary.id, number=last_number + 1, is_adaptive=is_adaptive)
     db.add(lesson)
     db.flush()
 
@@ -345,9 +363,8 @@ def create_lesson(
         if exercise_type.is_available(db, user, dictionary.id, selected_ids, threshold):
             db.add(LessonExercise(lesson_id=lesson.id, exercise_key=exercise_key))
 
-    db.commit()
-    db.refresh(lesson)
-    return _lesson_to_out(db, lesson, threshold)
+    db.flush()
+    return lesson
 
 
 # --- Lesson exercise rounds -------------------------------------------------
@@ -469,6 +486,17 @@ def submit_answer(
     if lesson_completed:
         db.flush()  # autoflush is off -- lessons_completed_count's query below must see lesson.is_completed
     is_learned = progress.score >= threshold
+
+    # Priority's one automatic side effect: 5 accumulated Critical words
+    # in this dictionary freeze into a new adaptive Lesson, through the
+    # exact same path a manual/random one uses. Checked AFTER the
+    # completion check above (not before it): while THIS lesson is still
+    # active, _get_active_lesson would always find it and correctly
+    # refuse a second one -- only once a slot is actually free (this
+    # answer just finished the lesson, or there never was one) can this
+    # ever create anything. A no-op most of the time (returns None) --
+    # see app/priority/lessons.py for every condition that must hold.
+    maybe_create_adaptive_lesson(db, user, lesson.dictionary_id)
 
     # A word crossing the learned threshold is the one event that can ever
     # raise phrases_opened_count or words_learned_count (a word becoming

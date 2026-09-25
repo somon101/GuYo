@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.core.dates import DUSHANBE_TZ, dushanbe_today
 from app.exercises.common import get_points, get_threshold
 from app.models.quest import Quest, UserQuestWordDay
+from app.priority.quests import order_candidates_by_priority
 from app.models.user import User
 from app.models.word import Word
 from app.models.word_level import WordLevel
@@ -93,12 +94,19 @@ def candidate_words_for_quest(db: Session, user: User, quest: Quest, dictionary_
 
 
 def pick_quest_word(db: Session, user: User, quest: Quest, dictionary_id: int) -> Word | None:
-    """One random eligible word for this quest that a round can actually
-    be built for -- None if nothing qualifies right now (not enough
-    progress at this level, or every eligible word was already used in a
-    quest today)."""
-    candidates = candidate_words_for_quest(db, user, quest, dictionary_id)
-    random.shuffle(candidates)
+    """One eligible word for this quest that a round can actually be
+    built for -- None if nothing qualifies right now (not enough progress
+    at this level, or every eligible word was already used in a quest
+    today).
+
+    Candidates are ordered High-priority first, then Medium, then
+    everything else still shuffled (see app.priority.quests.
+    order_candidates_by_priority) -- a word the user is currently
+    struggling with is a more useful quest target than a random pick, but
+    this never makes a quest impossible: with no High/Medium candidate at
+    all, the first feasible word from the rest is picked exactly as
+    before Priority existed."""
+    candidates = order_candidates_by_priority(db, user.id, candidate_words_for_quest(db, user, quest, dictionary_id))
     threshold = get_threshold(db)
     for word in candidates:
         if is_quest_word_feasible(db, user, dictionary_id, threshold, quest.exercise_key, word):

@@ -20,6 +20,7 @@ import { BuildWordSettingsPage } from "./pages/exercises/BuildWordSettingsPage";
 import { SpeakingWordSettingsPage } from "./pages/exercises/SpeakingWordSettingsPage";
 import { ListenWordSettingsPage } from "./pages/exercises/ListenWordSettingsPage";
 import { WordLevelsSettingsPage } from "./pages/exercises/WordLevelsSettingsPage";
+import { PrioritySettingsPage } from "./pages/PrioritySettingsPage";
 import { QuestsPage } from "./pages/QuestsPage";
 import { UserAnalyticsPage } from "./pages/UserAnalyticsPage";
 import { WordDiagnosticsPage } from "./pages/WordDiagnosticsPage";
@@ -202,6 +203,16 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <WordLevelsSettingsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/exercises/priority"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <PrioritySettingsPage />
                 </Layout>
               </ProtectedRoute>
             }

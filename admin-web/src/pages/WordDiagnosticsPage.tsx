@@ -206,6 +206,26 @@ function DiagnosticsPanel({ data }: { data: WordDiagnostics }) {
             <div className="font-medium text-slate-400">Ещё не было</div>
           )}
         </div>
+        <div>
+          <div className="text-xs text-slate-500">Priority</div>
+          <div className="font-medium text-slate-900">
+            {data.priority_score.toFixed(1)}
+            {data.priority_level && <span className="ml-1 font-normal text-slate-400">({data.priority_level.name})</span>}
+          </div>
+        </div>
+        <div>
+          <div className="text-xs text-slate-500">Стабильность</div>
+          <div className="font-medium text-slate-900">
+            {data.stability_percent != null ? `${Math.round(data.stability_percent)}%` : "—"}
+            {data.stability_level && <span className="ml-1 font-normal text-slate-400">({data.stability_level.name})</span>}
+          </div>
+        </div>
+        <div>
+          <div className="text-xs text-slate-500">Давность контакта</div>
+          <div className="font-medium text-slate-900">
+            {data.days_since_last_attempt == null ? "—" : data.days_since_last_attempt === 0 ? "сегодня" : `${data.days_since_last_attempt} дн. назад`}
+          </div>
+        </div>
       </div>
     </div>
   );

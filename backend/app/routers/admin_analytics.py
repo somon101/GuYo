@@ -23,10 +23,12 @@ from app.models.word_progress import WordProgress
 from app.routers.lessons import _get_threshold
 from app.routers.phrases import _get_learned_word_tokens, _tokenize
 from app.word_levels import level_for_score_in, ordered_enabled_levels
+from app.priority import calculate_priority
 from app.schemas.analytics import (
     AnalyticsDictionaryOut,
     ExerciseAttemptStatsOut,
     MissingWordOut,
+    PriorityBandSummaryOut,
     NearPhraseOut,
     OpenPhraseAnalyticsOut,
     UserPhraseAnalyticsOut,
@@ -299,6 +301,7 @@ def get_word_diagnostics(
 
     total_correct = sum(1 for a in attempts if a.is_correct)
     primary = word.translations[0].text if word.translations else None
+    priority = calculate_priority(db, user_id, word_id)
 
     def _attempt_out(a: WordAttempt) -> WordAttemptOut:
         return WordAttemptOut(exercise_key=a.exercise_key, is_correct=a.is_correct, score_after=a.score_after, created_at=a.created_at)
@@ -320,4 +323,11 @@ def get_word_diagnostics(
         ],
         last_attempt=_attempt_out(attempts[-1]) if attempts else None,
         history=[_attempt_out(a) for a in attempts],
+        priority_score=priority.score,
+        priority_level=PriorityBandSummaryOut(id=priority.level.id, name=priority.level.name) if priority.level else None,
+        stability_percent=priority.stability_percent,
+        stability_level=PriorityBandSummaryOut(id=priority.stability_band.id, name=priority.stability_band.name)
+        if priority.stability_band
+        else None,
+        days_since_last_attempt=priority.days_since_last_attempt,
     )

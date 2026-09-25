@@ -10,7 +10,7 @@ call sites everywhere else are completely unchanged by this.
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Integer, String, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -34,6 +34,14 @@ class WordLevel(Base):
     max_points: Mapped[int | None] = mapped_column(Integer, nullable=True)
     order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    # How much a word sitting at this level contributes to its own Priority
+    # Score (see app/priority/) -- a fresh word should push priority up,
+    # a consolidated one shouldn't. Admin-editable per level, on the SAME
+    # row as the level itself rather than a second lookup table, since a
+    # level and its priority weight are one admin decision, not two.
+    # Never read by anything in the existing score/threshold/achievement
+    # pipeline -- only app/priority/ looks at this column.
+    priority_weight: Mapped[float] = mapped_column(Float, nullable=False, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

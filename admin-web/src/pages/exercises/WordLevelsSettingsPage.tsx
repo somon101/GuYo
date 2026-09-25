@@ -149,6 +149,8 @@ export function WordLevelsSettingsPage() {
                 <p className="font-medium text-slate-900">{level.name}</p>
                 <p className="text-xs text-slate-500">
                   {level.min_points} – {level.max_points ?? "∞"}
+                  {" · вклад в Priority: "}
+                  {level.priority_weight}
                   {!level.enabled && " · отключён"}
                 </p>
               </div>
@@ -186,6 +188,7 @@ function WordLevelForm({
   const [hasMax, setHasMax] = useState(level ? level.max_points !== null : false);
   const [maxPoints, setMaxPoints] = useState(level?.max_points ?? 100);
   const [enabled, setEnabled] = useState(level?.enabled ?? true);
+  const [priorityWeight, setPriorityWeight] = useState(level?.priority_weight ?? 0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -206,6 +209,7 @@ function WordLevelForm({
       maxPoints: hasMax ? maxPoints : null,
       enabled,
       order: level?.order ?? 0,
+      priorityWeight,
     };
     setIsSubmitting(true);
     try {
@@ -258,6 +262,18 @@ function WordLevelForm({
             placeholder="без границы"
           />
         </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm font-medium text-slate-700">Вклад в Priority</label>
+        <input
+          type="number"
+          step="any"
+          className="w-28 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          value={priorityWeight}
+          onChange={(e) => setPriorityWeight(Number(e.target.value))}
+        />
+        <p className="mt-1 text-xs text-slate-400">Насколько слово на этом уровне повышает свой Priority Score (см. страницу «Приоритет»).</p>
       </div>
 
       <label className="flex items-center gap-2 text-sm font-medium text-slate-700">

@@ -37,6 +37,13 @@ class Lesson(Base):
     )
     number: Mapped[int] = mapped_column(nullable=False)
     is_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # True for a lesson app/priority/ auto-created from 5 accumulated
+    # Critical-priority words (see app/priority/lessons.py) -- otherwise
+    # identical in every way to a random/manual lesson, same exercises,
+    # same completion rule. Lets the accumulation check skip a word that's
+    # already sitting in an incomplete adaptive lesson, without a second
+    # table just to remember that.
+    is_adaptive: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
