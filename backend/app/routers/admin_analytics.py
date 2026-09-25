@@ -257,7 +257,10 @@ def list_user_word_progress(
                 translation=primary,
                 dictionary_id=word.dictionary_id,
                 score=progress.score,
-                level=WordLevelSummaryOut(id=level.id, name=level.name, min_points=level.min_points, max_points=level.max_points)
+                level=WordLevelSummaryOut(
+                    id=level.id, name=level.name, min_points=level.min_points, max_points=level.max_points,
+                    priority_weight=level.priority_weight,
+                )
                 if level is not None
                 else None,
                 total_attempts=attempt_counts.get(word.id, 0),
