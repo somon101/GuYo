@@ -47,7 +47,7 @@ from app.models.learning_settings import LearningSettings
 from app.models.lesson import Lesson, LessonExercise, LessonWord
 from app.models.user import User
 from app.models.word_progress import WordProgress
-from app.priority import maybe_create_adaptive_lesson
+from app.priority import maybe_create_adaptive_lesson, maybe_create_personal_quest
 from app.routers.words import word_to_out
 from app.word_attempts import record_word_attempt
 from app.word_levels import level_for_score_in, ordered_enabled_levels
@@ -497,6 +497,11 @@ def submit_answer(
     # ever create anything. A no-op most of the time (returns None) --
     # see app/priority/lessons.py for every condition that must hold.
     maybe_create_adaptive_lesson(db, user, lesson.dictionary_id)
+    # Priority's other automatic side effect -- see
+    # app/priority/quests_auto.py. Independent of the lesson-slot timing
+    # concern above (a personal quest has its own, unrelated guard), so
+    # no ordering constraint with the completion check here.
+    maybe_create_personal_quest(db, user, lesson.dictionary_id)
 
     # A word crossing the learned threshold is the one event that can ever
     # raise phrases_opened_count or words_learned_count (a word becoming

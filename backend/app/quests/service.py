@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.core.dates import DUSHANBE_TZ, dushanbe_today
 from app.exercises.common import get_points, get_threshold
-from app.models.quest import Quest, UserQuestWordDay
+from app.models.quest import Quest, QuestWord, UserQuestWordDay
 from app.priority.quests import order_candidates_by_priority
 from app.models.user import User
 from app.models.word import Word
@@ -71,7 +71,14 @@ def candidate_words_for_quest(db: Session, user: User, quest: Quest, dictionary_
     """Every Word in this dictionary currently at the quest's target
     level for this user, excluding any word already used in ANY quest
     today -- the raw pool before checking whether a specific exercise_key
-    can actually build a round for each one (see pick_quest_word)."""
+    can actually build a round for each one (see pick_quest_word).
+
+    A personal quest (quest.owner_user_id set -- see
+    app/priority/quests_auto.py) has no target level at all; its
+    candidates come from its own pinned QuestWord rows instead."""
+    if quest.owner_user_id is not None:
+        return _candidate_words_for_personal_quest(db, user, quest)
+
     level = db.get(WordLevel, quest.word_level_id)
     if level is None:
         return []
@@ -91,6 +98,37 @@ def candidate_words_for_quest(db: Session, user: User, quest: Quest, dictionary_
         query = query.filter(WordProgress.score <= level.max_points)
 
     return [word for word, _score in query.all() if word.id not in used_today]
+
+
+def _candidate_words_for_personal_quest(db: Session, user: User, quest: Quest) -> list[Word]:
+    """A personal quest's own pinned words, minus whichever it has
+    already consumed (on ANY day -- a personal quest's target is "finish
+    each pinned word once, ever", not a daily repeat) and minus today's
+    shared cross-quest lock (the same UserQuestWordDay rule that keeps an
+    admin quest and a personal quest from ever double-using one word on
+    the same day)."""
+    pinned_ids = {word_id for (word_id,) in db.query(QuestWord.word_id).filter(QuestWord.quest_id == quest.id).all()}
+    if not pinned_ids:
+        return []
+    already_done = {
+        word_id
+        for (word_id,) in db.query(UserQuestWordDay.word_id).filter(UserQuestWordDay.quest_id == quest.id).all()
+    }
+    remaining_ids = pinned_ids - already_done - _words_used_today(db, user.id)
+    if not remaining_ids:
+        return []
+    return db.query(Word).filter(Word.id.in_(remaining_ids)).all()
+
+
+def personal_quest_progress(db: Session, quest: Quest) -> tuple[int, int]:
+    """(completed, target) for a personal quest -- completed counts EVERY
+    UserQuestWordDay row for this quest_id, ever, not just today (see
+    app/models/quest.py's own docstring on why a personal quest reuses
+    daily_target/completed_today to mean "of its own pinned words", not
+    "today's repeats")."""
+    target = db.query(QuestWord).filter(QuestWord.quest_id == quest.id).count()
+    completed = db.query(UserQuestWordDay).filter(UserQuestWordDay.quest_id == quest.id).count()
+    return completed, target
 
 
 def pick_quest_word(db: Session, user: User, quest: Quest, dictionary_id: int) -> Word | None:

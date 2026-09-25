@@ -10,6 +10,12 @@ class PrioritySettingsOut(BaseModel):
     window10_weight: float
     window20_weight: float
     stability_window: int
+    # Personal auto-quests -- see app/priority/quests_auto.py.
+    personal_quest_min_attempts: int
+    personal_quest_weak_error_rate: float
+    personal_quest_min_words: int
+    personal_quest_max_words: int
+    personal_quest_reward_points: int
 
 
 class PrioritySettingsIn(BaseModel):
@@ -21,6 +27,11 @@ class PrioritySettingsIn(BaseModel):
     window10_weight: float = Field(ge=0)
     window20_weight: float = Field(ge=0)
     stability_window: int = Field(ge=1)
+    personal_quest_min_attempts: int = Field(ge=1)
+    personal_quest_weak_error_rate: float = Field(ge=0, le=1)
+    personal_quest_min_words: int = Field(ge=1)
+    personal_quest_max_words: int = Field(ge=1)
+    personal_quest_reward_points: int = Field(ge=0)
 
 
 class PriorityRecencyBandOut(BaseModel):

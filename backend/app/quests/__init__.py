@@ -4,6 +4,7 @@ from app.quests.service import (
     complete_quest_attempt,
     dushanbe_day_bounds_utc,
     is_quest_available,
+    personal_quest_progress,
     pick_quest_word,
     quest_completions_today,
 )
@@ -14,6 +15,7 @@ __all__ = [
     "complete_quest_attempt",
     "dushanbe_day_bounds_utc",
     "is_quest_available",
+    "personal_quest_progress",
     "pick_quest_word",
     "quest_completions_today",
 ]

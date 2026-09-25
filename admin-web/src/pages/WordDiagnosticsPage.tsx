@@ -168,6 +168,29 @@ export function WordDiagnosticsPage() {
           </InfoTooltip>
         }
       >
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-400">
+            Слабое упражнение
+            <InfoTooltip label="Что значит «слабое упражнение»">
+              Упражнение считается слабым для этого слова, если в нём было достаточно попыток и доля ошибок в нём
+              высокая (пороги настраиваются в Admin Web → Приоритет → «Персональные квесты» — та же самая проверка,
+              по которой backend решает, из какого упражнения собрать пользователю персональный квест).
+            </InfoTooltip>
+          </span>
+          {data.weak_exercises.length === 0 ? (
+            <span className="text-xs text-slate-400">нет</span>
+          ) : (
+            data.weak_exercises.map((key) => (
+              <span
+                key={key}
+                className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700"
+                translate="no"
+              >
+                {exerciseLabel(key)}
+              </span>
+            ))
+          )}
+        </div>
         <ExerciseBreakdownChart rows={exerciseRows} />
       </Section>
 

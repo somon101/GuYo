@@ -45,6 +45,11 @@ def get_settings(db: Session = Depends(get_db), _admin=Depends(get_current_admin
         window10_weight=s.window10_weight,
         window20_weight=s.window20_weight,
         stability_window=s.stability_window,
+        personal_quest_min_attempts=s.personal_quest_min_attempts,
+        personal_quest_weak_error_rate=s.personal_quest_weak_error_rate,
+        personal_quest_min_words=s.personal_quest_min_words,
+        personal_quest_max_words=s.personal_quest_max_words,
+        personal_quest_reward_points=s.personal_quest_reward_points,
     )
 
 
@@ -59,6 +64,11 @@ def update_settings(payload: PrioritySettingsIn, db: Session = Depends(get_db), 
     s.window10_weight = payload.window10_weight
     s.window20_weight = payload.window20_weight
     s.stability_window = payload.stability_window
+    s.personal_quest_min_attempts = payload.personal_quest_min_attempts
+    s.personal_quest_weak_error_rate = payload.personal_quest_weak_error_rate
+    s.personal_quest_min_words = payload.personal_quest_min_words
+    s.personal_quest_max_words = payload.personal_quest_max_words
+    s.personal_quest_reward_points = payload.personal_quest_reward_points
     db.commit()
     return get_settings(db)  # re-reads the row fresh, same shape as GET
 

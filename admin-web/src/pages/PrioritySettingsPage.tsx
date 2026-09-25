@@ -267,6 +267,42 @@ function WeightsSection() {
               "Сколько последних попыток учитывается при расчёте стабильности.",
             )}
           </div>
+          <div className="border-t border-slate-100 pt-4">
+            <p className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-400">
+              Персональные квесты
+              <InfoTooltip label="Как создаются персональные квесты">
+                <p className="mb-2 font-medium text-slate-900">Персональный авто-квест</p>
+                <p className="mb-2">
+                  Backend сам создаёт квест для пользователя, когда одновременно выполняются 2 условия:
+                </p>
+                <p className="mb-2">
+                  1) слово сейчас на приоритете Высокий или Средний;
+                  <br />
+                  2) среди таких слов есть упражнение, где они массово ошибаются — оно и становится упражнением квеста.
+                </p>
+                <p className="mb-2">
+                  Слово «слабое» в упражнении, если попыток в нём ≥ {settings.personal_quest_min_attempts} и доля
+                  ошибок ≥ {Math.round(settings.personal_quest_weak_error_rate * 100)}%.
+                </p>
+                <p>
+                  Квест создаётся, если таких слов набралось от {settings.personal_quest_min_words} до{" "}
+                  {settings.personal_quest_max_words} (самые срочные по Priority Score — первыми). Пока текущий не
+                  пройден полностью — новый для этого пользователя не создаётся.
+                </p>
+              </InfoTooltip>
+            </p>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              {field("personal_quest_min_words", "Мин. слов")}
+              {field("personal_quest_max_words", "Макс. слов")}
+              {field("personal_quest_reward_points", "Награда (очки рейтинга)")}
+              {field("personal_quest_min_attempts", "Мин. попыток для «слабости»")}
+              {field(
+                "personal_quest_weak_error_rate",
+                "Порог доли ошибок (0–1)",
+                "0.5 значит: половина или больше попыток в упражнении — ошибки.",
+              )}
+            </div>
+          </div>
           <div className="flex items-center gap-3">
             <button
               type="submit"

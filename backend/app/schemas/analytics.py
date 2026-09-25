@@ -163,6 +163,14 @@ class WordDiagnosticsOut(BaseModel):
     recency_contribution: float
     stability_contribution: float
 
+    # Every exercise_key this word currently looks "weak" in -- the exact
+    # same rule app/priority/quests_auto.py's personal auto-quests use to
+    # decide what to build themselves around (see
+    # app.priority.weak_exercises_for_word), just surfaced here for one
+    # word instead of driving a trigger. Empty list, never null, when
+    # nothing qualifies (not "no data" -- see that function's own doc).
+    weak_exercises: list[str]
+
     # One entry per exercise_key that has EVER been attempted for this
     # word -- an exercise never attempted simply doesn't appear, rather
     # than showing a padded 0/0/0 row for every possible type.

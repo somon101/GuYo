@@ -15,11 +15,13 @@ from app.priority.settings import priority_role_bands
 
 def prefer_distractor_words(db: Session, user_id: int, words: list[Word]) -> list[Word]:
     """Reorders an already-computed learned-word candidate pool for use as
-    distractor material: Low/Minimal-priority words are preferred (the
-    user knows them solidly, so they make an honest, unambiguous wrong
-    option), Critical-priority words are excluded outright (never confuse
-    the user with a word they're actively struggling with right now),
-    and everything else is a fallback in between.
+    distractor material, filling from Priority tiers in strict order --
+    Low first, only topping up from Minimal once Low runs out (e.g. need
+    3, Low only has 1: take that 1, then take 2 from Minimal) -- never
+    the two blended into one shuffled pool. Everything else in between is
+    a fallback tier, and Critical-priority words are excluded outright
+    (never confuse the user with a word they're actively struggling with
+    right now).
 
     Never returns an empty list when given a non-empty one, and never
     raises -- a caller that gets an empty `words` back from its own query
@@ -35,7 +37,8 @@ def prefer_distractor_words(db: Session, user_id: int, words: list[Word]) -> lis
     low_id = roles["low"].id if roles["low"] is not None else None
     minimal_id = roles["minimal"].id if roles["minimal"] is not None else None
 
-    preferred: list[Word] = []
+    low: list[Word] = []
+    minimal: list[Word] = []
     acceptable: list[Word] = []
     critical_only: list[Word] = []
     for word in words:
@@ -43,14 +46,17 @@ def prefer_distractor_words(db: Session, user_id: int, words: list[Word]) -> lis
         level_id = level.id if level is not None else None
         if critical_id is not None and level_id == critical_id:
             critical_only.append(word)
-        elif level_id is not None and level_id in (low_id, minimal_id):
-            preferred.append(word)
+        elif low_id is not None and level_id == low_id:
+            low.append(word)
+        elif minimal_id is not None and level_id == minimal_id:
+            minimal.append(word)
         else:
             acceptable.append(word)
 
-    random.shuffle(preferred)
+    random.shuffle(low)
+    random.shuffle(minimal)
     random.shuffle(acceptable)
     random.shuffle(critical_only)
 
-    ordered = preferred + acceptable
+    ordered = low + minimal + acceptable
     return ordered if ordered else critical_only

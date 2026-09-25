@@ -269,6 +269,10 @@ export interface WordDiagnostics {
   recent_errors_contribution: number;
   recency_contribution: number;
   stability_contribution: number;
+  // Every exercise_key this word currently looks weak in (see
+  // backend/app/priority/quests_auto.py) -- the same rule personal
+  // auto-quests trigger on, surfaced here for one word.
+  weak_exercises: string[];
 }
 
 // --- Достижения ------------------------------------------------------------
@@ -377,6 +381,12 @@ export interface PrioritySettings {
   window10_weight: number;
   window20_weight: number;
   stability_window: number;
+  // Personal auto-quests (see backend/app/priority/quests_auto.py).
+  personal_quest_min_attempts: number;
+  personal_quest_weak_error_rate: number;
+  personal_quest_min_words: number;
+  personal_quest_max_words: number;
+  personal_quest_reward_points: number;
 }
 
 export interface PriorityRecencyBand {

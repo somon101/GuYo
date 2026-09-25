@@ -67,7 +67,11 @@ def _validate_word_level(db: Session, word_level_id: int) -> None:
 
 @router.get("", response_model=list[QuestOut])
 def list_quests(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
-    quests = db.query(Quest).order_by(Quest.order, Quest.id).all()
+    # Personal quests (Quest.owner_user_id set -- see
+    # app/priority/quests_auto.py) never appear in this admin CRUD list:
+    # they have no word_level_id of their own and aren't something an
+    # admin authored or should edit/delete here.
+    quests = db.query(Quest).filter(Quest.owner_user_id.is_(None)).order_by(Quest.order, Quest.id).all()
     return [_out(q, _level_name(db, q.word_level_id)) for q in quests]
 
 
@@ -97,7 +101,9 @@ def create_quest(payload: QuestCreateIn, db: Session = Depends(get_db), _admin=D
 
 
 def _get_quest_or_404(db: Session, quest_id: int) -> Quest:
-    quest = db.get(Quest, quest_id)
+    # Excludes personal quests same as list_quests above -- an admin can
+    # never edit/delete one by id either, even by guessing it.
+    quest = db.query(Quest).filter(Quest.id == quest_id, Quest.owner_user_id.is_(None)).first()
     if quest is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quest not found")
     return quest
@@ -131,7 +137,7 @@ def update_quest(quest_id: int, payload: QuestUpdateIn, db: Session = Depends(ge
 
 @router.put("/order", response_model=list[QuestOut])
 def reorder_quests(payload: ReorderQuestsIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
-    quests = db.query(Quest).filter(Quest.id.in_(payload.quest_ids)).all()
+    quests = db.query(Quest).filter(Quest.id.in_(payload.quest_ids), Quest.owner_user_id.is_(None)).all()
     by_id = {q.id: q for q in quests}
     missing = [i for i in payload.quest_ids if i not in by_id]
     if missing:
@@ -141,7 +147,7 @@ def reorder_quests(payload: ReorderQuestsIn, db: Session = Depends(get_db), _adm
         by_id[quest_id].order = position
     db.commit()
 
-    ordered = db.query(Quest).order_by(Quest.order, Quest.id).all()
+    ordered = db.query(Quest).filter(Quest.owner_user_id.is_(None)).order_by(Quest.order, Quest.id).all()
     return [_out(q, _level_name(db, q.word_level_id)) for q in ordered]
 
 

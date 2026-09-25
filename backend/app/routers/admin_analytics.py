@@ -23,7 +23,7 @@ from app.models.word_progress import WordProgress
 from app.routers.lessons import _get_threshold
 from app.routers.phrases import _get_learned_word_tokens, _tokenize
 from app.word_levels import level_for_score_in, ordered_enabled_levels
-from app.priority import calculate_priority
+from app.priority import calculate_priority, weak_exercises_for_word
 from app.schemas.analytics import (
     AnalyticsDictionaryOut,
     ExerciseAttemptStatsOut,
@@ -343,4 +343,5 @@ def get_word_diagnostics(
         recent_errors_contribution=priority.recent_errors_contribution,
         recency_contribution=priority.recency_contribution,
         stability_contribution=priority.stability_contribution,
+        weak_exercises=weak_exercises_for_word(db, user_id, word_id),
     )

@@ -14,9 +14,11 @@
 // microphone) fully, including real answers through the real scoring
 // pipeline.
 //
-// matching/build_word are deliberately disabled for the run (both would
-// otherwise also be available for this 3-word set, and this test only
-// wants speaking_word/listen_word in the sequence) -- restored afterward
+// matching/build_word/true_or_false are deliberately disabled for the run
+// (all three would otherwise also be available -- true_or_false needs the
+// same external learned-word pool this test seeds for listen_word -- and
+// this test only wants speaking_word/listen_word in the sequence) --
+// restored afterward
 // regardless of outcome so no other test is left with them disabled.
 //
 // Run with:
@@ -110,6 +112,43 @@ Future<int> _createWord(String token, int dictionaryId, String word, {bool withA
   return (jsonDecode(body) as Map)['id'] as int;
 }
 
+/// Learns [wordIds] the same way the rest of this app does it -- through a
+/// real Lesson and real "Сопоставление" answers, never a raw DB write.
+/// Same helper shape as practice_exercises_test.dart's own.
+Future<void> _learnWordsViaLesson(String userToken, int dictionaryId, List<int> wordIds) async {
+  final createRes = await http.post(
+    Uri.parse('$apiBaseUrl/lessons'),
+    headers: {'Authorization': 'Bearer $userToken', 'Content-Type': 'application/json'},
+    body: jsonEncode({'dictionary_id': dictionaryId, 'word_ids': wordIds}),
+  );
+  final lesson = jsonDecode(createRes.body) as Map<String, dynamic>;
+  final lessonId = lesson['id'] as int;
+
+  for (var attempt = 0; attempt < 8; attempt++) {
+    final current = jsonDecode((await http.get(
+      Uri.parse('$apiBaseUrl/lessons/$lessonId'),
+      headers: {'Authorization': 'Bearer $userToken'},
+    )).body) as Map<String, dynamic>;
+    final words = (current['words'] as List<dynamic>).cast<Map<String, dynamic>>();
+    if (words.every((w) => w['is_learned'] == true)) return;
+
+    for (final wordId in wordIds) {
+      await http.post(
+        Uri.parse('$apiBaseUrl/lessons/$lessonId/exercises/matching/answers'),
+        headers: {'Authorization': 'Bearer $userToken', 'Content-Type': 'application/json'},
+        body: jsonEncode({'word_id': wordId, 'is_correct': true}),
+      );
+    }
+  }
+
+  final finalState = jsonDecode((await http.get(
+    Uri.parse('$apiBaseUrl/lessons/$lessonId'),
+    headers: {'Authorization': 'Bearer $userToken'},
+  )).body) as Map<String, dynamic>;
+  final finalWords = (finalState['words'] as List<dynamic>).cast<Map<String, dynamic>>();
+  expect(finalWords.every((w) => w['is_learned'] == true), isTrue, reason: 'seed word should be learned by now');
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -118,8 +157,6 @@ void main() {
     'through the real backend, in order, with no manual exercise picking',
     (tester) async {
       final adminToken = await _adminToken();
-      await _setExerciseEnabled(adminToken, 'matching', false);
-      await _setExerciseEnabled(adminToken, 'build_word', false);
 
       try {
         final dictRes = await http.post(
@@ -134,6 +171,42 @@ void main() {
           body: jsonEncode({'is_published': true}),
         );
 
+        // Услышь слово's distractor options now always come from the
+        // user's own PREVIOUSLY learned words via Priority (see
+        // app/exercises/listen_word.py), same as Правда или ложь already
+        // did -- never from this same lesson's own word set any more. A
+        // seed word, learned here through a real (throwaway) "Урок 1"
+        // before red/blue/green exist, is what makes listen_word
+        // available at all for them below -- done through matching's own
+        // answers endpoint, so matching/build_word must still be ENABLED
+        // for this one step, only disabled afterward for the real test.
+        final userLoginRes = await http.post(
+          Uri.parse('$apiBaseUrl/auth/login'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'login': 'testuser', 'password': '123456'}),
+        );
+        final userToken = (jsonDecode(userLoginRes.body) as Map)['access_token'] as String;
+        // 2 words, not 1 -- Сопоставление (which _learnWordsViaLesson
+        // answers through) needs at least 2 lesson words to be offered at
+        // all.
+        final seed1Id = await _createWord(adminToken, dictionaryId, 'seed1');
+        final seed2Id = await _createWord(adminToken, dictionaryId, 'seed2');
+        // A short settle beat before creating the seed lesson -- this
+        // step intermittently raced with backend state in this test
+        // environment (the seed lesson would come back missing
+        // "matching" even though the word count/enabled checks are
+        // satisfied); this delay is a pragmatic guard against that.
+        await Future.delayed(const Duration(milliseconds: 500));
+        await _learnWordsViaLesson(userToken, dictionaryId, [seed1Id, seed2Id]);
+
+        await _setExerciseEnabled(adminToken, 'matching', false);
+        await _setExerciseEnabled(adminToken, 'build_word', false);
+        // The seed pool above (needed for listen_word) now also makes
+        // Правда или ложь available, which it never was before (it needs
+        // the same external pool) -- keep the sequence to just
+        // speaking_word/listen_word as originally intended.
+        await _setExerciseEnabled(adminToken, 'true_or_false', false);
+
         final redId = await _createWord(adminToken, dictionaryId, 'red', withAudio: true);
         final blueId = await _createWord(adminToken, dictionaryId, 'blue', withAudio: true);
         final greenId = await _createWord(adminToken, dictionaryId, 'green', withAudio: false);
@@ -146,14 +219,16 @@ void main() {
 
         await tester.tap(find.text('Уроки'));
         await tester.pumpAndSettle();
-        expect(find.text('Создайте первый урок, чтобы начать'), findsOneWidget);
-        await tester.tap(find.text('Урок 1'));
+        // The seed lesson above is "Урок 1" (already complete) -- the
+        // chain is no longer empty, and this test's own lesson is next.
+        await tester.tap(find.text('Урок 2'));
         await tester.pumpAndSettle();
 
         // Manual selection: all 3 words (2 with audio, 1 without) so
         // listen_word (needs >=1 audio word + >=2 lesson words) is
-        // available; speaking_word always is. matching/build_word are
-        // disabled above so they never enter the sequence at all.
+        // available; speaking_word always is. matching/build_word/
+        // true_or_false are disabled above so they never enter the
+        // sequence at all.
         await tester.tap(find.text('Вручную'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Без категории'));
@@ -168,9 +243,9 @@ void main() {
         await tester.pumpAndSettle(const Duration(seconds: 2));
 
         // Creating the lesson pops back to the "Уроки" chain (not directly
-        // into the lesson) -- "Урок 1" is now a real, in-progress chain
+        // into the lesson) -- "Урок 2" is now a real, in-progress chain
         // link instead of the "create next" node it was a moment ago.
-        await tester.tap(find.text('Урок 1'));
+        await tester.tap(find.text('Урок 2'));
         await tester.pump();
         await tester.pump(const Duration(seconds: 1));
         await tester.pumpAndSettle(const Duration(seconds: 2));
@@ -230,20 +305,18 @@ void main() {
         expect(find.text('Повторить урок'), findsOneWidget);
 
         // --- Verify real backend scoring happened for listen_word answers ---
-        final userLoginRes = await http.post(
-          Uri.parse('$apiBaseUrl/auth/login'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'login': 'testuser', 'password': '123456'}),
-        );
-        final userToken = (jsonDecode(userLoginRes.body) as Map)['access_token'] as String;
+        // (userToken already fetched above, before the seed word was learned)
         final myLessonsRes = await http.get(
           Uri.parse('$apiBaseUrl/dictionaries/$dictionaryId/lessons'),
           headers: {'Authorization': 'Bearer $userToken'},
         );
         final lessons = (jsonDecode(myLessonsRes.body) as Map)['lessons'] as List<dynamic>;
         expect(lessons, isNotEmpty);
+        // Two lessons now exist (the seed one, and this test's own) --
+        // pick this test's own by number, never assume list order/index.
+        final testLesson = lessons.cast<Map<String, dynamic>>().firstWhere((l) => l['number'] == 2);
         final lessonDetailRes = await http.get(
-          Uri.parse('$apiBaseUrl/lessons/${lessons[0]['id']}'),
+          Uri.parse('$apiBaseUrl/lessons/${testLesson['id']}'),
           headers: {'Authorization': 'Bearer $userToken'},
         );
         final words = (jsonDecode(lessonDetailRes.body) as Map)['words'] as List<dynamic>;
@@ -263,6 +336,7 @@ void main() {
       } finally {
         await _setExerciseEnabled(adminToken, 'matching', true);
         await _setExerciseEnabled(adminToken, 'build_word', true);
+        await _setExerciseEnabled(adminToken, 'true_or_false', true);
       }
     },
   );

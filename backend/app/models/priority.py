@@ -48,6 +48,23 @@ class PrioritySettings(Base):
     # fixed -- kept here rather than hardcoded in app/priority/calculate.py).
     stability_window: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
 
+    # Personal auto-quests (see app/priority/quests_auto.py): a word counts
+    # as "weak" in one exercise if it has at least this many attempts
+    # there AND its error rate there is at least this fraction (0-1).
+    # Every number below is a starting example, same discipline as the
+    # rest of this table -- none of it is spec-fixed business math.
+    personal_quest_min_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=2, server_default="2")
+    personal_quest_weak_error_rate: Mapped[float] = mapped_column(Float, nullable=False, default=0.5, server_default="0.5")
+    # How many High/Medium-priority words weak in the SAME exercise must
+    # accumulate before a personal quest is created for it, and the most
+    # it will ever bundle into one.
+    personal_quest_min_words: Mapped[int] = mapped_column(Integer, nullable=False, default=3, server_default="3")
+    personal_quest_max_words: Mapped[int] = mapped_column(Integer, nullable=False, default=5, server_default="5")
+    # Rating bonus a personal quest grants on a successful word -- separate
+    # from any admin Quest's own reward_points, since a personal quest has
+    # no admin-authored Quest row of its own to read it from.
+    personal_quest_reward_points: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

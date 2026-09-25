@@ -13,7 +13,7 @@ from app.core.deps import get_current_user
 from app.core.storage import url_for_key
 from app.database import get_db
 from app.exercises.common import get_threshold
-from app.models.quest import Quest
+from app.models.quest import Quest, QuestWord
 from app.models.rating import Season, UserWordPoints
 from app.models.word import Word
 from app.models.word_level import WordLevel
@@ -23,11 +23,12 @@ from app.quests import (
     candidate_words_for_quest,
     complete_quest_attempt,
     dushanbe_day_bounds_utc,
+    personal_quest_progress,
     pick_quest_word,
     quest_completions_today,
 )
 from app.word_attempts import record_word_attempt
-from app.priority import maybe_create_adaptive_lesson
+from app.priority import maybe_create_adaptive_lesson, maybe_create_personal_quest
 from app.rating import (
     award_word_points_if_new,
     current_rank_for_points,
@@ -69,26 +70,58 @@ def _season_out(season: Season) -> SeasonOut:
     )
 
 
+def _user_personal_quests(db: Session, user: User, dictionary_id: int) -> list[Quest]:
+    """This user's own enabled personal quests (see
+    app/priority/quests_auto.py) scoped to `dictionary_id` -- a personal
+    quest has no dictionary_id column of its own, so its scope is read
+    off any one of its pinned QuestWord's own word (they're all pinned
+    from the same dictionary by construction)."""
+    quests = db.query(Quest).filter(Quest.owner_user_id == user.id, Quest.enabled.is_(True)).all()
+    result = []
+    for quest in quests:
+        first = db.query(QuestWord.word_id).filter(QuestWord.quest_id == quest.id).first()
+        if first is None:
+            continue
+        word = db.get(Word, first[0])
+        if word is not None and word.dictionary_id == dictionary_id:
+            result.append(quest)
+    return result
+
+
 def _available_quests(db: Session, user: User, dictionary_id: int) -> list[AvailableQuestOut]:
-    """Every enabled quest with this user's own state for it today. The
-    one place that list is built, so GET /quests and the overview below
-    can never disagree about what exists or how far along it is."""
-    quests = db.query(Quest).filter(Quest.enabled.is_(True)).order_by(Quest.order, Quest.id).all()
+    """Every enabled admin quest, plus this user's own enabled personal
+    quests, with this user's own state for each. The one place that list
+    is built, so GET /quests and the overview below can never disagree
+    about what exists or how far along it is.
+
+    A personal quest reuses daily_target/completed_today/is_done_today
+    to mean "of its own pinned words, ever" rather than "today's repeats"
+    -- see personal_quest_progress and app/models/quest.py's own
+    docstring on why that's a safe reuse (the client only ever renders
+    {done}/{target}, never the word "daily")."""
+    quests = db.query(Quest).filter(Quest.enabled.is_(True), Quest.owner_user_id.is_(None)).order_by(Quest.order, Quest.id).all()
+    quests += _user_personal_quests(db, user, dictionary_id)
     done_today = quest_completions_today(db, user.id)
     out = []
     for q in quests:
-        completed = done_today.get(q.id, 0)
+        if q.owner_user_id is not None:
+            completed, target = personal_quest_progress(db, q)
+            word_level_name = "Персонально"
+        else:
+            completed = done_today.get(q.id, 0)
+            target = q.daily_target
+            word_level_name = _level_name(db, q.word_level_id)
         out.append(
             AvailableQuestOut(
                 id=q.id,
                 name=q.name,
-                word_level_name=_level_name(db, q.word_level_id),
+                word_level_name=word_level_name,
                 exercise_key=q.exercise_key,
                 reward_points=q.reward_points,
                 available=pick_quest_word(db, user, q, dictionary_id) is not None,
-                daily_target=q.daily_target,
+                daily_target=target,
                 completed_today=completed,
-                is_done_today=completed >= q.daily_target,
+                is_done_today=completed >= target,
             )
         )
     return out
@@ -234,11 +267,11 @@ def submit_quest_answer(
         is_correct=payload.is_correct,
         score_after=new_score,
     )
-    # Priority's one automatic side effect -- see app/priority/lessons.py.
-    # A quest answer is just as valid a trigger as a Lesson one: a user
-    # doing quests between lessons (no active lesson at all) is exactly
-    # when this is most likely to actually create something.
+    # Priority's automatic side effects -- see app/priority/lessons.py and
+    # app/priority/quests_auto.py. A quest answer is just as valid a
+    # trigger for either as a Lesson one.
     maybe_create_adaptive_lesson(db, user, dictionary_id)
+    maybe_create_personal_quest(db, user, dictionary_id)
 
     # A quest can push a word's reinforcement score across the SAME
     # learned threshold a Lesson answer would -- see app/exercises/
