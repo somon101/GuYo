@@ -25,6 +25,7 @@ from app.routers import (
     notifications,
     phrase_categories,
     phrases,
+    practice,
     quests,
     rating,
     slogans,
@@ -77,6 +78,7 @@ app.include_router(phrase_categories.router)
 app.include_router(learning.router)
 app.include_router(exercises.router)
 app.include_router(lessons.router)
+app.include_router(practice.router)
 app.include_router(admin_analytics.router)
 app.include_router(admin_achievements.router)
 app.include_router(admin_rating.router)

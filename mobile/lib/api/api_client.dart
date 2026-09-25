@@ -442,6 +442,63 @@ class ApiClient {
     return ListenWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
+  // --- Практика ------------------------------------------------------------
+  // Self-directed rounds over "Мои изученные слова" for the same 5 exercise
+  // types Уроки/Квесты already offer -- the backend randomly samples from
+  // the user's own learned-word pool and returns a round in the EXACT SAME
+  // shape a Lesson round does (backend/app/routers/practice.py concatenates
+  // Quest's own single-word round builders), so these parse into the exact
+  // same models fetchLessonXRound already returns. Nothing here ever
+  // reports an answer back -- Practice keeps no score of its own, same as
+  // fetchAvailablePhrases/fetchLearnedWords already established.
+
+  Future<TrueOrFalseRound> fetchPracticeTrueOrFalseRound(int dictionaryId) async {
+    final res = await http.get(
+      _uri('/dictionaries/$dictionaryId/practice/true-or-false'),
+      headers: await _authHeaders(),
+    );
+    await _throwIfUnauthorized(res);
+    return TrueOrFalseRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  Future<List<GuyoWord>> fetchPracticeMatchingWords(int dictionaryId) async {
+    final res = await http.get(
+      _uri('/dictionaries/$dictionaryId/practice/matching'),
+      headers: await _authHeaders(),
+    );
+    await _throwIfUnauthorized(res);
+    final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    final list = body['words'] as List<dynamic>;
+    return list.map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<BuildWordRound> fetchPracticeBuildWordRound(int dictionaryId) async {
+    final res = await http.get(
+      _uri('/dictionaries/$dictionaryId/practice/build-word'),
+      headers: await _authHeaders(),
+    );
+    await _throwIfUnauthorized(res);
+    return BuildWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  Future<SpeakingWordRound> fetchPracticeSpeakingWordRound(int dictionaryId) async {
+    final res = await http.get(
+      _uri('/dictionaries/$dictionaryId/practice/speaking-word'),
+      headers: await _authHeaders(),
+    );
+    await _throwIfUnauthorized(res);
+    return SpeakingWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  Future<ListenWordRound> fetchPracticeListenWordRound(int dictionaryId) async {
+    final res = await http.get(
+      _uri('/dictionaries/$dictionaryId/practice/listen-word'),
+      headers: await _authHeaders(),
+    );
+    await _throwIfUnauthorized(res);
+    return ListenWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
   /// The one call that actually changes anything in the Уроки system: moves
   /// [wordId]'s score by [exerciseKey]'s admin-configured points (backend
   /// decides direction/amount/clamping/threshold -- never this client) and
