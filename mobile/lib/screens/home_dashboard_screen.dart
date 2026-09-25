@@ -202,9 +202,9 @@ class _Greeting extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  // Sun, dusk or moon, decided from THIS DEVICE's clock --
+                  // Sunrise, sun, sunset or moon, decided from THIS DEVICE's clock --
                   // see theme/time_of_day.dart.
-                  const DayPartIcon(size: 19),
+                  const DayPartIcon(size: 22),
                 ],
               ),
               const SizedBox(height: 2),

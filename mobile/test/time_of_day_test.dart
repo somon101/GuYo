@@ -38,13 +38,13 @@ void main() {
 
     test('every part has a look, so none can render blank', () {
       for (final part in DayPart.values) {
-        expect(dayPartLooks[part], isNotNull, reason: '${part.name} has no icon');
+        expect(dayPartLooks[part], isNotNull, reason: '${part.name} has no sky');
       }
     });
 
     test('the four parts look different from each other', () {
-      final icons = DayPart.values.map((p) => dayPartLooks[p]!.icon).toSet();
-      expect(icons.length, DayPart.values.length, reason: 'two parts share an icon');
+      final skies = DayPart.values.map((p) => dayPartLooks[p]!.skyTop).toSet();
+      expect(skies.length, DayPart.values.length, reason: 'two parts share a sky');
     });
   });
 
@@ -64,30 +64,40 @@ void main() {
   });
 
   testWidgets('the icon follows the moment it is given, not the server', (tester) async {
-    Future<IconData> iconAt(DateTime moment) async {
+    Future<DayPart> partShownAt(DateTime moment) async {
       await tester.pumpWidget(
-        MaterialApp(home: Scaffold(body: DayPartIcon(now: moment))),
+        MaterialApp(
+          home: Scaffold(body: DayPartIcon(now: moment)),
+        ),
       );
-      return tester.widget<Icon>(find.byType(Icon)).icon!;
+      return tester.widget<DaySkyBadge>(find.byType(DaySkyBadge)).part;
     }
 
-    final morning = await iconAt(DateTime(2026, 9, 25, 7, 0));
-    final day = await iconAt(DateTime(2026, 9, 25, 13, 0));
-    final evening = await iconAt(DateTime(2026, 9, 25, 19, 0));
-    final night = await iconAt(DateTime(2026, 9, 25, 23, 0));
-
-    expect(morning, dayPartLooks[DayPart.morning]!.icon);
-    expect(day, dayPartLooks[DayPart.day]!.icon);
-    expect(evening, dayPartLooks[DayPart.evening]!.icon);
-    expect(night, dayPartLooks[DayPart.night]!.icon);
-    expect({morning, day, evening, night}.length, 4);
+    expect(await partShownAt(DateTime(2026, 9, 25, 7, 0)), DayPart.morning);
+    expect(await partShownAt(DateTime(2026, 9, 25, 13, 0)), DayPart.day);
+    expect(await partShownAt(DateTime(2026, 9, 25, 19, 0)), DayPart.evening);
+    expect(await partShownAt(DateTime(2026, 9, 25, 23, 0)), DayPart.night);
   });
 
   testWidgets('with no moment given it reads this device clock', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: Scaffold(body: DayPartIcon())));
     // DateTime.now() is the device's own local wall clock -- whatever part
     // that is right now, the widget must agree with the scheme about it.
-    final expectedIcon = dayPartLooks[TimeOfDayScheme.standard.partAt(DateTime.now())]!.icon;
-    expect(tester.widget<Icon>(find.byType(Icon)).icon, expectedIcon);
+    final expected = TimeOfDayScheme.standard.partAt(DateTime.now());
+    expect(tester.widget<DaySkyBadge>(find.byType(DaySkyBadge)).part, expected);
+  });
+
+  testWidgets('every part paints at the greeting size without throwing', (tester) async {
+    for (final part in DayPart.values) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(child: DaySkyBadge(part: part, size: 22)),
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull, reason: '${part.name} failed to paint');
+      expect(find.bySemanticsLabel(dayPartLooks[part]!.label), findsOneWidget);
+    }
   });
 }
