@@ -3,7 +3,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/word.dart';
+import '../theme/app_colors.dart';
 import '../widgets/audio_button.dart';
+import '../widgets/guyo_ui.dart';
 import 'lesson_exercise_flow.dart';
 
 /// A drag-free "tap word, then tap its translation" matching drill, as one
@@ -146,7 +148,6 @@ class _MatchingScreenState extends State<MatchingScreen> with LessonExerciseFlow
         _selectedLeftId = null;
         _selectedRightId = null;
       });
-      _showFeedback('Правильно', isError: false);
 
       if (_matchedIds.length == left.length) {
         // This match just finished the board -- wait for every submission
@@ -162,7 +163,6 @@ class _MatchingScreenState extends State<MatchingScreen> with LessonExerciseFlow
     } else {
       _mistakes++;
       _awaitingMismatchClear = true;
-      _showFeedback('Неправильно', isError: true);
       Future.delayed(const Duration(milliseconds: 550), () {
         if (!mounted) return;
         setState(() {
@@ -185,19 +185,6 @@ class _MatchingScreenState extends State<MatchingScreen> with LessonExerciseFlow
       // single failed save.
     }).whenComplete(() => _pendingSubmits.remove(future));
     _pendingSubmits.add(future);
-  }
-
-  void _showFeedback(String text, {required bool isError}) {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(text),
-        backgroundColor: isError ? Colors.red.shade600 : Colors.green.shade600,
-        duration: const Duration(milliseconds: 700),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   @override
@@ -235,53 +222,90 @@ class _MatchingScreenState extends State<MatchingScreen> with LessonExerciseFlow
     final isFullyMatched = _matchedIds.length == left.length;
     final isRoundComplete = isFullyMatched && _roundFinished;
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return Container(
+      color: AppColors.canvas,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Column(
+          children: [
+            _MatchingProgressHeader(matched: _matchedIds.length, total: left.length, mistakes: _mistakes),
+            const SizedBox(height: 16),
+            if (isRoundComplete)
+              const Expanded(child: LessonExerciseHandoff())
+            else if (isFullyMatched)
+              // Every pair is matched but the last match's score submission
+              // hasn't resolved yet -- a brief, real (not padded) wait rather
+              // than a fixed delay, since it's usually near-instant on a
+              // normal connection.
+              const Expanded(child: Center(child: CircularProgressIndicator()))
+            else
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _MatchColumn(
+                        words: left,
+                        matchedIds: _matchedIds,
+                        selectedId: _selectedLeftId,
+                        isMismatched: _awaitingMismatchClear,
+                        labelOf: (w) => w.word,
+                        audioUrlOf: (w) => w.wordAudioUrl,
+                        onTap: _tapLeft,
+                        columnKeyPrefix: 'left',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _MatchColumn(
+                        words: right,
+                        matchedIds: _matchedIds,
+                        selectedId: _selectedRightId,
+                        isMismatched: _awaitingMismatchClear,
+                        labelOf: (w) => w.translation,
+                        audioUrlOf: (w) => w.translationAudioUrl,
+                        onTap: _tapRight,
+                        columnKeyPrefix: 'right',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Matching's own progress readout: pairs found plus a mistake count when
+/// there is one, in the same GuyoCard pill every other exercise's header
+/// uses -- not [ExerciseProgressHeader] itself (that one's shape is
+/// "points + position", which a two-column board has no use for), but the
+/// same visual family.
+class _MatchingProgressHeader extends StatelessWidget {
+  final int matched;
+  final int total;
+  final int mistakes;
+  const _MatchingProgressHeader({required this.matched, required this.total, required this.mistakes});
+
+  @override
+  Widget build(BuildContext context) {
+    return GuyoCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
         children: [
-          Text(
-            'Правильно: ${_matchedIds.length}/${left.length}'
-            '${_mistakes > 0 ? '  ·  Ошибок: $_mistakes' : ''}',
-            style: const TextStyle(fontSize: 14, color: Colors.black54),
-          ),
-          const SizedBox(height: 12),
-          if (isRoundComplete)
-            const Expanded(child: LessonExerciseHandoff())
-          else if (isFullyMatched)
-            // Every pair is matched but the last match's score submission
-            // hasn't resolved yet -- a brief, real (not padded) wait rather
-            // than a fixed delay, since it's usually near-instant on a
-            // normal connection.
-            const Expanded(child: Center(child: CircularProgressIndicator()))
-          else
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _MatchColumn(
-                      words: left,
-                      matchedIds: _matchedIds,
-                      selectedId: _selectedLeftId,
-                      labelOf: (w) => w.word,
-                      audioUrlOf: (w) => w.wordAudioUrl,
-                      onTap: _tapLeft,
-                      columnKeyPrefix: 'left',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _MatchColumn(
-                      words: right,
-                      matchedIds: _matchedIds,
-                      selectedId: _selectedRightId,
-                      labelOf: (w) => w.translation,
-                      audioUrlOf: (w) => w.translationAudioUrl,
-                      onTap: _tapRight,
-                      columnKeyPrefix: 'right',
-                    ),
-                  ),
-                ],
+          const Icon(Icons.link_rounded, size: 18, color: AppColors.primary),
+          const SizedBox(width: 6),
+          Text('$matched/$total', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+          const Spacer(),
+          if (mistakes > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(color: AppColors.dangerLight, borderRadius: BorderRadius.circular(AppShapes.pillRadius)),
+              child: Text(
+                'Ошибок: $mistakes',
+                style: const TextStyle(fontSize: 13, color: AppColors.danger, fontWeight: FontWeight.w700),
               ),
             ),
         ],
@@ -294,6 +318,7 @@ class _MatchColumn extends StatelessWidget {
   final List<GuyoWord> words;
   final Set<int> matchedIds;
   final int? selectedId;
+  final bool isMismatched;
   final String Function(GuyoWord) labelOf;
   final String? Function(GuyoWord) audioUrlOf;
   final void Function(int wordId) onTap;
@@ -308,6 +333,7 @@ class _MatchColumn extends StatelessWidget {
     required this.words,
     required this.matchedIds,
     required this.selectedId,
+    required this.isMismatched,
     required this.labelOf,
     required this.audioUrlOf,
     required this.onTap,
@@ -330,6 +356,10 @@ class _MatchColumn extends StatelessWidget {
             label: labelOf(word),
             audioUrl: audioUrl != null && audioUrl.isNotEmpty ? ApiClient.instance.mediaUrl(audioUrl) : null,
             isMatched: isMatched,
+            // A selected card only reads as "wrong" once its pair failed to
+            // match -- while still waiting for the second tap, selected
+            // just means selected.
+            isMismatched: isSelected && isMismatched,
             isSelected: isSelected,
             onTap: isMatched ? null : () => onTap(word.id),
           ),
@@ -343,6 +373,7 @@ class _MatchCard extends StatelessWidget {
   final String label;
   final String? audioUrl;
   final bool isMatched;
+  final bool isMismatched;
   final bool isSelected;
   final VoidCallback? onTap;
 
@@ -350,37 +381,41 @@ class _MatchCard extends StatelessWidget {
     required this.label,
     required this.audioUrl,
     required this.isMatched,
+    required this.isMismatched,
     required this.isSelected,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final Color background;
-    final Color border;
+    Color background = Colors.white;
+    Color border = AppColors.cardBorder;
+    Color textColor = AppColors.primaryDark;
+
     if (isMatched) {
-      background = Colors.green.shade50;
-      border = Colors.green.shade400;
+      background = AppColors.successLight;
+      border = AppColors.success;
+      textColor = AppColors.success;
+    } else if (isMismatched) {
+      background = AppColors.dangerLight;
+      border = AppColors.danger;
+      textColor = AppColors.danger;
     } else if (isSelected) {
-      background = scheme.primaryContainer;
-      border = scheme.primary;
-    } else {
-      background = Theme.of(context).colorScheme.surface;
-      border = Colors.grey.shade300;
+      background = AppColors.violetSurface;
+      border = AppColors.primary;
     }
 
     return Material(
       color: background,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(AppShapes.rowRadius),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppShapes.rowRadius),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: border),
+            borderRadius: BorderRadius.circular(AppShapes.rowRadius),
+            border: Border.all(color: border, width: (isMatched || isMismatched || isSelected) ? 1.6 : 1),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -390,8 +425,10 @@ class _MatchCard extends StatelessWidget {
                   label,
                   textAlign: TextAlign.center,
                   style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
                     decoration: isMatched ? TextDecoration.lineThrough : null,
-                    color: isMatched ? Colors.green.shade700 : null,
+                    color: textColor,
                   ),
                 ),
               ),

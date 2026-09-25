@@ -176,9 +176,9 @@ void main() {
     final isCorrectShown = find.text('x').evaluate().isNotEmpty;
 
     if (isCorrectShown) {
-      await tester.tap(find.widgetWithText(FilledButton, 'Правда'));
+      await tester.tap(find.byKey(const ValueKey('true-or-false-answer-true')));
     } else {
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Ложь'));
+      await tester.tap(find.byKey(const ValueKey('true-or-false-answer-false')));
     }
     await tester.pumpAndSettle(const Duration(seconds: 2));
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:audioplayers/audioplayers.dart';
@@ -69,6 +70,11 @@ class _BuildPhraseByEarScreenState extends State<BuildPhraseByEarScreen> {
 
   final _player = AudioPlayer();
   bool _isPlayingAudio = false;
+  // A subscription, not `.first`: `.first` throws StateError("No element")
+  // if the player is disposed before a completion event ever arrives --
+  // cancelling this first, before the player itself is disposed, means
+  // nothing can throw either way.
+  StreamSubscription<void>? _completeSub;
 
   @override
   void initState() {
@@ -78,6 +84,7 @@ class _BuildPhraseByEarScreenState extends State<BuildPhraseByEarScreen> {
 
   @override
   void dispose() {
+    _completeSub?.cancel();
     _player.dispose();
     super.dispose();
   }
@@ -141,10 +148,11 @@ class _BuildPhraseByEarScreenState extends State<BuildPhraseByEarScreen> {
       await _player.stop();
       if (!mounted) return;
       setState(() => _isPlayingAudio = true);
-      await _player.play(UrlSource(ApiClient.instance.mediaUrl(url)));
-      _player.onPlayerComplete.first.then((_) {
+      await _completeSub?.cancel();
+      _completeSub = _player.onPlayerComplete.listen((_) {
         if (mounted) setState(() => _isPlayingAudio = false);
       });
+      await _player.play(UrlSource(ApiClient.instance.mediaUrl(url)));
     } catch (_) {
       if (mounted) setState(() => _isPlayingAudio = false);
     }

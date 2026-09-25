@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
@@ -23,8 +25,18 @@ class _AudioButtonState extends State<AudioButton> {
   final _player = AudioPlayer();
   bool _isPlaying = false;
 
+  // A subscription, not `.first`: `.first` throws StateError("No element")
+  // if the player is disposed (the stream just closes) before a completion
+  // event ever arrives -- exactly what happens when this button's card is
+  // torn down mid-playback (e.g. the lesson runner moving on to the next
+  // word). Cancelling the subscription in dispose(), before the player
+  // itself is disposed, means no callback can ever fire after that point
+  // and nothing throws either way.
+  StreamSubscription<void>? _completeSub;
+
   @override
   void dispose() {
+    _completeSub?.cancel();
     _player.dispose();
     super.dispose();
   }
@@ -37,10 +49,11 @@ class _AudioButtonState extends State<AudioButton> {
     }
     setState(() => _isPlaying = true);
     try {
-      await _player.play(UrlSource(widget.url));
-      _player.onPlayerComplete.first.then((_) {
+      await _completeSub?.cancel();
+      _completeSub = _player.onPlayerComplete.listen((_) {
         if (mounted) setState(() => _isPlaying = false);
       });
+      await _player.play(UrlSource(widget.url));
     } catch (_) {
       if (mounted) setState(() => _isPlaying = false);
     }

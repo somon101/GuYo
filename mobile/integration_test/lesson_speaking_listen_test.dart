@@ -191,7 +191,7 @@ void main() {
         );
 
         // --- Sequencer moved on to Услышь слово by itself ---
-        expect(find.textContaining('Правильно: 0/2'), findsOneWidget, reason: 'only red/blue have audio -- 2 items');
+        expect(find.textContaining('Слова 1 из 2'), findsOneWidget, reason: 'only red/blue have audio -- 2 items');
 
         // Item order isn't guaranteed, and BOTH word_ids can appear as
         // options on EITHER screen (each is the other's wrong-answer

@@ -276,7 +276,7 @@ void main() {
       // --- First in the auto sequence: Сопоставление (AppBar confirms it,
       // "Правда или ложь" never appears at all -- no learned pool yet) ---
       expect(find.text('Сопоставление'), findsOneWidget);
-      expect(find.textContaining('Правильно: 0/3'), findsOneWidget);
+      expect(find.textContaining('0/3'), findsOneWidget);
 
       // One pass over this fixture is worth matching (+20) + build_word
       // (+30) = 50 per word, so it takes two passes to clear the bar.
