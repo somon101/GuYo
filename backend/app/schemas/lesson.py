@@ -89,6 +89,13 @@ class SubmitAnswerOut(BaseModel):
     score: int
     is_learned: bool
     lesson_completed: bool
+    # Real rating points this exact answer just granted -- 0 on almost every
+    # answer, > 0 only when it is the one that pushes the word over the
+    # learned threshold for the first time. See
+    # app/rating/service.py's award_word_points_if_new; this field is
+    # purely that call's own return value, surfaced so a live in-round
+    # counter can show real progress instead of inventing its own.
+    points_awarded: int = 0
 
 
 class LearningSettingsOut(BaseModel):

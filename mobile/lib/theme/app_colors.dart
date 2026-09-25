@@ -21,6 +21,12 @@ class AppColors {
   static const Color success = Color(0xFF0A9C5D);
   static const Color successLight = Color(0xFFE8F8F1);
 
+  /// The one red in the palette -- a wrong answer, a destructive action.
+  /// Kept as sparingly used as [success]: most of the app has no reason
+  /// to ever need it.
+  static const Color danger = Color(0xFFE0454B);
+  static const Color dangerLight = Color(0xFFFCEAEA);
+
   // --- Surfaces -------------------------------------------------------------
 
   /// The app background behind every card: barely-there lavender, so white

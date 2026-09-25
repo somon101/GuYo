@@ -124,7 +124,7 @@ def assert_rank_range_free(
             raise ValueError(f"Диапазон пересекается с рангом «{other.name}»")
 
 
-def award_word_points_if_new(db: Session, user: User, word_id: int) -> None:
+def award_word_points_if_new(db: Session, user: User, word_id: int) -> int:
     """Grants this user rating points for `word_id` at most once, ever --
     the UserWordPoints unique constraint is what actually guarantees that
     at the database level. Safe to call every time a word's `is_learned`
@@ -133,6 +133,13 @@ def award_word_points_if_new(db: Session, user: User, word_id: int) -> None:
     uses): a word that was already awarded is simply skipped, so this
     never double-counts no matter how many times it's called for the same
     (user, word).
+
+    Returns how many points THIS call actually granted -- the real amount
+    just added to the user's total, 0 if `word_id` was already awarded
+    (including a lost race, below). A caller that wants to show live
+    progress during a round (e.g. a lesson exercise's own points counter)
+    reads this return value rather than re-deriving it, so that counter
+    can never drift from what the database actually holds.
 
     `points_awarded` snapshots RatingSettings.points_per_learned_word at
     this exact moment -- a later admin change to that setting only ever
@@ -152,7 +159,7 @@ def award_word_points_if_new(db: Session, user: User, word_id: int) -> None:
         is not None
     )
     if already_awarded:
-        return
+        return 0
 
     settings = get_rating_settings(db)
     points = settings.points_per_learned_word
@@ -162,11 +169,12 @@ def award_word_points_if_new(db: Session, user: User, word_id: int) -> None:
             db.add(UserWordPoints(user_id=user.id, word_id=word_id, points_awarded=points))
             db.flush()
     except IntegrityError:
-        return
+        return 0
 
     rating = get_or_create_user_rating(db, user.id)
     rating.total_points += points
     db.flush()
+    return points
 
 
 LEADERBOARD_LIMIT = 100

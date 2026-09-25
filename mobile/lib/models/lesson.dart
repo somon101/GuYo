@@ -147,11 +147,20 @@ class SubmitAnswerResult {
   final bool isLearned;
   final bool lessonCompleted;
 
+  /// Real rating points THIS answer just granted -- almost always 0, and
+  /// only ever positive the one time an answer pushes wordId over the
+  /// learned threshold for the first time (backend/app/rating/service.py's
+  /// award_word_points_if_new). A screen that wants to show live progress
+  /// during a round sums this across answers rather than inventing its own
+  /// point value -- see true_or_false_screen.dart.
+  final int pointsAwarded;
+
   SubmitAnswerResult({
     required this.wordId,
     required this.score,
     required this.isLearned,
     required this.lessonCompleted,
+    this.pointsAwarded = 0,
   });
 
   factory SubmitAnswerResult.fromJson(Map<String, dynamic> json) {
@@ -160,6 +169,7 @@ class SubmitAnswerResult {
       score: json['score'] as int,
       isLearned: json['is_learned'] as bool,
       lessonCompleted: json['lesson_completed'] as bool,
+      pointsAwarded: json['points_awarded'] as int? ?? 0,
     );
   }
 }

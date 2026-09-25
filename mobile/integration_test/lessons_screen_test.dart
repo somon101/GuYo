@@ -431,9 +431,9 @@ void main() {
         findsOneWidget,
         reason: 'the 3 words learned in Lesson 1 are now a usable pool for True/False',
       );
-      expect(find.widgetWithText(FilledButton, 'Правда'), findsOneWidget);
-      expect(find.widgetWithText(OutlinedButton, 'Ложь'), findsOneWidget);
-      expect(find.textContaining('Правильно: 0/3'), findsOneWidget);
+      expect(find.byKey(const ValueKey('true-or-false-answer-true')), findsOneWidget);
+      expect(find.byKey(const ValueKey('true-or-false-answer-false')), findsOneWidget);
+      expect(find.textContaining('Слова 1 из 3'), findsOneWidget);
     },
   );
 }

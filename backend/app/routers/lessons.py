@@ -466,10 +466,11 @@ def submit_answer(
     # condition but are a fully separate system (see app/rating/service.py)
     # -- award_word_points_if_new never grants twice for the same word,
     # so calling it here on every is_learned=True answer is safe.
+    points_awarded = 0
     if is_learned:
         check_and_grant_achievements(db, user, "phrases_opened")
         check_and_grant_achievements(db, user, "words_learned")
-        award_word_points_if_new(db, user, payload.word_id)
+        points_awarded = award_word_points_if_new(db, user, payload.word_id)
     if lesson_completed:
         check_and_grant_achievements(db, user, "lessons_completed")
 
@@ -481,6 +482,7 @@ def submit_answer(
         score=progress.score,
         is_learned=is_learned,
         lesson_completed=lesson_completed,
+        points_awarded=points_awarded,
     )
 
 
