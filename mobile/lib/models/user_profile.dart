@@ -29,6 +29,11 @@ class UserProfile {
   final int lessonsCompleted;
   final int wordsLearned;
 
+  /// When GuYo Premium ends, or null when the user doesn't have it.
+  final DateTime? premiumUntil;
+
+  bool get isPremium => premiumUntil != null;
+
   UserProfile({
     required this.id,
     required this.publicId,
@@ -40,6 +45,7 @@ class UserProfile {
     required this.currentStreakDays,
     required this.lessonsCompleted,
     required this.wordsLearned,
+    this.premiumUntil,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -54,6 +60,7 @@ class UserProfile {
       currentStreakDays: json['current_streak_days'] as int,
       lessonsCompleted: json['lessons_completed'] as int,
       wordsLearned: json['words_learned'] as int,
+      premiumUntil: json['premium_until'] == null ? null : DateTime.parse(json['premium_until'] as String).toLocal(),
     );
   }
 }

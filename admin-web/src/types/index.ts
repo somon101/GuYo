@@ -462,3 +462,44 @@ export interface AdminNotification {
   read_at: string | null;
   created_at: string;
 }
+
+// --- Premium -------------------------------------------------------------------
+// Paid access, granted by hand after a transfer arrives. Premium is derived
+// from the grants below, never stored as a flag -- it ends on its own when
+// the last period runs out.
+
+export interface PremiumSettings {
+  /** null = unlimited. Only lessons a user creates themselves count. */
+  free_daily_lesson_limit: number | null;
+  free_weekly_lesson_limit: number | null;
+  premium_daily_lesson_limit: number | null;
+  premium_weekly_lesson_limit: number | null;
+  adaptive_lessons_premium_only: boolean;
+  personal_quests_premium_only: boolean;
+  /** Shown as-is on the app's Premium screen. */
+  price_text: string;
+  payment_instructions: string;
+}
+
+export interface PremiumUser {
+  user_id: number;
+  public_id: number;
+  login: string;
+  first_name: string | null;
+  last_name: string | null;
+  is_premium: boolean;
+  premium_until: string | null;
+}
+
+export interface PremiumGrant {
+  id: number;
+  user_id: number;
+  starts_at: string;
+  ends_at: string;
+  days: number;
+  source: string;
+  note: string | null;
+  granted_by_admin_login: string | null;
+  revoked_at: string | null;
+  created_at: string;
+}

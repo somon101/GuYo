@@ -104,3 +104,6 @@ class UserProfileOut(BaseModel):
     current_streak_days: int
     lessons_completed: int
     words_learned: int
+    # Null when the user doesn't have GuYo Premium right now -- see
+    # app/premium/service.py's premium_until, the one definition of it.
+    premium_until: datetime | None = None

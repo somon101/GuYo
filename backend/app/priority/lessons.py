@@ -13,6 +13,7 @@ from app.models.lesson import Lesson, LessonWord
 from app.models.user import User
 from app.models.word import Word
 from app.models.word_progress import WordProgress
+from app.premium import FEATURE_ADAPTIVE_LESSONS, automatic_feature_allowed
 from app.priority.calculate import PriorityResult, calculate_priority
 from app.priority.settings import priority_role_bands
 
@@ -83,8 +84,10 @@ def maybe_create_adaptive_lesson(db: Session, user: User, dictionary_id: int) ->
     app.word_attempts.service's call sites in lessons.py/quests.py). None
     if nothing should happen -- no active lesson slot is required (an
     adaptive lesson obeys the exact same "at most one incomplete lesson
-    per (user, dictionary)" rule every other lesson does), or fewer than
-    ADAPTIVE_LESSON_BATCH_SIZE Critical words currently qualify.
+    per (user, dictionary)" rule every other lesson does), fewer than
+    ADAPTIVE_LESSON_BATCH_SIZE Critical words currently qualify, or the
+    user lacks Premium while adaptive lessons are Premium-only. An
+    adaptive lesson never counts against the user's own lesson limit.
 
     Does NOT commit -- runs inside the caller's own transaction, same
     contract as every other post-attempt side effect (achievements,
@@ -95,6 +98,10 @@ def maybe_create_adaptive_lesson(db: Session, user: User, dictionary_id: int) ->
     # once this function actually runs.
     from app.models.dictionary import Dictionary
     from app.routers.lessons import _get_active_lesson, build_lesson
+
+    # Premium-only unless the admin switched that off (PremiumSettings).
+    if not automatic_feature_allowed(db, user, FEATURE_ADAPTIVE_LESSONS):
+        return None
 
     if _get_active_lesson(db, user.id, dictionary_id) is not None:
         return None

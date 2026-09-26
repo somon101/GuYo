@@ -6,6 +6,7 @@ import '../models/user_profile.dart';
 import '../theme/app_colors.dart';
 import '../theme/slogans.dart';
 import '../theme/time_of_day.dart';
+import '../widgets/premium_ui.dart';
 import '../widgets/quest_ui.dart';
 import '../widgets/user_avatar.dart';
 import 'season_quests_screen.dart';
@@ -14,7 +15,7 @@ import 'season_quests_screen.dart';
 /// [BackendSloganSource] can be a const value.
 Future<String?> fetchTodaySloganFromApi() => ApiClient.instance.fetchTodaySlogan();
 
-/// "Главная": the greeting and the season block, nothing else.
+/// "Главная": the greeting, the lesson counter and the season block.
 ///
 /// Replaces the old menu-of-links screen. Every number shown here is the
 /// backend's own, fetched in one call (GET /quests/overview) that reads
@@ -57,6 +58,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   // The admin-curated line for today, or the built-in fallback -- resolved
   // by the source, never decided here.
   String? _slogan;
+  final GlobalKey<LessonQuotaCardState> _quotaKey = GlobalKey<LessonQuotaCardState>();
 
   @override
   void initState() {
@@ -70,6 +72,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       _isLoading = true;
       _loadError = null;
     });
+    // The lesson counter loads itself; pull-to-refresh just asks it again.
+    _quotaKey.currentState?.reload();
     try {
       final results = await Future.wait([
         ApiClient.instance.fetchSeasonQuestOverview(widget.dictionary.id),
@@ -124,6 +128,10 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
           onOpenProfile: widget.onOpenProfile,
         ),
         const SizedBox(height: 18),
+        // Today's/this week's lesson counter, or the Premium line -- its
+        // own card, so a failure to load it never blocks the season block.
+        LessonQuotaCard(key: _quotaKey),
+        const SizedBox(height: 14),
         if (_isLoading)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 60),

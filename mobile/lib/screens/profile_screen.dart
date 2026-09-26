@@ -10,6 +10,7 @@ import '../models/dictionary.dart';
 import '../models/user_profile.dart';
 import '../models/user_rating.dart';
 import '../theme/app_colors.dart';
+import '../widgets/premium_ui.dart';
 import '../widgets/achievement_icon.dart';
 import '../widgets/rank_icon.dart';
 import '../widgets/remote_image.dart';
@@ -542,6 +543,13 @@ class _ProfileHeader extends StatelessWidget {
                 'ID: ${profile.publicId}',
                 style: const TextStyle(fontSize: 14, color: AppColors.secondaryText),
               ),
+              if (profile.isPremium) ...[
+                const SizedBox(height: 6),
+                GestureDetector(
+                  onTap: () => openPremiumScreen(context),
+                  child: const PremiumBadge(),
+                ),
+              ],
             ],
           ),
         ),

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -10,6 +11,7 @@ import '../models/learning.dart';
 import '../models/lesson.dart';
 import '../models/notification.dart';
 import '../models/phrase.dart';
+import '../models/premium.dart';
 import '../models/quest.dart';
 import '../models/user_profile.dart';
 import '../models/user_rating.dart';
@@ -72,6 +74,11 @@ class ApiClient {
   static const _tokenKey = 'guyo_user_token';
 
   String? _cachedToken;
+
+  /// Bumped whenever the lesson counter may have changed (a lesson was
+  /// just created). Главная's counter lives in another tab and listens to
+  /// this instead of being reached into by whoever created the lesson.
+  final ValueNotifier<int> lessonQuotaRevision = ValueNotifier<int>(0);
 
   Future<String?> get token async {
     _cachedToken ??= await _storage.read(key: _tokenKey);
@@ -378,7 +385,8 @@ class ApiClient {
   /// Pass exactly one of [wordIds] (ручной выбор, max 15) or [randomCount]
   /// (случайный выбор, 1-15) -- the backend rejects both/neither, same rule
   /// CreateLessonIn enforces. Fails with a 409 (surfaced via [ApiException.
-  /// message]) if the current lesson for this dictionary isn't complete yet.
+  /// message]) if the current lesson for this dictionary isn't complete yet,
+  /// or a 429 once the daily/weekly lesson limit is reached.
   Future<Lesson> createLesson({required int dictionaryId, List<int>? wordIds, int? randomCount}) async {
     final res = await http.post(
       _uri('/lessons'),
@@ -390,6 +398,7 @@ class ApiClient {
       }),
     );
     await _throwWithDetail(res);
+    lessonQuotaRevision.value++;
     return Lesson.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
@@ -542,6 +551,15 @@ class ApiClient {
     await _throwIfUnauthorized(res);
     final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
     return body['text'] as String?;
+  }
+
+  /// Premium status, the payment text the admin wrote, and today's/this
+  /// week's lesson counter -- everything Главная's counter and the Premium
+  /// screen show, in one call.
+  Future<PremiumStatus> fetchPremiumStatus() async {
+    final res = await http.get(_uri('/premium/me'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    return PremiumStatus.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
   /// Everything in this user's inbox, newest first, with the unread count

@@ -1,5 +1,8 @@
 import { api } from "./client";
 import type {
+  PremiumGrant,
+  PremiumSettings,
+  PremiumUser,
   Achievement,
   AchievementVisibility,
   AdminNotification,
@@ -1034,4 +1037,42 @@ export async function listSentNotifications(userId?: number): Promise<AdminNotif
     params: userId !== undefined ? { user_id: userId } : undefined,
   });
   return data;
+}
+
+// --- Premium -------------------------------------------------------------------
+
+export async function getPremiumSettings(): Promise<PremiumSettings> {
+  const { data } = await api.get("/admin/premium/settings");
+  return data;
+}
+
+export async function updatePremiumSettings(input: PremiumSettings): Promise<PremiumSettings> {
+  const { data } = await api.put("/admin/premium/settings", input);
+  return data;
+}
+
+// Everyone who has ever had Premium, current subscribers first.
+export async function listPremiumUsers(): Promise<PremiumUser[]> {
+  const { data } = await api.get("/admin/premium/users");
+  return data;
+}
+
+export async function listPremiumGrants(userId?: number): Promise<PremiumGrant[]> {
+  const { data } = await api.get("/admin/premium/grants", {
+    params: userId !== undefined ? { user_id: userId } : undefined,
+  });
+  return data;
+}
+
+// Adds `days` of Premium; an active subscription is extended, not overlapped.
+export async function grantPremium(userId: number, input: { days: number; note?: string }): Promise<PremiumGrant> {
+  const { data } = await api.post(`/admin/premium/users/${userId}/grant`, {
+    days: input.days,
+    note: input.note || null,
+  });
+  return data;
+}
+
+export async function revokePremium(userId: number): Promise<void> {
+  await api.post(`/admin/premium/users/${userId}/revoke`);
 }

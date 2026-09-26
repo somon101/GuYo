@@ -22,6 +22,8 @@ from app.models import (  # noqa: F401
     Notification,
     Phrase,
     PhraseCategory,
+    PremiumGrant,
+    PremiumSettings,
     Quest,
     Rank,
     RatingSettings,

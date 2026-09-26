@@ -6,6 +6,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { UsersPage } from "./pages/UsersPage";
 import { SlogansPage } from "./pages/SlogansPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
+import { PremiumPage } from "./pages/PremiumPage";
 import { DictionariesPage } from "./pages/DictionariesPage";
 import { DictionaryDetailPage } from "./pages/DictionaryDetailPage";
 import { WordsListPage } from "./pages/WordsListPage";
@@ -243,6 +244,16 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <NotificationsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/premium"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <PremiumPage />
                 </Layout>
               </ProtectedRoute>
             }

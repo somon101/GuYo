@@ -5,8 +5,9 @@ the host happens to be configured with, not guaranteed).
 - `utc_today()`: the activity streak (app/achievements/) and season dates
   (app/rating/) -- unchanged, still UTC.
 - `dushanbe_today()`: Quests' daily one-word-per-day limit
-  (app/quests/service.py) and the greeting slogan's own day
-  (app/slogans/service.py) -- GuYo is a Tajik-language app, so a "new day"
+  (app/quests/service.py), the greeting slogan's own day
+  (app/slogans/service.py), and Premium's daily/weekly lesson limits
+  (app/premium/service.py) -- GuYo is a Tajik-language app, so a "new day"
   boundary is explicitly Asia/Dushanbe local time, not UTC and never the
   user's own device timezone (a traveling user must see the same reset
   moment as everyone else).
@@ -17,7 +18,7 @@ the host happens to be configured with, not guaranteed).
   involved in it -- a user in Berlin must see their own evening even
   though their slogan turns over on Dushanbe's midnight."""
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 DUSHANBE_TZ = ZoneInfo("Asia/Dushanbe")
@@ -29,6 +30,23 @@ def utc_today() -> date:
 
 def dushanbe_today() -> date:
     return datetime.now(timezone.utc).astimezone(DUSHANBE_TZ).date()
+
+
+def dushanbe_day_start(today: date | None = None) -> datetime:
+    """The UTC instant the current Asia/Dushanbe day began -- what "today"
+    means for Premium's daily lesson limit (app/premium/service.py), the
+    same boundary as dushanbe_today()."""
+    day = today or dushanbe_today()
+    return datetime.combine(day, time.min, tzinfo=DUSHANBE_TZ).astimezone(timezone.utc)
+
+
+def dushanbe_week_start(today: date | None = None) -> datetime:
+    """The UTC instant the current Asia/Dushanbe calendar week began,
+    Monday 00:00 -- what "this week" means for Premium's weekly lesson
+    limit. A calendar week, not a rolling 7 days, so a user can be told
+    plainly "обновится в понедельник"."""
+    day = today or dushanbe_today()
+    return dushanbe_day_start(day - timedelta(days=day.weekday()))
 
 
 def utc_now() -> datetime:

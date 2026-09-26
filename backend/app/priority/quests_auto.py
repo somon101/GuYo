@@ -28,6 +28,7 @@ from app.models.user import User
 from app.models.word import Word
 from app.models.word_attempt import WordAttempt
 from app.models.word_progress import WordProgress
+from app.premium import FEATURE_PERSONAL_QUESTS, automatic_feature_allowed
 from app.priority.calculate import calculate_priority
 from app.priority.settings import get_priority_settings, priority_role_bands
 
@@ -114,8 +115,9 @@ def maybe_create_personal_quest(db: Session, user: User, dictionary_id: int) -> 
     maybe_create_adaptive_lesson: app.routers.lessons.submit_answer and
     app.routers.quests.submit_quest_answer). None if nothing should
     happen -- an incomplete personal quest already exists for this
-    (user, dictionary), or no exercise currently has enough High/Medium-
-    priority words sharing the same weakness.
+    (user, dictionary), no exercise currently has enough High/Medium-
+    priority words sharing the same weakness, or the user lacks Premium
+    while personal quests are Premium-only.
 
     Does NOT commit -- runs inside the caller's own transaction, same
     contract as every other post-attempt side effect (achievements,
@@ -128,6 +130,10 @@ def maybe_create_personal_quest(db: Session, user: User, dictionary_id: int) -> 
     from app.exercises import EXERCISE_TYPES
     from app.exercises.common import get_threshold
     from app.quests.rounds import is_quest_word_feasible
+
+    # Premium-only unless the admin switched that off (PremiumSettings).
+    if not automatic_feature_allowed(db, user, FEATURE_PERSONAL_QUESTS):
+        return None
 
     if _incomplete_personal_quest(db, user.id, dictionary_id) is not None:
         return None

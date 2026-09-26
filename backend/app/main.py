@@ -27,6 +27,7 @@ from app.routers import (
     phrase_categories,
     phrases,
     practice,
+    premium,
     quests,
     rating,
     slogans,
@@ -93,6 +94,8 @@ app.include_router(rating.router)
 app.include_router(word_levels.router)
 app.include_router(slogans.router)
 app.include_router(notifications.router)
+app.include_router(premium.router)
+app.include_router(premium.admin_router)
 
 
 @app.get("/health")

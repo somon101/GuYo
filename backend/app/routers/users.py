@@ -11,6 +11,7 @@ from app.models.achievement import VISIBILITY_HIDDEN, Achievement, UserAchieveme
 from app.models.admin import Admin
 from app.models.rating import SeasonHistory
 from app.models.user import User
+from app.premium import premium_until
 from app.rating import (
     current_rank_for_points,
     get_active_season,
@@ -84,7 +85,7 @@ def delete_user(user_id: int, db: Session = Depends(get_db), _admin: Admin = Dep
     other table's own user_id column is declared ondelete="CASCADE"
     (UserRating, WordProgress, Lesson/LessonWord/LessonExercise,
     UserAchievement, SeasonHistory, UserQuestWordDay, LearningSession,
-    UserDailySlogan, Notification, ...),
+    UserDailySlogan, Notification, PremiumGrant, ...),
     so this one delete is enough; nothing here re-implements that cleanup
     by hand. Mainly for removing test/bot accounts (e.g. ones seeded to
     exercise the rating ladder) without leaving orphaned rows anywhere --
@@ -111,6 +112,7 @@ def _profile_out(db: Session, user: User) -> UserProfileOut:
         current_streak_days=streak_days_count(db, user),
         lessons_completed=lessons_completed_count(db, user),
         words_learned=words_learned_count(db, user),
+        premium_until=premium_until(db, user),
     )
 
 

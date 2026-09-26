@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../models/word.dart';
+import '../widgets/premium_ui.dart';
 import '../widgets/word_card.dart';
 
 /// Word selection for a new lesson: either a random count (1-15) or a
@@ -102,6 +103,13 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
       Navigator.of(context).pop(true);
     } on ApiException catch (e) {
       if (!mounted) return;
+      if (e.statusCode == 429) {
+        // The daily/weekly lesson limit -- the backend's own wording, plus
+        // a way to Premium, rather than an error line under the button.
+        setState(() => _isSubmitting = false);
+        await showLessonLimitDialog(context, e.message);
+        return;
+      }
       setState(() {
         _isSubmitting = false;
         _submitError = e.message;

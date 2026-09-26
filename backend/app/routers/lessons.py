@@ -47,6 +47,7 @@ from app.models.learning_settings import LearningSettings
 from app.models.lesson import Lesson, LessonExercise, LessonWord
 from app.models.user import User
 from app.models.word_progress import WordProgress
+from app.premium import LessonLimitReached, check_lesson_quota
 from app.priority import maybe_create_adaptive_lesson, maybe_create_personal_quest
 from app.routers.words import word_to_out
 from app.word_attempts import record_word_attempt
@@ -297,7 +298,12 @@ def create_lesson(
     never recomputed afterwards. Blocked while the current lesson for this
     (user, dictionary) isn't complete yet, enforced here AND at the
     database level (see Lesson's partial unique index) against a race
-    between two requests."""
+    between two requests.
+
+    Also counts against the user's daily/weekly lesson limit (see
+    app/premium/service.py) -- a 429 with the reason and when it resets.
+    Checked after the active-lesson rule, so a user with an unfinished
+    lesson is told to finish it rather than about a limit."""
     dictionary = _get_published_dictionary_or_404(db, payload.dictionary_id)
 
     if _get_active_lesson(db, user.id, dictionary.id) is not None:
@@ -305,6 +311,11 @@ def create_lesson(
             status_code=status.HTTP_409_CONFLICT,
             detail="Текущий урок ещё не завершён -- сначала пройдите его до конца",
         )
+
+    try:
+        check_lesson_quota(db, user)
+    except LessonLimitReached as e:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e))
 
     threshold = get_threshold(db)
     eligible_words = get_eligible_words(db, user.id, dictionary.id, threshold)
