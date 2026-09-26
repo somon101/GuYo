@@ -59,11 +59,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // the active tab) open that screen's settings sheet -- the sheet and
   // everything in it still belong entirely to ProfileScreen.
   final GlobalKey<ProfileScreenState> _profileKey = GlobalKey<ProfileScreenState>();
+  // Whether the admin's master Premium switch is on -- while it's off,
+  // "Промокод" is pointless (there is nothing to redeem into) and stays
+  // out of the "⋮" menu, same "as if Premium didn't exist" spirit as
+  // LessonQuotaCard hiding itself (see premium_ui.dart). Defaults to
+  // true so the menu item is never missing just because this hasn't
+  // loaded yet.
+  bool _premiumEnabled = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _loadPremiumEnabled();
     _loadDictionaries();
   }
 
@@ -84,6 +92,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // whatever tab is already on screen.
     if (state == AppLifecycleState.resumed) {
       _refreshDictionariesInBackground();
+    }
+  }
+
+  Future<void> _loadPremiumEnabled() async {
+    try {
+      final status = await ApiClient.instance.fetchPremiumStatus();
+      if (!mounted) return;
+      setState(() => _premiumEnabled = status.premiumEnabled);
+    } catch (_) {
+      // Keep the default (true) -- the menu item staying visible on a
+      // load failure is the safer failure mode than it vanishing.
     }
   }
 
@@ -335,9 +354,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               if (value == 'promo') openPromoScreen(context);
               if (value == 'logout') _logout();
             },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'promo', child: Text('Промокод')),
-              PopupMenuItem(value: 'logout', child: Text('Выйти')),
+            itemBuilder: (context) => [
+              if (_premiumEnabled) const PopupMenuItem(value: 'promo', child: Text('Промокод')),
+              const PopupMenuItem(value: 'logout', child: Text('Выйти')),
             ],
           ),
           ],

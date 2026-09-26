@@ -94,7 +94,11 @@ class LessonQuotaCardState extends State<LessonQuotaCard> {
   @override
   Widget build(BuildContext context) {
     final status = _status;
-    if (status == null) return const SizedBox.shrink();
+    // Also hidden entirely while the admin's master switch is off (see
+    // PremiumStatus.premiumEnabled) -- not just showing "без ограничений"
+    // for everyone, since the whole point is to read as if Premium (and
+    // therefore this card) didn't exist.
+    if (status == null || !status.premiumEnabled) return const SizedBox.shrink();
     final quota = status.lessons;
 
     return GuyoCard(

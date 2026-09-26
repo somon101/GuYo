@@ -26,10 +26,14 @@ class PremiumStatusOut(BaseModel):
     in the transfer's comment -- it is how the admin finds who paid.
     `adaptive_lessons_premium_only`/`personal_quests_premium_only` let the
     screen list only the benefits that really are Premium-only right
-    now."""
+    now. `premium_enabled` is the master switch (see PremiumSettings'
+    own docstring) -- the app hides every Premium surface (this card,
+    the Premium/Промокод screens, the checkmark) while it's False,
+    without needing to separately re-derive that from anything else."""
 
     is_premium: bool
     premium_until: datetime | None
+    premium_enabled: bool
     public_id: int
     price_text: str
     payment_instructions: str
@@ -39,6 +43,7 @@ class PremiumStatusOut(BaseModel):
 
 
 class PremiumSettingsIn(BaseModel):
+    premium_enabled: bool = True
     free_daily_lesson_limit: int | None = Field(default=None, ge=0)
     free_weekly_lesson_limit: int | None = Field(default=None, ge=0)
     premium_daily_lesson_limit: int | None = Field(default=None, ge=0)

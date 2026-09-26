@@ -46,6 +46,14 @@ class PremiumStatus {
   final bool isPremium;
   final DateTime? premiumUntil;
 
+  /// The admin's master switch (see backend PremiumSettings.
+  /// premium_enabled's own docstring). While false, every Premium
+  /// surface in the app -- this status's own isPremium/lessons.
+  /// isUnlimited included, since the backend already suppresses those --
+  /// should be treated as absent: hide the lesson-quota card, the
+  /// Premium/Промокод menu entries, the checkmark, the profile badge.
+  final bool premiumEnabled;
+
   /// The 9-digit account number the user puts in the transfer comment, so
   /// the admin can find who paid.
   final int publicId;
@@ -65,6 +73,7 @@ class PremiumStatus {
   const PremiumStatus({
     required this.isPremium,
     required this.premiumUntil,
+    required this.premiumEnabled,
     required this.publicId,
     required this.priceText,
     required this.paymentInstructions,
@@ -78,6 +87,7 @@ class PremiumStatus {
     return PremiumStatus(
       isPremium: json['is_premium'] as bool,
       premiumUntil: until == null ? null : DateTime.parse(until).toLocal(),
+      premiumEnabled: json['premium_enabled'] as bool? ?? true,
       publicId: json['public_id'] as int,
       priceText: json['price_text'] as String? ?? '',
       paymentInstructions: json['payment_instructions'] as String? ?? '',

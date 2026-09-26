@@ -469,6 +469,14 @@ export interface AdminNotification {
 // the last period runs out.
 
 export interface PremiumSettings {
+  /** Master switch. While false, the whole Premium system is suppressed
+   * everywhere -- lesson limits stop applying to anyone, the two
+   * *_premium_only switches below stop mattering, and every Premium
+   * surface in the app (the checkmark, the profile badge, this card,
+   * the Premium/Промокод screens) hides itself, as if Premium didn't
+   * exist. Real grants underneath are never touched -- turning this back
+   * on simply resumes whatever was already true. */
+  premium_enabled: boolean;
   /** null = unlimited. Only lessons a user creates themselves count. */
   free_daily_lesson_limit: number | null;
   free_weekly_lesson_limit: number | null;

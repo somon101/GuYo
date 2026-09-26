@@ -44,6 +44,7 @@ def quota_out(quota: LessonQuota) -> LessonQuotaOut:
 def _settings_out(db: Session) -> PremiumSettingsOut:
     s = get_premium_settings(db)
     return PremiumSettingsOut(
+        premium_enabled=s.premium_enabled,
         free_daily_lesson_limit=s.free_daily_lesson_limit,
         free_weekly_lesson_limit=s.free_weekly_lesson_limit,
         premium_daily_lesson_limit=s.premium_daily_lesson_limit,
@@ -68,6 +69,7 @@ def get_my_premium(db: Session = Depends(get_db), user: User = Depends(get_curre
     return PremiumStatusOut(
         is_premium=quota.is_premium,
         premium_until=quota.premium_until,
+        premium_enabled=settings.premium_enabled,
         public_id=user.public_id,
         price_text=settings.price_text,
         payment_instructions=settings.payment_instructions,
@@ -92,6 +94,7 @@ def update_settings(payload: PremiumSettingsIn, db: Session = Depends(get_db), _
     """A null limit means unlimited. Changing a limit takes effect on the
     very next lesson anyone creates -- nothing already created is touched."""
     s = get_premium_settings(db)
+    s.premium_enabled = payload.premium_enabled
     s.free_daily_lesson_limit = payload.free_daily_lesson_limit
     s.free_weekly_lesson_limit = payload.free_weekly_lesson_limit
     s.premium_daily_lesson_limit = payload.premium_daily_lesson_limit

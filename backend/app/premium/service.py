@@ -84,6 +84,28 @@ def premium_user_ids(db: Session, user_ids: list[int], *, now: datetime | None =
     return {user_id for (user_id,) in rows}
 
 
+def effective_premium_until(db: Session, user: User, *, now: datetime | None = None) -> datetime | None:
+    """The master-switch-aware read for anything that just wants to KNOW/
+    SHOW whether this user is Premium right now (a profile's own
+    premium_until, the checkmark) -- None while the whole system is
+    switched off (see PremiumSettings.premium_enabled), even if a real
+    grant is still running underneath. premium_until itself stays a pure,
+    untouched fact -- grant_premium's own chaining reads that one
+    directly, and must keep seeing the real end date regardless of this
+    switch."""
+    if not get_premium_settings(db).premium_enabled:
+        return None
+    return premium_until(db, user, now=now)
+
+
+def effective_premium_user_ids(db: Session, user_ids: list[int], *, now: datetime | None = None) -> set[int]:
+    """Same master-switch awareness as effective_premium_until, for the
+    batch (leaderboard) case."""
+    if not get_premium_settings(db).premium_enabled:
+        return set()
+    return premium_user_ids(db, user_ids, now=now)
+
+
 def grant_premium(
     db: Session,
     user: User,
@@ -150,8 +172,13 @@ def revoke_premium(db: Session, user: User) -> int:
 def automatic_feature_allowed(db: Session, user: User, feature: str) -> bool:
     """Whether an automatic feature (adaptive lessons, personal quests)
     may run for this user -- always, or only with Premium, as the admin
-    set it in PremiumSettings."""
+    set it in PremiumSettings. The master switch overrides the per-
+    feature setting entirely: while off, both features run for everyone,
+    regardless of what *_premium_only says (see PremiumSettings.
+    premium_enabled's own docstring)."""
     settings = get_premium_settings(db)
+    if not settings.premium_enabled:
+        return True
     premium_only = {
         FEATURE_ADAPTIVE_LESSONS: settings.adaptive_lessons_premium_only,
         FEATURE_PERSONAL_QUESTS: settings.personal_quests_premium_only,
@@ -203,8 +230,22 @@ class LessonQuota:
 
 def lesson_quota(db: Session, user: User) -> LessonQuota:
     settings = get_premium_settings(db)
-    until = premium_until(db, user)
-    premium = until is not None
+    # The master switch (see PremiumSettings.premium_enabled's own
+    # docstring): while off, this is the ONLY place that needs to know --
+    # everyone is unlimited, and Premium itself reads as absent, without
+    # ever touching the real PremiumGrant rows underneath (premium_until
+    # untouched -- see this module's own note on why it must stay a pure,
+    # factual read for grant-chaining elsewhere to still work).
+    if settings.premium_enabled:
+        until = premium_until(db, user)
+        premium = until is not None
+        daily_limit = settings.premium_daily_lesson_limit if premium else settings.free_daily_lesson_limit
+        weekly_limit = settings.premium_weekly_lesson_limit if premium else settings.free_weekly_lesson_limit
+    else:
+        until = None
+        premium = False
+        daily_limit = None
+        weekly_limit = None
     today = dushanbe_today()
     day_start = dushanbe_day_start(today)
     week_start = dushanbe_week_start(today)
@@ -220,9 +261,9 @@ def lesson_quota(db: Session, user: User) -> LessonQuota:
     return LessonQuota(
         is_premium=premium,
         premium_until=until,
-        daily_limit=settings.premium_daily_lesson_limit if premium else settings.free_daily_lesson_limit,
+        daily_limit=daily_limit,
         daily_used=created_since(day_start),
-        weekly_limit=settings.premium_weekly_lesson_limit if premium else settings.free_weekly_lesson_limit,
+        weekly_limit=weekly_limit,
         weekly_used=created_since(week_start),
         next_day_starts_at=dushanbe_day_start(today + timedelta(days=1)),
         next_week_starts_at=week_start + timedelta(days=7),

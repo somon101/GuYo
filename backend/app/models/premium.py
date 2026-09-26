@@ -63,6 +63,17 @@ class PremiumSettings(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
+    # Master kill switch: while False, the whole Premium system is
+    # suppressed everywhere -- lesson limits stop applying to anyone
+    # (unlimited for all, free or Premium alike), adaptive lessons/
+    # personal quests run for everyone regardless of the two *_premium_only
+    # switches below, and every user-facing "is this person Premium"
+    # signal (the checkmark, the profile badge, this card's own "Уроки без
+    # ограничений" line) is suppressed too -- exactly as if Premium didn't
+    # exist. Real PremiumGrant rows are never touched by this: flipping it
+    # back on simply resumes whatever was already true underneath.
+    premium_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+
     free_daily_lesson_limit: Mapped[int | None] = mapped_column(Integer, nullable=True, default=3, server_default="3")
     free_weekly_lesson_limit: Mapped[int | None] = mapped_column(Integer, nullable=True, default=10, server_default="10")
     premium_daily_lesson_limit: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)

@@ -439,6 +439,25 @@ function SettingsForm() {
         error ? <p className="text-sm text-red-600">{error}</p> : <p className="text-sm text-slate-500">Загрузка…</p>
       ) : (
         <>
+          <label className="mb-5 flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-4">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4"
+              checked={settings.premium_enabled}
+              onChange={(e) => setSettings({ ...settings, premium_enabled: e.target.checked })}
+            />
+            <span>
+              <span className="block text-sm font-semibold text-slate-900">Premium включён</span>
+              <span className="mt-0.5 block text-sm text-slate-600">
+                Выключи, если хочешь временно убрать Premium совсем — лимиты уроков перестанут действовать для
+                всех, автоуроки и персональные квесты будут работать для всех независимо от переключателей ниже, а
+                галочка, бейдж, карточка и экраны Premium/Промокод исчезнут из приложения — как будто Premium не
+                существует. Реальные выданные периоды при этом никуда не пропадают: включишь обратно — всё
+                вернётся как было.
+              </span>
+            </span>
+          </label>
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <fieldset className="rounded-md border border-slate-200 p-4">
               <legend className="px-1 text-sm font-medium text-slate-700">Без подписки</legend>
