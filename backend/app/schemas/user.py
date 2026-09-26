@@ -1,6 +1,17 @@
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+# The fixed option sets self-registration's own steps offer -- a plain
+# Literal (not an admin-configurable table like WordLevel/Quest elsewhere
+# in this codebase) because the spec treats these as a closed, known set
+# a future change edits here in code, not something an admin tunes at
+# runtime. Values are what the client sends; the Russian labels are the
+# client's own concern (see mobile/lib/screens/register_screen.dart).
+AgeGroup = Literal["12-17", "18-24", "25+"]
+LearningGoal = Literal["study", "work", "communication", "travel", "relocation", "personal", "other"]
+ReferralSource = Literal["social", "youtube", "telegram", "search", "friends", "ads", "other"]
 
 
 def normalize_email(value: str) -> str:
@@ -39,6 +50,42 @@ class UserCreate(BaseModel):
     @classmethod
     def _check_email(cls, value: str) -> str:
         return normalize_email(value)
+
+
+class RegisterIn(BaseModel):
+    """Self-registration, from the app's own multi-step sign-up (see
+    mobile/lib/screens/register_screen.dart) -- everything UserCreate
+    needs, plus the confirmation field this endpoint alone checks, plus
+    the three profile choices and the chosen learning language. Not a
+    parallel account-creation path: app/routers/auth.py's register_user
+    builds the exact same User row admin_router's create_user does."""
+
+    login: str = Field(min_length=3, max_length=64)
+    password: str = Field(min_length=4, max_length=128)
+    password_confirm: str = Field(min_length=4, max_length=128)
+    first_name: str = Field(min_length=1, max_length=100)
+    last_name: str = Field(min_length=1, max_length=100)
+    email: str = Field(min_length=3, max_length=255)
+    # A Dictionary.language code (e.g. "en") from GET /dictionaries/public
+    # -- never validated against that list here, same trust boundary as
+    # every other dictionary_id/language a logged-in request already
+    # sends; worst case an unrecognized code just never matches a
+    # dictionary later, exactly like it would for an existing account.
+    learning_language: str = Field(min_length=1, max_length=16)
+    age_group: AgeGroup
+    learning_goal: LearningGoal
+    referral_source: ReferralSource
+
+    @field_validator("email")
+    @classmethod
+    def _check_email(cls, value: str) -> str:
+        return normalize_email(value)
+
+    @model_validator(mode="after")
+    def _check_passwords_match(self) -> "RegisterIn":
+        if self.password != self.password_confirm:
+            raise ValueError("Пароли не совпадают")
+        return self
 
 
 class UserUpdateIn(BaseModel):
@@ -107,3 +154,10 @@ class UserProfileOut(BaseModel):
     # Null when the user doesn't have GuYo Premium right now -- see
     # app/premium/service.py's premium_until, the one definition of it.
     premium_until: datetime | None = None
+    # Collected once at self-registration; null on any account made
+    # another way. Not shown/edited anywhere in the app yet -- kept here
+    # so that becomes possible later without another migration.
+    learning_language: str | None = None
+    age_group: str | None = None
+    learning_goal: str | None = None
+    referral_source: str | None = None

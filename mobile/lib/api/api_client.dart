@@ -130,6 +130,56 @@ class ApiClient {
     await clearToken();
   }
 
+  /// The published-language list for the sign-up wizard's first step --
+  /// reachable with no token at all (there is no account yet), unlike
+  /// [fetchDictionaries] below which this deliberately does not touch or
+  /// duplicate the logic of otherwise (same published-only list, just a
+  /// route that doesn't require being logged in already -- see backend
+  /// GET /dictionaries/public).
+  Future<List<GuyoDictionary>> fetchPublicDictionaries() async {
+    final res = await http.get(_uri('/dictionaries/public'), headers: {'Content-Type': 'application/json'});
+    await _throwIfUnauthorized(res);
+    final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
+    return list.map((e) => GuyoDictionary.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// Self-registration through the sign-up wizard -- creates the account
+  /// and logs it in immediately, same token shape [login] itself saves.
+  /// Throws with the backend's own message on conflict (login/email
+  /// already taken).
+  Future<void> register({
+    required String login,
+    required String password,
+    required String passwordConfirm,
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String learningLanguage,
+    required String ageGroup,
+    required String learningGoal,
+    required String referralSource,
+  }) async {
+    final res = await http.post(
+      _uri('/auth/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'login': login,
+        'password': password,
+        'password_confirm': passwordConfirm,
+        'first_name': firstName,
+        'last_name': lastName,
+        'email': email,
+        'learning_language': learningLanguage,
+        'age_group': ageGroup,
+        'learning_goal': learningGoal,
+        'referral_source': referralSource,
+      }),
+    );
+    await _throwWithDetail(res);
+    final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    await _saveToken(data['access_token'] as String);
+  }
+
   Future<List<GuyoDictionary>> fetchDictionaries() async {
     final res = await http.get(_uri('/dictionaries'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);

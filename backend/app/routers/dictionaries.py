@@ -45,6 +45,31 @@ def list_dictionaries(db: Session = Depends(get_db), principal: Principal = Depe
     return result
 
 
+@router.get("/public", response_model=list[DictionaryOut])
+def list_public_dictionaries(db: Session = Depends(get_db)):
+    """The SAME published-dictionary list list_dictionaries above already
+    returns to a regular user -- but reachable with no token at all, for
+    self-registration's own language-choice step (see auth.py's
+    register_user), which by definition runs before any account/token
+    exists. Deliberately skips list_dictionaries' record_activity side
+    effect (there's no user yet to record it for) -- everything else
+    (published-only, the same word_count join) is identical, never a
+    second notion of "which languages exist"."""
+    query = (
+        db.query(Dictionary, func.count(Word.id))
+        .outerjoin(Word, Word.dictionary_id == Dictionary.id)
+        .filter(Dictionary.is_published.is_(True))
+    )
+    rows = query.group_by(Dictionary.id).order_by(Dictionary.id).all()
+
+    result = []
+    for dictionary, word_count in rows:
+        out = DictionaryOut.model_validate(dictionary)
+        out.word_count = word_count
+        result.append(out)
+    return result
+
+
 @router.post("", response_model=DictionaryOut, status_code=status.HTTP_201_CREATED)
 def create_dictionary(
     payload: DictionaryCreate, db: Session = Depends(get_db), _admin=Depends(get_current_admin)

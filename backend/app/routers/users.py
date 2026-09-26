@@ -52,6 +52,47 @@ def list_users(db: Session = Depends(get_db), _admin: Admin = Depends(get_curren
     return db.query(User).order_by(User.id).all()
 
 
+def new_user_row(
+    db: Session,
+    *,
+    login: str,
+    password: str,
+    first_name: str,
+    last_name: str,
+    email: str,
+    learning_language: str | None = None,
+    age_group: str | None = None,
+    learning_goal: str | None = None,
+    referral_source: str | None = None,
+) -> User:
+    """The one place a User row is ever built -- admin_router's
+    create_user below and auth.py's public register_user both call this,
+    so "is this login/email already taken" and the 9-digit id can never
+    drift between the two entry points. Does not commit; the caller owns
+    the transaction (register_user also needs the row's id for the token
+    it issues right after)."""
+    if db.query(User).filter(User.login == login).first() is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Login already taken")
+    if db.query(User).filter(User.email == email).first() is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Этот адрес почты уже занят")
+
+    user = User(
+        public_id=generate_public_id(db),
+        login=login,
+        password_hash=hash_password(password),
+        first_name=first_name.strip(),
+        last_name=last_name.strip(),
+        email=email,
+        learning_language=learning_language,
+        age_group=age_group,
+        learning_goal=learning_goal,
+        referral_source=referral_source,
+    )
+    db.add(user)
+    db.flush()
+    return user
+
+
 @router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def create_user(payload: UserCreate, db: Session = Depends(get_db), _admin: Admin = Depends(get_current_admin)):
     """Creates an account. Name, surname and email are required here and
@@ -60,20 +101,14 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db), _admin: Admi
 
     The 9-digit account number is generated, never supplied: it is the
     user's permanent public identity and nobody gets to pick it."""
-    if db.query(User).filter(User.login == payload.login).first() is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Login already taken")
-    if db.query(User).filter(User.email == payload.email).first() is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Этот адрес почты уже занят")
-
-    user = User(
-        public_id=generate_public_id(db),
+    user = new_user_row(
+        db,
         login=payload.login,
-        password_hash=hash_password(payload.password),
-        first_name=payload.first_name.strip(),
-        last_name=payload.last_name.strip(),
+        password=payload.password,
+        first_name=payload.first_name,
+        last_name=payload.last_name,
         email=payload.email,
     )
-    db.add(user)
     db.commit()
     db.refresh(user)
     return user
@@ -113,6 +148,10 @@ def _profile_out(db: Session, user: User) -> UserProfileOut:
         lessons_completed=lessons_completed_count(db, user),
         words_learned=words_learned_count(db, user),
         premium_until=effective_premium_until(db, user),
+        learning_language=user.learning_language,
+        age_group=user.age_group,
+        learning_goal=user.learning_goal,
+        referral_source=user.referral_source,
     )
 
 
