@@ -83,6 +83,9 @@ class LeaderboardEntry {
   final RankSummary? rank;
   final bool isMe;
 
+  /// Draws the Premium checkmark next to the name.
+  final bool isPremium;
+
   LeaderboardEntry({
     required this.position,
     required this.userId,
@@ -91,6 +94,7 @@ class LeaderboardEntry {
     required this.totalPoints,
     required this.rank,
     required this.isMe,
+    this.isPremium = false,
   });
 
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) {
@@ -102,6 +106,7 @@ class LeaderboardEntry {
       totalPoints: json['total_points'] as int,
       rank: json['rank'] == null ? null : RankSummary.fromJson(json['rank'] as Map<String, dynamic>),
       isMe: json['is_me'] as bool,
+      isPremium: json['is_premium'] as bool? ?? false,
     );
   }
 }

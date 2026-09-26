@@ -10,6 +10,7 @@ from app.premium.service import (
     is_premium,
     lesson_quota,
     premium_until,
+    premium_user_ids,
     revoke_premium,
 )
 
@@ -25,5 +26,6 @@ __all__ = [
     "is_premium",
     "lesson_quota",
     "premium_until",
+    "premium_user_ids",
     "revoke_premium",
 ]

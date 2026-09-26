@@ -4,6 +4,7 @@ import '../models/user_rating.dart';
 import '../theme/app_colors.dart';
 import '../widgets/rank_icon.dart';
 import '../widgets/user_avatar.dart';
+import '../widgets/user_name.dart';
 import 'all_ranks_screen.dart';
 
 /// "Рейтинг" tab: shows only the leaderboard of the user's OWN current
@@ -359,11 +360,10 @@ class _PodiumPlace extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          Text(
+          UserNameText(
             person.login,
+            isPremium: person.isPremium,
             textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: isFirst ? 15 : 13,
               fontWeight: FontWeight.w800,
@@ -551,15 +551,17 @@ class LeaderboardRow extends StatelessWidget {
             UserAvatar(avatarUrl: entry.avatarUrl, login: entry.login, size: 36),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                entry.login,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: entry.isMe ? FontWeight.w800 : FontWeight.w600,
-                  color: AppColors.primaryDark,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: UserNameText(
+                  entry.login,
+                  isPremium: entry.isPremium,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: entry.isMe ? FontWeight.w800 : FontWeight.w600,
+                    color: AppColors.primaryDark,
+                  ),
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ),
             if (showRank && rowRank != null) ...[

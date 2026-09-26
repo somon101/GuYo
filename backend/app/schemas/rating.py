@@ -145,6 +145,8 @@ class LeaderboardEntryOut(BaseModel):
     total_points: int
     rank: RankPublicOut | None
     is_me: bool
+    # Draws the Premium checkmark next to the name.
+    is_premium: bool = False
 
 
 class LeaderboardOut(BaseModel):

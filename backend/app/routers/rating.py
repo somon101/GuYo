@@ -12,6 +12,7 @@ from app.core.storage import url_for_key
 from app.database import get_db
 from app.models.rating import UserRating
 from app.models.user import User
+from app.premium import premium_user_ids
 from app.rating import (
     current_rank_for_points,
     get_or_create_user_rating,
@@ -27,6 +28,7 @@ router = APIRouter(prefix="/rating", tags=["rating"])
 def _entries_out(db: Session, ratings: list[UserRating], me: User, with_rank: bool) -> list[LeaderboardEntryOut]:
     user_ids = [r.user_id for r in ratings]
     users = {u.id: u for u in db.query(User).filter(User.id.in_(user_ids)).all()}
+    premium_ids = premium_user_ids(db, user_ids)
 
     # Every rank fetched once, not per row -- current_rank_for_points
     # itself queries the DB, and a global board can be up to 100 rows.
@@ -53,6 +55,7 @@ def _entries_out(db: Session, ratings: list[UserRating], me: User, with_rank: bo
                 total_points=rating.total_points,
                 rank=rank_for(rating.total_points),
                 is_me=user.id == me.id,
+                is_premium=user.id in premium_ids,
             )
         )
     return entries

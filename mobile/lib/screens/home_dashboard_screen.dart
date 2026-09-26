@@ -9,6 +9,7 @@ import '../theme/time_of_day.dart';
 import '../widgets/premium_ui.dart';
 import '../widgets/quest_ui.dart';
 import '../widgets/user_avatar.dart';
+import '../widgets/user_name.dart';
 import 'season_quests_screen.dart';
 
 /// The app's own slogan fetch, as a plain function so the default
@@ -198,15 +199,14 @@ class _Greeting extends StatelessWidget {
               Row(
                 children: [
                   Flexible(
-                    child: Text(
+                    child: UserNameText(
                       login.isEmpty ? 'Привет!' : 'Привет, $login',
+                      isPremium: profile?.isPremium ?? false,
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: AppColors.primaryDark,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const SizedBox(width: 6),

@@ -62,6 +62,28 @@ def is_premium(db: Session, user: User, *, now: datetime | None = None) -> bool:
     return premium_until(db, user, now=now) is not None
 
 
+def premium_user_ids(db: Session, user_ids: list[int], *, now: datetime | None = None) -> set[int]:
+    """Which of these users have Premium right now -- one query for a
+    whole list, for every screen that shows other people's names (the
+    rating boards today) and draws the Premium checkmark next to them.
+    Same rule as premium_until: a non-revoked grant covering "now"."""
+    if not user_ids:
+        return set()
+    now = now or utc_now()
+    rows = (
+        db.query(PremiumGrant.user_id)
+        .filter(
+            PremiumGrant.user_id.in_(user_ids),
+            PremiumGrant.revoked_at.is_(None),
+            PremiumGrant.starts_at <= now,
+            PremiumGrant.ends_at > now,
+        )
+        .distinct()
+        .all()
+    )
+    return {user_id for (user_id,) in rows}
+
+
 def grant_premium(
     db: Session,
     user: User,

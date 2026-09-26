@@ -10,11 +10,12 @@ import '../models/dictionary.dart';
 import '../models/user_profile.dart';
 import '../models/user_rating.dart';
 import '../theme/app_colors.dart';
-import '../widgets/premium_ui.dart';
 import '../widgets/achievement_icon.dart';
+import '../widgets/premium_ui.dart';
 import '../widgets/rank_icon.dart';
 import '../widgets/remote_image.dart';
 import '../widgets/user_avatar.dart';
+import '../widgets/user_name.dart';
 import 'achievements_screen.dart';
 import 'all_ranks_screen.dart';
 import 'learned_words_screen.dart';
@@ -531,10 +532,10 @@ class _ProfileHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              UserNameText(
                 profile.login,
+                isPremium: profile.isPremium,
                 style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
-                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 2),
               // The 9-digit account number -- `id` is internal and never
