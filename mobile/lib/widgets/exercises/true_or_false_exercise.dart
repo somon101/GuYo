@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../api/api_client.dart';
 import '../../models/exercise.dart';
+import '../../services/answer_sound.dart';
 import '../../theme/app_colors.dart';
 import '../audio_button.dart';
 import '../remote_image.dart';
@@ -51,6 +52,7 @@ class _TrueOrFalseExerciseState extends State<TrueOrFalseExercise> {
       _isLocked = true;
       _reveal = correct;
     });
+    AnswerSound.play(correct);
     Future.delayed(const Duration(milliseconds: 550), () {
       if (mounted) widget.onAnswer(correct);
     });

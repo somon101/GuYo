@@ -4,6 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../../api/api_client.dart';
 import '../../models/lesson.dart';
+import '../../services/answer_sound.dart';
 import '../../theme/app_colors.dart';
 import 'choice_tile.dart';
 
@@ -70,6 +71,7 @@ class _ListenWordExerciseState extends State<ListenWordExercise> {
       _selected = option;
       _isLocked = true;
     });
+    AnswerSound.play(correct);
     Future.delayed(const Duration(milliseconds: 550), () {
       if (mounted) widget.onAnswer(correct);
     });

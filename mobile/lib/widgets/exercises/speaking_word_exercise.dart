@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../../models/lesson.dart';
+import '../../services/answer_sound.dart';
 import '../../theme/app_colors.dart';
 import '../remote_image.dart';
 
@@ -118,6 +119,7 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
       _isCorrect = correct;
       _micState = _MicState.result;
     });
+    AnswerSound.play(correct);
     await Future.delayed(const Duration(milliseconds: 1100));
     if (mounted) widget.onAnswer(correct);
   }

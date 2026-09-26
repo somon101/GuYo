@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../api/api_client.dart';
 import '../../models/exercise.dart';
+import '../../services/answer_sound.dart';
 import '../../theme/app_colors.dart';
 import '../audio_button.dart';
 
@@ -123,6 +124,7 @@ class _BuildWordExerciseState extends State<BuildWordExercise> {
       _slotColors = colors;
       _isLocked = true;
     });
+    AnswerSound.play(allCorrect);
     Future.delayed(const Duration(milliseconds: 550), () {
       if (mounted) widget.onAnswer(allCorrect);
     });

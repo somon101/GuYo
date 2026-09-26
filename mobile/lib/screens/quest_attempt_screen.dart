@@ -5,6 +5,7 @@ import '../models/exercise.dart';
 import '../models/lesson.dart';
 import '../models/quest.dart';
 import '../models/word.dart';
+import '../services/answer_sound.dart';
 import '../theme/app_colors.dart';
 import '../widgets/exercises/build_word_exercise.dart';
 import '../widgets/exercises/choice_tile.dart';
@@ -251,6 +252,7 @@ class _MatchingQuestState extends State<_MatchingQuest> {
       _selected = option;
       _locked = true;
     });
+    AnswerSound.play(correct);
     Future.delayed(const Duration(milliseconds: 550), () {
       if (mounted) widget.onAnswer(correct);
     });

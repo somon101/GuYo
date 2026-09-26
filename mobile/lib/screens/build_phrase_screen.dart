@@ -6,6 +6,7 @@ import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../models/phrase.dart';
 import '../models/word.dart';
+import '../services/answer_sound.dart';
 import '../widgets/glass_backdrop.dart';
 
 /// Max phrases per practice round -- a bite-sized session, not "grind
@@ -186,6 +187,7 @@ class _BuildPhraseScreenState extends State<BuildPhraseScreen> {
       _isLocked = true;
       if (correct) _correctCount++;
     });
+    AnswerSound.play(correct);
     Future.delayed(const Duration(milliseconds: 650), () {
       if (!mounted) return;
       setState(() {

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../models/phrase.dart';
+import '../services/answer_sound.dart';
 import '../widgets/glass_backdrop.dart';
 
 const int _roundSize = 10;
@@ -185,6 +186,7 @@ class _BuildPhraseByEarScreenState extends State<BuildPhraseByEarScreen> {
       _isLocked = true;
       if (correct) _correctCount++;
     });
+    AnswerSound.play(correct);
     Future.delayed(const Duration(milliseconds: 950), () {
       if (!mounted) return;
       _advance();

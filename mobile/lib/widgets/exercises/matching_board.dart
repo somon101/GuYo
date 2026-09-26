@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../api/api_client.dart';
 import '../../models/word.dart';
+import '../../services/answer_sound.dart';
 import '../../theme/app_colors.dart';
 import '../audio_button.dart';
 import '../guyo_ui.dart';
@@ -83,6 +84,7 @@ class _MatchingBoardState extends State<MatchingBoard> {
     // The only rule that matters: do the two selected cards share the same
     // underlying word_id? Never compare the displayed text.
     final isCorrect = leftId == rightId;
+    AnswerSound.play(isCorrect);
     widget.onAttempt?.call(leftId, isCorrect);
 
     if (isCorrect) {
