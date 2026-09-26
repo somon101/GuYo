@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../theme/app_colors.dart';
+import '../widgets/premium_ui.dart';
 import 'home_dashboard_screen.dart';
 import 'lessons_screen.dart';
 import 'login_screen.dart';
@@ -331,9 +332,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           PopupMenuButton<String>(
             tooltip: 'Ещё',
             onSelected: (value) {
+              if (value == 'promo') openPromoScreen(context);
               if (value == 'logout') _logout();
             },
             itemBuilder: (context) => const [
+              PopupMenuItem(value: 'promo', child: Text('Промокод')),
               PopupMenuItem(value: 'logout', child: Text('Выйти')),
             ],
           ),

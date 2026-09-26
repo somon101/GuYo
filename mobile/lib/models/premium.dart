@@ -88,6 +88,38 @@ class PremiumStatus {
   }
 }
 
+/// What POST /promo/redeem gave: how many days, and until when Premium
+/// now runs. `message` is the backend's own ready-to-show sentence.
+class PromoResult {
+  final int days;
+  final DateTime premiumUntil;
+
+  /// "code" or "link".
+  final String kind;
+
+  /// True when this was the user's first video link -- the bigger reward.
+  final bool isFirstLink;
+  final String message;
+
+  const PromoResult({
+    required this.days,
+    required this.premiumUntil,
+    required this.kind,
+    required this.isFirstLink,
+    required this.message,
+  });
+
+  factory PromoResult.fromJson(Map<String, dynamic> json) {
+    return PromoResult(
+      days: json['days'] as int,
+      premiumUntil: DateTime.parse(json['premium_until'] as String).toLocal(),
+      kind: json['kind'] as String,
+      isFirstLink: json['is_first_link'] as bool? ?? false,
+      message: json['message'] as String,
+    );
+  }
+}
+
 /// "26.09.2026" -- the one date format Premium texts use.
 String formatPremiumDate(DateTime date) {
   String two(int n) => n.toString().padLeft(2, '0');

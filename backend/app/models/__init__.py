@@ -19,6 +19,7 @@ from app.models.notification import Notification
 from app.models.quest import Quest, QuestWord, UserQuestWordDay
 from app.models.slogan import Slogan, UserDailySlogan
 from app.models.premium import PremiumGrant, PremiumSettings
+from app.models.promo import PromoActivation, PromoCode, PromoLink
 
 __all__ = [
     "Admin",
@@ -62,5 +63,8 @@ __all__ = [
     "UserDailySlogan",
     "PremiumGrant",
     "PremiumSettings",
+    "PromoActivation",
+    "PromoCode",
+    "PromoLink",
     "UserQuestWordDay",
 ]

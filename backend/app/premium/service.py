@@ -70,10 +70,14 @@ def grant_premium(
     note: str | None = None,
     admin: Admin | None = None,
     source: str = GRANT_SOURCE_ADMIN,
+    reason: str = "Спасибо за поддержку!",
 ) -> PremiumGrant:
     """Adds `days` of Premium. If the user already has it, the new period
     starts where the current one ends -- paying again while subscribed
     extends, never overlaps and wastes days.
+
+    `reason` opens the notification the user gets ("Промокод активирован:
+    +30 дней."), followed by the new end date.
 
     Also tells the user, through the same send_notification every other
     message goes through. Does NOT commit: the caller owns the
@@ -102,7 +106,7 @@ def grant_premium(
     send_notification(
         db,
         user,
-        f"Спасибо за поддержку! GuYo Premium активен до {until}.",
+        f"{reason} GuYo Premium активен до {until}.",
         title="GuYo Premium",
         source=NOTIFICATION_SOURCE_PREMIUM,
     )

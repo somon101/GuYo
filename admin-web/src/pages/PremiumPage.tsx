@@ -186,7 +186,9 @@ export function PremiumPage() {
                       {g.revoked_at && <span className="ml-2 text-xs">(отключён {formatDate(g.revoked_at)})</span>}
                     </td>
                     <td className="max-w-xs px-4 py-3">{g.note ?? "—"}</td>
-                    <td className="px-4 py-3">{g.granted_by_admin_login ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      {g.source === "promo" ? "промокод" : (g.granted_by_admin_login ?? "—")}
+                    </td>
                   </tr>
                 ))}
               </tbody>

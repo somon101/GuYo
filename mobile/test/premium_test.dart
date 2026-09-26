@@ -61,6 +61,21 @@ void main() {
     expect(status.lessons.remaining, isNull);
   });
 
+  test('a promo activation result', () {
+    final result = PromoResult.fromJson({
+      'days': 90,
+      'premium_until': '2026-12-25T10:00:00Z',
+      'kind': 'link',
+      'is_first_link': true,
+      'message': '+90 дн. GuYo Premium. Premium активен до 25.12.2026.',
+    });
+
+    expect(result.days, 90);
+    expect(result.kind, 'link');
+    expect(result.isFirstLink, isTrue);
+    expect(result.premiumUntil.isUtc, isFalse);
+  });
+
   test('dates read as dd.mm.yyyy', () {
     expect(formatPremiumDate(DateTime(2026, 3, 5)), '05.03.2026');
   });

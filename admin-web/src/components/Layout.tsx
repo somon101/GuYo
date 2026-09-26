@@ -13,6 +13,7 @@ const navItems = [
   { to: "/slogans", label: "Слоганы" },
   { to: "/notifications", label: "Уведомления" },
   { to: "/premium", label: "Premium" },
+  { to: "/promo", label: "Промокоды" },
   { to: "/analytics", label: "Аналитика" },
 ];
 

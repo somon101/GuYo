@@ -1,5 +1,9 @@
 import { api } from "./client";
 import type {
+  PromoActivation,
+  PromoCode,
+  PromoLink,
+  PromoSettings,
   PremiumGrant,
   PremiumSettings,
   PremiumUser,
@@ -1075,4 +1079,77 @@ export async function grantPremium(userId: number, input: { days: number; note?:
 
 export async function revokePremium(userId: number): Promise<void> {
   await api.post(`/admin/premium/users/${userId}/revoke`);
+}
+
+// --- Промокоды -----------------------------------------------------------------
+
+export interface PromoCodeInput {
+  code: string;
+  days: number;
+  enabled: boolean;
+  expires_at: string | null;
+  max_activations: number | null;
+  note: string | null;
+}
+
+export async function listPromoCodes(): Promise<PromoCode[]> {
+  const { data } = await api.get("/admin/promo/codes");
+  return data;
+}
+
+export async function createPromoCode(input: PromoCodeInput): Promise<PromoCode> {
+  const { data } = await api.post("/admin/promo/codes", input);
+  return data;
+}
+
+// Only the fields passed are changed; null expires_at/max_activations
+// removes that restriction.
+export async function updatePromoCode(id: number, input: Partial<PromoCodeInput>): Promise<PromoCode> {
+  const { data } = await api.patch(`/admin/promo/codes/${id}`, input);
+  return data;
+}
+
+export async function deletePromoCode(id: number): Promise<void> {
+  await api.delete(`/admin/promo/codes/${id}`);
+}
+
+export interface PromoLinkInput {
+  url: string;
+  title: string | null;
+  repeat_days: number | null;
+  enabled: boolean;
+}
+
+export async function listPromoLinks(): Promise<PromoLink[]> {
+  const { data } = await api.get("/admin/promo/links");
+  return data;
+}
+
+export async function createPromoLink(input: PromoLinkInput): Promise<PromoLink> {
+  const { data } = await api.post("/admin/promo/links", input);
+  return data;
+}
+
+export async function updatePromoLink(id: number, input: Partial<PromoLinkInput>): Promise<PromoLink> {
+  const { data } = await api.patch(`/admin/promo/links/${id}`, input);
+  return data;
+}
+
+export async function deletePromoLink(id: number): Promise<void> {
+  await api.delete(`/admin/promo/links/${id}`);
+}
+
+export async function getPromoSettings(): Promise<PromoSettings> {
+  const { data } = await api.get("/admin/promo/settings");
+  return data;
+}
+
+export async function updatePromoSettings(input: PromoSettings): Promise<PromoSettings> {
+  const { data } = await api.put("/admin/promo/settings", input);
+  return data;
+}
+
+export async function listPromoActivations(): Promise<PromoActivation[]> {
+  const { data } = await api.get("/admin/promo/activations");
+  return data;
 }

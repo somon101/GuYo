@@ -5,8 +5,8 @@ finds them by their 9-digit account number in Admin Web and grants a
 period. Nothing here talks to a payment provider, and nothing needs to for
 an automatic channel (Google Play, a local wallet) to be added later: it
 would be one more caller of app/premium/service.py's grant_premium,
-stamping its own `source`, exactly like a future automatic notification
-is one more caller of send_notification.
+stamping its own `source` -- exactly as promo codes already do (see
+app/promo/service.py).
 
 Premium is never a stored flag. A user has it while at least one
 non-revoked PremiumGrant covers "now" -- so it ends on its own the moment
@@ -25,6 +25,8 @@ from app.database import Base
 # Notification.source: a future payment channel adds its own value
 # without a schema migration. Only the admin granting by hand exists today.
 GRANT_SOURCE_ADMIN = "admin"
+# A promo code or promo link (app/promo/service.py).
+GRANT_SOURCE_PROMO = "promo"
 
 
 class PremiumSettings(Base):
@@ -55,6 +57,8 @@ class PremiumSettings(Base):
         CheckConstraint(
             "premium_weekly_lesson_limit IS NULL OR premium_weekly_lesson_limit >= 0", name="ck_premium_premium_weekly"
         ),
+        CheckConstraint("promo_link_first_days > 0", name="ck_premium_promo_first_days"),
+        CheckConstraint("promo_link_repeat_days > 0", name="ck_premium_promo_repeat_days"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -70,6 +74,12 @@ class PremiumSettings(Base):
     personal_quests_premium_only: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="true"
     )
+
+    # Promo links (app/models/promo.py): a user's FIRST link gives this
+    # many days, every later link gives its own repeat_days or, when it
+    # has none, promo_link_repeat_days.
+    promo_link_first_days: Mapped[int] = mapped_column(Integer, nullable=False, default=90, server_default="90")
+    promo_link_repeat_days: Mapped[int] = mapped_column(Integer, nullable=False, default=5, server_default="5")
 
     price_text: Mapped[str] = mapped_column(String(200), nullable=False, default="", server_default="")
     payment_instructions: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")

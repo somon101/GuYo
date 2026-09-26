@@ -85,7 +85,7 @@ def delete_user(user_id: int, db: Session = Depends(get_db), _admin: Admin = Dep
     other table's own user_id column is declared ondelete="CASCADE"
     (UserRating, WordProgress, Lesson/LessonWord/LessonExercise,
     UserAchievement, SeasonHistory, UserQuestWordDay, LearningSession,
-    UserDailySlogan, Notification, PremiumGrant, ...),
+    UserDailySlogan, Notification, PremiumGrant, PromoActivation, ...),
     so this one delete is enough; nothing here re-implements that cleanup
     by hand. Mainly for removing test/bot accounts (e.g. ones seeded to
     exercise the rating ladder) without leaving orphaned rows anywhere --

@@ -562,6 +562,21 @@ class ApiClient {
     return PremiumStatus.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
+  /// Activates a promo code or a pasted video link -- one field for both,
+  /// the backend tells them apart. Fails with the backend's own message
+  /// (no such code, already used, expired...).
+  Future<PromoResult> redeemPromo(String code) async {
+    final res = await http.post(
+      _uri('/promo/redeem'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'code': code}),
+    );
+    await _throwWithDetail(res);
+    // Premium may have just started, lifting the lesson limit.
+    lessonQuotaRevision.value++;
+    return PromoResult.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
   /// Everything in this user's inbox, newest first, with the unread count
   /// the bell's dot is drawn from.
   Future<NotificationInbox> fetchNotifications() async {

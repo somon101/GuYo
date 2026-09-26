@@ -5,6 +5,7 @@ import '../api/api_client.dart';
 import '../models/premium.dart';
 import '../theme/app_colors.dart';
 import '../widgets/guyo_ui.dart';
+import '../widgets/premium_ui.dart';
 
 /// "GuYo Premium": what it gives, whether the user has it, and how to pay.
 ///
@@ -71,7 +72,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   ),
                 ],
               )
-            : _Body(status: status),
+            : _Body(status: status, onPromoUsed: _load),
       ),
     );
   }
@@ -79,7 +80,12 @@ class _PremiumScreenState extends State<PremiumScreen> {
 
 class _Body extends StatelessWidget {
   final PremiumStatus status;
-  const _Body({required this.status});
+
+  /// Called after returning from the promo screen, which may have just
+  /// started or extended Premium.
+  final VoidCallback onPromoUsed;
+
+  const _Body({required this.status, required this.onPromoUsed});
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +93,19 @@ class _Body extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
       children: [
         _StatusHeader(status: status),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () async {
+              await openPromoScreen(context);
+              onPromoUsed();
+            },
+            icon: const Icon(Icons.confirmation_number_rounded, size: 18),
+            label: const Text('Есть промокод или ссылка на видео?'),
+          ),
+        ),
+        const SizedBox(height: 4),
         _Benefits(status: status),
         if (!status.isPremium || status.priceText.isNotEmpty) ...[
           const SizedBox(height: 14),

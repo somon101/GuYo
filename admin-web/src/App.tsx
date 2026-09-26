@@ -7,6 +7,7 @@ import { UsersPage } from "./pages/UsersPage";
 import { SlogansPage } from "./pages/SlogansPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { PremiumPage } from "./pages/PremiumPage";
+import { PromoPage } from "./pages/PromoPage";
 import { DictionariesPage } from "./pages/DictionariesPage";
 import { DictionaryDetailPage } from "./pages/DictionaryDetailPage";
 import { WordsListPage } from "./pages/WordsListPage";
@@ -254,6 +255,16 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <PremiumPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/promo"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <PromoPage />
                 </Layout>
               </ProtectedRoute>
             }

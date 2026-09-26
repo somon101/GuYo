@@ -503,3 +503,49 @@ export interface PremiumGrant {
   revoked_at: string | null;
   created_at: string;
 }
+
+// --- Промокоды -----------------------------------------------------------------
+// Two ways to get Premium days without paying. Codes are stored upper-cased,
+// so "guyo2026" and "GUYO2026" are one code. Links are matched by the video
+// they point to, not by their exact text.
+
+export interface PromoCode {
+  id: number;
+  code: string;
+  days: number;
+  enabled: boolean;
+  expires_at: string | null;
+  max_activations: number | null;
+  note: string | null;
+  activations: number;
+  created_at: string;
+}
+
+export interface PromoLink {
+  id: number;
+  url: string;
+  title: string | null;
+  /** Days for a user's 2nd, 3rd... link; null = the global repeat reward. */
+  repeat_days: number | null;
+  enabled: boolean;
+  activations: number;
+  created_at: string;
+}
+
+export interface PromoSettings {
+  promo_link_first_days: number;
+  promo_link_repeat_days: number;
+}
+
+export interface PromoActivation {
+  id: number;
+  user_id: number;
+  user_login: string;
+  user_public_id: number;
+  promo_code_id: number | null;
+  promo_link_id: number | null;
+  label: string;
+  days: number;
+  is_first_link: boolean;
+  created_at: string;
+}

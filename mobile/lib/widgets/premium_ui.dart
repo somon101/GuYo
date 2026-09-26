@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/premium.dart';
 import '../screens/premium_screen.dart';
+import '../screens/promo_screen.dart';
 import '../theme/app_colors.dart';
 import 'guyo_ui.dart';
 
@@ -10,6 +11,12 @@ import 'guyo_ui.dart';
 /// the lesson-limit dialog and the profile badge alike.
 Future<void> openPremiumScreen(BuildContext context) {
   return Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PremiumScreen()));
+}
+
+/// Opens the "Промокод" screen -- from the app bar's "⋮" menu and from
+/// the Premium screen.
+Future<void> openPromoScreen(BuildContext context) {
+  return Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PromoScreen()));
 }
 
 /// The small gold "Premium" pill.
