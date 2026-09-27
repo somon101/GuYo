@@ -358,7 +358,7 @@ class _StatsCard extends StatelessWidget {
                     icon: Icons.star_rounded,
                     value: '+${overview.pointsToday}',
                     label: 'очков сегодня',
-                    iconColor: AppColors.rewardText,
+                    iconColor: AppColors.gold,
                   ),
                 ),
                 const StatDivider(),

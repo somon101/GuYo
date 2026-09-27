@@ -8,7 +8,15 @@ from app.models.learning import LearnedWord, LearningSession, LearningSessionIte
 from app.models.learning_settings import LearningSettings
 from app.models.lesson import Lesson, LessonExercise, LessonWord
 from app.models.phrase import Phrase, PhraseCategory
-from app.models.rating import RatingSettings, Rank, Season, SeasonHistory, UserRating, UserWordPoints
+from app.models.rating import (
+    RatingSettings,
+    Rank,
+    Season,
+    SeasonHistory,
+    UserRankPosition,
+    UserRating,
+    UserWordPoints,
+)
 from app.models.user import User
 from app.models.word import Word, WordForm, WordTranslation
 from app.models.word_level import WordLevel
@@ -53,6 +61,7 @@ __all__ = [
     "Rank",
     "Season",
     "SeasonHistory",
+    "UserRankPosition",
     "UserRating",
     "UserWordPoints",
     "WordLevel",

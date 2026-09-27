@@ -48,9 +48,24 @@ class AppColors {
 
   // --- Accents --------------------------------------------------------------
 
-  /// Reward badges ("⭐ +20").
-  static const Color rewardBackground = Color(0xFFFFF3CD);
-  static const Color rewardText = Color(0xFFB77A0B);
+  /// GuYo's one yellow: stars, points and reward icons, trophies, and the
+  /// fill of reward/Premium badges. Deliberately never used for text or
+  /// numbers -- on white it is too light to read; those use [rewardText].
+  static const Color gold = Color(0xFFFFEB3B);
+
+  /// Reward badges ("⭐ +20"): a [gold] fill with [rewardText] on it.
+  static const Color rewardBackground = gold;
+
+  /// Text, numbers and icons that sit ON a [gold] fill, and point numbers
+  /// on white -- a dark gold, readable on both.
+  static const Color rewardText = Color(0xFF7A5600);
+
+  /// A quest's reward badge ("⭐ +10"): a bright green the [gold] star
+  /// stands out on, with the number in white.
+  static const List<Color> questRewardGradient = [Color(0xFF34D17F), Color(0xFF14A85C)];
+
+  /// The Premium and promo banners' fill, fading into [gold].
+  static const List<Color> premiumGradient = [Color(0xFFFFF59D), gold];
 
   /// The "квест дня" highlight -- the one warm accent in an otherwise cool
   /// palette, so the single featured quest stands out from the list below.

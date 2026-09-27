@@ -102,17 +102,21 @@ class RewardBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: AppColors.rewardBackground,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: AppColors.questRewardGradient,
+        ),
         borderRadius: BorderRadius.circular(AppShapes.pillRadius),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.star_rounded, size: 14, color: AppColors.rewardText),
+          const Icon(Icons.star_rounded, size: 14, color: AppColors.gold),
           const SizedBox(width: 3),
           Text(
             '+$points',
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.rewardText),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.white),
           ),
         ],
       ),

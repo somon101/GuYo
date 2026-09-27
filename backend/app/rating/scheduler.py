@@ -9,17 +9,21 @@ misses nothing: the first sweep after startup ends the season whose
 `ends_at` passed while it was down (recording that scheduled moment, not
 the restart moment) and activates whichever season should be live now.
 
+The same tick also recomputes everyone's place within their rank
+(app/rating/movement.py), because a place changes whenever SOMEONE ELSE
+earns points and the "you moved N places" notifications can't wait for
+the user to open Рейтинг.
+
 Deliberately an asyncio task rather than a new scheduling dependency:
-there is exactly one periodic job in this whole service, it holds no state
-of its own, and skipping a tick costs nothing because the next one
-recomputes the same thing from scratch.
+both sweeps hold no state of their own, and skipping a tick costs nothing
+because the next one recomputes the same thing from scratch.
 """
 
 import asyncio
 import logging
 
 from app.database import SessionLocal
-from app.rating import sync_season_states
+from app.rating import refresh_rank_positions, sync_season_states
 
 logger = logging.getLogger(__name__)
 
@@ -51,4 +55,7 @@ async def run_season_scheduler() -> None:
     while True:
         if await asyncio.to_thread(sync_once):
             logger.info("season states updated")
+        # Places move when OTHER people earn points, so this can't wait
+        # for anyone to open Рейтинг -- the notifications depend on it.
+        await asyncio.to_thread(refresh_rank_positions, force=True)
         await asyncio.sleep(SEASON_SYNC_INTERVAL_SECONDS)

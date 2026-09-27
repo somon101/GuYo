@@ -7,6 +7,7 @@ import '../models/dictionary.dart';
 import '../models/phrase.dart';
 import '../models/word.dart';
 import '../services/answer_sound.dart';
+import '../theme/app_colors.dart';
 import '../widgets/glass_backdrop.dart';
 
 /// Max phrases per practice round -- a bite-sized session, not "grind
@@ -547,7 +548,7 @@ class _RoundCompleteView extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.emoji_events_outlined, color: Colors.amber.shade600, size: 48),
+                  Icon(Icons.emoji_events_outlined, color: AppColors.gold, size: 48),
                   const SizedBox(height: 12),
                   const Text('Практика завершена!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),

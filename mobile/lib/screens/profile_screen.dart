@@ -11,6 +11,7 @@ import '../models/user_profile.dart';
 import '../models/user_rating.dart';
 import '../theme/app_colors.dart';
 import '../widgets/achievement_icon.dart';
+import '../widgets/position_change.dart';
 import '../widgets/premium_ui.dart';
 import '../widgets/rank_icon.dart';
 import '../widgets/remote_image.dart';
@@ -779,10 +780,20 @@ class _RankCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          _positionLabel(rating),
-                          style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
-                          overflow: TextOverflow.ellipsis,
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                _positionLabel(rating),
+                                style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if ((rating.positionChange ?? 0) != 0) ...[
+                              const SizedBox(width: 6),
+                              PositionChangeBadge(change: rating.positionChange),
+                            ],
+                          ],
                         ),
                         const SizedBox(height: 6),
                         Row(

@@ -86,6 +86,10 @@ class LeaderboardEntry {
   /// Draws the Premium checkmark next to the name.
   final bool isPremium;
 
+  /// Places moved in this person's latest move within their rank, if it
+  /// was in the last day: +3 up, -2 down. Own-rank board only.
+  final int? positionChange;
+
   LeaderboardEntry({
     required this.position,
     required this.userId,
@@ -95,6 +99,7 @@ class LeaderboardEntry {
     required this.rank,
     required this.isMe,
     this.isPremium = false,
+    this.positionChange,
   });
 
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) {
@@ -107,6 +112,7 @@ class LeaderboardEntry {
       rank: json['rank'] == null ? null : RankSummary.fromJson(json['rank'] as Map<String, dynamic>),
       isMe: json['is_me'] as bool,
       isPremium: json['is_premium'] as bool? ?? false,
+      positionChange: json['position_change'] as int?,
     );
   }
 }
@@ -146,6 +152,10 @@ class UserRating {
   /// them at, never capped at its top-100. Null when they have no rank.
   final int? rankPosition;
 
+  /// This user's own latest move within their rank (see
+  /// LeaderboardEntry.positionChange).
+  final int? positionChange;
+
   UserRating({
     required this.totalPoints,
     required this.season,
@@ -155,6 +165,7 @@ class UserRating {
     required this.history,
     required this.pointsPerLearnedWord,
     required this.rankPosition,
+    this.positionChange,
   });
 
   factory UserRating.fromJson(Map<String, dynamic> json) {
@@ -169,6 +180,7 @@ class UserRating {
           .toList(),
       pointsPerLearnedWord: json['points_per_learned_word'] as int,
       rankPosition: json['rank_position'] as int?,
+      positionChange: json['position_change'] as int?,
     );
   }
 }

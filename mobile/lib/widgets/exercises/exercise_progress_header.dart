@@ -25,7 +25,7 @@ class ExerciseProgressHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          const Icon(Icons.star_rounded, size: 18, color: AppColors.rewardText),
+          const Icon(Icons.star_rounded, size: 18, color: AppColors.gold),
           const SizedBox(width: 6),
           Text('$points', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
           const SizedBox(width: 14),

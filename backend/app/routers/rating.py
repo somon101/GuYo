@@ -19,16 +19,23 @@ from app.rating import (
     leaderboard_for_rank,
     leaderboard_global,
     ordered_enabled_ranks,
+    position_changes,
+    refresh_rank_positions,
 )
 from app.schemas.rating import LeaderboardEntryOut, LeaderboardOut, RankPublicOut, rank_public_out
 
 router = APIRouter(prefix="/rating", tags=["rating"])
 
 
-def _entries_out(db: Session, ratings: list[UserRating], me: User, with_rank: bool) -> list[LeaderboardEntryOut]:
+def _entries_out(
+    db: Session, ratings: list[UserRating], me: User, with_rank: bool, *, with_moves: bool = False
+) -> list[LeaderboardEntryOut]:
     user_ids = [r.user_id for r in ratings]
     users = {u.id: u for u in db.query(User).filter(User.id.in_(user_ids)).all()}
     premium_ids = effective_premium_user_ids(db, user_ids)
+    # Arrows describe moves WITHIN a rank, so only the own-rank board,
+    # whose positions are exactly those, gets them.
+    moves = position_changes(db, user_ids) if with_moves else {}
 
     # Every rank fetched once, not per row -- current_rank_for_points
     # itself queries the DB, and a global board can be up to 100 rows.
@@ -56,6 +63,7 @@ def _entries_out(db: Session, ratings: list[UserRating], me: User, with_rank: bo
                 rank=rank_for(rating.total_points),
                 is_me=user.id == me.id,
                 is_premium=user.id in premium_ids,
+                position_change=moves.get(user.id),
             )
         )
     return entries
@@ -66,13 +74,17 @@ def get_my_rank_leaderboard(db: Session = Depends(get_db), user: User = Depends(
     """Top 100 users sharing the CALLER's own current rank -- never a
     rank the user picks. Empty (with `rank: null`) if the user doesn't
     currently fall into any enabled rank's range."""
+    refresh_rank_positions()
     my_rating = get_or_create_user_rating(db, user.id)
     my_rank = current_rank_for_points(db, my_rating.total_points)
     if my_rank is None:
         return LeaderboardOut(rank=None, entries=[])
 
     ratings = leaderboard_for_rank(db, my_rank)
-    return LeaderboardOut(rank=rank_public_out(my_rank), entries=_entries_out(db, ratings, user, with_rank=False))
+    return LeaderboardOut(
+        rank=rank_public_out(my_rank),
+        entries=_entries_out(db, ratings, user, with_rank=False, with_moves=True),
+    )
 
 
 @router.get("/leaderboard/global", response_model=LeaderboardOut)

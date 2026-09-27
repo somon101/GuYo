@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'app_colors.dart';
+
 /// The part of the day the greeting's sky object reflects.
 ///
 /// Decided entirely from the DEVICE's own clock -- never the server's. Two
@@ -190,7 +192,7 @@ class DaySkyPainter extends CustomPainter {
   void _paintDay(Canvas canvas) {
     const sun = Offset(30, 28);
     final ray = Paint()
-      ..color = const Color(0xFFFFD84D)
+      ..color = AppColors.gold
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
     for (var i = 0; i < 8; i++) {
@@ -198,7 +200,7 @@ class DaySkyPainter extends CustomPainter {
       final direction = Offset(math.cos(angle), math.sin(angle));
       canvas.drawLine(sun + direction * 14, sun + direction * 18, ray);
     }
-    canvas.drawCircle(sun, 10, _fill(const Color(0xFFFFD84D)));
+    canvas.drawCircle(sun, 10, _fill(AppColors.gold));
     _paintCloud(canvas, const Offset(36, 44), 1.1, Colors.white);
   }
 

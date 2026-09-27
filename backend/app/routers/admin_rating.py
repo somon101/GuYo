@@ -79,6 +79,7 @@ def get_settings(db: Session = Depends(get_db), _admin=Depends(get_current_admin
         points_per_learned_word=settings.points_per_learned_word,
         season_reset_mode=settings.season_reset_mode,
         season_reset_value=settings.season_reset_value,
+        rank_move_notify_threshold=settings.rank_move_notify_threshold,
     )
 
 
@@ -92,11 +93,14 @@ def update_settings(payload: RatingSettingsIn, db: Session = Depends(get_db), _a
     settings.points_per_learned_word = payload.points_per_learned_word
     settings.season_reset_mode = payload.season_reset_mode
     settings.season_reset_value = payload.season_reset_value
+    if payload.rank_move_notify_threshold is not None:
+        settings.rank_move_notify_threshold = payload.rank_move_notify_threshold
     db.commit()
     return RatingSettingsOut(
         points_per_learned_word=settings.points_per_learned_word,
         season_reset_mode=settings.season_reset_mode,
         season_reset_value=settings.season_reset_value,
+        rank_move_notify_threshold=settings.rank_move_notify_threshold,
     )
 
 

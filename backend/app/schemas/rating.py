@@ -10,12 +10,15 @@ class RatingSettingsOut(BaseModel):
     points_per_learned_word: int
     season_reset_mode: str
     season_reset_value: int
+    rank_move_notify_threshold: int
 
 
 class RatingSettingsIn(BaseModel):
     points_per_learned_word: int = Field(ge=0)
     season_reset_mode: str
     season_reset_value: int = Field(ge=0)
+    # Optional so a form that doesn't know about it leaves it alone.
+    rank_move_notify_threshold: int | None = Field(default=None, ge=0, le=1000)
 
     @field_validator("season_reset_mode")
     @classmethod
@@ -147,6 +150,9 @@ class LeaderboardEntryOut(BaseModel):
     is_me: bool
     # Draws the Premium checkmark next to the name.
     is_premium: bool = False
+    # Places moved in this person's latest move within their rank, if it
+    # happened in the last day: +3 up, -2 down. Own-rank board only.
+    position_change: int | None = None
 
 
 class LeaderboardOut(BaseModel):
@@ -185,6 +191,8 @@ class UserRatingOut(BaseModel):
     history: list[SeasonHistoryOut]
     points_per_learned_word: int
     rank_position: int | None
+    # Same as LeaderboardEntryOut.position_change, for this user.
+    position_change: int | None = None
 
 
 class GrantRatingPointsIn(BaseModel):
