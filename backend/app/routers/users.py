@@ -18,7 +18,9 @@ from app.rating import (
     get_or_create_user_rating,
     get_rating_settings,
     next_rank_for_points,
+    position_changes,
     rank_position_for_user,
+    refresh_rank_positions,
     sync_season_states,
 )
 from app.schemas.achievement import UserAchievementOut
@@ -293,6 +295,7 @@ def get_my_rating(db: Session = Depends(get_db), user: User = Depends(get_curren
     # running" is answered from the stored periods rather than from
     # whenever the background sweep last ran (see app/rating/scheduler.py).
     sync_season_states(db)
+    refresh_rank_positions()
 
     rating = get_or_create_user_rating(db, user.id)
     rank = current_rank_for_points(db, rating.total_points)
@@ -325,4 +328,5 @@ def get_my_rating(db: Session = Depends(get_db), user: User = Depends(get_curren
         history=history,
         points_per_learned_word=get_rating_settings(db).points_per_learned_word,
         rank_position=rank_position_for_user(db, rank, rating) if rank else None,
+        position_change=position_changes(db, [user.id]).get(user.id) if rank else None,
     )

@@ -311,6 +311,8 @@ export interface RatingSettings {
   points_per_learned_word: number;
   season_reset_mode: RatingResetMode;
   season_reset_value: number;
+  /** Moving this many places within one's rank sends a notification; 0 = off. */
+  rank_move_notify_threshold: number;
 }
 
 export interface Rank {

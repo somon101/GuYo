@@ -1,3 +1,4 @@
+from app.rating.movement import position_changes, refresh_rank_positions, sync_rank_positions
 from app.rating.service import (
     apply_season_reset,
     assert_rank_range_free,
@@ -38,4 +39,7 @@ __all__ = [
     "ranks_overlap",
     "seasons_overlap",
     "sync_season_states",
+    "position_changes",
+    "refresh_rank_positions",
+    "sync_rank_positions",
 ]

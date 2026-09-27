@@ -61,6 +61,7 @@ export function RatingPage() {
       ) : (
         <div className="flex flex-col gap-6">
           <PointsCard settings={settings!} onSaved={setSettings} />
+          <MovementCard settings={settings!} onSaved={setSettings} />
           <RanksCard ranks={ranks} setRanks={setRanks} />
           <SeasonsCard seasons={seasons} onChanged={reload} />
           <ResetCard settings={settings!} onSaved={setSettings} />
@@ -111,6 +112,61 @@ function PointsCard({
       <div className="flex items-end gap-3">
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Очков за изученное слово</label>
+          <input
+            type="number"
+            min={0}
+            className="w-32 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            value={value}
+            onChange={(e) => setValue(Number(e.target.value))}
+          />
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+        >
+          {isSaving ? "Сохранение…" : "Сохранить"}
+        </button>
+      </div>
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+    </SectionCard>
+  );
+}
+
+// --- Уведомления о смене места ---------------------------------------------
+
+function MovementCard({
+  settings,
+  onSaved,
+}: {
+  settings: RatingSettings;
+  onSaved: (s: RatingSettings) => void;
+}) {
+  const [value, setValue] = useState(settings.rank_move_notify_threshold);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSave() {
+    setError(null);
+    setIsSaving(true);
+    try {
+      const saved = await updateRatingSettings({ ...settings, rank_move_notify_threshold: value });
+      onSaved(saved);
+    } catch {
+      setError("Не удалось сохранить");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <SectionCard
+      title="Смена места в ранге"
+      subtitle="В рейтинге у каждого видна стрелочка ↑/↓ — насколько он сдвинулся (держится сутки). Если место изменилось на столько мест или больше, пользователю придёт уведомление. 0 — не присылать."
+    >
+      <div className="flex items-end gap-3">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Уведомлять при сдвиге на, мест</label>
           <input
             type="number"
             min={0}

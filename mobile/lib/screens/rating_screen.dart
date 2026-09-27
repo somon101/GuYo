@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/user_rating.dart';
 import '../theme/app_colors.dart';
+import '../widgets/position_change.dart';
 import '../widgets/rank_icon.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/user_name.dart';
@@ -335,6 +336,13 @@ class _PodiumPlace extends StatelessWidget {
                     size: avatarSize - (isFirst ? 12 : 8),
                   ),
                 ),
+                // How far this person moved in their rank, in the
+                // avatar's top-right corner.
+                Positioned(
+                  top: 0,
+                  right: -6,
+                  child: PositionChangeBadge(change: person.positionChange, fontSize: 11, outlined: true),
+                ),
                 Positioned(
                   bottom: 0,
                   child: Container(
@@ -564,6 +572,10 @@ class LeaderboardRow extends StatelessWidget {
                 ),
               ),
             ),
+            if ((entry.positionChange ?? 0) != 0) ...[
+              PositionChangeBadge(change: entry.positionChange),
+              const SizedBox(width: 8),
+            ],
             if (showRank && rowRank != null) ...[
               RankIcon(rank: rowRank, color: rowColor, size: 22),
               const SizedBox(width: 8),

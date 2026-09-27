@@ -54,6 +54,11 @@ class RatingSettings(Base):
     # Interpreted as a point count when season_reset_mode == "fixed", or a
     # 0-100 percentage when "percent" -- never both at once.
     season_reset_value: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    # Moving this many places up or down within one's own rank sends a
+    # notification (see app/rating/movement.py). 0 turns them off.
+    rank_move_notify_threshold: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=5, server_default="5"
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -201,3 +206,40 @@ class SeasonHistory(Base):
 
     season: Mapped["Season"] = relationship()
     rank: Mapped["Rank | None"] = relationship()
+
+
+class UserRankPosition(Base):
+    """A user's place within their own rank as last seen by
+    app/rating/movement.py's sync_rank_positions -- what the "↑3 / ↓2"
+    arrows and the "you moved N places" notifications are computed from.
+
+    Positions are never stored anywhere else: the leaderboard itself is
+    always ordered live from UserRating. This row only remembers enough
+    to say how that live position MOVED:
+
+    - `position`/`rank_id`: where the user was at the last sync;
+    - `previous_position` + `changed_at`: the place they were in before
+      their latest move, and when that move happened -- the arrow shows
+      previous_position - position for a day after it;
+    - `notified_position`: the place the user was last told about (or
+      started from). A notification fires when one move is
+      RatingSettings.rank_move_notify_threshold places or more, or when
+      smaller moves add up to that much away from this place; either way
+      it then moves to the new place, so the same drift is never
+      announced twice.
+
+    Moving to a different rank resets all of it: a new rank is a new
+    ladder, and "↓39" for someone who just climbed into Gold would be a
+    lie."""
+
+    __tablename__ = "user_rank_positions"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    rank_id: Mapped[int | None] = mapped_column(ForeignKey("ranks.id", ondelete="SET NULL"), nullable=True)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    previous_position: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    notified_position: Mapped[int] = mapped_column(Integer, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
