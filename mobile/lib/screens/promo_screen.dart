@@ -187,7 +187,7 @@ class _SuccessCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFFFF4D6), Color(0xFFFFE3A3)],
+          colors: AppColors.premiumGradient,
         ),
         borderRadius: BorderRadius.circular(AppShapes.bannerRadius),
       ),

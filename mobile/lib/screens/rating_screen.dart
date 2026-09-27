@@ -374,7 +374,7 @@ class _PodiumPlace extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.stars_rounded, size: isFirst ? 15 : 13, color: AppColors.rewardText),
+              Icon(Icons.stars_rounded, size: isFirst ? 15 : 13, color: AppColors.gold),
               const SizedBox(width: 4),
               Flexible(
                 child: Text(

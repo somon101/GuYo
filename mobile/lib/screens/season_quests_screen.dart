@@ -280,7 +280,7 @@ class _StatsRow extends StatelessWidget {
                 icon: Icons.star_rounded,
                 value: '+${overview.pointsToday}',
                 label: 'Очков сегодня',
-                iconColor: AppColors.rewardText,
+                iconColor: AppColors.gold,
               ),
             ),
             const StatDivider(),
