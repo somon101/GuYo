@@ -60,6 +60,10 @@ class AppColors {
   /// on white -- a dark gold, readable on both.
   static const Color rewardText = Color(0xFF7A5600);
 
+  /// A quest's reward badge ("⭐ +10"): a bright green the [gold] star
+  /// stands out on, with the number in white.
+  static const List<Color> questRewardGradient = [Color(0xFF34D17F), Color(0xFF14A85C)];
+
   /// The Premium and promo banners' fill, fading into [gold].
   static const List<Color> premiumGradient = [Color(0xFFFFF59D), gold];
 
