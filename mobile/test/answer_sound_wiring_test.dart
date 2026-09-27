@@ -31,6 +31,11 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('true-or-false-answer-true')));
     await tester.pump(const Duration(milliseconds: 600));
+    // AnswerSound.play()'s own 2s timeout Future must resolve (or throw,
+    // swallowed) before the test ends, or flutter_test's leak check flags
+    // its pending Timer -- a test-harness technicality only; the real app
+    // never tears its screens down on that exact a clock.
+    await tester.pump(const Duration(seconds: 3));
 
     expect(answered, true);
     expect(tester.takeException(), isNull);
@@ -61,6 +66,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('match-right-1')));
     await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump(const Duration(seconds: 3));
 
     expect(attempts, [true]);
     expect(tester.takeException(), isNull);

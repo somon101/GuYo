@@ -19,8 +19,17 @@ class AnswerSound {
 
   static Future<void> play(bool isCorrect) async {
     try {
-      await _player.stop();
-      await _player.play(AssetSource(isCorrect ? 'sounds/correct-answer.mp3' : 'sounds/incorrect-answer.mp3'));
+      // play() already replaces whatever this player was doing -- no
+      // separate stop() first, which on a broken/driverless audio backend
+      // (seen on a Windows box with no audio driver at all) can itself
+      // hang waiting on the native side and pile up across the rapid
+      // back-to-back calls Сопоставление/Собери слово make on every
+      // attempt. The timeout is the real safety net either way: a native
+      // audio failure must never be able to block anything past a blink,
+      // no matter how it fails on a given device.
+      await _player
+          .play(AssetSource(isCorrect ? 'sounds/correct-answer.mp3' : 'sounds/incorrect-answer.mp3'))
+          .timeout(const Duration(seconds: 2));
     } catch (_) {
       // A missing/broken audio backend (e.g. a muted or misconfigured
       // device) must never block the exercise flow itself -- the visual
