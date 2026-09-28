@@ -59,7 +59,10 @@ class _FakeDriver implements LessonRunDriver {
       });
 
   @override
-  Future<bool?> showResults(BuildContext context, Lesson lesson) {
+  Future<LessonPassStats?> fetchPassStats(int lessonId) async => null;
+
+  @override
+  Future<bool?> showResults(BuildContext context, Lesson lesson, LessonPassStats? stats) {
     return Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (resultsContext) => Scaffold(

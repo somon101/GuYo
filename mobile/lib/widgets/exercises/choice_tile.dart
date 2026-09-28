@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
+import '../ios_ui.dart';
 
 /// One selectable option in a "pick the right one" exercise -- Услышь
 /// слово's word choices, and Quest's own single-target Сопоставление (see
@@ -28,45 +29,50 @@ class ChoiceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color background = Colors.white;
-    Color border = AppColors.cardBorder;
+    Color border = Colors.transparent;
     Color textColor = AppColors.primaryDark;
+    List<BoxShadow>? shadow = AppShapes.cardShadow;
     Widget? trailing;
 
     if (isRevealed) {
+      shadow = null;
       if (isCorrectOption) {
         background = AppColors.successLight;
         border = AppColors.success;
         textColor = AppColors.success;
-        trailing = const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 20);
+        trailing = const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 22);
       } else if (isSelected) {
         background = AppColors.dangerLight;
         border = AppColors.danger;
         textColor = AppColors.danger;
-        trailing = const Icon(Icons.cancel_rounded, color: AppColors.danger, size: 20);
+        trailing = const Icon(Icons.cancel_rounded, color: AppColors.danger, size: 22);
       } else {
         textColor = AppColors.muted;
       }
     } else if (isSelected) {
       background = AppColors.violetSurface;
       border = AppColors.primary;
+      textColor = AppColors.primary;
     }
 
-    return Material(
-      color: background,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: border, width: 1.4)),
-          child: Row(
-            children: [
-              Expanded(child: Text(label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: textColor))),
-              ?trailing,
-            ],
-          ),
+    return IosPressable(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: double.infinity,
+        constraints: const BoxConstraints(minHeight: 54),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: border, width: 1.6),
+          boxShadow: shadow,
+        ),
+        child: Row(
+          children: [
+            Expanded(child: Text(label, style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w600, color: textColor))),
+            ?trailing,
+          ],
         ),
       ),
     );

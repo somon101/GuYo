@@ -36,8 +36,12 @@ abstract class LessonRunDriver {
 
   Future<Lesson> fetchLesson(int lessonId);
 
+  /// The finished pass's statistics; null when they can't be loaded -- the
+  /// results then show without them.
+  Future<LessonPassStats?> fetchPassStats(int lessonId);
+
   /// Shows the one results screen; true means "Повторить урок".
-  Future<bool?> showResults(BuildContext context, Lesson lesson);
+  Future<bool?> showResults(BuildContext context, Lesson lesson, LessonPassStats? stats);
 }
 
 class ApiLessonRunDriver implements LessonRunDriver {
@@ -83,8 +87,19 @@ class ApiLessonRunDriver implements LessonRunDriver {
   Future<Lesson> fetchLesson(int lessonId) => ApiClient.instance.fetchLesson(lessonId);
 
   @override
-  Future<bool?> showResults(BuildContext context, Lesson lesson) {
-    return Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => LessonResultsScreen(lesson: lesson)));
+  Future<LessonPassStats?> fetchPassStats(int lessonId) async {
+    try {
+      return await ApiClient.instance.fetchLessonPassStats(lessonId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<bool?> showResults(BuildContext context, Lesson lesson, LessonPassStats? stats) {
+    return Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => LessonResultsScreen(lesson: lesson, stats: stats)),
+    );
   }
 }
 
@@ -194,8 +209,9 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
       if (mounted) setState(() => _failed = true);
       return;
     }
+    final stats = await widget.driver.fetchPassStats(widget.lessonId);
     if (!mounted) return;
-    final repeat = await widget.driver.showResults(context, fresh);
+    final repeat = await widget.driver.showResults(context, fresh, stats);
     if (!mounted) return;
     if (repeat == true) {
       unawaited(_run());

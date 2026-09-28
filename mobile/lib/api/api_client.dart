@@ -382,6 +382,15 @@ class ApiClient {
     return Lesson.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
+  /// Statistics of the pass that just finished (answers, accuracy, per
+  /// exercise, per-word score gain).
+  Future<LessonPassStats> fetchLessonPassStats(int lessonId) async {
+    final res = await http.get(_uri('/lessons/$lessonId/pass/stats'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    if (res.statusCode != 200) throw ApiException('Статистика недоступна', statusCode: res.statusCode);
+    return LessonPassStats.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
   /// Starts one pass through the lesson: the backend freezes the words
   /// still short of their level as the set every exercise of this pass
   /// uses, so each of them goes through every exercise even if it reaches

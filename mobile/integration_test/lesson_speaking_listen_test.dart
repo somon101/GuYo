@@ -237,7 +237,7 @@ void main() {
           await tester.tap(find.byKey(ValueKey('lesson-word-checkbox-$id')));
           await tester.pump();
         }
-        await tester.tap(find.widgetWithText(FilledButton, 'Создать урок (3)'));
+        await tester.tap(find.widgetWithText(FilledButton, 'Начать урок (3)'));
         await tester.pump();
         await tester.pump(const Duration(seconds: 1));
         await tester.pumpAndSettle(const Duration(seconds: 2));

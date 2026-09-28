@@ -54,6 +54,11 @@ class Lesson(Base):
     # keeps the old behavior -- see app/exercises/common.py's
     # lesson_words_pending.
     pass_word_ids: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
+    # When the current pass started, and each of its words' score at that
+    # moment ({"<word_id>": score}) -- what the end-of-pass statistics
+    # (GET /lessons/{id}/pass/stats) measure the pass against.
+    pass_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    pass_start_scores: Mapped[dict[str, int] | None] = mapped_column(JSON, nullable=True)
 
     words: Mapped[list["LessonWord"]] = relationship(back_populates="lesson", cascade="all, delete-orphan")
     exercises: Mapped[list["LessonExercise"]] = relationship(back_populates="lesson", cascade="all, delete-orphan")

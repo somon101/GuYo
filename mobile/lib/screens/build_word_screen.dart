@@ -9,7 +9,7 @@ import 'lesson_exercise_flow.dart';
 /// "Собери слово", as one of a Lesson's exercises: shows a lesson word's
 /// translation, then the player taps individual letter buttons (this
 /// word's own letters, plus a few wrong ones -- both already decided by
-/// the backend) to build the original word, against a 15-second timer.
+/// the backend) to build the original word, against a 25-second timer.
 ///
 /// All of the actual slots/pool/timer/checking logic lives in
 /// [BuildWordExercise] -- the SAME widget Quest renders for this exercise
@@ -137,7 +137,7 @@ class _BuildWordScreenState extends State<BuildWordScreen> with LessonExerciseFl
                         child: BuildWordExercise(
                           // A fresh key per word -- a new item is a brand
                           // new instance, and with it a freshly-started
-                          // 15-second timer, never one continuing an old
+                          // timer, never one continuing an old
                           // item's countdown into the next word.
                           key: ValueKey(round.items[_index].wordId),
                           item: round.items[_index],
