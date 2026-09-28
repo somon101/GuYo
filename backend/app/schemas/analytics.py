@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel
 
@@ -180,3 +180,47 @@ class WordDiagnosticsOut(BaseModel):
     # Oldest first -- a time-series chart reads this left-to-right as-is,
     # with no client-side sort.
     history: list[WordAttemptOut]
+
+
+class RetentionRateOut(BaseModel):
+    # `eligible` only counts users who signed up long enough ago for the
+    # window to have started -- someone who joined today can't have come
+    # back "the next day" yet, and counting them would drag every rate down.
+    returned: int
+    eligible: int
+    percent: float | None
+
+
+class RetentionGroupOut(BaseModel):
+    signups: int
+    next_day: RetentionRateOut
+    week_later: RetentionRateOut
+    month_later: RetentionRateOut
+
+
+class RetentionCohortOut(RetentionGroupOut):
+    week_start: date
+
+
+class RetentionSourceOut(RetentionGroupOut):
+    # None = accounts created in Admin Web, which never answered "where did
+    # you hear about GuYo".
+    source: str | None
+
+
+class RetentionDayOut(BaseModel):
+    day: date
+    signups: int
+    active: int
+
+
+class RetentionOut(RetentionGroupOut):
+    active_today: int
+    active_7d: int
+    active_30d: int
+    activity_tracked_since: date | None
+    # Oldest first, one row per day with zeros filled in.
+    days: list[RetentionDayOut]
+    # Newest week first.
+    cohorts: list[RetentionCohortOut]
+    sources: list[RetentionSourceOut]

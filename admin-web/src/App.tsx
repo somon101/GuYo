@@ -25,6 +25,7 @@ import { WordLevelsSettingsPage } from "./pages/exercises/WordLevelsSettingsPage
 import { PrioritySettingsPage } from "./pages/PrioritySettingsPage";
 import { QuestsPage } from "./pages/QuestsPage";
 import { UserAnalyticsPage } from "./pages/UserAnalyticsPage";
+import { RetentionPage } from "./pages/RetentionPage";
 import { WordDiagnosticsPage } from "./pages/WordDiagnosticsPage";
 import { AchievementsPage } from "./pages/AchievementsPage";
 import { RatingPage } from "./pages/RatingPage";
@@ -270,6 +271,16 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <PromoPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/retention"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RetentionPage />
                 </Layout>
               </ProtectedRoute>
             }

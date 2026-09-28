@@ -559,3 +559,40 @@ export interface PromoActivation {
   is_first_link: boolean;
   created_at: string;
 }
+
+export interface RetentionRate {
+  returned: number;
+  eligible: number;
+  percent: number | null;
+}
+
+export interface RetentionGroup {
+  signups: number;
+  next_day: RetentionRate;
+  week_later: RetentionRate;
+  month_later: RetentionRate;
+}
+
+export interface RetentionCohort extends RetentionGroup {
+  week_start: string;
+}
+
+export interface RetentionSource extends RetentionGroup {
+  source: string | null;
+}
+
+export interface RetentionDay {
+  day: string;
+  signups: number;
+  active: number;
+}
+
+export interface Retention extends RetentionGroup {
+  active_today: number;
+  active_7d: number;
+  active_30d: number;
+  activity_tracked_since: string | null;
+  days: RetentionDay[];
+  cohorts: RetentionCohort[];
+  sources: RetentionSource[];
+}

@@ -6,6 +6,8 @@
  * plain layout arithmetic (position on the axis), matching this page's
  * own "backend computes, this only renders" rule. */
 
+import { useState } from "react";
+
 // iOS system colours from index.css, so the charts follow light/dark mode.
 export const GREEN = "var(--sys-green)";
 export const RED = "var(--sys-red)";
@@ -140,6 +142,76 @@ export function ScoreOverTimeChart({ points }: { points: { label: string; score:
           <circle key={i} cx={pad + i * stepX} cy={y(p.score)} r={2.5} style={{ fill: INDIGO }} />
         ))}
       </svg>
+    </div>
+  );
+}
+
+/** One value per day as columns. A single series, so there is no legend --
+ * the section title names what is plotted. Built from flex columns rather
+ * than a fixed-width SVG so it fills any card width, down to a phone. The
+ * readout line above the plot shows the hovered/focused day's exact value
+ * (touch and keyboard included), and `summary` when nothing is hovered. */
+export function DailyColumnChart({
+  points,
+  summary,
+}: {
+  points: { key: string; label: string; value: number }[];
+  summary: string;
+}) {
+  const [active, setActive] = useState<number | null>(null);
+  if (points.length === 0) return null;
+  const max = Math.max(1, ...points.map((p) => p.value));
+  const hovered = active != null ? points[active] : null;
+  const ticks = [...new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])];
+
+  return (
+    <div>
+      <div className="mb-2 h-5 text-sm text-slate-500">
+        {hovered ? (
+          <>
+            <span className="font-semibold tabular-nums text-slate-900">{hovered.value}</span> · {hovered.label}
+          </>
+        ) : (
+          summary
+        )}
+      </div>
+      <div className="relative h-32" onMouseLeave={() => setActive(null)}>
+        <div className="absolute inset-x-0 top-0 border-t" style={{ borderColor: TRACK }} />
+        <span className="absolute -top-2 right-0 -translate-y-full text-[10px] tabular-nums" style={{ color: AXIS_LABEL }}>
+          {max}
+        </span>
+        <div className="absolute inset-x-0 bottom-0 border-t" style={{ borderColor: TRACK }} />
+        <div className="absolute inset-0 flex items-end gap-[2px]">
+          {points.map((p, i) => (
+            <div
+              key={p.key}
+              tabIndex={0}
+              aria-label={`${p.label}: ${p.value}`}
+              onMouseEnter={() => setActive(i)}
+              onFocus={() => setActive(i)}
+              onBlur={() => setActive(null)}
+              onClick={() => setActive(i)}
+              className="flex h-full flex-1 items-end justify-center rounded-[4px] outline-none focus-visible:bg-[var(--fill)]"
+            >
+              {p.value > 0 && (
+                <div
+                  className="w-full max-w-[24px] rounded-t-[4px] transition-opacity"
+                  style={{
+                    height: `max(2px, ${(p.value / max) * 100}%)`,
+                    backgroundColor: INDIGO,
+                    opacity: active != null && active !== i ? 0.4 : 1,
+                  }}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="mt-1.5 flex justify-between text-[10px] tabular-nums" style={{ color: AXIS_LABEL }}>
+        {ticks.map((i) => (
+          <span key={i}>{points[i].label}</span>
+        ))}
+      </div>
     </div>
   );
 }

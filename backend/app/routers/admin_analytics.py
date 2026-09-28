@@ -8,12 +8,17 @@ detailed questions of it (which specific word(s) are missing, and what
 would learning one specific word unlock) than the boolean `_phrase_is_
 available` alone can answer.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from collections import defaultdict
+from datetime import date, timedelta
 
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import Date, cast, exists, func
+from sqlalchemy.orm import Session, aliased
+
+from app.core.dates import utc_today
 from app.core.deps import get_current_admin
 from app.database import get_db
+from app.models.achievement import UserActivityDay
 from app.models.dictionary import Dictionary
 from app.models.phrase import Phrase
 from app.models.user import User
@@ -31,6 +36,11 @@ from app.schemas.analytics import (
     PriorityBandSummaryOut,
     NearPhraseOut,
     OpenPhraseAnalyticsOut,
+    RetentionCohortOut,
+    RetentionDayOut,
+    RetentionOut,
+    RetentionRateOut,
+    RetentionSourceOut,
     UserPhraseAnalyticsOut,
     UserWordProgressOut,
     WordAttemptOut,
@@ -344,4 +354,121 @@ def get_word_diagnostics(
         recency_contribution=priority.recency_contribution,
         stability_contribution=priority.stability_contribution,
         weak_exercises=weak_exercises_for_word(db, user_id, word_id),
+    )
+
+
+# --- «Удержание» ------------------------------------------------------------
+# Built entirely on UserActivityDay, which the app already writes on every
+# open (see app.routers.dictionaries.list_dictionaries). Dates are UTC on
+# both sides -- the same calendar UserActivityDay itself is recorded in.
+
+RETENTION_DAYS = 30
+RETENTION_COHORT_WEEKS = 12
+# (response field, days after signup). "next_day" means active exactly on
+# the following day; the other two mean active on that day or any later one.
+_RETENTION_WINDOWS = (("next_day", 1), ("week_later", 7), ("month_later", 30))
+
+
+class _RetentionTally:
+    def __init__(self) -> None:
+        self.signups = 0
+        self.counts = {key: [0, 0] for key, _ in _RETENTION_WINDOWS}  # [returned, eligible]
+
+    def add(self, signup: date, returned: dict[str, bool], today: date) -> None:
+        self.signups += 1
+        for key, days in _RETENTION_WINDOWS:
+            if signup + timedelta(days=days) <= today:
+                self.counts[key][1] += 1
+                if returned[key]:
+                    self.counts[key][0] += 1
+
+    def rates(self) -> dict:
+        out: dict = {"signups": self.signups}
+        for key, _ in _RETENTION_WINDOWS:
+            returned, eligible = self.counts[key]
+            percent = round(returned * 100 / eligible, 1) if eligible else None
+            out[key] = RetentionRateOut(returned=returned, eligible=eligible, percent=percent)
+        return out
+
+
+@router.get("/retention", response_model=RetentionOut)
+def get_retention(
+    self_registered_only: bool = False,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """`self_registered_only` keeps only accounts made through the app's own
+    sign-up (they always have a referral_source) -- Admin Web-made test and
+    bot accounts never do."""
+    today = utc_today()
+    signup = cast(func.timezone("UTC", User.created_at), Date)
+    next_day = aliased(UserActivityDay)
+    week_later = aliased(UserActivityDay)
+    month_later = aliased(UserActivityDay)
+
+    users_query = db.query(
+        User.referral_source,
+        signup.label("signup"),
+        exists().where(next_day.user_id == User.id, next_day.activity_date == signup + 1).label("next_day"),
+        exists().where(week_later.user_id == User.id, week_later.activity_date >= signup + 7).label("week_later"),
+        exists().where(month_later.user_id == User.id, month_later.activity_date >= signup + 30).label("month_later"),
+    )
+    if self_registered_only:
+        users_query = users_query.filter(User.referral_source.isnot(None))
+
+    overall = _RetentionTally()
+    by_week: dict[date, _RetentionTally] = defaultdict(_RetentionTally)
+    by_source: dict[str | None, _RetentionTally] = defaultdict(_RetentionTally)
+    signups_by_day: dict[date, int] = defaultdict(int)
+    for row in users_query.all():
+        returned = {key: getattr(row, key) for key, _ in _RETENTION_WINDOWS}
+        overall.add(row.signup, returned, today)
+        by_week[row.signup - timedelta(days=row.signup.weekday())].add(row.signup, returned, today)
+        by_source[row.referral_source].add(row.signup, returned, today)
+        signups_by_day[row.signup] += 1
+
+    def activity_query(*columns):
+        query = db.query(*columns)
+        if self_registered_only:
+            query = query.join(User, User.id == UserActivityDay.user_id).filter(User.referral_source.isnot(None))
+        return query
+
+    def active_since(start: date) -> int:
+        return (
+            activity_query(func.count(func.distinct(UserActivityDay.user_id)))
+            .filter(UserActivityDay.activity_date >= start)
+            .scalar()
+            or 0
+        )
+
+    first_day = today - timedelta(days=RETENTION_DAYS - 1)
+    active_by_day = dict(
+        activity_query(UserActivityDay.activity_date, func.count(func.distinct(UserActivityDay.user_id)))
+        .filter(UserActivityDay.activity_date >= first_day)
+        .group_by(UserActivityDay.activity_date)
+        .all()
+    )
+    days = [
+        RetentionDayOut(day=d, signups=signups_by_day.get(d, 0), active=active_by_day.get(d, 0))
+        for d in (first_day + timedelta(days=i) for i in range(RETENTION_DAYS))
+    ]
+
+    cohorts = [
+        RetentionCohortOut(week_start=week, **tally.rates())
+        for week, tally in sorted(by_week.items(), reverse=True)[:RETENTION_COHORT_WEEKS]
+    ]
+    sources = [
+        RetentionSourceOut(source=source, **tally.rates())
+        for source, tally in sorted(by_source.items(), key=lambda item: -item[1].signups)
+    ]
+
+    return RetentionOut(
+        **overall.rates(),
+        active_today=active_since(today),
+        active_7d=active_since(today - timedelta(days=6)),
+        active_30d=active_since(today - timedelta(days=29)),
+        activity_tracked_since=db.query(func.min(UserActivityDay.activity_date)).scalar(),
+        days=days,
+        cohorts=cohorts,
+        sources=sources,
     )

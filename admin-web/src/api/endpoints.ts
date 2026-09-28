@@ -25,6 +25,7 @@ import type {
   Quest,
   Rank,
   RatingSettings,
+  Retention,
   Season,
   Slogan,
   TranslationLanguage,
@@ -1151,5 +1152,12 @@ export async function updatePromoSettings(input: PromoSettings): Promise<PromoSe
 
 export async function listPromoActivations(): Promise<PromoActivation[]> {
   const { data } = await api.get("/admin/promo/activations");
+  return data;
+}
+
+export async function getRetention(selfRegisteredOnly: boolean): Promise<Retention> {
+  const { data } = await api.get("/admin/analytics/retention", {
+    params: { self_registered_only: selfRegisteredOnly },
+  });
   return data;
 }
