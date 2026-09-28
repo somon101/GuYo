@@ -5,6 +5,7 @@ import '../models/lesson.dart';
 import '../theme/app_colors.dart';
 import 'lesson_create_screen.dart';
 import 'lesson_detail_screen.dart';
+import 'lesson_run_screen.dart';
 
 /// "Уроки": the new primary progress system's own tab. Shows this
 /// dictionary's FULL, permanent lesson history as a flat list of cards --
@@ -20,8 +21,8 @@ import 'lesson_detail_screen.dart';
 ///
 /// This screen owns none of the actual lesson mechanics -- word selection,
 /// exercises, scoring, the learning threshold -- all of that is unchanged
-/// and lives in LessonDetailScreen/LessonCreateScreen/the exercise
-/// screens. This is purely "what lessons exist and in what order", always
+/// and lives in LessonDetailScreen/LessonCreateScreen/LessonRunScreen/the
+/// exercise screens. This is purely "what lessons exist and in what order", always
 /// re-fetched from the backend, never assembled from local state.
 class LessonsScreen extends StatefulWidget {
   final GuyoDictionary dictionary;
@@ -64,18 +65,46 @@ class _LessonsScreenState extends State<LessonsScreen> {
     }
   }
 
-  Future<void> _openLesson(int lessonId, {bool autoStart = false}) async {
+  Future<void> _openLesson(int lessonId) async {
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => LessonDetailScreen(lessonId: lessonId, autoStart: autoStart)),
+      MaterialPageRoute(builder: (_) => LessonDetailScreen(lessonId: lessonId)),
     );
     await _load();
   }
 
+  /// Plays [lesson] start to finish (LessonRunScreen), then refreshes the
+  /// chain -- the lesson may have just been completed.
+  Future<void> _runLesson(Lesson lesson) async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => LessonRunScreen.forLesson(lesson)));
+    await _load();
+  }
+
+  /// "Продолжить" on the in-progress card: straight into the exercises,
+  /// with no stop at the lesson's own screen.
+  Future<void> _continueLesson(int lessonId) async {
+    final Lesson lesson;
+    try {
+      lesson = await ApiClient.instance.fetchLesson(lessonId);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Не удалось открыть урок')));
+      return;
+    }
+    if (!mounted) return;
+    await _runLesson(lesson);
+  }
+
+  /// Word selection, then -- when "Начать урок" there creates the lesson
+  /// -- straight into it.
   Future<void> _createNextLesson() async {
-    await Navigator.of(context).push<bool>(
+    final lesson = await Navigator.of(context).push<Lesson>(
       MaterialPageRoute(builder: (_) => LessonCreateScreen(dictionary: widget.dictionary)),
     );
-    await _load();
+    if (lesson != null && mounted) {
+      await _runLesson(lesson);
+    } else {
+      await _load();
+    }
   }
 
   @override
@@ -158,7 +187,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
             subtitle: 'Изучено ${lesson.learnedCount} из ${lesson.wordCount} слов',
             progress: lesson.wordCount == 0 ? 0.0 : lesson.learnedCount / lesson.wordCount,
             onTap: () => _openLesson(lesson.id),
-            onContinue: lesson.isCompleted ? null : () => _openLesson(lesson.id, autoStart: true),
+            onContinue: lesson.isCompleted ? null : () => _continueLesson(lesson.id),
           ),
       ],
     );
@@ -172,7 +201,7 @@ enum _LessonCardState { completed, inProgress, unlocked }
 /// surface/border/shadow. Colors follow AppColors: indigo/blue for the
 /// in-progress lesson (its badge, progress bar, and "Продолжить" button,
 /// which jumps straight into the exercise sequence -- see
-/// LessonDetailScreen's autoStart), soft green for a completed one, grey
+/// LessonRunScreen), soft green for a completed one, grey
 /// for the still-locked "create the next one" card.
 class _LessonCard extends StatelessWidget {
   final _LessonCardState state;

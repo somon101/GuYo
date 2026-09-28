@@ -382,6 +382,16 @@ class ApiClient {
     return Lesson.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
+  /// Starts one pass through the lesson: the backend freezes the words
+  /// still short of their level as the set every exercise of this pass
+  /// uses, so each of them goes through every exercise even if it reaches
+  /// its level halfway. Called at the start of every pass.
+  Future<Lesson> startLessonPass(int lessonId) async {
+    final res = await http.post(_uri('/lessons/$lessonId/pass'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    return Lesson.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
   /// Pass exactly one of [wordIds] (ручной выбор, max 15) or [randomCount]
   /// (случайный выбор, 1-15) -- the backend rejects both/neither, same rule
   /// CreateLessonIn enforces. Fails with a 409 (surfaced via [ApiException.

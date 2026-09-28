@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
+import '../models/lesson.dart';
 import '../models/word.dart';
 import '../widgets/premium_ui.dart';
 import '../widgets/word_card.dart';
@@ -11,7 +12,9 @@ import '../widgets/word_card.dart';
 /// the SAME pool -- GET /dictionaries/{id}/lesson-candidate-words, every
 /// word in this dictionary the user hasn't already learned -- and both
 /// ultimately just call POST /lessons, which is the only place a Lesson
-/// actually gets created (never client-side).
+/// actually gets created (never client-side). The button says "Начать
+/// урок" because that is what it does: the created lesson is popped back
+/// to the caller, which runs it immediately (see LessonRunScreen).
 class LessonCreateScreen extends StatefulWidget {
   final GuyoDictionary dictionary;
   const LessonCreateScreen({super.key, required this.dictionary});
@@ -94,13 +97,16 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
       _submitError = null;
     });
     try {
+      final Lesson lesson;
       if (_mode == _Mode.random) {
-        await ApiClient.instance.createLesson(dictionaryId: widget.dictionary.id, randomCount: _randomCount);
+        lesson = await ApiClient.instance.createLesson(dictionaryId: widget.dictionary.id, randomCount: _randomCount);
       } else {
-        await ApiClient.instance.createLesson(dictionaryId: widget.dictionary.id, wordIds: _selectedIds.toList());
+        lesson = await ApiClient.instance.createLesson(dictionaryId: widget.dictionary.id, wordIds: _selectedIds.toList());
       }
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      // Hands the new lesson back so the caller starts it straight away --
+      // "Начать урок" means exactly that, with no stop at the lesson list.
+      Navigator.of(context).pop(lesson);
     } on ApiException catch (e) {
       if (!mounted) return;
       if (e.statusCode == 429) {
@@ -295,7 +301,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                 )
-              : Text(_mode == _Mode.random ? 'Создать урок' : 'Создать урок (${_selectedIds.length})'),
+              : Text(_mode == _Mode.random ? 'Начать урок' : 'Начать урок (${_selectedIds.length})'),
         ),
       ),
     );

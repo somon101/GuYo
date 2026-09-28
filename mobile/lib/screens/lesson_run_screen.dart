@@ -1,0 +1,304 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+
+import '../api/api_client.dart';
+import '../models/lesson.dart';
+import '../theme/app_colors.dart';
+import 'build_word_screen.dart';
+import 'lesson_exercise_flow.dart';
+import 'lesson_results_screen.dart';
+import 'listen_word_screen.dart';
+import 'matching_screen.dart';
+import 'speaking_word_screen.dart';
+import 'true_or_false_screen.dart';
+
+/// The human-readable name of each exercise type, for the run's title bar.
+const Map<String, String> lessonExerciseLabels = {
+  'true_or_false': 'Правда или ложь',
+  'matching': 'Сопоставление',
+  'build_word': 'Собери слово',
+  'speaking_word': 'Произнеси слово',
+  'listen_word': 'Услышь слово',
+};
+
+/// Everything the run needs from outside -- the backend and the screens --
+/// behind one seam, so a test can drive the whole sequence without either.
+abstract class LessonRunDriver {
+  /// Freezes this pass's words (POST /lessons/{id}/pass).
+  Future<void> startPass(int lessonId);
+
+  /// Whether exercise [key] has anything to test right now.
+  Future<bool> hasPendingWork(int lessonId, String key);
+
+  /// The exercise itself. It ends by calling finishExercise().
+  Widget buildExercise(int lessonId, int lessonNumber, String key);
+
+  Future<Lesson> fetchLesson(int lessonId);
+
+  /// Shows the one results screen; true means "Повторить урок".
+  Future<bool?> showResults(BuildContext context, Lesson lesson);
+}
+
+class ApiLessonRunDriver implements LessonRunDriver {
+  const ApiLessonRunDriver();
+
+  @override
+  Future<void> startPass(int lessonId) => ApiClient.instance.startLessonPass(lessonId);
+
+  /// Fetched fresh every time, never cached. Сопоставление alone needs at
+  /// least 2 words to form a board; every other type works with 1.
+  @override
+  Future<bool> hasPendingWork(int lessonId, String key) async {
+    final api = ApiClient.instance;
+    switch (key) {
+      case 'true_or_false':
+        return (await api.fetchLessonTrueOrFalseRound(lessonId)).items.isNotEmpty;
+      case 'matching':
+        return (await api.fetchLessonMatchingWords(lessonId)).length >= 2;
+      case 'build_word':
+        return (await api.fetchLessonBuildWordRound(lessonId)).items.isNotEmpty;
+      case 'speaking_word':
+        return (await api.fetchLessonSpeakingWordRound(lessonId)).items.isNotEmpty;
+      case 'listen_word':
+        return (await api.fetchLessonListenWordRound(lessonId)).items.isNotEmpty;
+      default:
+        return false;
+    }
+  }
+
+  @override
+  Widget buildExercise(int lessonId, int lessonNumber, String key) {
+    return switch (key) {
+      'true_or_false' => TrueOrFalseScreen(lessonId: lessonId, lessonNumber: lessonNumber),
+      'matching' => MatchingScreen(lessonId: lessonId, lessonNumber: lessonNumber),
+      'build_word' => BuildWordScreen(lessonId: lessonId, lessonNumber: lessonNumber),
+      'speaking_word' => SpeakingWordScreen(lessonId: lessonId, lessonNumber: lessonNumber),
+      'listen_word' => ListenWordScreen(lessonId: lessonId, lessonNumber: lessonNumber),
+      _ => const SizedBox.shrink(),
+    };
+  }
+
+  @override
+  Future<Lesson> fetchLesson(int lessonId) => ApiClient.instance.fetchLesson(lessonId);
+
+  @override
+  Future<bool?> showResults(BuildContext context, Lesson lesson) {
+    return Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => LessonResultsScreen(lesson: lesson)));
+  }
+}
+
+/// One lesson, start to finish, on ONE screen.
+///
+/// Walks the lesson's `exerciseKeys` (decided by the backend when the
+/// lesson was created) in order. Each exercise replaces the previous one
+/// in place -- nothing is pushed or popped between them, so the lesson's
+/// word list or any menu never shows in between. An exercise with nothing
+/// to test is skipped. After the last one, the results screen is shown
+/// once; "Повторить урок" there runs the sequence again right here,
+/// anything else closes the lesson.
+///
+/// Every pass starts with POST /lessons/{id}/pass, which freezes the words
+/// that pass covers, so every chosen word goes through every exercise.
+/// If that call fails the pass still runs (on the backend's older, live
+/// set) -- a lesson must never stall on it.
+///
+/// Scoring, progress and the exercises themselves are untouched: each
+/// exercise still submits its own answers exactly as before.
+class LessonRunScreen extends StatefulWidget {
+  final int lessonId;
+  final int lessonNumber;
+  final List<String> exerciseKeys;
+  final LessonRunDriver driver;
+
+  const LessonRunScreen({
+    super.key,
+    required this.lessonId,
+    required this.lessonNumber,
+    required this.exerciseKeys,
+    this.driver = const ApiLessonRunDriver(),
+  });
+
+  LessonRunScreen.forLesson(Lesson lesson, {Key? key, LessonRunDriver driver = const ApiLessonRunDriver()})
+      : this(
+          key: key,
+          lessonId: lesson.id,
+          lessonNumber: lesson.number,
+          exerciseKeys: lesson.exerciseKeys,
+          driver: driver,
+        );
+
+  @override
+  State<LessonRunScreen> createState() => _LessonRunScreenState();
+}
+
+class _LessonRunScreenState extends State<LessonRunScreen> {
+  int _pass = 0;
+  int _index = 0;
+  bool _showingExercise = false;
+  bool _failed = false;
+  Completer<void>? _current;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_run());
+  }
+
+  Future<void> _run() async {
+    final driver = widget.driver;
+    setState(() {
+      _pass++;
+      _index = 0;
+      _showingExercise = false;
+      _failed = false;
+    });
+    try {
+      await driver.startPass(widget.lessonId);
+    } catch (_) {
+      // Runs anyway, on the live set -- see the class comment.
+    }
+
+    for (var i = 0; i < widget.exerciseKeys.length; i++) {
+      if (!mounted) return;
+      final key = widget.exerciseKeys[i];
+      setState(() {
+        _index = i;
+        _showingExercise = false;
+      });
+      bool hasWork;
+      try {
+        hasWork = await driver.hasPendingWork(widget.lessonId, key);
+      } catch (_) {
+        // A failed availability check (a network blip) shouldn't silently
+        // drop a real round -- show the exercise and let it load itself.
+        hasWork = true;
+      }
+      if (!hasWork || !mounted) continue;
+      final done = Completer<void>();
+      _current = done;
+      setState(() => _showingExercise = true);
+      await done.future;
+    }
+
+    if (!mounted) return;
+    setState(() => _showingExercise = false);
+    await _showResults();
+  }
+
+  Future<void> _showResults() async {
+    final Lesson fresh;
+    try {
+      fresh = await widget.driver.fetchLesson(widget.lessonId);
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+      return;
+    }
+    if (!mounted) return;
+    final repeat = await widget.driver.showResults(context, fresh);
+    if (!mounted) return;
+    if (repeat == true) {
+      unawaited(_run());
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
+  void _onExerciseFinished() {
+    final current = _current;
+    if (current != null && !current.isCompleted) current.complete();
+  }
+
+  Future<void> _confirmExit() async {
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Прервать урок?'),
+        content: const Text('Ответы уже сохранены. Урок можно продолжить позже.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Продолжить')),
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Выйти')),
+        ],
+      ),
+    );
+    if (leave == true && mounted) Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final keys = widget.exerciseKeys;
+    final key = keys.isEmpty ? null : keys[_index];
+    final title = key == null ? 'Урок ${widget.lessonNumber}' : (lessonExerciseLabels[key] ?? key);
+    final progress = keys.isEmpty ? 0.0 : (_index + (_showingExercise ? 0 : 1)) / keys.length;
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _confirmExit();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(title),
+              if (keys.isNotEmpty)
+                Text(
+                  'Урок ${widget.lessonNumber} · упражнение ${_index + 1} из ${keys.length}',
+                  style: const TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
+                ),
+            ],
+          ),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(4),
+            child: LinearProgressIndicator(
+              value: progress.clamp(0.0, 1.0),
+              minHeight: 4,
+              backgroundColor: AppColors.progressTrack,
+              color: AppColors.primary,
+            ),
+          ),
+        ),
+        body: _buildBody(key),
+      ),
+    );
+  }
+
+  Widget _buildBody(String? key) {
+    if (_failed) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Не удалось загрузить результаты урока', textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () {
+                  setState(() => _failed = false);
+                  _showResults();
+                },
+                child: const Text('Повторить'),
+              ),
+              TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Выйти')),
+            ],
+          ),
+        ),
+      );
+    }
+    if (!_showingExercise || key == null) {
+      return const LessonExerciseHandoff();
+    }
+    return LessonRunScope(
+      onExerciseFinished: _onExerciseFinished,
+      // A fresh key per exercise AND per pass: a repeated exercise must
+      // start from a clean state, never reuse the previous round's.
+      child: KeyedSubtree(
+        key: ValueKey('$_pass-$_index'),
+        child: widget.driver.buildExercise(widget.lessonId, widget.lessonNumber, key),
+      ),
+    );
+  }
+}

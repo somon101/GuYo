@@ -41,6 +41,7 @@ from app.exercises.common import (
     get_points,
     get_threshold,
     is_exercise_enabled,
+    lesson_words_below_threshold,
 )
 from app.models.dictionary import Dictionary
 from app.models.learning_settings import LearningSettings
@@ -282,6 +283,27 @@ def get_lesson(
 ):
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
     return _lesson_to_out(db, lesson, get_threshold(db))
+
+
+@router.post("/lessons/{lesson_id}/pass", response_model=LessonOut)
+def start_lesson_pass(
+    lesson_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Starts one pass through this lesson's exercises: freezes the words
+    still below their level RIGHT NOW as the set every exercise in this
+    pass draws from (Lesson.pass_word_ids, read by lesson_words_pending).
+    A word that reaches its level in exercise 1 therefore still goes
+    through exercises 2, 3, ... of the same pass; only the next pass
+    leaves it out. The app calls this at the start of every pass --
+    first run and each "Повторить урок" alike. Changes no score."""
+    lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
+    threshold = get_threshold(db)
+    lesson.pass_word_ids = [w.id for w in lesson_words_below_threshold(db, lesson, threshold)]
+    db.commit()
+    db.refresh(lesson)
+    return _lesson_to_out(db, lesson, threshold)
 
 
 @router.post("/lessons", response_model=LessonOut, status_code=status.HTTP_201_CREATED)

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, UniqueConstraint, func, text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, String, UniqueConstraint, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -46,6 +46,14 @@ class Lesson(Base):
     is_adaptive: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # The words the CURRENT pass through this lesson covers, frozen when
+    # the pass starts (POST /lessons/{id}/pass): every exercise in that
+    # pass draws from exactly this set, so a word that reaches its level
+    # halfway through still goes through every remaining exercise. NULL on
+    # a lesson no pass was ever started for (older app versions), which
+    # keeps the old behavior -- see app/exercises/common.py's
+    # lesson_words_pending.
+    pass_word_ids: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
 
     words: Mapped[list["LessonWord"]] = relationship(back_populates="lesson", cascade="all, delete-orphan")
     exercises: Mapped[list["LessonExercise"]] = relationship(back_populates="lesson", cascade="all, delete-orphan")

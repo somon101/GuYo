@@ -6,7 +6,7 @@ import '../theme/app_colors.dart';
 import '../widgets/word_card.dart';
 
 /// Shown once a "Начать урок" run has walked every available exercise type
-/// (see LessonDetailScreen._startLesson) -- the ONE place a lesson's
+/// (see LessonRunScreen) -- the ONE place a lesson's
 /// pass/fail outcome is decided and shown, with the real, per-word reason
 /// why. Never computes "is this word learned" itself: `lesson.words` here
 /// is a FRESH fetch (GET /lessons/{id}) taken right after the exercise
@@ -15,9 +15,9 @@ import '../widgets/word_card.dart';
 /// ladder "Мои слова" renders (GET /word-levels), never a second one.
 ///
 /// Pops `true` if the user chooses "Повторить урок" (the caller re-runs
-/// the exact same exercise sequence; each exercise's own round already
-/// narrows itself to only the words still short of their level, so the
-/// repeat only ever re-tests those), or `false`/nothing for "Готово".
+/// the exact same exercise sequence; the new pass covers only the words
+/// still short of their level, so the repeat only ever re-tests those),
+/// or `false`/nothing for "Готово".
 class LessonResultsScreen extends StatefulWidget {
   final Lesson lesson;
   const LessonResultsScreen({super.key, required this.lesson});
