@@ -10,6 +10,7 @@ import {
   listWords,
 } from "../api/endpoints";
 import type { Category, Dictionary, Word } from "../types";
+import { PlayButton } from "../components/PlayButton";
 
 function mediaUrl(path: string | null): string | null {
   return path ? `${API_URL}${path}` : null;
@@ -93,7 +94,7 @@ export function WordsListPage() {
 
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900" translate="no">
+          <h1 className="text-[26px] font-bold tracking-tight text-slate-900" translate="no">
             {currentCategory ? currentCategory.name : "Все слова"}
           </h1>
           <p className="text-sm text-slate-500">{words.length} слов</p>
@@ -130,33 +131,39 @@ export function WordsListPage() {
           {words.map((w) => (
             <li
               key={w.id}
-              className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 rounded-lg border border-slate-200 bg-white p-4"
+              className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 card p-4"
             >
               <div className="flex min-w-0 flex-1 items-start gap-4">
                 {mediaUrl(w.image_url) && (
                   <img
                     src={mediaUrl(w.image_url)!}
                     alt={w.word}
-                    className="h-14 w-14 shrink-0 rounded-md border border-slate-200 object-cover"
+                    className="h-14 w-14 shrink-0 rounded-[10px] object-cover"
                   />
                 )}
                 <div translate="no" className="min-w-0">
-                  <p className="text-base font-medium text-slate-900">{w.word}</p>
+                  <p className="font-serif text-[17px] font-medium text-slate-900">{w.word}</p>
                   {w.transcription && (
                     <p className="text-sm text-slate-400">{w.transcription}</p>
                   )}
-                  <p className="text-sm text-slate-600">{w.translation}</p>
+                  <p className="font-serif text-[15px] text-slate-600">{w.translation}</p>
                   {!currentCategory && w.category_name && (
-                    <p className="mt-1 inline-block rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+                    <p className="mt-1 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
                       {w.category_name}
                     </p>
                   )}
                   <div className="mt-2 flex flex-wrap gap-3">
                     {mediaUrl(w.word_audio_url) && (
-                      <audio controls src={mediaUrl(w.word_audio_url)!} className="h-8 max-w-[220px]" />
+                      <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-500">
+                        <PlayButton src={mediaUrl(w.word_audio_url)!} label="Прослушать слово" />
+                        Слово
+                      </span>
                     )}
                     {mediaUrl(w.translation_audio_url) && (
-                      <audio controls src={mediaUrl(w.translation_audio_url)!} className="h-8 max-w-[220px]" />
+                      <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-500">
+                        <PlayButton src={mediaUrl(w.translation_audio_url)!} label="Прослушать перевод" />
+                        Перевод
+                      </span>
                     )}
                   </div>
                 </div>
@@ -249,13 +256,13 @@ function AddWordForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="mb-6 flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5"
+      className="mb-6 flex flex-col gap-4 card p-5"
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Язык</label>
           <input
-            className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500"
+            className="w-full rounded-[10px] bg-[var(--field)] px-3 py-2 text-sm text-slate-500"
             value={languageLabel}
             disabled
           />
@@ -265,7 +272,7 @@ function AddWordForm({
             Категория <span className="font-normal text-slate-400">(необязательно)</span>
           </label>
           <select
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-full field px-3 py-2 text-sm"
             value={categoryId ?? ""}
             onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
           >
@@ -283,7 +290,7 @@ function AddWordForm({
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Слово</label>
           <input
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-full field px-3 py-2 text-sm"
             value={word}
             onChange={(e) => setWord(e.target.value)}
             autoFocus
@@ -293,7 +300,7 @@ function AddWordForm({
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Перевод</label>
           <input
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-full field px-3 py-2 text-sm"
             value={translation}
             onChange={(e) => setTranslation(e.target.value)}
             required
@@ -306,7 +313,7 @@ function AddWordForm({
           Транскрипция <span className="font-normal text-slate-400">(необязательно)</span>
         </label>
         <input
-          className="w-full max-w-xs rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          className="w-full max-w-xs field px-3 py-2 text-sm"
           value={transcription}
           onChange={(e) => setTranscription(e.target.value)}
           placeholder="/ˈæpəl/"
@@ -335,7 +342,7 @@ function AddWordForm({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          className="btn-tinted rounded-md px-4 py-2 text-sm font-medium"
         >
           Отмена
         </button>
@@ -366,7 +373,7 @@ function FormsRows({
         {values.map((v, i) => (
           <div key={i} className="flex gap-2">
             <input
-              className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              className="flex-1 field px-3 py-2 text-sm"
               value={v}
               onChange={(e) => onChange(values.map((x, j) => (j === i ? e.target.value : x)))}
             />
@@ -374,7 +381,7 @@ function FormsRows({
               <button
                 type="button"
                 onClick={() => onChange(values.filter((_, j) => j !== i))}
-                className="shrink-0 rounded-md border border-slate-300 px-2 text-sm text-slate-400 hover:bg-red-50 hover:text-red-600"
+                className="shrink-0 btn-tinted-danger rounded-full px-2.5 text-sm"
               >
                 ×
               </button>
@@ -385,7 +392,7 @@ function FormsRows({
       <button
         type="button"
         onClick={() => onChange([...values, ""])}
-        className="mt-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+        className="mt-2 btn-tinted rounded-full px-3 py-1.5 text-sm font-medium"
       >
         + Добавить форму
       </button>

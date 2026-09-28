@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 /** A small "?" icon that opens a compact, click-triggered explanation
  * panel -- used throughout the Priority settings and word-diagnostics
@@ -56,19 +57,22 @@ export function InfoTooltip({ children, label = "Пояснение" }: { childr
         }}
         aria-label={label}
         aria-expanded={isOpen}
-        className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-[10px] font-semibold leading-none text-slate-500 hover:border-indigo-400 hover:text-indigo-600"
+        className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--fill)] text-[10px] font-semibold leading-none text-[var(--sys-blue)] hover:bg-[var(--fill-strong)]"
       >
         ?
       </button>
-      {isOpen && pos && (
-        <div
-          ref={panelRef}
-          style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width }}
-          className="z-50 rounded-lg border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-600 shadow-lg"
-        >
-          {children}
-        </div>
-      )}
+      {isOpen &&
+        pos &&
+        createPortal(
+          <div
+            ref={panelRef}
+            style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width }}
+            className="popover z-50 p-3.5 text-xs leading-relaxed text-slate-600"
+          >
+            {children}
+          </div>,
+          document.body,
+        )}
     </span>
   );
 }

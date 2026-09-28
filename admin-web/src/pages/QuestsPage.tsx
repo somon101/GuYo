@@ -102,7 +102,7 @@ export function QuestsPage() {
     <div className="mx-auto max-w-2xl">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Квесты</h1>
+          <h1 className="text-[26px] font-bold tracking-tight text-slate-900">Квесты</h1>
           <p className="mt-0.5 text-sm text-slate-500">
             Слово может выполнить только ОДИН квест в день -- независимо от того, какой именно.
           </p>
@@ -153,7 +153,7 @@ export function QuestsPage() {
               onDragStart={() => handleDragStart(quest.id)}
               onDragOver={(e) => handleDragOver(e, quest.id)}
               onDragEnd={handleDragEnd}
-              className={`flex cursor-grab items-center gap-3 rounded-lg border border-slate-200 bg-white p-4 active:cursor-grabbing ${quest.enabled ? "" : "opacity-50"}`}
+              className={`flex cursor-grab items-center gap-3 card p-4 active:cursor-grabbing ${quest.enabled ? "" : "opacity-50"}`}
             >
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -242,11 +242,11 @@ function QuestForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mb-4 flex flex-col gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+    <form onSubmit={handleSubmit} className="card mb-4 flex flex-col gap-4 p-4">
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Название</label>
         <input
-          className="w-full max-w-xs rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          className="w-full max-w-xs field px-3 py-2 text-sm"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Квест уровня 3"
@@ -258,7 +258,7 @@ function QuestForm({
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Уровень слова</label>
           <select
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="field px-3 py-2 text-sm"
             value={wordLevelId}
             onChange={(e) => setWordLevelId(Number(e.target.value))}
           >
@@ -273,7 +273,7 @@ function QuestForm({
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Упражнение</label>
           <select
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="field px-3 py-2 text-sm"
             value={exerciseKey}
             onChange={(e) => setExerciseKey(e.target.value)}
           >
@@ -290,7 +290,7 @@ function QuestForm({
           <input
             type="number"
             min={0}
-            className="w-32 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-32 field px-3 py-2 text-sm"
             value={rewardPoints}
             onChange={(e) => setRewardPoints(Number(e.target.value))}
           />
@@ -301,7 +301,7 @@ function QuestForm({
           <input
             type="number"
             min={1}
-            className="w-32 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-32 field px-3 py-2 text-sm"
             value={dailyTarget}
             onChange={(e) => setDailyTarget(Number(e.target.value))}
           />
@@ -313,7 +313,7 @@ function QuestForm({
       </div>
 
       <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-        <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="h-4 w-4 rounded border-slate-300" />
+        <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="switch" />
         Включён
       </label>
 
@@ -325,7 +325,7 @@ function QuestForm({
         >
           {isSubmitting ? "Сохранение…" : quest ? "Сохранить" : "Создать"}
         </button>
-        <button type="button" onClick={onCancel} className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+        <button type="button" onClick={onCancel} className="btn-tinted rounded-md px-4 py-2 text-sm font-medium">
           Отмена
         </button>
       </div>

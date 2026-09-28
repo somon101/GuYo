@@ -80,12 +80,12 @@ export function SpeakingWordSettingsPage() {
       <Link to="/exercises" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">
         ← Упражнения
       </Link>
-      <h1 className="mb-1 mt-3 text-xl font-semibold text-slate-900">Произнеси слово 🎙️</h1>
+      <h1 className="mb-1 mt-3 text-[26px] font-bold tracking-tight text-slate-900">Произнеси слово 🎙️</h1>
       <p className="mb-6 text-sm text-slate-500">
         Пользователь произносит слово вслух; распознанный текст сравнивается с целевым словом на устройстве
       </p>
 
-      <div className="rounded-lg border border-slate-200 bg-white p-5">
+      <div className="card p-5">
         {isLoading ? (
           <p className="text-sm text-slate-500">Загрузка…</p>
         ) : loadError ? (
@@ -97,7 +97,7 @@ export function SpeakingWordSettingsPage() {
                 type="checkbox"
                 checked={enabled}
                 onChange={(e) => setEnabled(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300"
+                className="switch"
               />
               Упражнение включено
             </label>
@@ -111,7 +111,7 @@ export function SpeakingWordSettingsPage() {
                 type="number"
                 min={0}
                 max={100}
-                className="w-24 rounded-md border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="w-24 field px-3 py-1.5 text-sm"
                 value={correctPoints ?? ""}
                 onChange={(e) => setCorrectPoints(e.target.value ? Number(e.target.value) : null)}
               />
@@ -126,7 +126,7 @@ export function SpeakingWordSettingsPage() {
                 type="number"
                 min={0}
                 max={100}
-                className="w-24 rounded-md border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="w-24 field px-3 py-1.5 text-sm"
                 value={incorrectPoints ?? ""}
                 onChange={(e) => setIncorrectPoints(e.target.value ? Number(e.target.value) : null)}
               />
@@ -141,7 +141,7 @@ export function SpeakingWordSettingsPage() {
                 type="number"
                 min={0}
                 max={100}
-                className="w-24 rounded-md border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="w-24 field px-3 py-1.5 text-sm"
                 value={matchThreshold ?? ""}
                 onChange={(e) => setMatchThreshold(e.target.value ? Number(e.target.value) : null)}
               />
@@ -155,7 +155,7 @@ export function SpeakingWordSettingsPage() {
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="rounded-md bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                className="rounded-full bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
               >
                 {isSaving ? "Сохранение…" : "Сохранить"}
               </button>

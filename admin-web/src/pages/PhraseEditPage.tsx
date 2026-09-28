@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { API_URL } from "../api/client";
 import { getDictionary, getPhrase, listPhraseCategories, updatePhrase } from "../api/endpoints";
 import type { Dictionary, Phrase, PhraseCategory } from "../types";
+import { PlayButton } from "../components/PlayButton";
 
 function mediaUrl(path: string | null): string | null {
   return path ? `${API_URL}${path}` : null;
@@ -164,14 +165,14 @@ export function PhraseEditPage() {
 
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900" translate="no">
+          <h1 className="text-[26px] font-bold tracking-tight text-slate-900" translate="no">
             {phrase.original}
           </h1>
           <p className="mt-1 text-xs text-slate-400">ID фразы: {phrase.id}</p>
         </div>
         <Link
           to={`/dictionaries/${dictionaryId}/phrases`}
-          className="shrink-0 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+          className="shrink-0 btn-tinted rounded-full px-3 py-1.5 text-sm font-medium"
         >
           ← Назад к фразам
         </Link>
@@ -180,35 +181,35 @@ export function PhraseEditPage() {
       <Section title="Основная информация">
         <Field label="Язык">
           <input
-            className="w-full max-w-xs rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500"
+            className="w-full max-w-xs rounded-[10px] bg-[var(--field)] px-3 py-2 text-sm text-slate-500"
             value={dictionary.name}
             disabled
           />
         </Field>
         <Field label="Оригинальная фраза">
           <input
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-full field px-3 py-2 text-sm"
             value={original}
             onChange={(e) => setOriginal(e.target.value)}
           />
         </Field>
         <Field label="Перевод (Тоҷикӣ)">
           <input
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-full field px-3 py-2 text-sm"
             value={translationTg}
             onChange={(e) => setTranslationTg(e.target.value)}
           />
         </Field>
         <Field label="Транскрипция" hint="необязательно">
           <input
-            className="w-full max-w-xs rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-full max-w-xs field px-3 py-2 text-sm"
             value={transcription}
             onChange={(e) => setTranscription(e.target.value)}
           />
         </Field>
         <Field label="Категория" hint="необязательно">
           <select
-            className="w-full max-w-xs rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-full max-w-xs field px-3 py-2 text-sm"
             value={categoryId ?? ""}
             onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
           >
@@ -240,7 +241,7 @@ export function PhraseEditPage() {
         />
       </Section>
 
-      <div className="sticky bottom-4 mt-6 flex items-center gap-3 rounded-lg border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur">
+      <div className="sticky bottom-4 mt-6 flex items-center gap-3 card shadow-float p-4">
         <button
           onClick={handleSave}
           disabled={!hasChanges || isSaving}
@@ -260,7 +261,7 @@ export function PhraseEditPage() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mb-6 rounded-lg border border-slate-200 bg-white p-5">
+    <div className="mb-6 card p-5">
       <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</h2>
       {children}
     </div>
@@ -303,23 +304,23 @@ function AudioBlock({
   return (
     <div>
       <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{languageLabel}</p>
-      <p className="mb-2 text-sm font-medium text-slate-800" translate="no">
+      <p className="mb-2 font-serif text-base font-medium text-slate-800" translate="no">
         {text}
       </p>
       {preview ? (
         <div className="flex flex-wrap items-center gap-3">
-          <audio controls src={preview} className="h-8 max-w-full" />
+          <PlayButton src={preview} size={40} />
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+            className="btn-tinted rounded-full px-3 py-1.5 text-sm font-medium"
           >
             Заменить аудио
           </button>
           <button
             type="button"
             onClick={() => onChange({ ...stage, newFile: null, removed: true })}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-red-50 hover:text-red-600"
+            className="btn-tinted-danger rounded-full px-3 py-1.5 text-sm font-medium"
           >
             Удалить
           </button>
@@ -330,7 +331,7 @@ function AudioBlock({
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+            className="btn-tinted rounded-full px-3 py-1.5 text-sm font-medium"
           >
             Добавить аудио
           </button>

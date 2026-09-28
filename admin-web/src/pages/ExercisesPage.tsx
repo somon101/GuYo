@@ -14,13 +14,13 @@ const EXERCISES: { key: string; label: string }[] = [
 export function ExercisesPage() {
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="mb-6 text-xl font-semibold text-slate-900">Упражнения</h1>
+      <h1 className="mb-6 text-[26px] font-bold tracking-tight text-slate-900">Упражнения</h1>
       <ul className="flex flex-col gap-3">
         {EXERCISES.map((ex) => (
           <li key={ex.key}>
             <Link
               to={`/exercises/${ex.key}`}
-              className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-5 hover:border-indigo-300 hover:bg-indigo-50/40"
+              className="flex items-center justify-between card p-5 card-link"
             >
               <span className="text-base font-medium text-slate-900">{ex.label}</span>
               <span className="text-slate-400">→</span>
@@ -30,7 +30,7 @@ export function ExercisesPage() {
         <li>
           <Link
             to="/exercises/word-levels"
-            className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-5 hover:border-indigo-300 hover:bg-indigo-50/40"
+            className="flex items-center justify-between card p-5 card-link"
           >
             <span className="text-base font-medium text-slate-900">Уровни слов</span>
             <span className="text-slate-400">→</span>
@@ -39,7 +39,7 @@ export function ExercisesPage() {
         <li>
           <Link
             to="/exercises/priority"
-            className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-5 hover:border-indigo-300 hover:bg-indigo-50/40"
+            className="flex items-center justify-between card p-5 card-link"
           >
             <span className="text-base font-medium text-slate-900">Приоритет</span>
             <span className="text-slate-400">→</span>

@@ -113,7 +113,7 @@ export function SlogansPage() {
 
   return (
     <div className="p-6">
-      <h1 className="mb-1 text-xl font-semibold text-slate-900">Слоганы</h1>
+      <h1 className="mb-1 text-[26px] font-bold tracking-tight text-slate-900">Слоганы</h1>
       <p className="mb-6 max-w-2xl text-sm text-slate-500">
         Строка под приветствием на главном экране. Каждый пользователь получает случайный включённый слоган, который
         закрепляется за ним на день — на следующий день выпадает другой. Пока включённых слоганов нет, приложение
@@ -162,7 +162,7 @@ export function SlogansPage() {
               onDragStart={() => handleDragStart(s.id)}
               onDragOver={(e) => handleDragOver(e, s.id)}
               onDragEnd={handleDragEnd}
-              className={`flex cursor-grab items-center gap-3 rounded-lg border border-slate-200 bg-white p-4 active:cursor-grabbing ${
+              className={`flex cursor-grab items-center gap-3 card p-4 active:cursor-grabbing ${
                 s.enabled ? "" : "opacity-50"
               }`}
             >
@@ -238,10 +238,10 @@ function SloganForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+    <form onSubmit={handleSubmit} className="card mb-4 p-4">
       <label className="mb-1 block text-sm font-medium text-slate-700">Текст</label>
       <input
-        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+        className="w-full field px-3 py-2 text-sm"
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Давай учиться сегодня!"
@@ -250,7 +250,7 @@ function SloganForm({
       />
 
       <label className="mt-3 flex items-center gap-2 text-sm font-medium text-slate-700">
-        <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+        <input type="checkbox" className="switch" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
         Включён
       </label>
 
@@ -267,7 +267,7 @@ function SloganForm({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-white"
+          className="btn-tinted rounded-md px-4 py-2 text-sm font-medium"
         >
           Отмена
         </button>

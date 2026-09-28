@@ -52,7 +52,7 @@ export function RatingPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="mb-6 text-xl font-semibold text-slate-900">Рейтинг</h1>
+      <h1 className="mb-6 text-[26px] font-bold tracking-tight text-slate-900">Рейтинг</h1>
 
       {isLoading ? (
         <p className="text-sm text-slate-500">Загрузка…</p>
@@ -73,7 +73,7 @@ export function RatingPage() {
 
 function SectionCard({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5">
+    <section className="card p-5">
       <h2 className="text-base font-semibold text-slate-900">{title}</h2>
       {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
       <div className="mt-4">{children}</div>
@@ -115,7 +115,7 @@ function PointsCard({
           <input
             type="number"
             min={0}
-            className="w-32 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-32 field px-3 py-2 text-sm"
             value={value}
             onChange={(e) => setValue(Number(e.target.value))}
           />
@@ -170,7 +170,7 @@ function MovementCard({
           <input
             type="number"
             min={0}
-            className="w-32 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-32 field px-3 py-2 text-sm"
             value={value}
             onChange={(e) => setValue(Number(e.target.value))}
           />
@@ -222,7 +222,7 @@ function ResetCard({ settings, onSaved }: { settings: RatingSettings; onSaved: (
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Режим</label>
           <select
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="field px-3 py-2 text-sm"
             value={mode}
             onChange={(e) => setMode(e.target.value as RatingResetMode)}
           >
@@ -236,7 +236,7 @@ function ResetCard({ settings, onSaved }: { settings: RatingSettings; onSaved: (
             type="number"
             min={0}
             max={mode === "percent" ? 100 : undefined}
-            className="w-28 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-28 field px-3 py-2 text-sm"
             value={value}
             onChange={(e) => setValue(Number(e.target.value))}
           />
@@ -342,10 +342,10 @@ function RanksCard({ ranks, setRanks }: { ranks: Rank[]; setRanks: (r: Rank[]) =
               onDragStart={() => handleDragStart(r.id)}
               onDragOver={(e) => handleDragOver(e, r.id)}
               onDragEnd={handleDragEnd}
-              className={`flex cursor-grab items-center gap-3 rounded-lg border p-3 active:cursor-grabbing ${r.enabled ? "border-slate-200 bg-white" : "border-slate-200 bg-white opacity-50"}`}
+              className={`flex cursor-grab items-center gap-3 rounded-lg border p-3 active:cursor-grabbing ${r.enabled ? "border-slate-200 bg-card" : "border-slate-200 bg-card opacity-50"}`}
             >
               <div
-                className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-white"
+                className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-card"
                 style={{ borderColor: r.color }}
               >
                 {r.icon_url ? (
@@ -442,11 +442,11 @@ function RankForm({ rank, onSaved, onCancel }: { rank: Rank | null; onSaved: (r:
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mb-4 flex flex-col gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+    <form onSubmit={handleSubmit} className="mb-4 flex flex-col gap-4 rounded-[14px] bg-slate-50 p-4">
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Название</label>
         <input
-          className="w-full max-w-xs rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          className="w-full max-w-xs field px-3 py-2 text-sm"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Бронза"
@@ -458,7 +458,7 @@ function RankForm({ rank, onSaved, onCancel }: { rank: Rank | null; onSaved: (r:
         <label className="mb-1 block text-sm font-medium text-slate-700">Иконка</label>
         <p className="mb-2 text-xs text-slate-400">Загрузите изображение -- оно будет показано как иконка ранга.</p>
         <div className="flex items-center gap-3">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-card">
             {iconPreview ? <img src={iconPreview} alt="" className="h-full w-full object-cover" /> : <span className="text-xs text-slate-400">нет</span>}
           </div>
           <div className="flex flex-col gap-1">
@@ -478,21 +478,21 @@ function RankForm({ rank, onSaved, onCancel }: { rank: Rank | null; onSaved: (r:
           <input
             type="number"
             min={0}
-            className="w-28 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-28 field px-3 py-2 text-sm"
             value={minPoints}
             onChange={(e) => setMinPoints(Number(e.target.value))}
           />
         </div>
         <div>
           <label className="mb-1 flex items-center gap-2 text-sm font-medium text-slate-700">
-            <input type="checkbox" checked={hasMax} onChange={(e) => setHasMax(e.target.checked)} className="h-4 w-4 rounded border-slate-300" />
+            <input type="checkbox" checked={hasMax} onChange={(e) => setHasMax(e.target.checked)} className="switch" />
             Макс. очков
           </label>
           <input
             type="number"
             min={0}
             disabled={!hasMax}
-            className="w-28 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100"
+            className="w-28 field px-3 py-2 text-sm disabled:bg-slate-100"
             value={maxPoints}
             onChange={(e) => setMaxPoints(Number(e.target.value))}
             placeholder="без границы"
@@ -501,19 +501,19 @@ function RankForm({ rank, onSaved, onCancel }: { rank: Rank | null; onSaved: (r:
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Цвет</label>
           <div className="flex items-center gap-2">
-            <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-9 w-9 cursor-pointer rounded border border-slate-300 p-0.5" />
+            <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-9 w-9 cursor-pointer rounded-[10px] bg-[var(--fill)] p-1" />
             <input
               type="text"
               value={color}
               onChange={(e) => setColor(e.target.value)}
-              className="w-24 rounded-md border border-slate-300 px-2 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              className="w-24 field px-2 py-2 text-sm"
             />
           </div>
         </div>
       </div>
 
       <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-        <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="h-4 w-4 rounded border-slate-300" />
+        <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="switch" />
         Включён
       </label>
 
@@ -525,7 +525,7 @@ function RankForm({ rank, onSaved, onCancel }: { rank: Rank | null; onSaved: (r:
         >
           {isSubmitting ? "Сохранение…" : rank ? "Сохранить" : "Создать"}
         </button>
-        <button type="button" onClick={onCancel} className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+        <button type="button" onClick={onCancel} className="btn-tinted rounded-md px-4 py-2 text-sm font-medium">
           Отмена
         </button>
       </div>
@@ -651,7 +651,7 @@ function SeasonsCard({ seasons, onChanged }: { seasons: Season[]; onChanged: () 
           {seasons.map((s) => (
             <li
               key={s.id}
-              className={`flex items-center gap-3 rounded-lg border p-3 ${s.status === "active" ? "border-indigo-200 bg-indigo-50" : "border-slate-200 bg-white"}`}
+              className={`flex items-center gap-3 rounded-lg border p-3 ${s.status === "active" ? "border-indigo-200 bg-indigo-50" : "border-slate-200 bg-card"}`}
             >
               <SeasonIcon season={s} onChanged={onChanged} />
               <div className="min-w-0 flex-1">
@@ -827,12 +827,12 @@ function SeasonForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+    <form onSubmit={handleSubmit} className="mb-4 rounded-[14px] bg-slate-50 p-4">
       <div className="flex flex-wrap gap-4">
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Название</label>
           <input
-            className="w-56 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-56 field px-3 py-2 text-sm"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Сезон 3"
@@ -842,7 +842,7 @@ function SeasonForm({
           <label className="mb-1 block text-sm font-medium text-slate-700">Начало</label>
           <input
             type="datetime-local"
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="field px-3 py-2 text-sm"
             value={startsAt}
             onChange={(e) => setStartsAt(e.target.value)}
           />
@@ -850,13 +850,13 @@ function SeasonForm({
         </div>
         <div>
           <label className="mb-1 flex items-center gap-2 text-sm font-medium text-slate-700">
-            <input type="checkbox" checked={hasEnd} onChange={(e) => setHasEnd(e.target.checked)} />
+            <input type="checkbox" className="switch" checked={hasEnd} onChange={(e) => setHasEnd(e.target.checked)} />
             Окончание
           </label>
           <input
             type="datetime-local"
             disabled={!hasEnd}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-400"
+            className="field px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400"
             value={endsAt}
             onChange={(e) => setEndsAt(e.target.value)}
           />
@@ -879,7 +879,7 @@ function SeasonForm({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-white"
+          className="btn-tinted rounded-md px-4 py-2 text-sm font-medium"
         >
           Отмена
         </button>

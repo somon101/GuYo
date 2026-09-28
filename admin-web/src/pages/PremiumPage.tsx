@@ -12,7 +12,7 @@ import {
 import type { AdminUser, PremiumGrant, PremiumSettings, PremiumUser } from "../types";
 
 const inputClass =
-  "w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500";
+  "w-full field px-3 py-2 text-sm";
 
 const PERIODS = [
   { days: 30, label: "1 месяц" },
@@ -77,7 +77,7 @@ export function PremiumPage() {
 
   return (
     <div className="p-6">
-      <h1 className="mb-1 text-xl font-semibold text-slate-900">Premium</h1>
+      <h1 className="mb-1 text-[26px] font-bold tracking-tight text-slate-900">Premium</h1>
       <p className="mb-6 max-w-2xl text-sm text-slate-500">
         Пользователь переводит деньги и указывает в комментарии свой ID (9 цифр, он виден в приложении на экране
         Premium). Найдите его здесь и включите Premium на оплаченный срок. Если подписка уже активна, новый срок
@@ -101,9 +101,9 @@ export function PremiumPage() {
       ) : subscribers.length === 0 ? (
         <p className="text-sm text-slate-500">Пока никто не оформил Premium</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <div className="overflow-x-auto card">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-3 font-medium">Пользователь</th>
                 <th className="px-4 py-3 font-medium">ID</th>
@@ -165,9 +165,9 @@ export function PremiumPage() {
       {grants.length > 0 && (
         <>
           <h2 className="mt-8 mb-3 text-sm font-semibold text-slate-900">История оплат</h2>
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <div className="overflow-x-auto card">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-4 py-3 font-medium">Кому</th>
                   <th className="px-4 py-3 font-medium">Период</th>
@@ -260,7 +260,7 @@ function GrantForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-lg border border-slate-200 bg-white p-5">
+    <form onSubmit={handleSubmit} className="card p-5">
       <h2 className="mb-4 text-sm font-semibold text-slate-900">Включить Premium</h2>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
@@ -298,10 +298,10 @@ function GrantForm({
               key={p.days}
               type="button"
               onClick={() => setDays(p.days)}
-              className={`rounded-md border px-3 py-1.5 text-sm font-medium ${
+              className={`rounded-full px-3.5 py-1.5 text-sm font-medium ${
                 days === p.days
-                  ? "border-indigo-600 bg-indigo-50 text-indigo-700"
-                  : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                  ? "bg-[var(--sys-blue)] text-white"
+                  : "btn-tinted"
               }`}
             >
               {p.label}
@@ -428,7 +428,7 @@ function SettingsForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-8 rounded-lg border border-slate-200 bg-white p-5">
+    <form onSubmit={handleSubmit} className="mt-8 card p-5">
       <h2 className="mb-1 text-sm font-semibold text-slate-900">Настройки</h2>
       <p className="mb-4 max-w-2xl text-sm text-slate-500">
         Лимит — сколько уроков пользователь может создать сам. Автоуроки не считаются. День и неделя — по времени
@@ -439,10 +439,10 @@ function SettingsForm() {
         error ? <p className="text-sm text-red-600">{error}</p> : <p className="text-sm text-slate-500">Загрузка…</p>
       ) : (
         <>
-          <label className="mb-5 flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-4">
+          <label className="mb-5 flex items-start gap-3 rounded-[14px] bg-amber-50 p-4">
             <input
               type="checkbox"
-              className="mt-0.5 h-4 w-4"
+              className="switch mt-0.5"
               checked={settings.premium_enabled}
               onChange={(e) => setSettings({ ...settings, premium_enabled: e.target.checked })}
             />
@@ -459,15 +459,15 @@ function SettingsForm() {
           </label>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <fieldset className="rounded-md border border-slate-200 p-4">
-              <legend className="px-1 text-sm font-medium text-slate-700">Без подписки</legend>
+            <fieldset className="rounded-[14px] bg-slate-50 p-4">
+              <legend className="float-left mb-3 w-full text-[13px] font-semibold uppercase tracking-wide text-slate-500">Без подписки</legend>
               <label className="mb-1 block text-sm text-slate-600">Уроков в день</label>
               {limitInput("free_daily_lesson_limit")}
               <label className="mb-1 mt-3 block text-sm text-slate-600">Уроков в неделю</label>
               {limitInput("free_weekly_lesson_limit")}
             </fieldset>
-            <fieldset className="rounded-md border border-slate-200 p-4">
-              <legend className="px-1 text-sm font-medium text-slate-700">Premium</legend>
+            <fieldset className="rounded-[14px] bg-slate-50 p-4">
+              <legend className="float-left mb-3 w-full text-[13px] font-semibold uppercase tracking-wide text-slate-500">Premium</legend>
               <label className="mb-1 block text-sm text-slate-600">Уроков в день</label>
               {limitInput("premium_daily_lesson_limit")}
               <label className="mb-1 mt-3 block text-sm text-slate-600">Уроков в неделю</label>
@@ -475,18 +475,20 @@ function SettingsForm() {
             </fieldset>
           </div>
 
-          <div className="mt-4 space-y-2">
-            <label className="flex items-center gap-2 text-sm text-slate-700">
+          <div className="mt-4 space-y-3">
+            <label className="flex items-center gap-2.5 text-sm text-slate-700">
               <input
                 type="checkbox"
+                className="switch"
                 checked={settings.adaptive_lessons_premium_only}
                 onChange={(e) => setSettings({ ...settings, adaptive_lessons_premium_only: e.target.checked })}
               />
               Автоуроки для закрепления — только для Premium
             </label>
-            <label className="flex items-center gap-2 text-sm text-slate-700">
+            <label className="flex items-center gap-2.5 text-sm text-slate-700">
               <input
                 type="checkbox"
+                className="switch"
                 checked={settings.personal_quests_premium_only}
                 onChange={(e) => setSettings({ ...settings, personal_quests_premium_only: e.target.checked })}
               />

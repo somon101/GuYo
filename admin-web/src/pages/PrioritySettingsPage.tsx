@@ -26,7 +26,7 @@ import { formatScoreRange, PRIORITY_ROLE_EFFECTS, priorityRoleBands } from "../l
 import type { PriorityLevelBand, PriorityRecencyBand, PriorityStabilityBand, PrioritySettings, WordLevel } from "../types";
 
 const inputClass =
-  "rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500";
+  "field px-3 py-2 text-sm";
 
 /** Every number app/priority/calculate.py reads on the backend, in one
  * place: the 4 factor weights + the 3 recent-error window weights (one
@@ -43,7 +43,7 @@ export function PrioritySettingsPage() {
       <Link to="/exercises" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">
         ← Упражнения
       </Link>
-      <h1 className="mb-1 mt-3 text-xl font-semibold text-slate-900">Приоритет</h1>
+      <h1 className="mb-1 mt-3 text-[26px] font-bold tracking-tight text-slate-900">Приоритет</h1>
       <p className="mb-6 text-sm text-slate-500">
         Насколько срочно слову нужно повторение -- считается на лету из истории попыток (см. «Диагностика слова» в
         Аналитике), а не хранится. Вклад по уровню слова редактируется на странице «Уровни слов»; здесь -- всё
@@ -185,7 +185,7 @@ function WeightsSection() {
       ) : !settings ? (
         <p className="text-sm text-red-600">{error}</p>
       ) : (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4 card p-4">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {field(
               "weight_level",
@@ -400,7 +400,7 @@ function RecencySection() {
           {[...bands]
             .sort((a, b) => a.order - b.order)
             .map((band) => (
-              <li key={band.id} className={`flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 ${band.enabled ? "" : "opacity-50"}`}>
+              <li key={band.id} className={`flex items-center gap-3 card p-3 ${band.enabled ? "" : "opacity-50"}`}>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-slate-900">{band.name}</p>
                   <p className="text-xs text-slate-500">
@@ -449,25 +449,25 @@ function RecencyForm({ band, onSaved, onCancel }: { band: PriorityRecencyBand | 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mb-3 flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+    <form onSubmit={handleSubmit} className="mb-3 flex flex-col gap-3 rounded-[14px] bg-slate-50 p-4">
       <div className="flex flex-wrap gap-3">
         <input className={`w-40 ${inputClass}`} value={name} onChange={(e) => setName(e.target.value)} placeholder="Название" autoFocus />
         <input type="number" min={0} className={`w-24 ${inputClass}`} value={minDays} onChange={(e) => setMinDays(Number(e.target.value))} placeholder="Мин. дней" />
         <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" checked={hasMax} onChange={(e) => setHasMax(e.target.checked)} className="h-4 w-4 rounded border-slate-300" />
+          <input type="checkbox" checked={hasMax} onChange={(e) => setHasMax(e.target.checked)} className="switch" />
           <input type="number" min={0} disabled={!hasMax} className={`w-24 ${inputClass} disabled:bg-slate-100`} value={maxDays} onChange={(e) => setMaxDays(Number(e.target.value))} placeholder="Макс. дней" />
         </label>
         <input type="number" step="any" className={`w-24 ${inputClass}`} value={contribution} onChange={(e) => setContribution(Number(e.target.value))} placeholder="Вклад" />
         <input type="number" className={`w-20 ${inputClass}`} value={order} onChange={(e) => setOrder(Number(e.target.value))} placeholder="Порядок" />
         <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="h-4 w-4 rounded border-slate-300" /> Включён
+          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="switch" /> Включён
         </label>
       </div>
       <div className="flex items-center gap-3">
         <button type="submit" disabled={isSubmitting} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60">
           {isSubmitting ? "…" : "Сохранить"}
         </button>
-        <button type="button" onClick={onCancel} className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+        <button type="button" onClick={onCancel} className="btn-tinted rounded-md px-4 py-2 text-sm font-medium">
           Отмена
         </button>
         {error && <span className="text-sm text-red-600">{error}</span>}
@@ -557,7 +557,7 @@ function StabilitySection() {
           {[...bands]
             .sort((a, b) => a.order - b.order)
             .map((band) => (
-              <li key={band.id} className={`flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 ${band.enabled ? "" : "opacity-50"}`}>
+              <li key={band.id} className={`flex items-center gap-3 card p-3 ${band.enabled ? "" : "opacity-50"}`}>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-slate-900">{band.name}</p>
                   <p className="text-xs text-slate-500">
@@ -605,7 +605,7 @@ function StabilityForm({ band, onSaved, onCancel }: { band: PriorityStabilityBan
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mb-3 flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+    <form onSubmit={handleSubmit} className="mb-3 flex flex-col gap-3 rounded-[14px] bg-slate-50 p-4">
       <div className="flex flex-wrap gap-3">
         <input className={`w-40 ${inputClass}`} value={name} onChange={(e) => setName(e.target.value)} placeholder="Название" autoFocus />
         <input type="number" min={0} max={100} className={`w-24 ${inputClass}`} value={minPercent} onChange={(e) => setMinPercent(Number(e.target.value))} placeholder="Мин. %" />
@@ -613,14 +613,14 @@ function StabilityForm({ band, onSaved, onCancel }: { band: PriorityStabilityBan
         <input type="number" step="any" className={`w-24 ${inputClass}`} value={contribution} onChange={(e) => setContribution(Number(e.target.value))} placeholder="Вклад" />
         <input type="number" className={`w-20 ${inputClass}`} value={order} onChange={(e) => setOrder(Number(e.target.value))} placeholder="Порядок" />
         <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="h-4 w-4 rounded border-slate-300" /> Включён
+          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="switch" /> Включён
         </label>
       </div>
       <div className="flex items-center gap-3">
         <button type="submit" disabled={isSubmitting} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60">
           {isSubmitting ? "…" : "Сохранить"}
         </button>
-        <button type="button" onClick={onCancel} className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+        <button type="button" onClick={onCancel} className="btn-tinted rounded-md px-4 py-2 text-sm font-medium">
           Отмена
         </button>
         {error && <span className="text-sm text-red-600">{error}</span>}
@@ -718,7 +718,7 @@ function LevelBandsSection() {
           {[...bands]
             .sort((a, b) => b.min_score - a.min_score)
             .map((band) => (
-              <li key={band.id} className={`flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 ${band.enabled ? "" : "opacity-50"}`}>
+              <li key={band.id} className={`flex items-center gap-3 card p-3 ${band.enabled ? "" : "opacity-50"}`}>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-slate-900">{band.name}</p>
                   <p className="text-xs text-slate-500">
@@ -766,24 +766,24 @@ function LevelBandForm({ band, onSaved, onCancel }: { band: PriorityLevelBand | 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mb-3 flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+    <form onSubmit={handleSubmit} className="mb-3 flex flex-col gap-3 rounded-[14px] bg-slate-50 p-4">
       <div className="flex flex-wrap gap-3">
         <input className={`w-40 ${inputClass}`} value={name} onChange={(e) => setName(e.target.value)} placeholder="Название" autoFocus />
         <input type="number" step="any" className={`w-24 ${inputClass}`} value={minScore} onChange={(e) => setMinScore(Number(e.target.value))} placeholder="Мин. очков" />
         <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" checked={hasMax} onChange={(e) => setHasMax(e.target.checked)} className="h-4 w-4 rounded border-slate-300" />
+          <input type="checkbox" checked={hasMax} onChange={(e) => setHasMax(e.target.checked)} className="switch" />
           <input type="number" step="any" disabled={!hasMax} className={`w-24 ${inputClass} disabled:bg-slate-100`} value={maxScore} onChange={(e) => setMaxScore(Number(e.target.value))} placeholder="Макс. очков" />
         </label>
         <input type="number" className={`w-20 ${inputClass}`} value={order} onChange={(e) => setOrder(Number(e.target.value))} placeholder="Порядок" />
         <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="h-4 w-4 rounded border-slate-300" /> Включён
+          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="switch" /> Включён
         </label>
       </div>
       <div className="flex items-center gap-3">
         <button type="submit" disabled={isSubmitting} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60">
           {isSubmitting ? "…" : "Сохранить"}
         </button>
-        <button type="button" onClick={onCancel} className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+        <button type="button" onClick={onCancel} className="btn-tinted rounded-md px-4 py-2 text-sm font-medium">
           Отмена
         </button>
         {error && <span className="text-sm text-red-600">{error}</span>}

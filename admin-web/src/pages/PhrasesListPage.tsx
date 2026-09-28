@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { API_URL } from "../api/client";
 import { createPhrase, deletePhrase, getDictionary, listPhraseCategories, listPhrases } from "../api/endpoints";
 import type { Dictionary, Phrase, PhraseCategory } from "../types";
+import { PlayButton } from "../components/PlayButton";
 
 function mediaUrl(path: string | null): string | null {
   return path ? `${API_URL}${path}` : null;
@@ -85,7 +86,7 @@ export function PhrasesListPage() {
 
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900" translate="no">
+          <h1 className="text-[26px] font-bold tracking-tight text-slate-900" translate="no">
             {currentCategory ? currentCategory.name : "Все фразы"}
           </h1>
           <p className="text-sm text-slate-500">{phrases.length} фраз</p>
@@ -121,23 +122,29 @@ export function PhrasesListPage() {
           {phrases.map((p) => (
             <li
               key={p.id}
-              className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 rounded-lg border border-slate-200 bg-white p-4"
+              className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 card p-4"
             >
               <div translate="no" className="min-w-0 flex-1">
-                <p className="text-base font-medium text-slate-900">{p.original}</p>
+                <p className="font-serif text-[17px] font-medium text-slate-900">{p.original}</p>
                 {p.transcription && <p className="text-sm text-slate-400">{p.transcription}</p>}
-                <p className="text-sm text-slate-600">{p.translation_tg}</p>
+                <p className="font-serif text-[15px] text-slate-600">{p.translation_tg}</p>
                 {!currentCategory && p.category_name && (
-                  <p className="mt-1 inline-block rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+                  <p className="mt-1 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
                     {p.category_name}
                   </p>
                 )}
                 <div className="mt-2 flex flex-wrap gap-3">
                   {mediaUrl(p.original_audio_url) && (
-                    <audio controls src={mediaUrl(p.original_audio_url)!} className="h-8 max-w-[220px]" />
+                    <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-500">
+                        <PlayButton src={mediaUrl(p.original_audio_url)!} label="Прослушать фразу" />
+                        Фраза
+                      </span>
                   )}
                   {mediaUrl(p.translation_audio_url) && (
-                    <audio controls src={mediaUrl(p.translation_audio_url)!} className="h-8 max-w-[220px]" />
+                    <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-500">
+                        <PlayButton src={mediaUrl(p.translation_audio_url)!} label="Прослушать перевод" />
+                        Перевод
+                      </span>
                   )}
                 </div>
               </div>
@@ -211,13 +218,13 @@ function AddPhraseForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="mb-6 flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5"
+      className="mb-6 flex flex-col gap-4 card p-5"
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Язык</label>
           <input
-            className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500"
+            className="w-full rounded-[10px] bg-[var(--field)] px-3 py-2 text-sm text-slate-500"
             value={languageLabel}
             disabled
           />
@@ -227,7 +234,7 @@ function AddPhraseForm({
             Категория <span className="font-normal text-slate-400">(необязательно)</span>
           </label>
           <select
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-full field px-3 py-2 text-sm"
             value={categoryId ?? ""}
             onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
           >
@@ -244,7 +251,7 @@ function AddPhraseForm({
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Оригинальная фраза</label>
         <input
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          className="w-full field px-3 py-2 text-sm"
           value={original}
           onChange={(e) => setOriginal(e.target.value)}
           autoFocus
@@ -257,7 +264,7 @@ function AddPhraseForm({
           Транскрипция <span className="font-normal text-slate-400">(необязательно)</span>
         </label>
         <input
-          className="w-full max-w-xs rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          className="w-full max-w-xs field px-3 py-2 text-sm"
           value={transcription}
           onChange={(e) => setTranscription(e.target.value)}
         />
@@ -266,7 +273,7 @@ function AddPhraseForm({
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Перевод (Тоҷикӣ)</label>
         <input
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          className="w-full field px-3 py-2 text-sm"
           value={translationTg}
           onChange={(e) => setTranslationTg(e.target.value)}
           required
@@ -289,7 +296,7 @@ function AddPhraseForm({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          className="btn-tinted rounded-md px-4 py-2 text-sm font-medium"
         >
           Отмена
         </button>

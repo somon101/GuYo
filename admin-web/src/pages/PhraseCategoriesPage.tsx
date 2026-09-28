@@ -161,7 +161,7 @@ export function PhraseCategoriesPage() {
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900" translate="no">
+          <h1 className="text-[26px] font-bold tracking-tight text-slate-900" translate="no">
             {dictionary.name} · Фразы
           </h1>
           <p className="text-xs text-slate-400">ID: {dictionary.id}</p>
@@ -173,14 +173,14 @@ export function PhraseCategoriesPage() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleExport}
-            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            className="btn-tinted rounded-md px-4 py-2 text-sm font-medium"
           >
             Экспорт
           </button>
           <button
             onClick={() => importInputRef.current?.click()}
             disabled={isImporting}
-            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            className="btn-tinted rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50"
           >
             {isImporting ? "Импорт…" : "Импорт"}
           </button>
@@ -223,7 +223,7 @@ export function PhraseCategoriesPage() {
 
       <Link
         to={`/dictionaries/${dictionaryId}/phrases/all`}
-        className="mb-4 block rounded-lg border border-slate-200 bg-white p-4 text-sm font-medium text-indigo-600 hover:bg-slate-50"
+        className="mb-4 block card p-4 text-sm font-medium text-indigo-600 card-link"
       >
         Все фразы ({totalPhrases}) →
       </Link>
@@ -236,7 +236,7 @@ export function PhraseCategoriesPage() {
             <li key={c.id}>
               <Link
                 to={`/dictionaries/${dictionaryId}/phrases/categories/${c.id}`}
-                className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4 hover:bg-slate-50"
+                className="flex items-center justify-between gap-3 card p-4 card-link"
               >
                 <span className="font-medium text-slate-900" translate="no">
                   {c.name}
@@ -299,7 +299,7 @@ function CreatePhraseCategoryModal({
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Название</label>
           <input
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-full field px-3 py-2 text-sm"
             value={name}
             onChange={(e) => setName(e.target.value)}
             autoFocus
@@ -317,7 +317,7 @@ function CreatePhraseCategoryModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            className="btn-tinted rounded-md px-4 py-2 text-sm font-medium"
           >
             Отмена
           </button>

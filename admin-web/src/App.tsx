@@ -33,10 +33,15 @@ import { RatingPage } from "./pages/RatingPage";
 // server-side rewrites, so a BrowserRouter route like /dictionaries/3 would
 // 404 on a hard refresh. Hash-based routes (#/dictionaries/3) always resolve
 // to index.html first.
+//
+// useTransitions={false}: route changes must commit synchronously so a link
+// click can render the next screen inside a View Transition (see
+// lib/pageTransitions.ts). Deferred, transition-wrapped updates would land
+// after the browser already took the "new screen" snapshot.
 export default function App() {
   return (
     <AuthProvider>
-      <HashRouter>
+      <HashRouter useTransitions={false}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route

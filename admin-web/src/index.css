@@ -1,11 +1,725 @@
 @import "tailwindcss";
 
-html,
-body,
-#root {
-  height: 100%;
+/* ==========================================================================
+   GuYo Admin -- iOS look.
+
+   Every page keeps its ordinary Tailwind classes; what those classes MEAN is
+   decided here. slate -> iOS grays, indigo/blue -> systemBlue, red/rose ->
+   systemRed, emerald/green -> systemGreen, amber/orange/yellow ->
+   systemOrange, violet/purple -> systemPurple -- each with a light and a
+   dark value, so the whole admin follows the OS theme with no per-page
+   `dark:` variants. A new page written with the same classes gets the same
+   look for free.
+   ========================================================================== */
+
+:root {
+  color-scheme: light dark;
+
+  --sys-blue: #007aff;
+  --sys-green: #34c759;
+  --sys-red: #ff3b30;
+  --sys-orange: #ff9500;
+  --sys-purple: #af52de;
+
+  /* The same hues, deep enough to read as small text on a card. */
+  --sys-blue-ink: #0062cc;
+  --sys-green-ink: #248a3d;
+  --sys-red-ink: #d70015;
+  --sys-orange-ink: #b35900;
+  --sys-purple-ink: #8944ab;
+
+  --bg: #f2f2f7;
+  --card: #ffffff;
+  --card-hover: #f7f7fa;
+  --fill: rgb(118 118 128 / 0.12);
+  --fill-strong: rgb(118 118 128 / 0.2);
+  --field: rgb(118 118 128 / 0.1);
+  --separator: rgb(60 60 67 / 0.16);
+  --label: #000000;
+  --segment-thumb: #ffffff;
+  --switch-off: rgb(120 120 128 / 0.16);
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 2px 14px rgb(0 0 0 / 0.035);
+  --shadow-float: 0 10px 34px rgb(0 0 0 / 0.14), 0 1px 3px rgb(0 0 0 / 0.06);
+  --header-glass: rgb(242 242 247 / 0.72);
+  --blob-opacity: 0.38;
+
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --gray-50: #f2f2f7;
+  --gray-100: #e5e5ea;
+  --gray-200: #d1d1d6;
+  --gray-300: #c7c7cc;
+  --gray-400: #aeaeb2;
+  --gray-500: #8e8e93;
+  --gray-600: #636366;
+  --gray-700: #48484a;
+  --gray-800: #2c2c2e;
+  --gray-900: #1c1c1e;
+  --gray-950: #000000;
 }
 
-body {
-  @apply bg-slate-50 text-slate-900;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sys-blue: #0a84ff;
+    --sys-green: #30d158;
+    --sys-red: #ff453a;
+    --sys-orange: #ff9f0a;
+    --sys-purple: #bf5af2;
+
+    --sys-blue-ink: #409cff;
+    --sys-green-ink: #30db5b;
+    --sys-red-ink: #ff6961;
+    --sys-orange-ink: #ffb340;
+    --sys-purple-ink: #da8fff;
+
+    --bg: #000000;
+    --card: #1c1c1e;
+    --card-hover: #242426;
+    --fill: rgb(118 118 128 / 0.24);
+    --fill-strong: rgb(118 118 128 / 0.34);
+    --field: rgb(118 118 128 / 0.24);
+    --separator: rgb(84 84 88 / 0.65);
+    --label: #ffffff;
+    --segment-thumb: #636366;
+    --switch-off: rgb(120 120 128 / 0.32);
+
+    /* Elevation in dark mode is a lighter surface, not a shadow -- as on iOS. */
+    --shadow-card: none;
+    --shadow-float: 0 10px 34px rgb(0 0 0 / 0.55);
+    --header-glass: rgb(22 22 24 / 0.72);
+    --blob-opacity: 0.4;
+
+    /* The neutral ramp flips, so "light number = surface, dark number =
+       text" keeps holding for every slate-* class. */
+    --gray-50: #2c2c2e;
+    --gray-100: #3a3a3c;
+    --gray-200: #48484a;
+    --gray-300: #545458;
+    --gray-400: #636366;
+    --gray-500: #8e8e93;
+    --gray-600: #aeaeb2;
+    --gray-700: #c7c7cc;
+    --gray-800: #e5e5ea;
+    --gray-900: #f2f2f7;
+    --gray-950: #ffffff;
+  }
+}
+
+@theme {
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI Variable Text", "Segoe UI",
+    system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: ui-serif, "New York", "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 22px;
+}
+
+@theme inline {
+  --color-card: var(--card);
+
+  --color-slate-50: var(--gray-50);
+  --color-slate-100: var(--gray-100);
+  --color-slate-200: var(--gray-200);
+  --color-slate-300: var(--gray-300);
+  --color-slate-400: var(--gray-400);
+  --color-slate-500: var(--gray-500);
+  --color-slate-600: var(--gray-600);
+  --color-slate-700: var(--gray-700);
+  --color-slate-800: var(--gray-800);
+  --color-slate-900: var(--gray-900);
+  --color-slate-950: var(--gray-950);
+
+  --color-indigo-50: color-mix(in srgb, var(--sys-blue) 10%, var(--card));
+  --color-indigo-100: color-mix(in srgb, var(--sys-blue) 18%, var(--card));
+  --color-indigo-200: color-mix(in srgb, var(--sys-blue) 32%, var(--card));
+  --color-indigo-300: color-mix(in srgb, var(--sys-blue) 55%, var(--card));
+  --color-indigo-400: color-mix(in srgb, var(--sys-blue) 78%, var(--card));
+  --color-indigo-500: var(--sys-blue);
+  --color-indigo-600: var(--sys-blue);
+  --color-indigo-700: var(--sys-blue-ink);
+  --color-indigo-800: var(--sys-blue-ink);
+  --color-indigo-900: var(--sys-blue-ink);
+  --color-indigo-950: var(--sys-blue-ink);
+
+  --color-blue-50: color-mix(in srgb, var(--sys-blue) 10%, var(--card));
+  --color-blue-100: color-mix(in srgb, var(--sys-blue) 18%, var(--card));
+  --color-blue-200: color-mix(in srgb, var(--sys-blue) 32%, var(--card));
+  --color-blue-300: color-mix(in srgb, var(--sys-blue) 55%, var(--card));
+  --color-blue-400: color-mix(in srgb, var(--sys-blue) 78%, var(--card));
+  --color-blue-500: var(--sys-blue);
+  --color-blue-600: var(--sys-blue);
+  --color-blue-700: var(--sys-blue-ink);
+  --color-blue-800: var(--sys-blue-ink);
+  --color-blue-900: var(--sys-blue-ink);
+  --color-blue-950: var(--sys-blue-ink);
+
+  --color-red-50: color-mix(in srgb, var(--sys-red) 9%, var(--card));
+  --color-red-100: color-mix(in srgb, var(--sys-red) 16%, var(--card));
+  --color-red-200: color-mix(in srgb, var(--sys-red) 30%, var(--card));
+  --color-red-300: color-mix(in srgb, var(--sys-red) 52%, var(--card));
+  --color-red-400: color-mix(in srgb, var(--sys-red) 76%, var(--card));
+  --color-red-500: var(--sys-red);
+  --color-red-600: var(--sys-red);
+  --color-red-700: var(--sys-red-ink);
+  --color-red-800: var(--sys-red-ink);
+  --color-red-900: var(--sys-red-ink);
+  --color-red-950: var(--sys-red-ink);
+
+  --color-rose-50: color-mix(in srgb, var(--sys-red) 9%, var(--card));
+  --color-rose-100: color-mix(in srgb, var(--sys-red) 16%, var(--card));
+  --color-rose-200: color-mix(in srgb, var(--sys-red) 30%, var(--card));
+  --color-rose-300: color-mix(in srgb, var(--sys-red) 52%, var(--card));
+  --color-rose-400: color-mix(in srgb, var(--sys-red) 76%, var(--card));
+  --color-rose-500: var(--sys-red);
+  --color-rose-600: var(--sys-red);
+  --color-rose-700: var(--sys-red-ink);
+  --color-rose-800: var(--sys-red-ink);
+  --color-rose-900: var(--sys-red-ink);
+  --color-rose-950: var(--sys-red-ink);
+
+  --color-emerald-50: color-mix(in srgb, var(--sys-green) 10%, var(--card));
+  --color-emerald-100: color-mix(in srgb, var(--sys-green) 18%, var(--card));
+  --color-emerald-200: color-mix(in srgb, var(--sys-green) 32%, var(--card));
+  --color-emerald-300: color-mix(in srgb, var(--sys-green) 55%, var(--card));
+  --color-emerald-400: color-mix(in srgb, var(--sys-green) 78%, var(--card));
+  --color-emerald-500: var(--sys-green);
+  --color-emerald-600: var(--sys-green-ink);
+  --color-emerald-700: var(--sys-green-ink);
+  --color-emerald-800: var(--sys-green-ink);
+  --color-emerald-900: var(--sys-green-ink);
+  --color-emerald-950: var(--sys-green-ink);
+
+  --color-green-50: color-mix(in srgb, var(--sys-green) 10%, var(--card));
+  --color-green-100: color-mix(in srgb, var(--sys-green) 18%, var(--card));
+  --color-green-200: color-mix(in srgb, var(--sys-green) 32%, var(--card));
+  --color-green-300: color-mix(in srgb, var(--sys-green) 55%, var(--card));
+  --color-green-400: color-mix(in srgb, var(--sys-green) 78%, var(--card));
+  --color-green-500: var(--sys-green);
+  --color-green-600: var(--sys-green-ink);
+  --color-green-700: var(--sys-green-ink);
+  --color-green-800: var(--sys-green-ink);
+  --color-green-900: var(--sys-green-ink);
+  --color-green-950: var(--sys-green-ink);
+
+  --color-amber-50: color-mix(in srgb, var(--sys-orange) 10%, var(--card));
+  --color-amber-100: color-mix(in srgb, var(--sys-orange) 18%, var(--card));
+  --color-amber-200: color-mix(in srgb, var(--sys-orange) 34%, var(--card));
+  --color-amber-300: color-mix(in srgb, var(--sys-orange) 56%, var(--card));
+  --color-amber-400: color-mix(in srgb, var(--sys-orange) 80%, var(--card));
+  --color-amber-500: var(--sys-orange);
+  --color-amber-600: var(--sys-orange-ink);
+  --color-amber-700: var(--sys-orange-ink);
+  --color-amber-800: var(--sys-orange-ink);
+  --color-amber-900: var(--sys-orange-ink);
+  --color-amber-950: var(--sys-orange-ink);
+
+  --color-orange-50: color-mix(in srgb, var(--sys-orange) 10%, var(--card));
+  --color-orange-100: color-mix(in srgb, var(--sys-orange) 18%, var(--card));
+  --color-orange-200: color-mix(in srgb, var(--sys-orange) 34%, var(--card));
+  --color-orange-300: color-mix(in srgb, var(--sys-orange) 56%, var(--card));
+  --color-orange-400: color-mix(in srgb, var(--sys-orange) 80%, var(--card));
+  --color-orange-500: var(--sys-orange);
+  --color-orange-600: var(--sys-orange-ink);
+  --color-orange-700: var(--sys-orange-ink);
+  --color-orange-800: var(--sys-orange-ink);
+  --color-orange-900: var(--sys-orange-ink);
+  --color-orange-950: var(--sys-orange-ink);
+
+  --color-violet-50: color-mix(in srgb, var(--sys-purple) 10%, var(--card));
+  --color-violet-100: color-mix(in srgb, var(--sys-purple) 18%, var(--card));
+  --color-violet-200: color-mix(in srgb, var(--sys-purple) 32%, var(--card));
+  --color-violet-300: color-mix(in srgb, var(--sys-purple) 55%, var(--card));
+  --color-violet-400: color-mix(in srgb, var(--sys-purple) 78%, var(--card));
+  --color-violet-500: var(--sys-purple);
+  --color-violet-600: var(--sys-purple);
+  --color-violet-700: var(--sys-purple-ink);
+  --color-violet-800: var(--sys-purple-ink);
+  --color-violet-900: var(--sys-purple-ink);
+  --color-violet-950: var(--sys-purple-ink);
+
+  --color-purple-50: color-mix(in srgb, var(--sys-purple) 10%, var(--card));
+  --color-purple-100: color-mix(in srgb, var(--sys-purple) 18%, var(--card));
+  --color-purple-200: color-mix(in srgb, var(--sys-purple) 32%, var(--card));
+  --color-purple-300: color-mix(in srgb, var(--sys-purple) 55%, var(--card));
+  --color-purple-400: color-mix(in srgb, var(--sys-purple) 78%, var(--card));
+  --color-purple-500: var(--sys-purple);
+  --color-purple-600: var(--sys-purple);
+  --color-purple-700: var(--sys-purple-ink);
+  --color-purple-800: var(--sys-purple-ink);
+  --color-purple-900: var(--sys-purple-ink);
+  --color-purple-950: var(--sys-purple-ink);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--gray-900);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--sys-blue) 26%, transparent);
+  }
+
+  input[type="radio"],
+  input[type="checkbox"] {
+    accent-color: var(--sys-blue);
+  }
+
+  input[type="file"] {
+    font-size: 13px;
+    color: var(--gray-500);
+  }
+
+  input[type="file"]::file-selector-button {
+    margin-right: 10px;
+    padding: 6px 14px;
+    border: 0;
+    border-radius: 999px;
+    background-color: var(--fill);
+    color: var(--sys-blue);
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 160ms ease;
+  }
+
+  input[type="file"]::file-selector-button:hover {
+    background-color: var(--fill-strong);
+  }
+
+  button {
+    cursor: pointer;
+    transition-property: color, background-color, border-color, box-shadow, opacity, scale;
+    transition-duration: 160ms;
+    transition-timing-function: var(--ease-ios);
+  }
+
+  button:disabled {
+    cursor: default;
+  }
+
+  /* The press-in every iPhone button does. `scale`, not `transform`, so it
+     never fights a button's own transform utilities. */
+  button:not(:disabled):active,
+  a[class*="bg-indigo-600"]:active,
+  a[class*="btn-tinted"]:active {
+    scale: 0.97;
+  }
+}
+
+/* --- Surfaces -------------------------------------------------------------- */
+
+@utility card {
+  background-color: var(--card);
+  border-radius: 18px;
+  box-shadow: var(--shadow-card);
+  animation: card-in 520ms var(--ease-ios) backwards;
+}
+
+@utility card-link {
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    scale 200ms var(--ease-ios);
+
+  &:hover {
+    background-color: var(--card-hover);
+  }
+
+  &:active {
+    scale: 0.99;
+  }
+}
+
+@utility popover {
+  background-color: var(--card);
+  border-radius: 14px;
+  box-shadow: var(--shadow-float);
+  animation: pop-in 220ms var(--ease-ios) both;
+}
+
+@utility shadow-float {
+  box-shadow: var(--shadow-float);
+}
+
+/* The one piece of glass in the whole interface. */
+@utility glass-bar {
+  background-color: var(--header-glass);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  box-shadow: 0 0.5px 0 var(--separator);
+}
+
+/* --- Controls -------------------------------------------------------------- */
+
+@utility field {
+  background-color: var(--field);
+  color: inherit;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  outline: none;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+
+  &::placeholder {
+    color: var(--gray-400);
+  }
+
+  &:focus {
+    background-color: var(--card);
+    border-color: var(--sys-blue);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--sys-blue) 22%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+/* Secondary button: grey fill, blue text. */
+@utility btn-tinted {
+  background-color: var(--fill);
+  color: var(--sys-blue);
+
+  &:hover:not(:disabled) {
+    background-color: var(--fill-strong);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+  }
+}
+
+@utility btn-tinted-danger {
+  background-color: var(--fill);
+  color: var(--sys-red);
+
+  &:hover:not(:disabled) {
+    background-color: color-mix(in srgb, var(--sys-red) 14%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+  }
+}
+
+/* iOS switch, drawn on a plain checkbox so every existing onChange keeps
+   working unchanged. */
+@utility switch {
+  appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 42px;
+  height: 25px;
+  margin: 0;
+  border-radius: 999px;
+  background-color: var(--switch-off);
+  cursor: pointer;
+  transition: background-color 220ms ease;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 21px;
+    height: 21px;
+    border-radius: 50%;
+    background-color: #ffffff;
+    box-shadow:
+      0 2px 5px rgb(0 0 0 / 0.18),
+      0 0 0 0.5px rgb(0 0 0 / 0.04);
+    transition: translate 260ms var(--ease-ios);
+  }
+
+  &:checked {
+    background-color: var(--sys-green);
+  }
+
+  &:checked::before {
+    translate: 17px 0;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--sys-blue);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+/* --- Motion ---------------------------------------------------------------- */
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Cards in the same group arrive one after another, 60 ms apart. */
+.card:nth-child(2) { animation-delay: 60ms; }
+.card:nth-child(3) { animation-delay: 120ms; }
+.card:nth-child(4) { animation-delay: 180ms; }
+.card:nth-child(5) { animation-delay: 240ms; }
+.card:nth-child(6) { animation-delay: 300ms; }
+.card:nth-child(7) { animation-delay: 360ms; }
+.card:nth-child(8) { animation-delay: 420ms; }
+.card:nth-child(9) { animation-delay: 480ms; }
+.card:nth-child(n + 10) { animation-delay: 540ms; }
+
+/* Screen-to-screen: the new screen slides in from the right while the old
+   one drifts left and fades -- iOS navigation. Driven by the View
+   Transitions API (see lib/pageTransitions.ts); `page-enter` below is the
+   fallback for navigations that weren't a link click (back button, a save
+   that redirects). */
+@keyframes page-new-forward {
+  from {
+    translate: 72px 0;
+    opacity: 0;
+  }
+}
+
+@keyframes page-old-forward {
+  to {
+    translate: -36px 0;
+    opacity: 0;
+  }
+}
+
+@keyframes page-new-back {
+  from {
+    translate: -36px 0;
+    opacity: 0;
+  }
+}
+
+@keyframes page-old-back {
+  to {
+    translate: 72px 0;
+    opacity: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  @keyframes page-new-forward {
+    from {
+      translate: 100% 0;
+    }
+  }
+
+  @keyframes page-old-forward {
+    to {
+      translate: -30% 0;
+      opacity: 0;
+    }
+  }
+
+  @keyframes page-new-back {
+    from {
+      translate: -30% 0;
+      opacity: 0;
+    }
+  }
+
+  @keyframes page-old-back {
+    to {
+      translate: 100% 0;
+    }
+  }
+}
+
+/* Named only while a transition runs: a view-transition-name also makes its
+   element a stacking context, which would otherwise trap every modal on
+   the page underneath the sticky header. */
+html[data-vt-dir] .page-view {
+  view-transition-name: page;
+}
+
+html[data-vt-dir] .app-header {
+  view-transition-name: app-header;
+}
+
+::view-transition-group(page) {
+  overflow: clip;
+  animation-duration: 420ms;
+  animation-timing-function: var(--ease-ios);
+}
+
+::view-transition-old(page) {
+  animation: page-old-forward 420ms var(--ease-ios) both;
+}
+
+::view-transition-new(page) {
+  animation: page-new-forward 420ms var(--ease-ios) both;
+}
+
+html[data-vt-dir="back"]::view-transition-old(page) {
+  animation-name: page-old-back;
+}
+
+html[data-vt-dir="back"]::view-transition-new(page) {
+  animation-name: page-new-back;
+}
+
+::view-transition-old(root),
+::view-transition-new(root),
+::view-transition-old(app-header),
+::view-transition-new(app-header) {
+  animation-duration: 200ms;
+}
+
+/* `backwards`, never `both`: a fill that outlives the animation would keep
+   a translate on the page and turn it into the containing block of every
+   position:fixed modal inside it. */
+.page-enter {
+  animation: page-new-forward 420ms var(--ease-ios) backwards;
+}
+
+.page-enter[data-dir="back"] {
+  animation-name: page-new-back;
+}
+
+/* Three soft colour fields drifting behind everything, like wallpaper
+   under the iOS header. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.blob {
+  position: absolute;
+  width: 62vmax;
+  height: 62vmax;
+  border-radius: 50%;
+  opacity: var(--blob-opacity);
+  will-change: transform;
+}
+
+.blob-blue {
+  top: -24vmax;
+  left: -14vmax;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--sys-blue) 34%, transparent), transparent);
+  animation: drift-a 64s ease-in-out infinite alternate;
+}
+
+.blob-purple {
+  top: 10vmax;
+  right: -26vmax;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--sys-purple) 30%, transparent), transparent);
+  animation: drift-b 82s ease-in-out infinite alternate;
+}
+
+.blob-green {
+  bottom: -30vmax;
+  left: 18vmax;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--sys-green) 26%, transparent), transparent);
+  animation: drift-c 96s ease-in-out infinite alternate;
+}
+
+@keyframes drift-a {
+  to {
+    transform: translate(22vw, 16vh) scale(1.12);
+  }
+}
+
+@keyframes drift-b {
+  to {
+    transform: translate(-20vw, 22vh) scale(0.9);
+  }
+}
+
+@keyframes drift-c {
+  to {
+    transform: translate(16vw, -20vh) scale(1.08);
+  }
+}
+
+/* The round ▶ button: while it plays, a soft ring keeps spreading from it. */
+.play-btn {
+  position: relative;
+  isolation: isolate;
+}
+
+.play-btn[data-playing="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 50%;
+  background-color: var(--sys-blue);
+  animation: play-ring 1.4s var(--ease-ios) infinite;
+}
+
+@keyframes play-ring {
+  from {
+    opacity: 0.45;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    scale: 1.9;
+  }
+}
+
+.progress-ring-arc {
+  transition: stroke-dashoffset 1100ms var(--ease-ios);
+}
+
+.segmented-thumb {
+  transition:
+    translate 320ms var(--ease-ios),
+    width 320ms var(--ease-ios);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+
+  .blob {
+    animation: none !important;
+  }
 }

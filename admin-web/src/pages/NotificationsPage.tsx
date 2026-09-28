@@ -44,7 +44,7 @@ export function NotificationsPage() {
 
   return (
     <div className="p-6">
-      <h1 className="mb-1 text-xl font-semibold text-slate-900">Уведомления</h1>
+      <h1 className="mb-1 text-[26px] font-bold tracking-tight text-slate-900">Уведомления</h1>
       <p className="mb-6 max-w-2xl text-sm text-slate-500">
         Сообщение приходит выбранному пользователю в раздел «Уведомления» в приложении: у него появляется индикатор, а
         при открытии сообщение отмечается прочитанным. Автоматические уведомления по событиям пока не настраиваются, но
@@ -59,7 +59,7 @@ export function NotificationsPage() {
       <div className="mt-8 mb-3 flex items-center gap-3">
         <h2 className="text-sm font-semibold text-slate-900">Отправленные</h2>
         <select
-          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          className="field px-3 py-1.5 text-sm"
           value={filterUserId}
           onChange={(e) => setFilterUserId(e.target.value === "" ? "" : Number(e.target.value))}
         >
@@ -79,9 +79,9 @@ export function NotificationsPage() {
       ) : filtered.length === 0 ? (
         <p className="text-sm text-slate-500">Пока ничего не отправлено</p>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <div className="overflow-hidden card">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-3 font-medium">Кому</th>
                 <th className="px-4 py-3 font-medium">Сообщение</th>
@@ -171,12 +171,12 @@ function SendForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-lg border border-slate-200 bg-white p-5">
+    <form onSubmit={handleSubmit} className="card p-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Кому</label>
           <select
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-full field px-3 py-2 text-sm"
             value={userId}
             onChange={(e) => setUserId(e.target.value === "" ? "" : Number(e.target.value))}
           >
@@ -191,7 +191,7 @@ function SendForm({
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Заголовок (необязательно)</label>
           <input
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-full field px-3 py-2 text-sm"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             maxLength={120}
@@ -202,7 +202,7 @@ function SendForm({
       <div className="mt-4">
         <label className="mb-1 block text-sm font-medium text-slate-700">Сообщение</label>
         <textarea
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          className="w-full field px-3 py-2 text-sm"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={3}

@@ -35,7 +35,7 @@ export function UsersPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-900">Пользователи</h1>
+        <h1 className="text-[26px] font-bold tracking-tight text-slate-900">Пользователи</h1>
         <button
           onClick={() => setIsFormOpen((v) => !v)}
           className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
@@ -54,7 +54,7 @@ export function UsersPage() {
         />
       )}
 
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <div className="overflow-hidden card">
         {isLoading ? (
           <p className="p-6 text-sm text-slate-500">Загрузка…</p>
         ) : loadError ? (
@@ -63,7 +63,7 @@ export function UsersPage() {
           <p className="p-6 text-sm text-slate-500">Пользователей пока нет</p>
         ) : (
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-3 font-medium">ID</th>
                 <th className="px-4 py-3 font-medium">Логин</th>
@@ -127,12 +127,12 @@ function CreateUserForm({ onCreated, onCancel }: { onCreated: () => void; onCanc
   return (
     <form
       onSubmit={handleSubmit}
-      className="mb-6 grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-white p-5 sm:grid-cols-3"
+      className="mb-6 grid grid-cols-1 gap-3 card p-5 sm:grid-cols-3"
     >
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Логин</label>
         <input
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          className="w-full field px-3 py-2 text-sm"
           value={login}
           onChange={(e) => setLogin(e.target.value)}
           autoFocus
@@ -144,7 +144,7 @@ function CreateUserForm({ onCreated, onCancel }: { onCreated: () => void; onCanc
         <label className="mb-1 block text-sm font-medium text-slate-700">Пароль</label>
         <input
           type="password"
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          className="w-full field px-3 py-2 text-sm"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -154,7 +154,7 @@ function CreateUserForm({ onCreated, onCancel }: { onCreated: () => void; onCanc
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Имя</label>
         <input
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          className="w-full field px-3 py-2 text-sm"
           value={firstName}
           onChange={(e) => setFirstName(e.target.value)}
           required
@@ -163,7 +163,7 @@ function CreateUserForm({ onCreated, onCancel }: { onCreated: () => void; onCanc
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Фамилия</label>
         <input
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          className="w-full field px-3 py-2 text-sm"
           value={lastName}
           onChange={(e) => setLastName(e.target.value)}
           required
@@ -173,7 +173,7 @@ function CreateUserForm({ onCreated, onCancel }: { onCreated: () => void; onCanc
         <label className="mb-1 block text-sm font-medium text-slate-700">Электронная почта</label>
         <input
           type="email"
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          className="w-full field px-3 py-2 text-sm"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -190,7 +190,7 @@ function CreateUserForm({ onCreated, onCancel }: { onCreated: () => void; onCanc
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          className="btn-tinted rounded-md px-4 py-2 text-sm font-medium"
         >
           Отмена
         </button>

@@ -6,10 +6,12 @@
  * plain layout arithmetic (position on the axis), matching this page's
  * own "backend computes, this only renders" rule. */
 
-const GREEN = "#059669"; // emerald-600
-const RED = "#dc2626"; // red-600
-const INDIGO = "#4f46e5"; // indigo-600
-const TRACK = "#e2e8f0"; // slate-200
+// iOS system colours from index.css, so the charts follow light/dark mode.
+export const GREEN = "var(--sys-green)";
+export const RED = "var(--sys-red)";
+const INDIGO = "var(--sys-blue)";
+const TRACK = "var(--separator)";
+const AXIS_LABEL = "var(--gray-500)";
 
 /** One labeled horizontal bar, proportional to `value / max`. Used for the
  * overall correct/error comparison and reused per-row inside
@@ -97,11 +99,11 @@ export function ActivityOverTimeChart({
           const errorH = scale(b.errors);
           return (
             <g key={b.label}>
-              <rect x={x} y={height - correctH - errorH} width={barWidth} height={errorH} fill={RED} rx={1.5} />
-              <rect x={x} y={height - correctH} width={barWidth} height={correctH} fill={GREEN} rx={1.5} />
-              <rect x={x} y={height} width={barWidth} height={1} fill={TRACK} />
+              <rect x={x} y={height - correctH - errorH} width={barWidth} height={errorH} style={{ fill: RED }} rx={1.5} />
+              <rect x={x} y={height - correctH} width={barWidth} height={correctH} style={{ fill: GREEN }} rx={1.5} />
+              <rect x={x} y={height} width={barWidth} height={1} style={{ fill: TRACK }} />
               {buckets.length <= 20 && (
-                <text x={x + barWidth / 2} y={height + 14} fontSize={9} textAnchor="middle" fill="#94a3b8">
+                <text x={x + barWidth / 2} y={height + 14} fontSize={9} textAnchor="middle" style={{ fill: AXIS_LABEL }}>
                   {b.label}
                 </text>
               )}
@@ -131,11 +133,11 @@ export function ScoreOverTimeChart({ points }: { points: { label: string; score:
       <svg width={width} height={height} role="img">
         {/* Reference lines at 0/50/100 */}
         {[0, 50, 100].map((v) => (
-          <line key={v} x1={pad} x2={width - pad} y1={y(v)} y2={y(v)} stroke={TRACK} strokeWidth={1} />
+          <line key={v} x1={pad} x2={width - pad} y1={y(v)} y2={y(v)} strokeWidth={1} style={{ stroke: TRACK }} />
         ))}
-        <path d={path} fill="none" stroke={INDIGO} strokeWidth={2} />
+        <path d={path} fill="none" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" style={{ stroke: INDIGO }} />
         {points.map((p, i) => (
-          <circle key={i} cx={pad + i * stepX} cy={y(p.score)} r={2.5} fill={INDIGO} />
+          <circle key={i} cx={pad + i * stepX} cy={y(p.score)} r={2.5} style={{ fill: INDIGO }} />
         ))}
       </svg>
     </div>

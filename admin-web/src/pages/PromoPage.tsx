@@ -16,7 +16,7 @@ import {
 import type { PromoActivation, PromoCode, PromoLink, PromoSettings } from "../types";
 
 const inputClass =
-  "w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500";
+  "w-full field px-3 py-2 text-sm";
 const primaryButton =
   "rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60";
 const secondaryButton = "rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100";
@@ -74,7 +74,7 @@ export function PromoPage() {
 
   return (
     <div className="p-6">
-      <h1 className="mb-1 text-xl font-semibold text-slate-900">Промокоды</h1>
+      <h1 className="mb-1 text-[26px] font-bold tracking-tight text-slate-900">Промокоды</h1>
       <p className="mb-6 max-w-2xl text-sm text-slate-500">
         Пользователь вводит промокод или вставляет ссылку на видео в приложении (меню «⋮» → «Промокод» или экран
         Premium) и получает дни Premium. Каждый промокод и каждую ссылку один человек может активировать только один
@@ -89,9 +89,9 @@ export function PromoPage() {
       {activations.length === 0 ? (
         <p className="text-sm text-slate-500">Пока никто ничего не активировал</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <div className="overflow-x-auto card">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-3 font-medium">Кто</th>
                 <th className="px-4 py-3 font-medium">Что</th>
@@ -173,9 +173,9 @@ function CodesSection({ codes, onChanged }: { codes: PromoCode[]; onChanged: () 
         onCancel={() => setEditing(null)}
       />
       {codes.length > 0 && (
-        <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <div className="mt-4 overflow-x-auto card">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-3 font-medium">Промокод</th>
                 <th className="px-4 py-3 font-medium">Дней</th>
@@ -282,7 +282,7 @@ function CodeForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-lg border border-slate-200 bg-white p-5">
+    <form onSubmit={handleSubmit} className="card p-5">
       <h3 className="mb-4 text-sm font-semibold text-slate-900">
         {editing ? `Изменить промокод ${editing.code}` : "Новый промокод"}
       </h3>
@@ -396,9 +396,9 @@ function LinksSection({ links, onChanged }: { links: PromoLink[]; onChanged: () 
       />
 
       {links.length > 0 && (
-        <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <div className="mt-4 overflow-x-auto card">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-3 font-medium">Видео</th>
                 <th className="px-4 py-3 font-medium">Повторно, дней</th>
@@ -481,7 +481,7 @@ function LinkRewards({ settings, onSaved }: { settings: PromoSettings; onSaved: 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mb-4 rounded-lg border border-slate-200 bg-white p-5">
+    <form onSubmit={handleSubmit} className="mb-4 card p-5">
       <h3 className="mb-4 text-sm font-semibold text-slate-900">Награда за ссылки</h3>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
@@ -548,7 +548,7 @@ function LinkForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-lg border border-slate-200 bg-white p-5">
+    <form onSubmit={handleSubmit} className="card p-5">
       <h3 className="mb-4 text-sm font-semibold text-slate-900">{editing ? "Изменить ссылку" : "Новая ссылка"}</h3>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <div className="sm:col-span-2">

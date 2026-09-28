@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { usePageEnter, usePageTransitions } from "../lib/pageTransitions";
+import { Backdrop } from "./Backdrop";
 import logoMark from "../assets/logo-mark.png";
 
 const navItems = [
@@ -19,43 +21,68 @@ const navItems = [
 
 export function Layout({ children }: { children: ReactNode }) {
   const { logout } = useAuth();
+  const location = useLocation();
+  usePageTransitions();
+  const enterDir = usePageEnter(location.pathname);
+  const section = navItems.find(
+    (item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`),
+  );
 
   return (
-    <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="flex shrink-0 flex-col border-b border-slate-200 bg-white md:w-56 md:border-b-0 md:border-r">
-        <div className="flex items-center gap-2 px-5 py-5">
-          <img src={logoMark} alt="" className="h-7 w-7" />
-          <span className="text-lg font-semibold tracking-tight text-slate-900">
-            GuYo Admin
-          </span>
+    <div className="min-h-screen">
+      <Backdrop />
+
+      <header className="app-header glass-bar sticky top-0 z-30">
+        <div className="mx-auto flex h-14 max-w-[1440px] items-center gap-3 px-4 sm:px-6">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <img src={logoMark} alt="" className="h-7 w-7 shrink-0" />
+            <span className="truncate text-[17px] font-semibold tracking-tight text-slate-900">GuYo Admin</span>
+          </div>
+          <div className="hidden min-w-0 flex-1 justify-center md:flex">
+            <span className="truncate text-[17px] font-semibold text-slate-900">{section?.label}</span>
+          </div>
+          <div className="flex flex-1 justify-end">
+            <button onClick={logout} className="btn-tinted rounded-full px-3.5 py-1.5 text-sm font-medium">
+              Выйти
+            </button>
+          </div>
         </div>
-        <nav className="flex flex-1 flex-row gap-1 px-2 pb-2 md:flex-col md:px-3">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                }`
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="px-3 pb-4">
-          <button
-            onClick={logout}
-            className="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+      </header>
+
+      <div className="mx-auto flex max-w-[1440px] flex-col md:flex-row md:gap-8 md:px-6">
+        <aside className="md:sticky md:top-14 md:h-[calc(100dvh-3.5rem)] md:w-56 md:shrink-0 md:overflow-y-auto md:py-6">
+          <nav
+            aria-label="Разделы"
+            className="flex gap-1.5 overflow-x-auto px-4 py-3 [scrollbar-width:none] md:flex-col md:gap-0.5 md:overflow-visible md:p-0"
           >
-            Выйти
-          </button>
-        </div>
-      </aside>
-      <main className="flex-1 px-4 py-6 sm:px-6 lg:px-10">{children}</main>
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  `shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors md:rounded-[10px] md:px-3 md:py-[7px] md:text-[15px] ${
+                    isActive
+                      ? "bg-[var(--sys-blue)] text-white"
+                      : "bg-[var(--fill)] text-slate-900 hover:bg-[var(--fill-strong)] md:bg-transparent md:hover:bg-[var(--fill)]"
+                  }`
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+        </aside>
+
+        <main className="min-w-0 flex-1 px-4 pb-16 pt-2 sm:px-6 md:px-0 md:pt-6">
+          <div
+            key={location.pathname}
+            className={enterDir ? "page-view page-enter" : "page-view"}
+            data-dir={enterDir ?? undefined}
+          >
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

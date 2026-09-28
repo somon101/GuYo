@@ -7,7 +7,15 @@ import {
   listRecencyBands,
   listStabilityBands,
 } from "../api/endpoints";
-import { ActivityOverTimeChart, ExerciseBreakdownChart, ProportionBar, ScoreOverTimeChart } from "../components/MiniCharts";
+import {
+  ActivityOverTimeChart,
+  ExerciseBreakdownChart,
+  GREEN,
+  ProportionBar,
+  RED,
+  ScoreOverTimeChart,
+} from "../components/MiniCharts";
+import { ProgressRing } from "../components/ProgressRing";
 import { InfoTooltip } from "../components/InfoTooltip";
 import { PRIORITY_ROLE_EFFECTS, priorityRoleBands } from "../lib/priorityRoles";
 import type {
@@ -114,7 +122,7 @@ export function WordDiagnosticsPage() {
 
       <div className="mb-6 flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900" translate="no">
+          <h1 className="text-[26px] font-bold tracking-tight text-slate-900" translate="no">
             {data.word}
           </h1>
           {data.translation && (
@@ -168,39 +176,46 @@ export function WordDiagnosticsPage() {
           </InfoTooltip>
         }
       >
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-400">
-            Слабое упражнение
-            <InfoTooltip label="Что значит «слабое упражнение»">
-              Упражнение считается слабым для этого слова, если в нём было достаточно попыток и доля ошибок в нём
-              высокая (пороги настраиваются в Admin Web → Приоритет → «Персональные квесты» — та же самая проверка,
-              по которой backend решает, из какого упражнения собрать пользователю персональный квест).
-            </InfoTooltip>
-          </span>
-          {data.weak_exercises.length === 0 ? (
-            <span className="text-xs text-slate-400">нет</span>
-          ) : (
-            data.weak_exercises.map((key) => (
-              <span
-                key={key}
-                className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700"
-                translate="no"
-              >
-                {exerciseLabel(key)}
-              </span>
-            ))
-          )}
+        <div className="card p-5">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-400">
+              Слабое упражнение
+              <InfoTooltip label="Что значит «слабое упражнение»">
+                Упражнение считается слабым для этого слова, если в нём было достаточно попыток и доля ошибок в нём
+                высокая (пороги настраиваются в Admin Web → Приоритет → «Персональные квесты» — та же самая проверка,
+                по которой backend решает, из какого упражнения собрать пользователю персональный квест).
+              </InfoTooltip>
+            </span>
+            {data.weak_exercises.length === 0 ? (
+              <span className="text-xs text-slate-400">нет</span>
+            ) : (
+              data.weak_exercises.map((key) => (
+                <span
+                  key={key}
+                  className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700"
+                  translate="no"
+                >
+                  {exerciseLabel(key)}
+                </span>
+              ))
+            )}
+          </div>
+          <ExerciseBreakdownChart rows={exerciseRows} />
         </div>
-        <ExerciseBreakdownChart rows={exerciseRows} />
       </Section>
 
       <Section title="Диаграммы">
-        <div className="flex flex-col gap-6">
+        <div className="card flex flex-col gap-6 p-5">
           <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">Правильно / ошибки, всего</p>
-            <div className="flex flex-col gap-2">
-              <ProportionBar label="Правильно" value={data.total_correct} max={data.total_attempts} color="#059669" />
-              <ProportionBar label="Ошибки" value={data.total_errors} max={data.total_attempts} color="#dc2626" />
+            <p className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-400">Правильно / ошибки, всего</p>
+            <div className="flex flex-wrap items-center gap-6">
+              {data.total_attempts > 0 && (
+                <ProgressRing percent={(data.total_correct / data.total_attempts) * 100} caption="правильных" />
+              )}
+              <div className="flex min-w-[240px] flex-1 flex-col gap-2">
+                <ProportionBar label="Правильно" value={data.total_correct} max={data.total_attempts} color={GREEN} />
+                <ProportionBar label="Ошибки" value={data.total_errors} max={data.total_attempts} color={RED} />
+              </div>
             </div>
           </div>
           {activityBuckets.length > 0 && (
@@ -223,9 +238,9 @@ export function WordDiagnosticsPage() {
           <p className="text-sm text-slate-500">Пока не было ни одной попытки.</p>
         ) : (
           <>
-            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+            <div className="overflow-hidden card">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <thead className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="px-3 py-2 font-medium">Дата/время</th>
                     <th className="px-3 py-2 font-medium">Упражнение</th>
@@ -289,7 +304,7 @@ function DiagnosticsPanel({ data, config }: { data: WordDiagnostics; config: Pri
   const stabilityRecent = stabilityWindow != null ? data.history.slice(-stabilityWindow) : [];
 
   return (
-    <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
+    <div className="mb-6 card p-4">
       <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Диагностика слова</p>
       <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
         <div>
@@ -453,7 +468,7 @@ function StatCard({
   tooltip?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
+    <div className="card p-4">
       <div className={`text-2xl font-semibold ${valueClassName ?? "text-slate-900"}`}>{value}</div>
       <div className="flex items-center gap-1.5 text-xs text-slate-500">
         {label}

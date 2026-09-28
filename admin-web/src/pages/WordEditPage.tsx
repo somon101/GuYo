@@ -14,6 +14,7 @@ import {
 } from "../api/endpoints";
 import type { Category, Dictionary, TranslationLanguage, Word, WordForm } from "../types";
 import { TRANSLATION_LANGUAGE_LABELS } from "../types";
+import { PlayButton } from "../components/PlayButton";
 
 function mediaUrl(path: string | null): string | null {
   return path ? `${API_URL}${path}` : null;
@@ -224,12 +225,12 @@ export function WordEditPage() {
 
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900" translate="no">{word.word}</h1>
+          <h1 className="text-[26px] font-bold tracking-tight text-slate-900" translate="no">{word.word}</h1>
           <p className="mt-1 text-xs text-slate-400">ID слова: {word.id}</p>
         </div>
         <Link
           to={`/dictionaries/${dictionaryId}`}
-          className="shrink-0 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+          className="shrink-0 btn-tinted rounded-full px-3 py-1.5 text-sm font-medium"
         >
           ← Назад к словарю
         </Link>
@@ -238,14 +239,14 @@ export function WordEditPage() {
       <Section title="Основная информация">
         <Field label="Язык">
           <input
-            className="w-full max-w-xs rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500"
+            className="w-full max-w-xs rounded-[10px] bg-[var(--field)] px-3 py-2 text-sm text-slate-500"
             value={dictionary.name}
             disabled
           />
         </Field>
         <Field label="Слово">
           <input
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-full field px-3 py-2 text-sm"
             value={wordText}
             onChange={(e) => setWordText(e.target.value)}
           />
@@ -253,7 +254,7 @@ export function WordEditPage() {
         {translations[0] && (
           <Field label={`Перевод (${TRANSLATION_LANGUAGE_LABELS[translations[0].language]})`}>
             <input
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              className="w-full field px-3 py-2 text-sm"
               value={translations[0].text}
               onChange={(e) =>
                 setTranslations((rows) =>
@@ -265,7 +266,7 @@ export function WordEditPage() {
         )}
         <Field label="Транскрипция" hint="необязательно">
           <input
-            className="w-full max-w-xs rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-full max-w-xs field px-3 py-2 text-sm"
             value={transcription}
             onChange={(e) => setTranscription(e.target.value)}
             placeholder="/ˈæpəl/"
@@ -273,7 +274,7 @@ export function WordEditPage() {
         </Field>
         <Field label="Категория" hint="необязательно">
           <select
-            className="w-full max-w-xs rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-full max-w-xs field px-3 py-2 text-sm"
             value={categoryId ?? ""}
             onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
           >
@@ -344,7 +345,7 @@ export function WordEditPage() {
         />
       </Section>
 
-      <div className="sticky bottom-4 mt-6 flex items-center gap-3 rounded-lg border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur">
+      <div className="sticky bottom-4 mt-6 flex items-center gap-3 card shadow-float p-4">
         <button
           onClick={handleSave}
           disabled={!hasChanges || isSaving}
@@ -403,7 +404,7 @@ function FormsGroup({
           {forms.map((f) => (
             <li
               key={f.id}
-              className="flex items-center justify-between gap-2 rounded-md border border-slate-200 px-3 py-1.5 text-sm"
+              className="flex items-center justify-between gap-2 rounded-[10px] bg-slate-50 px-3 py-1.5 text-sm"
             >
               <span translate="no">{f.text}</span>
               <button
@@ -419,7 +420,7 @@ function FormsGroup({
       )}
       <div className="flex flex-col gap-2 sm:flex-row">
         <input
-          className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          className="flex-1 field px-3 py-2 text-sm"
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Новая форма"
@@ -434,7 +435,7 @@ function FormsGroup({
           type="button"
           onClick={handleAdd}
           disabled={isSaving || !text.trim()}
-          className="shrink-0 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          className="shrink-0 btn-tinted rounded-full px-3 py-1.5 text-sm font-medium disabled:opacity-50"
         >
           + Добавить форму
         </button>
@@ -446,7 +447,7 @@ function FormsGroup({
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mb-6 rounded-lg border border-slate-200 bg-white p-5">
+    <div className="mb-6 card p-5">
       <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</h2>
       {children}
     </div>
@@ -489,20 +490,20 @@ function ImageField({
           <img
             src={preview}
             alt="Предпросмотр"
-            className="h-32 w-32 rounded-md border border-slate-200 object-cover"
+            className="h-32 w-32 rounded-[10px] object-cover"
           />
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+              className="btn-tinted rounded-full px-3 py-1.5 text-sm font-medium"
             >
               Заменить
             </button>
             <button
               type="button"
               onClick={() => onChange({ ...stage, newFile: null, removed: true })}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-red-50 hover:text-red-600"
+              className="btn-tinted-danger rounded-full px-3 py-1.5 text-sm font-medium"
             >
               Удалить
             </button>
@@ -514,7 +515,7 @@ function ImageField({
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+            className="btn-tinted rounded-full px-3 py-1.5 text-sm font-medium"
           >
             Добавить изображение
           </button>
@@ -554,22 +555,22 @@ function AudioBlock({
   return (
     <div>
       <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{languageLabel}</p>
-      <p className="mb-2 text-sm font-medium text-slate-800" translate="no">{text}</p>
+      <p className="mb-2 font-serif text-base font-medium text-slate-800" translate="no">{text}</p>
       {preview ? (
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm text-slate-500">{captionPrefix}:</span>
-          <audio controls src={preview} className="h-8 max-w-full" />
+          <PlayButton src={preview} size={40} />
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+            className="btn-tinted rounded-full px-3 py-1.5 text-sm font-medium"
           >
             Заменить аудио
           </button>
           <button
             type="button"
             onClick={() => onChange({ ...stage, newFile: null, removed: true })}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-red-50 hover:text-red-600"
+            className="btn-tinted-danger rounded-full px-3 py-1.5 text-sm font-medium"
           >
             Удалить
           </button>
@@ -580,7 +581,7 @@ function AudioBlock({
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+            className="btn-tinted rounded-full px-3 py-1.5 text-sm font-medium"
           >
             Добавить аудио
           </button>

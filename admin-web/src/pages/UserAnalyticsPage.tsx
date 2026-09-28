@@ -81,7 +81,7 @@ export function UserAnalyticsPage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <h1 className="mb-1 text-xl font-semibold text-slate-900">Аналитика пользователей</h1>
+      <h1 className="mb-1 text-[26px] font-bold tracking-tight text-slate-900">Аналитика пользователей</h1>
       <p className="mb-6 text-sm text-slate-500">
         Изучение слов и открытие фраз конкретного пользователя.
       </p>
@@ -96,7 +96,7 @@ export function UserAnalyticsPage() {
         <>
           <div className="mb-6 flex flex-wrap items-center gap-3">
             <select
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              className="field px-3 py-2 text-sm"
               value={selectedUserId ?? ""}
               onChange={(e) => setSelectedUserId(e.target.value ? Number(e.target.value) : null)}
             >
@@ -110,7 +110,7 @@ export function UserAnalyticsPage() {
 
             {dictionaries.length > 1 && (
               <select
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="field px-3 py-2 text-sm"
                 value={selectedDictionaryId ?? ""}
                 onChange={(e) => setSelectedDictionaryId(e.target.value ? Number(e.target.value) : null)}
               >
@@ -171,7 +171,7 @@ function WordsSection({ userId, words }: { userId: number; words: UserWordProgre
           <li key={w.word_id}>
             <Link
               to={`/analytics/users/${userId}/words/${w.word_id}`}
-              className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 hover:border-indigo-300 hover:bg-indigo-50/40"
+              className="flex items-center justify-between gap-3 card px-3 py-2 card-link"
             >
               <div className="min-w-0">
                 <span className="font-medium text-slate-900" translate="no">
@@ -226,7 +226,7 @@ function StatCards({ data }: { data: UserPhraseAnalytics }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {cards.map((c) => (
-        <div key={c.label} className="rounded-lg border border-slate-200 bg-white p-4">
+        <div key={c.label} className="card p-4">
           <div className="text-2xl font-semibold text-slate-900">{c.value}</div>
           <div className="text-xs text-slate-500">{c.label}</div>
         </div>
@@ -261,7 +261,7 @@ function NearPhrasesSection({ phrases }: { phrases: NearPhrase[] }) {
           const missing = p.total_count - p.learned_count;
           const tier = tierFor(missing);
           return (
-            <li key={p.phrase_id} className="rounded-lg border border-slate-200 bg-white p-3">
+            <li key={p.phrase_id} className="card p-3">
               <div className="mb-1.5 flex items-center justify-between gap-2">
                 <span className="font-medium text-slate-900" translate="no">
                   {p.original}
@@ -317,7 +317,7 @@ function TopWordsSection({ words }: { words: WordImpact[] }) {
         {visible.map((w) => {
           const isExpanded = expandedWordId === w.word_id;
           return (
-            <li key={w.word_id} className="rounded-lg border border-slate-200 bg-white">
+            <li key={w.word_id} className="card">
               <button
                 type="button"
                 onClick={() => setExpandedWordId(isExpanded ? null : w.word_id)}
@@ -380,7 +380,7 @@ function OpenPhrasesSection({ phrases }: { phrases: { phrase_id: number; origina
         {visible.map((p) => (
           <li
             key={p.phrase_id}
-            className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3"
+            className="flex items-center justify-between gap-3 card p-3"
           >
             <div>
               <div className="font-medium text-slate-900" translate="no">

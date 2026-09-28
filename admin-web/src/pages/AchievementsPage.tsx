@@ -11,6 +11,7 @@ import {
   type AchievementInput,
 } from "../api/endpoints";
 import type { Achievement, AchievementVisibility, ConditionType } from "../types";
+import { SegmentedControl } from "../components/SegmentedControl";
 
 function mediaUrl(path: string | null): string | null {
   return path ? `${API_URL}${path}` : null;
@@ -134,7 +135,7 @@ export function AchievementsPage() {
     <div className="mx-auto max-w-5xl">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Достижения</h1>
+          <h1 className="text-[26px] font-bold tracking-tight text-slate-900">Достижения</h1>
           <p className="mt-0.5 text-sm text-slate-500">Каждый тип условия -- своя цепочка. Перетаскивайте карточки внутри цепочки, чтобы изменить порядок.</p>
         </div>
         <button
@@ -234,7 +235,7 @@ function AchievementChain({
                 <p className={`w-full truncate text-xs font-semibold ${a.enabled ? "text-slate-900" : "text-slate-400"}`} title={a.title}>
                   {a.title}
                 </p>
-                <p className="text-[11px] font-medium" style={{ color: a.enabled ? a.color : "#94a3b8" }}>
+                <p className="text-[11px] font-medium" style={{ color: a.enabled ? a.color : "var(--gray-400)" }}>
                   {a.condition_value} {unit}
                 </p>
                 {a.visibility === "hidden" && (
@@ -269,8 +270,8 @@ function AchievementChain({
 function ChainIcon({ achievement }: { achievement: Achievement }) {
   return (
     <div
-      className="relative z-10 flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-white"
-      style={{ borderColor: achievement.enabled ? achievement.color : "#cbd5e1" }}
+      className="relative z-10 flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-card"
+      style={{ borderColor: achievement.enabled ? achievement.color : "var(--gray-300)" }}
     >
       {achievement.icon_url ? (
         <img src={mediaUrl(achievement.icon_url)!} alt="" className="h-full w-full object-cover" />
@@ -363,11 +364,11 @@ function AchievementForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mb-6 flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+    <form onSubmit={handleSubmit} className="mb-6 flex flex-col gap-4 card p-5">
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Название</label>
         <input
-          className="w-full max-w-sm rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          className="w-full max-w-sm field px-3 py-2 text-sm"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Первый шаг"
@@ -378,7 +379,7 @@ function AchievementForm({
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Слоган / описание</label>
         <input
-          className="w-full max-w-sm rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          className="w-full max-w-sm field px-3 py-2 text-sm"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Ты открыл свою первую фразу"
@@ -413,7 +414,7 @@ function AchievementForm({
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Условие</label>
           <select
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="field px-3 py-2 text-sm"
             value={conditionType}
             onChange={(e) => setConditionType(e.target.value)}
           >
@@ -430,7 +431,7 @@ function AchievementForm({
           <input
             type="number"
             min={1}
-            className="w-24 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-24 field px-3 py-2 text-sm"
             value={conditionValue}
             onChange={(e) => setConditionValue(Number(e.target.value))}
           />
@@ -443,47 +444,41 @@ function AchievementForm({
               type="color"
               value={color}
               onChange={(e) => setColor(e.target.value)}
-              className="h-9 w-9 cursor-pointer rounded border border-slate-300 p-0.5"
+              className="h-9 w-9 cursor-pointer rounded-[10px] bg-[var(--fill)] p-1"
             />
             <input
               type="text"
               value={color}
               onChange={(e) => setColor(e.target.value)}
-              className="w-24 rounded-md border border-slate-300 px-2 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              className="w-24 field px-2 py-2 text-sm"
             />
           </div>
         </div>
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700">Видимость</label>
-        <div className="flex flex-wrap gap-4">
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="radio"
-              checked={visibility === "visible"}
-              onChange={() => setVisibility("visible")}
-              className="h-4 w-4"
-            />
-            Открытое -- видно сразу, с прогрессом
-          </label>
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="radio"
-              checked={visibility === "hidden"}
-              onChange={() => setVisibility("hidden")}
-              className="h-4 w-4"
-            />
-            Скрытое -- условие не показывается заранее
-          </label>
-        </div>
+        <label className="mb-1.5 block text-sm font-medium text-slate-700">Видимость</label>
+        <SegmentedControl
+          ariaLabel="Видимость"
+          segments={[
+            { value: "visible", label: "Открытое" },
+            { value: "hidden", label: "Скрытое" },
+          ]}
+          value={visibility}
+          onChange={setVisibility}
+        />
+        <p className="mt-1.5 text-xs text-slate-500">
+          {visibility === "visible"
+            ? "Видно сразу, с прогрессом."
+            : "Условие не показывается заранее."}
+        </p>
         {visibility === "hidden" && (
-          <label className="mt-2 flex items-center gap-2 pl-6 text-sm text-slate-700">
+          <label className="mt-3 flex items-center gap-2.5 text-sm text-slate-700">
             <input
               type="checkbox"
               checked={showBeforeUnlock}
               onChange={(e) => setShowBeforeUnlock(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300"
+              className="switch"
             />
             Показывать силуэт до получения (иначе достижение появится только после получения)
           </label>
@@ -491,7 +486,7 @@ function AchievementForm({
       </div>
 
       <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-        <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="h-4 w-4 rounded border-slate-300" />
+        <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="switch" />
         Включено
       </label>
 
@@ -506,7 +501,7 @@ function AchievementForm({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          className="btn-tinted rounded-md px-4 py-2 text-sm font-medium"
         >
           Отмена
         </button>

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { isAxiosError } from "axios";
+import { Backdrop } from "../components/Backdrop";
 import logoMark from "../assets/logo-mark.png";
 
 export function LoginPage() {
@@ -35,30 +36,39 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-        <img src={logoMark} alt="" className="mx-auto mb-3 h-12 w-12" />
-        <h1 className="mb-1 text-center text-2xl font-semibold text-slate-900">GuYo Admin</h1>
-        <p className="mb-6 text-center text-sm text-slate-500">Вход для администратора</p>
+    <div className="flex min-h-screen items-center justify-center px-4 py-10">
+      <Backdrop />
+      <div className="card w-full max-w-sm p-8">
+        <img src={logoMark} alt="" className="mx-auto mb-4 h-14 w-14" />
+        <h1 className="mb-1 text-center text-[26px] font-bold tracking-tight text-slate-900">GuYo Admin</h1>
+        <p className="mb-7 text-center text-[15px] text-slate-500">Вход для администратора</p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Логин</label>
+            <label htmlFor="login" className="mb-1.5 block text-[13px] font-medium text-slate-500">
+              Логин
+            </label>
             <input
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              id="login"
+              className="field w-full px-3.5 py-2.5 text-[15px]"
               value={loginValue}
               onChange={(e) => setLoginValue(e.target.value)}
+              autoComplete="username"
               autoFocus
               required
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Пароль</label>
+            <label htmlFor="password" className="mb-1.5 block text-[13px] font-medium text-slate-500">
+              Пароль
+            </label>
             <input
+              id="password"
               type="password"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              className="field w-full px-3.5 py-2.5 text-[15px]"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
               required
             />
           </div>
@@ -68,7 +78,7 @@ export function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="mt-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-60"
+            className="mt-2 rounded-[12px] bg-indigo-600 px-4 py-3 text-[15px] font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
           >
             {isSubmitting ? "Вход…" : "Войти"}
           </button>
