@@ -7,7 +7,7 @@ exercise type module (see app/exercises/__init__.py) shares ONE copy of
 this instead of each re-querying it independently.
 """
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models.exercise import ExerciseSettings
 from app.models.learning_settings import LearningSettings
@@ -146,5 +146,10 @@ def get_learned_pool(db: Session, user_id: int, dictionary_id: int, threshold: i
         .filter(WordProgress.user_id == user_id, WordProgress.score >= threshold)
         .subquery()
     )
-    words = db.query(Word).filter(Word.dictionary_id == dictionary_id, Word.id.in_(learned_ids)).all()
+    words = (
+        db.query(Word)
+        .options(selectinload(Word.translations))
+        .filter(Word.dictionary_id == dictionary_id, Word.id.in_(learned_ids))
+        .all()
+    )
     return [w for w in words if w.translations]

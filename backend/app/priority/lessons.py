@@ -14,7 +14,7 @@ from app.models.user import User
 from app.models.word import Word
 from app.models.word_progress import WordProgress
 from app.premium import FEATURE_ADAPTIVE_LESSONS, automatic_feature_allowed
-from app.priority.calculate import PriorityResult, calculate_priority
+from app.priority.calculate import PriorityResult, calculate_priorities
 from app.priority.settings import priority_role_bands
 
 # How many Critical words trigger an adaptive lesson -- fixed at 5 by the
@@ -69,11 +69,11 @@ def pending_critical_words(db: Session, user_id: int, dictionary_id: int, thresh
         .all()
     )
 
+    candidates = [word for word in candidates if word.id not in already_pending]
+    priorities = calculate_priorities(db, user_id, [word.id for word in candidates])
     result: list[tuple[Word, PriorityResult]] = []
     for word in candidates:
-        if word.id in already_pending:
-            continue
-        priority = calculate_priority(db, user_id, word.id)
+        priority = priorities[word.id]
         if priority.level is not None and priority.level.id == critical_band.id:
             result.append((word, priority))
     return result

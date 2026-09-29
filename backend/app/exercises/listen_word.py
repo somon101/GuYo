@@ -20,6 +20,7 @@ from app.exercises.common import get_exercise_settings_row, get_learned_pool, le
 from app.models.lesson import Lesson
 from app.models.user import User
 from app.models.word import Word
+from app.priority.calculate import calculate_priorities
 from app.priority.distractors import prefer_distractor_words
 from app.schemas.lesson import ListenWordItemOut, ListenWordOptionOut, ListenWordRoundOut
 
@@ -49,12 +50,13 @@ def build_round(db: Session, lesson: Lesson, threshold: int) -> ListenWordRoundO
     playable_words = [w for w in lesson_words_pending(db, lesson, threshold) if w.word_audio_key]
     learned_pool = get_learned_pool(db, lesson.user_id, lesson.dictionary_id, threshold)
     option_count = get_option_count(db)
+    pool_priorities = calculate_priorities(db, lesson.user_id, [w.id for w in learned_pool])
 
     items: list[ListenWordItemOut] = []
     for word in playable_words:
         candidates = [w for w in learned_pool if w.id != word.id]
         wrong_count = min(option_count - 1, len(candidates))
-        others = prefer_distractor_words(db, lesson.user_id, candidates)[:wrong_count]
+        others = prefer_distractor_words(db, lesson.user_id, candidates, pool_priorities)[:wrong_count]
         options = [ListenWordOptionOut(word_id=word.id, word=word.word)] + [
             ListenWordOptionOut(word_id=w.id, word=w.word) for w in others
         ]

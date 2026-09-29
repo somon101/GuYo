@@ -7,7 +7,7 @@ import random
 from sqlalchemy.orm import Session
 
 from app.models.word import Word
-from app.priority.calculate import calculate_priority
+from app.priority.calculate import calculate_priorities
 from app.priority.settings import priority_role_bands
 
 
@@ -25,11 +25,12 @@ def order_candidates_by_priority(db: Session, user_id: int, words: list[Word]) -
     high_id = roles["high"].id if roles["high"] is not None else None
     medium_id = roles["medium"].id if roles["medium"] is not None else None
 
+    priorities = calculate_priorities(db, user_id, [w.id for w in words])
     high: list[Word] = []
     medium: list[Word] = []
     rest: list[Word] = []
     for word in words:
-        level = calculate_priority(db, user_id, word.id).level
+        level = priorities[word.id].level
         level_id = level.id if level is not None else None
         if high_id is not None and level_id == high_id:
             high.append(word)

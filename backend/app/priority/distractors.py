@@ -9,11 +9,13 @@ import random
 from sqlalchemy.orm import Session
 
 from app.models.word import Word
-from app.priority.calculate import calculate_priority
+from app.priority.calculate import PriorityResult, calculate_priorities
 from app.priority.settings import priority_role_bands
 
 
-def prefer_distractor_words(db: Session, user_id: int, words: list[Word]) -> list[Word]:
+def prefer_distractor_words(
+    db: Session, user_id: int, words: list[Word], priorities: dict[int, PriorityResult] | None = None
+) -> list[Word]:
     """Reorders an already-computed learned-word candidate pool for use as
     distractor material, filling from Priority tiers in strict order --
     Low first, only topping up from Minimal once Low runs out (e.g. need
@@ -37,12 +39,16 @@ def prefer_distractor_words(db: Session, user_id: int, words: list[Word]) -> lis
     low_id = roles["low"].id if roles["low"] is not None else None
     minimal_id = roles["minimal"].id if roles["minimal"] is not None else None
 
+    # A round builder picking distractors for many items from the same
+    # pool passes the pool's priorities in, computed once for the round.
+    if priorities is None:
+        priorities = calculate_priorities(db, user_id, [w.id for w in words])
     low: list[Word] = []
     minimal: list[Word] = []
     acceptable: list[Word] = []
     critical_only: list[Word] = []
     for word in words:
-        level = calculate_priority(db, user_id, word.id).level
+        level = priorities[word.id].level
         level_id = level.id if level is not None else None
         if critical_id is not None and level_id == critical_id:
             critical_only.append(word)

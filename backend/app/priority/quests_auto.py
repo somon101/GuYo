@@ -21,6 +21,7 @@ fixed business math, same discipline as the rest of Priority.
 
 from collections import defaultdict
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.quest import Quest, QuestWord, UserQuestWordDay
@@ -29,7 +30,7 @@ from app.models.word import Word
 from app.models.word_attempt import WordAttempt
 from app.models.word_progress import WordProgress
 from app.premium import FEATURE_PERSONAL_QUESTS, automatic_feature_allowed
-from app.priority.calculate import calculate_priority
+from app.priority.calculate import calculate_priorities
 from app.priority.settings import get_priority_settings, priority_role_bands
 
 # Display-only labels for the auto-generated quest's `name` -- never read
@@ -43,33 +44,44 @@ _EXERCISE_LABELS = {
 }
 
 
-def weak_exercises_for_word(db: Session, user_id: int, word_id: int) -> list[str]:
-    """Every exercise_key this (user, word) pair currently looks weak in.
-    Purely a read over WordAttempt -- the SAME rule both Admin Web's
-    «Диагностика слова» (see app/routers/admin_analytics.py) and
-    maybe_create_personal_quest below use, so a word is never "weak" one
-    way in one place and another way in the other."""
+def weak_exercises_by_word(db: Session, user_id: int, word_ids: list[int]) -> dict[int, list[str]]:
+    """word_id -> every exercise_key that (user, word) pair currently looks
+    weak in, from one grouped query. Purely a read over WordAttempt -- the
+    SAME rule both Admin Web's «Диагностика слова» (see
+    app/routers/admin_analytics.py) and maybe_create_personal_quest below
+    use, so a word is never "weak" one way in one place and another way in
+    the other."""
+    if not word_ids:
+        return {}
     settings = get_priority_settings(db)
-    attempts = db.query(WordAttempt).filter(WordAttempt.user_id == user_id, WordAttempt.word_id == word_id).all()
-
-    by_exercise: dict[str, list[bool]] = defaultdict(list)
-    for a in attempts:
-        by_exercise[a.exercise_key].append(a.is_correct)
-
-    weak: list[str] = []
-    for exercise_key, results in by_exercise.items():
-        if len(results) < settings.personal_quest_min_attempts:
-            continue
-        error_rate = sum(1 for is_correct in results if not is_correct) / len(results)
-        if error_rate >= settings.personal_quest_weak_error_rate:
-            weak.append(exercise_key)
+    rows = (
+        db.query(
+            WordAttempt.word_id,
+            WordAttempt.exercise_key,
+            func.count(WordAttempt.id),
+            func.count(WordAttempt.id).filter(WordAttempt.is_correct.is_(False)),
+        )
+        .filter(WordAttempt.user_id == user_id, WordAttempt.word_id.in_(word_ids))
+        .group_by(WordAttempt.word_id, WordAttempt.exercise_key)
+        .order_by(WordAttempt.word_id, WordAttempt.exercise_key)
+        .all()
+    )
+    weak: dict[int, list[str]] = {word_id: [] for word_id in word_ids}
+    for word_id, exercise_key, attempts, errors in rows:
+        if attempts >= settings.personal_quest_min_attempts and errors / attempts >= settings.personal_quest_weak_error_rate:
+            weak[word_id].append(exercise_key)
     return weak
 
 
-def _high_medium_words(db: Session, user_id: int, dictionary_id: int) -> list[Word]:
-    """Every word this user has started (has a WordProgress row for) in
-    this dictionary whose CURRENT Priority role is High or Medium --
-    condition 1 of the two required for a personal quest."""
+def weak_exercises_for_word(db: Session, user_id: int, word_id: int) -> list[str]:
+    return weak_exercises_by_word(db, user_id, [word_id])[word_id]
+
+
+def _high_medium_words(db: Session, user_id: int, dictionary_id: int) -> list[tuple[Word, float]]:
+    """(word, Priority Score) for every word this user has started (has a
+    WordProgress row for) in this dictionary whose CURRENT Priority role
+    is High or Medium -- condition 1 of the two required for a personal
+    quest."""
     roles = priority_role_bands(db)
     target_ids = {band.id for band in (roles["high"], roles["medium"]) if band is not None}
     if not target_ids:
@@ -81,11 +93,12 @@ def _high_medium_words(db: Session, user_id: int, dictionary_id: int) -> list[Wo
         .filter(WordProgress.user_id == user_id, Word.dictionary_id == dictionary_id)
         .all()
     )
+    priorities = calculate_priorities(db, user_id, [word.id for word in candidates])
     result = []
     for word in candidates:
-        level = calculate_priority(db, user_id, word.id).level
-        if level is not None and level.id in target_ids:
-            result.append(word)
+        priority = priorities[word.id]
+        if priority.level is not None and priority.level.id in target_ids:
+            result.append((word, priority.score))
     return result
 
 
@@ -143,10 +156,10 @@ def maybe_create_personal_quest(db: Session, user: User, dictionary_id: int) -> 
     if not pool:
         return None
 
+    weak = weak_exercises_by_word(db, user.id, [word.id for word, _ in pool])
     by_exercise: dict[str, list[tuple[Word, float]]] = defaultdict(list)
-    for word in pool:
-        score = calculate_priority(db, user.id, word.id).score
-        for exercise_key in weak_exercises_for_word(db, user.id, word.id):
+    for word, score in pool:
+        for exercise_key in weak[word.id]:
             by_exercise[exercise_key].append((word, score))
 
     # Most weak words wins; ties broken by the exercise registry's own
