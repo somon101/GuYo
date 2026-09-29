@@ -207,6 +207,10 @@ void _expectNoBetweenExerciseScreen() {
   expect(find.text('Раунд завершён!'), findsNothing);
   expect(find.text('Играть ещё раз'), findsNothing);
   expect(find.text('К уроку'), findsNothing);
+  // The lesson's own word list is never back on screen between exercises
+  // -- the whole run happens inside LessonRunScreen.
+  expect(find.text('Слова урока'), findsNothing);
+  expect(find.text('Начать урок'), findsNothing);
 }
 
 void main() {

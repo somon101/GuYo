@@ -6,7 +6,7 @@ import '../theme/app_colors.dart';
 import '../widgets/word_card.dart';
 
 /// Shown once a "Начать урок" run has walked every available exercise type
-/// (see LessonDetailScreen._startLesson) -- the ONE place a lesson's
+/// (see LessonRunScreen) -- the ONE place a lesson's
 /// pass/fail outcome is decided and shown, with the real, per-word reason
 /// why. Never computes "is this word learned" itself: `lesson.words` here
 /// is a FRESH fetch (GET /lessons/{id}) taken right after the exercise
