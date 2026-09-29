@@ -3,6 +3,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
 import '../api/api_client.dart';
+import '../widgets/in_app_banner.dart';
 
 /// Push notifications through Firebase Cloud Messaging. The server sends a
 /// push for every inbox notification; this side only tells the server
@@ -15,14 +16,20 @@ class PushService {
   bool _ready = false;
 
   /// Bumped when a push arrives while the app is open (the system shows
-  /// nothing then), so the bell can re-check its unread dot.
+  /// nothing then -- InAppBanner does), so the bell can re-check its dot.
   final ValueNotifier<int> foregroundMessages = ValueNotifier<int>(0);
 
   Future<void> init() async {
     try {
       await Firebase.initializeApp();
       _ready = true;
-      FirebaseMessaging.onMessage.listen((_) => foregroundMessages.value++);
+      FirebaseMessaging.onMessage.listen((message) {
+        foregroundMessages.value++;
+        final notification = message.notification;
+        if (notification?.body != null) {
+          InAppBanner.show(title: notification!.title, body: notification.body!);
+        }
+      });
       FirebaseMessaging.instance.onTokenRefresh.listen((token) async {
         if (await ApiClient.instance.isLoggedIn) await _report(token);
       });

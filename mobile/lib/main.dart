@@ -3,6 +3,7 @@ import 'api/api_client.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'services/push_service.dart';
+import 'widgets/in_app_banner.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +18,7 @@ class GuyoApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'GuYo',
+      navigatorKey: appNavigatorKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorSchemeSeed: Colors.indigo,
