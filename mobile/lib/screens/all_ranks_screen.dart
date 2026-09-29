@@ -3,6 +3,7 @@ import '../api/api_client.dart';
 import '../models/user_rating.dart';
 import '../theme/app_colors.dart';
 import '../widgets/rank_icon.dart';
+import '../widgets/skeleton.dart';
 
 /// "Все уровни" -- the full rank ladder as one connected progress path,
 /// reached from the Profile screen's "Рейтинг" block. Purely a richer view
@@ -63,7 +64,7 @@ class _AllRanksScreenState extends State<AllRanksScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonList();
     }
     if (_loadError != null) {
       return Center(

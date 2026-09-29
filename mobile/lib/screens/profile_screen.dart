@@ -21,6 +21,7 @@ import 'achievements_screen.dart';
 import 'all_ranks_screen.dart';
 import 'learned_words_screen.dart';
 import 'profile_settings_screen.dart';
+import '../widgets/skeleton.dart';
 
 /// "Профиль": the user's own identity (avatar, login, their permanent
 /// user_id), their three headline counters, their current rank, and a
@@ -333,7 +334,7 @@ class ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return ListView(children: const [SizedBox(height: 200, child: Center(child: CircularProgressIndicator()))]);
+      return const SkeletonDashboard();
     }
     if (_loadError != null) {
       return ListView(
@@ -506,7 +507,14 @@ class _ProfileHeader extends StatelessWidget {
                   )
                 : UserAvatar(avatarUrl: profile.avatarUrl, login: profile.login, size: size),
           ),
-          if (isUpdatingAvatar) const CircularProgressIndicator(strokeWidth: 2),
+          if (isUpdatingAvatar)
+            SkeletonPulse(
+              child: Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.55)),
+              ),
+            ),
         ],
       ),
     );

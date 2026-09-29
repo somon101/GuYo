@@ -11,6 +11,7 @@ import '../widgets/quest_ui.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/user_name.dart';
 import 'season_quests_screen.dart';
+import '../widgets/skeleton.dart';
 
 /// The app's own slogan fetch, as a plain function so the default
 /// [BackendSloganSource] can be a const value.
@@ -134,9 +135,16 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         LessonQuotaCard(key: _quotaKey),
         const SizedBox(height: 14),
         if (_isLoading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 60),
-            child: Center(child: CircularProgressIndicator()),
+          const Skeleton(
+            child: Column(
+              children: [
+                SkeletonBox(height: 150, radius: AppShapes.cardRadius),
+                SizedBox(height: 14),
+                SkeletonBox(height: 110, radius: AppShapes.cardRadius),
+                SizedBox(height: 14),
+                SkeletonBox(height: 110, radius: AppShapes.cardRadius),
+              ],
+            ),
           )
         else if (_loadError != null)
           GuyoCard(

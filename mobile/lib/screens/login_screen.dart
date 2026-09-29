@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../widgets/guyo_ui.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
+import '../widgets/skeleton.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -109,10 +110,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppShapes.rowRadius)),
                         ),
                         child: _isSubmitting
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            ? const SkeletonPulse(
+                                child: Text('Входим…', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                               )
                             : const Text('Войти', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                       ),

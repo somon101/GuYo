@@ -8,6 +8,7 @@ import '../widgets/remote_image.dart';
 import '../widgets/word_card.dart';
 import 'my_phrases_screen.dart';
 import 'word_detail_screen.dart';
+import '../widgets/skeleton.dart';
 
 /// "Мои слова": every Word this user has any progress on in the current
 /// language, grouped by the same Category the dictionary already uses.
@@ -132,7 +133,7 @@ class _LearnedWordsScreenState extends State<LearnedWordsScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return ListView(children: const [SizedBox(height: 200, child: Center(child: CircularProgressIndicator()))]);
+      return const SkeletonList(avatar: false);
     }
     if (_loadError != null) {
       return ListView(

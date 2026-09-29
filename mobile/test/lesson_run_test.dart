@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:guyo_app/models/lesson.dart';
+import 'package:guyo_app/models/lesson_rounds.dart';
 import 'package:guyo_app/screens/lesson_exercise_flow.dart';
 import 'package:guyo_app/screens/lesson_run_screen.dart';
 
@@ -39,11 +40,16 @@ class _FakeDriver implements LessonRunDriver {
   @override
   Future<void> startPass(int lessonId) async => passes++;
 
-  @override
-  Future<bool> hasPendingWork(int lessonId, String key) async => pending[key] ?? false;
+  int prepared = 0;
 
   @override
-  Widget buildExercise(int lessonId, int lessonNumber, String key) {
+  Future<LessonRounds> prepareRounds(int lessonId, List<String> exerciseKeys) async {
+    prepared++;
+    return LessonRounds.availability(pending);
+  }
+
+  @override
+  Widget buildExercise(int lessonId, int lessonNumber, String key, LessonRounds rounds) {
     built.add(key);
     return _FakeExercise(key);
   }
@@ -131,6 +137,7 @@ void main() {
 
     await _finish(tester);
     expect(find.text('RESULTS'), findsOneWidget);
+    expect(driver.prepared, 1, reason: 'every round is prepared once, up front -- nothing is fetched between exercises');
   });
 
   testWidgets('"Повторить урок" runs a new pass right away; "Готово" closes the lesson', (tester) async {
@@ -145,6 +152,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(driver.passes, 2);
     expect(find.text('EX a'), findsOneWidget);
+    expect(driver.prepared, 2, reason: 'a new pass prepares its own rounds');
 
     await _finish(tester);
     await _finish(tester);

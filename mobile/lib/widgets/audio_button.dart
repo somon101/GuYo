@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../services/media_cache.dart';
 
 /// Reusable play/stop button for one audio URL -- a Word's own pronunciation
 /// or its translation's, wherever they're shown.
@@ -53,7 +54,7 @@ class _AudioButtonState extends State<AudioButton> {
       _completeSub = _player.onPlayerComplete.listen((_) {
         if (mounted) setState(() => _isPlaying = false);
       });
-      await _player.play(UrlSource(widget.url));
+      await _player.play(MediaCache.instance.audioSource(widget.url));
     } catch (_) {
       if (mounted) setState(() => _isPlaying = false);
     }

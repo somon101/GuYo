@@ -10,6 +10,7 @@ import '../models/phrase.dart';
 import '../services/answer_sound.dart';
 import '../theme/app_colors.dart';
 import '../widgets/glass_backdrop.dart';
+import '../widgets/skeleton.dart';
 
 const int _roundSize = 10;
 
@@ -217,7 +218,7 @@ class _BuildPhraseByEarScreenState extends State<BuildPhraseByEarScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonExercise(options: 3);
     }
     if (_errorMessage != null) {
       return Center(

@@ -6,6 +6,7 @@ import '../widgets/guyo_ui.dart';
 import 'home_screen.dart';
 import '../models/learning_topics.dart';
 import '../widgets/selectable_card.dart';
+import '../widgets/skeleton.dart';
 
 /// GuYo's self-registration: one continuous, compact wizard rather than a
 /// single giant form -- language, then account details, then age, goal
@@ -268,10 +269,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppShapes.rowRadius)),
                   ),
                   child: _isSubmitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      ? SkeletonPulse(
+                          child: Text(_nextLabel, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                         )
                       : Text(_nextLabel, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                 ),
@@ -441,7 +440,7 @@ class _LanguageStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonList(avatar: false, rows: 4);
     }
     if (error != null) {
       return _StepScaffold(

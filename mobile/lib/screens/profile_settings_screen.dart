@@ -5,6 +5,7 @@ import '../theme/app_colors.dart';
 import '../widgets/user_avatar.dart';
 import '../models/learning_topics.dart';
 import 'topics_screen.dart';
+import '../widgets/skeleton.dart';
 
 /// "Настройки": everything about the account the user may change
 /// themselves -- login, photo, first name, last name and email.
@@ -292,11 +293,9 @@ class _PhotoSection extends StatelessWidget {
           Stack(
             alignment: Alignment.center,
             children: [
-              Opacity(
-                opacity: isBusy ? 0.5 : 1,
-                child: UserAvatar(avatarUrl: profile.avatarUrl, login: profile.login, size: 72),
-              ),
-              if (isBusy) const CircularProgressIndicator(strokeWidth: 2),
+              isBusy
+                  ? SkeletonPulse(child: UserAvatar(avatarUrl: profile.avatarUrl, login: profile.login, size: 72))
+                  : UserAvatar(avatarUrl: profile.avatarUrl, login: profile.login, size: 72),
             ],
           ),
           const SizedBox(width: 16),

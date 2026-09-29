@@ -6,6 +6,7 @@ import '../theme/app_colors.dart';
 import '../widgets/word_card.dart';
 import 'lesson_run_screen.dart';
 import 'word_detail_screen.dart';
+import '../widgets/skeleton.dart';
 
 /// One lesson's own screen: its fixed word set, each word's own cumulative
 /// score/learned status, and one "Начать урок" button. Reached by tapping a
@@ -117,7 +118,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
   Widget _buildBody() {
     if (_isLoading) {
       return ListView(
-        children: const [SizedBox(height: 160, child: Center(child: CircularProgressIndicator()))],
+        children: const [SizedBox(height: 520, child: SkeletonList(rows: 6))],
       );
     }
     if (_loadError != null) {
@@ -219,14 +220,8 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: _isRunning ? null : _startLesson,
-                icon: _isRunning
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Icon(Icons.play_arrow_rounded),
-                label: Text(_isRunning ? 'Загрузка…' : 'Начать урок'),
+                icon: const Icon(Icons.play_arrow_rounded),
+                label: _isRunning ? const SkeletonPulse(child: Text('Готовим урок…')) : const Text('Начать урок'),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   padding: const EdgeInsets.symmetric(vertical: 14),

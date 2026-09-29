@@ -11,6 +11,7 @@ import '../widgets/exercises/practice_round_complete.dart';
 import '../widgets/exercises/speaking_word_exercise.dart';
 import '../widgets/exercises/true_or_false_exercise.dart';
 import '../widgets/guyo_ui.dart';
+import '../widgets/skeleton.dart';
 
 /// «Практика» for the 4 word-scoped exercise types whose round is a plain
 /// sequence of items: «Правда или ложь», «Собери слово», «Произнеси
@@ -134,7 +135,7 @@ class _PracticeExerciseScreenState extends State<PracticeExerciseScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonExercise();
     }
     if (_errorMessage != null) {
       return Center(

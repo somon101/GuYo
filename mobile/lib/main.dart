@@ -4,6 +4,8 @@ import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'services/push_service.dart';
 import 'widgets/in_app_banner.dart';
+import 'theme/app_colors.dart';
+import 'widgets/skeleton.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,7 +55,7 @@ class _StartupGateState extends State<_StartupGate> {
       future: _isLoggedInFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(backgroundColor: AppColors.canvas, body: SafeArea(child: SkeletonDashboard()));
         }
         return (snapshot.data ?? false) ? const HomeScreen() : const LoginScreen();
       },

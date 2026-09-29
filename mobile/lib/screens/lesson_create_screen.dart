@@ -6,6 +6,7 @@ import '../models/lesson.dart';
 import '../models/word.dart';
 import '../widgets/premium_ui.dart';
 import '../widgets/ios_ui.dart';
+import '../widgets/skeleton.dart';
 
 /// Word selection for a new lesson: either a random count (1-15) or a
 /// manual, per-word pick (also capped at 15), grouped by category so
@@ -170,7 +171,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonForm();
     }
     if (_loadError != null) {
       return Center(
@@ -388,11 +389,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
                 textStyle: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700),
               ),
               child: _isSubmitting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white),
-                    )
+                  ? const SkeletonPulse(child: Text('Готовим урок…'))
                   : Text(_mode == _Mode.random ? 'Начать урок' : 'Начать урок (${_selectedIds.length})'),
             ),
           ),

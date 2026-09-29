@@ -7,6 +7,7 @@ import '../../models/lesson.dart';
 import '../../services/answer_sound.dart';
 import '../../theme/app_colors.dart';
 import 'choice_tile.dart';
+import '../../services/media_cache.dart';
 
 /// "Услышь слово", as ONE self-contained widget: plays [item]'s own
 /// recording, offers its shuffled options as [ChoiceTile]s, and reports
@@ -58,7 +59,7 @@ class _ListenWordExerciseState extends State<ListenWordExercise> {
       _completeSub = _player.onPlayerComplete.listen((_) {
         if (mounted) setState(() => _isPlayingAudio = false);
       });
-      await _player.play(UrlSource(ApiClient.instance.mediaUrl(url)));
+      await _player.play(MediaCache.instance.audioSource(url));
     } catch (_) {
       if (mounted) setState(() => _isPlayingAudio = false);
     }

@@ -3,6 +3,7 @@ import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../models/phrase.dart';
 import '../widgets/audio_button.dart';
+import '../widgets/skeleton.dart';
 
 /// "Мои фразы": every Phrase whose every word the user has already
 /// learned (directly, or via one of that word's own grammatical forms) --
@@ -48,7 +49,7 @@ class _MyPhrasesScreenState extends State<MyPhrasesScreen> {
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+              return const SkeletonList(avatar: false);
             }
             if (snapshot.hasError) {
               return ListView(

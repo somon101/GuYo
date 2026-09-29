@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/skeleton.dart';
+
 /// What every exercise inside a lesson does when its round is over: hand
 /// control straight back to the lesson runner.
 ///
@@ -85,6 +87,6 @@ class LessonExerciseHandoff extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: CircularProgressIndicator());
+    return const SkeletonExercise();
   }
 }

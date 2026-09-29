@@ -12,6 +12,7 @@ import 'profile_screen.dart';
 import 'rating_screen.dart';
 import '../services/push_service.dart';
 import 'topics_screen.dart';
+import '../widgets/skeleton.dart';
 
 /// The app's main hub, reached right after login.
 ///
@@ -216,7 +217,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonDashboard();
     }
     if (_loadError != null) {
       // A 401 means the stored token itself is dead (expired, or left over

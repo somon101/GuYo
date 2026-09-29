@@ -9,6 +9,7 @@ import '../models/word.dart';
 import '../services/answer_sound.dart';
 import '../theme/app_colors.dart';
 import '../widgets/glass_backdrop.dart';
+import '../widgets/skeleton.dart';
 
 /// Max phrases per practice round -- a bite-sized session, not "grind
 /// through everything you've ever unlocked" in one sitting. Re-opening or
@@ -214,7 +215,7 @@ class _BuildPhraseScreenState extends State<BuildPhraseScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonExercise(options: 3);
     }
     if (_errorMessage != null) {
       return Center(

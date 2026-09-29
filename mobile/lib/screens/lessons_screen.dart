@@ -6,6 +6,7 @@ import '../theme/app_colors.dart';
 import 'lesson_create_screen.dart';
 import 'lesson_detail_screen.dart';
 import 'lesson_run_screen.dart';
+import '../widgets/skeleton.dart';
 
 /// "Уроки": the new primary progress system's own tab. Shows this
 /// dictionary's FULL, permanent lesson history as a flat list of cards --
@@ -121,7 +122,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
   Widget _buildBody() {
     if (_isLoading) {
       return ListView(
-        children: const [SizedBox(height: 160, child: Center(child: CircularProgressIndicator()))],
+        children: const [SizedBox(height: 520, child: SkeletonList(rows: 6))],
       );
     }
     if (_loadError != null) {

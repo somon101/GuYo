@@ -6,6 +6,7 @@ import '../models/premium.dart';
 import '../theme/app_colors.dart';
 import '../widgets/guyo_ui.dart';
 import '../widgets/premium_ui.dart';
+import '../widgets/skeleton.dart';
 
 /// "GuYo Premium": what it gives, whether the user has it, and how to pay.
 ///
@@ -60,7 +61,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 80),
                     child: Center(
                       child: _error == null
-                          ? const CircularProgressIndicator()
+                          ? const SizedBox(height: 360, child: SkeletonForm(fields: 3))
                           : Column(
                               children: [
                                 Text(_error!),

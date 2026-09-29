@@ -5,6 +5,7 @@ import '../api/api_client.dart';
 import '../models/premium.dart';
 import '../theme/app_colors.dart';
 import '../widgets/guyo_ui.dart';
+import '../widgets/skeleton.dart';
 
 /// "Промокод": one field for a promo code or a link to a GuYo video.
 ///
@@ -136,11 +137,7 @@ class _PromoScreenState extends State<PromoScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppShapes.rowRadius)),
                     ),
                     child: _isSubmitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
-                          )
+                        ? const SkeletonPulse(child: Text('Проверяем…', style: TextStyle(fontWeight: FontWeight.w700)))
                         : const Text('Активировать', style: TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ),

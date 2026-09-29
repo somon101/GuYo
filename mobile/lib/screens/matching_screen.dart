@@ -4,6 +4,7 @@ import '../models/word.dart';
 import '../theme/app_colors.dart';
 import '../widgets/exercises/matching_board.dart';
 import 'lesson_exercise_flow.dart';
+import '../widgets/skeleton.dart';
 
 /// "Сопоставление", as one of a Lesson's exercises: this screen never
 /// creates, copies, or persists any Word/translation -- it only calls GET
@@ -19,7 +20,11 @@ import 'lesson_exercise_flow.dart';
 class MatchingScreen extends StatefulWidget {
   final int lessonId;
   final int lessonNumber;
-  const MatchingScreen({super.key, required this.lessonId, required this.lessonNumber});
+  /// This pass's round, already fetched by the lesson runner (see
+  /// LessonRounds) -- shown at once, with no request. Null: fetch it here.
+  final List<GuyoWord>? initialRound;
+
+  const MatchingScreen({super.key, required this.lessonId, required this.lessonNumber, this.initialRound});
 
   @override
   State<MatchingScreen> createState() => _MatchingScreenState();
@@ -52,7 +57,7 @@ class _MatchingScreenState extends State<MatchingScreen> with LessonExerciseFlow
       _errorMessage = null;
     });
     try {
-      final words = await ApiClient.instance.fetchLessonMatchingWords(widget.lessonId);
+      final words = widget.initialRound ?? await ApiClient.instance.fetchLessonMatchingWords(widget.lessonId);
       // A word with no translation can't be matched to anything; the
       // backend already excludes these, but this stays defensive rather
       // than assuming that holds forever.
@@ -105,7 +110,7 @@ class _MatchingScreenState extends State<MatchingScreen> with LessonExerciseFlow
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonExercise(options: 4);
     }
     if (_errorMessage != null) {
       return Center(

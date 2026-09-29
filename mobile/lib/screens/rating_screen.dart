@@ -7,6 +7,7 @@ import '../widgets/rank_icon.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/user_name.dart';
 import 'all_ranks_screen.dart';
+import '../widgets/skeleton.dart';
 
 /// "Рейтинг" tab: shows only the leaderboard of the user's OWN current
 /// rank -- there is no control anywhere on this screen to pick a
@@ -96,7 +97,7 @@ class _RatingScreenState extends State<RatingScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return ListView(children: const [SizedBox(height: 200, child: Center(child: CircularProgressIndicator()))]);
+      return const SkeletonList();
     }
     if (_loadError != null) {
       return ListView(
@@ -653,7 +654,7 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return ListView(children: const [SizedBox(height: 200, child: Center(child: CircularProgressIndicator()))]);
+      return const SkeletonList();
     }
     if (_loadError != null) {
       return ListView(

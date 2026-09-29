@@ -5,6 +5,7 @@ import '../theme/app_colors.dart';
 import '../widgets/exercises/exercise_progress_header.dart';
 import '../widgets/exercises/speaking_word_exercise.dart';
 import 'lesson_exercise_flow.dart';
+import '../widgets/skeleton.dart';
 
 /// "Произнеси слово", as one of a Lesson's exercises: shows one of the
 /// lesson's own words, the user taps the mic and says it, and an
@@ -23,7 +24,11 @@ import 'lesson_exercise_flow.dart';
 class SpeakingWordScreen extends StatefulWidget {
   final int lessonId;
   final int lessonNumber;
-  const SpeakingWordScreen({super.key, required this.lessonId, required this.lessonNumber});
+  /// This pass's round, already fetched by the lesson runner (see
+  /// LessonRounds) -- shown at once, with no request. Null: fetch it here.
+  final SpeakingWordRound? initialRound;
+
+  const SpeakingWordScreen({super.key, required this.lessonId, required this.lessonNumber, this.initialRound});
 
   @override
   State<SpeakingWordScreen> createState() => _SpeakingWordScreenState();
@@ -48,7 +53,7 @@ class _SpeakingWordScreenState extends State<SpeakingWordScreen> with LessonExer
       _errorMessage = null;
     });
     try {
-      final round = await ApiClient.instance.fetchLessonSpeakingWordRound(widget.lessonId);
+      final round = widget.initialRound ?? await ApiClient.instance.fetchLessonSpeakingWordRound(widget.lessonId);
       if (!mounted) return;
       setState(() {
         _round = round;
@@ -91,7 +96,7 @@ class _SpeakingWordScreenState extends State<SpeakingWordScreen> with LessonExer
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonExercise(options: 1);
     }
     if (_errorMessage != null) {
       return Center(

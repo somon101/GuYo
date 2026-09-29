@@ -6,6 +6,7 @@ import '../theme/app_colors.dart';
 import '../widgets/quest_ui.dart';
 import 'home_dashboard_screen.dart';
 import 'quest_attempt_screen.dart';
+import '../widgets/skeleton.dart';
 
 const Map<String, String> _exerciseLabels = {
   'true_or_false': 'Правда или ложь',
@@ -114,7 +115,7 @@ class _SeasonQuestsScreenState extends State<SeasonQuestsScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return ListView(children: const [SizedBox(height: 220, child: Center(child: CircularProgressIndicator()))]);
+      return const SkeletonList(rows: 5);
     }
     if (_loadError != null) {
       return ListView(

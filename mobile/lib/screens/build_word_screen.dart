@@ -5,6 +5,7 @@ import '../theme/app_colors.dart';
 import '../widgets/exercises/build_word_exercise.dart';
 import '../widgets/exercises/exercise_progress_header.dart';
 import 'lesson_exercise_flow.dart';
+import '../widgets/skeleton.dart';
 
 /// "Собери слово", as one of a Lesson's exercises: shows a lesson word's
 /// translation, then the player taps individual letter buttons (this
@@ -24,7 +25,11 @@ import 'lesson_exercise_flow.dart';
 class BuildWordScreen extends StatefulWidget {
   final int lessonId;
   final int lessonNumber;
-  const BuildWordScreen({super.key, required this.lessonId, required this.lessonNumber});
+  /// This pass's round, already fetched by the lesson runner (see
+  /// LessonRounds) -- shown at once, with no request. Null: fetch it here.
+  final BuildWordRound? initialRound;
+
+  const BuildWordScreen({super.key, required this.lessonId, required this.lessonNumber, this.initialRound});
 
   @override
   State<BuildWordScreen> createState() => _BuildWordScreenState();
@@ -49,7 +54,7 @@ class _BuildWordScreenState extends State<BuildWordScreen> with LessonExerciseFl
       _errorMessage = null;
     });
     try {
-      final round = await ApiClient.instance.fetchLessonBuildWordRound(widget.lessonId);
+      final round = widget.initialRound ?? await ApiClient.instance.fetchLessonBuildWordRound(widget.lessonId);
       if (!mounted) return;
       setState(() {
         _round = round;
@@ -92,7 +97,7 @@ class _BuildWordScreenState extends State<BuildWordScreen> with LessonExerciseFl
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonExercise(options: 1);
     }
     if (_errorMessage != null) {
       return Center(

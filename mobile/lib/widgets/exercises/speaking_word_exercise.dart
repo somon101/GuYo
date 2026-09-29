@@ -5,6 +5,7 @@ import '../../models/lesson.dart';
 import '../../services/answer_sound.dart';
 import '../../theme/app_colors.dart';
 import '../remote_image.dart';
+import '../skeleton.dart';
 
 enum _MicState { idle, recording, processing, result }
 
@@ -126,7 +127,7 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_speechChecked) return const Center(child: CircularProgressIndicator());
+    if (!_speechChecked) return const Skeleton(child: SkeletonBox(height: 260, radius: AppShapes.cardRadius));
     if (!_speechAvailable) {
       return Center(
         child: Column(
@@ -324,7 +325,7 @@ class _MicButtonState extends State<_MicButton> with SingleTickerProviderStateMi
                 boxShadow: [BoxShadow(color: color.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6))],
               ),
               child: isBusy
-                  ? const Padding(padding: EdgeInsets.all(26), child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white))
+                  ? SkeletonPulse(child: Icon(icon, color: Colors.white, size: 38))
                   : Icon(icon, color: Colors.white, size: 38),
             ),
           ],

@@ -5,6 +5,7 @@ import '../theme/app_colors.dart';
 import '../widgets/exercises/exercise_progress_header.dart';
 import '../widgets/exercises/true_or_false_exercise.dart';
 import 'lesson_exercise_flow.dart';
+import '../widgets/skeleton.dart';
 
 /// "Правда или ложь", as one of a Lesson's exercises: the backend hands back
 /// a round built from THIS lesson's fixed word set (wrong-answer candidates
@@ -24,7 +25,11 @@ import 'lesson_exercise_flow.dart';
 class TrueOrFalseScreen extends StatefulWidget {
   final int lessonId;
   final int lessonNumber;
-  const TrueOrFalseScreen({super.key, required this.lessonId, required this.lessonNumber});
+  /// This pass's round, already fetched by the lesson runner (see
+  /// LessonRounds) -- shown at once, with no request. Null: fetch it here.
+  final TrueOrFalseRound? initialRound;
+
+  const TrueOrFalseScreen({super.key, required this.lessonId, required this.lessonNumber, this.initialRound});
 
   @override
   State<TrueOrFalseScreen> createState() => _TrueOrFalseScreenState();
@@ -49,7 +54,7 @@ class _TrueOrFalseScreenState extends State<TrueOrFalseScreen> with LessonExerci
       _errorMessage = null;
     });
     try {
-      final round = await ApiClient.instance.fetchLessonTrueOrFalseRound(widget.lessonId);
+      final round = widget.initialRound ?? await ApiClient.instance.fetchLessonTrueOrFalseRound(widget.lessonId);
       if (!mounted) return;
       setState(() {
         _items = round.items;
@@ -94,7 +99,7 @@ class _TrueOrFalseScreenState extends State<TrueOrFalseScreen> with LessonExerci
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonExercise(options: 2);
     }
     if (_errorMessage != null) {
       return Center(

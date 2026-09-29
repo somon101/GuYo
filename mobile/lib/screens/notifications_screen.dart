@@ -3,6 +3,7 @@ import '../api/api_client.dart';
 import '../models/notification.dart';
 import '../theme/app_colors.dart';
 import '../widgets/guyo_ui.dart';
+import '../widgets/skeleton.dart';
 
 /// "Уведомления": every message this user has received.
 ///
@@ -85,7 +86,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return ListView(children: const [SizedBox(height: 200, child: Center(child: CircularProgressIndicator()))]);
+      return const SkeletonList(avatar: false);
     }
     if (_loadError != null) {
       return ListView(

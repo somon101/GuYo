@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
 import '../models/lesson.dart';
+import '../models/lesson_rounds.dart';
 import '../theme/app_colors.dart';
 import 'build_word_screen.dart';
 import 'lesson_exercise_flow.dart';
@@ -28,11 +29,14 @@ abstract class LessonRunDriver {
   /// Freezes this pass's words (POST /lessons/{id}/pass).
   Future<void> startPass(int lessonId);
 
-  /// Whether exercise [key] has anything to test right now.
-  Future<bool> hasPendingWork(int lessonId, String key);
+  /// Every exercise's round for this pass, plus the media they use --
+  /// fetched once, up front, so the pass then runs without a request or a
+  /// loading screen between exercises.
+  Future<LessonRounds> prepareRounds(int lessonId, List<String> exerciseKeys);
 
-  /// The exercise itself. It ends by calling finishExercise().
-  Widget buildExercise(int lessonId, int lessonNumber, String key);
+  /// The exercise itself, given its prepared round. It ends by calling
+  /// finishExercise().
+  Widget buildExercise(int lessonId, int lessonNumber, String key, LessonRounds rounds);
 
   Future<Lesson> fetchLesson(int lessonId);
 
@@ -50,35 +54,22 @@ class ApiLessonRunDriver implements LessonRunDriver {
   @override
   Future<void> startPass(int lessonId) => ApiClient.instance.startLessonPass(lessonId);
 
-  /// Fetched fresh every time, never cached. Сопоставление alone needs at
-  /// least 2 words to form a board; every other type works with 1.
   @override
-  Future<bool> hasPendingWork(int lessonId, String key) async {
-    final api = ApiClient.instance;
-    switch (key) {
-      case 'true_or_false':
-        return (await api.fetchLessonTrueOrFalseRound(lessonId)).items.isNotEmpty;
-      case 'matching':
-        return (await api.fetchLessonMatchingWords(lessonId)).length >= 2;
-      case 'build_word':
-        return (await api.fetchLessonBuildWordRound(lessonId)).items.isNotEmpty;
-      case 'speaking_word':
-        return (await api.fetchLessonSpeakingWordRound(lessonId)).items.isNotEmpty;
-      case 'listen_word':
-        return (await api.fetchLessonListenWordRound(lessonId)).items.isNotEmpty;
-      default:
-        return false;
-    }
-  }
+  Future<LessonRounds> prepareRounds(int lessonId, List<String> exerciseKeys) =>
+      LessonRounds.prepare(lessonId, exerciseKeys);
 
   @override
-  Widget buildExercise(int lessonId, int lessonNumber, String key) {
+  Widget buildExercise(int lessonId, int lessonNumber, String key, LessonRounds rounds) {
     return switch (key) {
-      'true_or_false' => TrueOrFalseScreen(lessonId: lessonId, lessonNumber: lessonNumber),
-      'matching' => MatchingScreen(lessonId: lessonId, lessonNumber: lessonNumber),
-      'build_word' => BuildWordScreen(lessonId: lessonId, lessonNumber: lessonNumber),
-      'speaking_word' => SpeakingWordScreen(lessonId: lessonId, lessonNumber: lessonNumber),
-      'listen_word' => ListenWordScreen(lessonId: lessonId, lessonNumber: lessonNumber),
+      'true_or_false' =>
+        TrueOrFalseScreen(lessonId: lessonId, lessonNumber: lessonNumber, initialRound: rounds.round(key)),
+      'matching' => MatchingScreen(lessonId: lessonId, lessonNumber: lessonNumber, initialRound: rounds.round(key)),
+      'build_word' =>
+        BuildWordScreen(lessonId: lessonId, lessonNumber: lessonNumber, initialRound: rounds.round(key)),
+      'speaking_word' =>
+        SpeakingWordScreen(lessonId: lessonId, lessonNumber: lessonNumber, initialRound: rounds.round(key)),
+      'listen_word' =>
+        ListenWordScreen(lessonId: lessonId, lessonNumber: lessonNumber, initialRound: rounds.round(key)),
       _ => const SizedBox.shrink(),
     };
   }
@@ -118,6 +109,11 @@ class ApiLessonRunDriver implements LessonRunDriver {
 /// If that call fails the pass still runs (on the backend's older, live
 /// set) -- a lesson must never stall on it.
 ///
+/// Right after that, every exercise's round and its pictures and sounds
+/// are prepared at once (LessonRounds): the one wait of a pass is up front,
+/// behind a skeleton, and exercises then follow each other with no request
+/// and no loading screen in between.
+///
 /// Scoring, progress and the exercises themselves are untouched: each
 /// exercise still submits its own answers exactly as before.
 class LessonRunScreen extends StatefulWidget {
@@ -153,6 +149,7 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
   bool _showingExercise = false;
   bool _failed = false;
   Completer<void>? _current;
+  LessonRounds _rounds = const LessonRounds({});
 
   @override
   void initState() {
@@ -174,22 +171,24 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
       // Runs anyway, on the live set -- see the class comment.
     }
 
+    LessonRounds rounds;
+    try {
+      rounds = await driver.prepareRounds(widget.lessonId, widget.exerciseKeys);
+    } catch (_) {
+      // Preparing failed as a whole (a network blip) -- that shouldn't drop
+      // real rounds: every exercise runs and loads its own, as before.
+      rounds = LessonRounds({for (final key in widget.exerciseKeys) key: null});
+    }
+    _rounds = rounds;
+
     for (var i = 0; i < widget.exerciseKeys.length; i++) {
       if (!mounted) return;
       final key = widget.exerciseKeys[i];
+      if (!rounds.hasWork(key)) continue;
       setState(() {
         _index = i;
         _showingExercise = false;
       });
-      bool hasWork;
-      try {
-        hasWork = await driver.hasPendingWork(widget.lessonId, key);
-      } catch (_) {
-        // A failed availability check (a network blip) shouldn't silently
-        // drop a real round -- show the exercise and let it load itself.
-        hasWork = true;
-      }
-      if (!hasWork || !mounted) continue;
       final done = Completer<void>();
       _current = done;
       setState(() => _showingExercise = true);
@@ -313,7 +312,7 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
       // start from a clean state, never reuse the previous round's.
       child: KeyedSubtree(
         key: ValueKey('$_pass-$_index'),
-        child: widget.driver.buildExercise(widget.lessonId, widget.lessonNumber, key),
+        child: widget.driver.buildExercise(widget.lessonId, widget.lessonNumber, key, _rounds),
       ),
     );
   }

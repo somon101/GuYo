@@ -12,6 +12,7 @@ import '../widgets/exercises/choice_tile.dart';
 import '../widgets/exercises/listen_word_exercise.dart';
 import '../widgets/exercises/speaking_word_exercise.dart';
 import '../widgets/exercises/true_or_false_exercise.dart';
+import '../widgets/skeleton.dart';
 
 /// One quest attempt: fetches a ONE-target-word round and renders whichever
 /// of the 5 exercise types the quest uses, reporting exactly one
@@ -111,7 +112,7 @@ class _QuestAttemptScreenState extends State<QuestAttemptScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonExercise();
     }
     if (_errorMessage != null && _round == null) {
       return Center(

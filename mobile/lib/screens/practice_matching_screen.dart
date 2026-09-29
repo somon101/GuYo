@@ -5,6 +5,7 @@ import '../models/word.dart';
 import '../theme/app_colors.dart';
 import '../widgets/exercises/matching_board.dart';
 import '../widgets/exercises/practice_round_complete.dart';
+import '../widgets/skeleton.dart';
 
 /// «Практика» for «Сопоставление»: renders the EXACT SAME [MatchingBoard]
 /// widget Уроки uses, fed a fresh random board of "Мои изученные слова"
@@ -72,7 +73,7 @@ class _PracticeMatchingScreenState extends State<PracticeMatchingScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonExercise(options: 4);
     }
     if (_errorMessage != null) {
       return Center(
