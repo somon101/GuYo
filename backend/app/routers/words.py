@@ -18,7 +18,7 @@ from app.exercises.common import fill_word_progress
 from app.models.category import Category
 from app.models.dictionary import Dictionary
 from app.models.import_job import ImportJob
-from app.models.word import Word, WordForm, WordTranslation
+from app.models.word import Word, WordForm, WordTopic, WordTranslation
 from app.schemas.bulk import (
     ExportCategory,
     ExportPayload,
@@ -27,7 +27,7 @@ from app.schemas.bulk import (
     ImportPayload,
     ImportSummary,
 )
-from app.schemas.word import WordFormOut, WordOut, WordTranslationOut
+from app.schemas.word import WordFormOut, WordLearningIn, WordOut, WordTranslationOut
 
 router = APIRouter(tags=["words"])
 
@@ -60,6 +60,8 @@ def word_to_out(word: Word) -> WordOut:
         image_url=url_for_key(word.image_key),
         category_id=word.category_id,
         category_name=word.category.name if word.category is not None else None,
+        importance=word.importance,
+        topics=word.topics,
         created_at=word.created_at,
         updated_at=word.updated_at,
         translation=primary.text if primary else None,
@@ -240,6 +242,23 @@ def update_word(
         delete_by_key(db_word.image_key)
         db_word.image_key = None
 
+    db.commit()
+    db.refresh(db_word)
+    return word_to_out(db_word)
+
+
+@router.put("/words/{word_id}/learning", response_model=WordOut)
+def update_word_learning(
+    word_id: int, payload: WordLearningIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
+):
+    """Importance and topics -- what decides where this word lands in a
+    random lesson. JSON, unlike the multipart word form above."""
+    db_word = _get_word_or_404(db, word_id)
+    db_word.importance = payload.importance
+    wanted = list(dict.fromkeys(payload.topics))
+    db_word.topic_links = [link for link in db_word.topic_links if link.topic in wanted]
+    have = {link.topic for link in db_word.topic_links}
+    db_word.topic_links.extend(WordTopic(topic=t) for t in wanted if t not in have)
     db.commit()
     db.refresh(db_word)
     return word_to_out(db_word)

@@ -11,6 +11,7 @@ import 'practice_screen.dart';
 import 'profile_screen.dart';
 import 'rating_screen.dart';
 import '../services/push_service.dart';
+import 'topics_screen.dart';
 
 /// The app's main hub, reached right after login.
 ///
@@ -77,6 +78,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // Every way into the app (login, sign-up, an already-saved session)
     // lands here, so this is the one place the phone is registered.
     PushService.instance.registerCurrentUser();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _askTopicsOnce());
+  }
+
+  /// Accounts that have never picked their topics are asked once, right
+  /// after opening the app. Skipping saves an empty choice, so it never
+  /// comes back; the choice stays editable in settings.
+  static bool _topicsAsked = false;
+
+  Future<void> _askTopicsOnce() async {
+    if (_topicsAsked) return;
+    _topicsAsked = true;
+    try {
+      final profile = await ApiClient.instance.fetchMyProfile();
+      if (profile.learningTopics != null || !mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const TopicsScreen(initial: [], firstTime: true), fullscreenDialog: true),
+      );
+    } catch (_) {
+      _topicsAsked = false; // try again next time the home screen opens
+    }
   }
 
   @override

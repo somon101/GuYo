@@ -4,6 +4,8 @@ import '../models/dictionary.dart';
 import '../theme/app_colors.dart';
 import '../widgets/guyo_ui.dart';
 import 'home_screen.dart';
+import '../models/learning_topics.dart';
+import '../widgets/selectable_card.dart';
 
 /// GuYo's self-registration: one continuous, compact wizard rather than a
 /// single giant form -- language, then account details, then age, goal
@@ -24,16 +26,6 @@ const List<({String code, String label})> _ageGroups = [
   (code: '12-17', label: '12–17 лет'),
   (code: '18-24', label: '18–24 года'),
   (code: '25+', label: '25+ лет'),
-];
-
-const List<({String code, String label})> _learningGoals = [
-  (code: 'study', label: 'Для учёбы'),
-  (code: 'work', label: 'Для работы'),
-  (code: 'communication', label: 'Для общения'),
-  (code: 'travel', label: 'Для путешествий'),
-  (code: 'relocation', label: 'Для переезда'),
-  (code: 'personal', label: 'Для себя'),
-  (code: 'other', label: 'Другое'),
 ];
 
 const List<({String code, String label})> _referralSources = [
@@ -72,7 +64,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   // --- Step 2/3/4: single-choice picks --------------------------------------
   String? _ageGroup;
-  String? _learningGoal;
+  final List<String> _learningGoals = [];
   String? _referralSource;
 
   bool _isSubmitting = false;
@@ -133,7 +125,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       case 2:
         return _ageGroup != null;
       case 3:
-        return _learningGoal != null;
+        return _learningGoals.isNotEmpty;
       case 4:
         return _referralSource != null;
     }
@@ -209,7 +201,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         email: _emailCtrl.text.trim(),
         learningLanguage: _selectedLanguage!,
         ageGroup: _ageGroup!,
-        learningGoal: _learningGoal!,
+        learningGoal: _learningGoals.first,
+        learningTopics: _learningGoals,
         referralSource: _referralSource!,
       );
       if (!mounted) return;
@@ -330,10 +323,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       case 3:
         return _ChoiceStep(
           title: 'Для чего вы изучаете язык?',
+          subtitle: 'Можно выбрать несколько',
           keyPrefix: 'goal',
-          options: _learningGoals,
-          selected: _learningGoal,
-          onSelect: (code) => setState(() => _learningGoal = code),
+          options: learningGoals,
+          selectedMany: _learningGoals,
+          onSelect: (code) => setState(
+            () => _learningGoals.contains(code) ? _learningGoals.remove(code) : _learningGoals.add(code),
+          ),
         );
       case 4:
         return _ChoiceStep(
@@ -482,7 +478,7 @@ class _LanguageStep extends StatelessWidget {
       child: Column(
         children: [
           for (final dict in visible) ...[
-            _ChoiceTile(
+            SelectableCard(
               key: ValueKey('register-language-${dict.language}'),
               label: dict.languageLabel,
               selected: selected == dict.language,
@@ -664,6 +660,8 @@ class _ChoiceStep extends StatelessWidget {
   final String keyPrefix;
   final List<({String code, String label})> options;
   final String? selected;
+  final List<String>? selectedMany;
+  final String? subtitle;
   final ValueChanged<String> onSelect;
   final Widget? footer;
 
@@ -671,7 +669,9 @@ class _ChoiceStep extends StatelessWidget {
     required this.title,
     required this.keyPrefix,
     required this.options,
-    required this.selected,
+    this.selected,
+    this.selectedMany,
+    this.subtitle,
     required this.onSelect,
     this.footer,
   });
@@ -683,62 +683,23 @@ class _ChoiceStep extends StatelessWidget {
       footer: footer,
       child: Column(
         children: [
+          if (subtitle != null) ...[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(subtitle!, style: const TextStyle(fontSize: 14, color: AppColors.secondaryText)),
+            ),
+            const SizedBox(height: 12),
+          ],
           for (final option in options) ...[
-            _ChoiceTile(
+            SelectableCard(
               key: ValueKey('register-$keyPrefix-${option.code}'),
               label: option.label,
-              selected: selected == option.code,
+              selected: selectedMany?.contains(option.code) ?? selected == option.code,
               onTap: () => onSelect(option.code),
             ),
             const SizedBox(height: 10),
           ],
         ],
-      ),
-    );
-  }
-}
-
-/// One selectable card: a hairline border that turns into GuYo's primary
-/// indigo, plus a filled check, when chosen -- the one new visual piece
-/// this screen needed, built purely from AppColors/AppShapes.
-class _ChoiceTile extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _ChoiceTile({super.key, required this.label, required this.selected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected ? AppColors.violetSurface : Colors.white,
-      borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-            border: Border.all(color: selected ? AppColors.primary : AppColors.cardBorder, width: selected ? 1.5 : 1),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
-                ),
-              ),
-              Icon(
-                selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-                color: selected ? AppColors.primary : AppColors.muted,
-                size: 22,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

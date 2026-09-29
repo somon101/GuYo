@@ -39,6 +39,7 @@ import type {
   WordDiagnostics,
   WordForm,
   WordLevel,
+  WordTopic,
   WordTranslation,
 } from "../types";
 
@@ -1188,4 +1189,12 @@ export async function updateReminder(id: number, input: ReminderRuleInput): Prom
 
 export async function deleteReminder(id: number): Promise<void> {
   await api.delete(`/admin/notifications/reminders/${id}`);
+}
+
+export async function updateWordLearning(
+  wordId: number,
+  input: { importance: number; topics: WordTopic[] },
+): Promise<Word> {
+  const { data } = await api.put(`/words/${wordId}/learning`, input);
+  return data;
 }

@@ -11,8 +11,9 @@ import {
   listCategories,
   updateWord,
   upsertTranslation,
+  updateWordLearning,
 } from "../api/endpoints";
-import type { Category, Dictionary, TranslationLanguage, Word, WordForm } from "../types";
+import type { Category, Dictionary, TranslationLanguage, Word, WordForm, WordTopic } from "../types";
 import { TRANSLATION_LANGUAGE_LABELS } from "../types";
 import { PlayButton } from "../components/PlayButton";
 
@@ -287,6 +288,8 @@ export function WordEditPage() {
           </select>
         </Field>
       </Section>
+
+      <WordLearningSection word={word} onSaved={setWord} />
 
       <Section title="Изображение">
         <ImageField stage={image} onChange={setImage} />
@@ -599,5 +602,108 @@ function AudioBlock({
         }}
       />
     </div>
+  );
+}
+
+const TOPIC_OPTIONS: { value: WordTopic; label: string }[] = [
+  { value: "study", label: "Учёба" },
+  { value: "work", label: "Работа" },
+  { value: "communication", label: "Общение" },
+  { value: "travel", label: "Путешествия" },
+  { value: "relocation", label: "Переезд" },
+];
+
+const IMPORTANCE_LABELS: Record<number, string> = {
+  5: "5 — самые нужные",
+  4: "4 — очень нужные",
+  3: "3 — обычные",
+  2: "2 — реже нужны",
+  1: "1 — редкие",
+};
+
+/** How a random lesson prioritises this word: its own form and save,
+ * separate from the main multipart word form above. */
+function WordLearningSection({ word, onSaved }: { word: Word; onSaved: (word: Word) => void }) {
+  const [importance, setImportance] = useState(word.importance);
+  const [topics, setTopics] = useState<WordTopic[]>(word.topics);
+  const [isSaving, setIsSaving] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+
+  const isDirty =
+    importance !== word.importance ||
+    topics.length !== word.topics.length ||
+    topics.some((t) => !word.topics.includes(t));
+
+  function toggle(topic: WordTopic) {
+    setTopics((prev) => (prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic]));
+    setStatus(null);
+  }
+
+  async function save() {
+    setIsSaving(true);
+    setStatus(null);
+    try {
+      onSaved(await updateWordLearning(word.id, { importance, topics }));
+      setStatus("Сохранено");
+    } catch {
+      setStatus("Не удалось сохранить");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <Section title="Темы и важность">
+      <p className="mb-4 text-sm text-slate-500">
+        Случайный урок сначала берёт слова из тем, которые выбрал человек, и внутри них — самые важные.
+      </p>
+      <Field label="Важность">
+        <select
+          className="w-full max-w-xs field px-3 py-2 text-sm"
+          value={importance}
+          onChange={(e) => {
+            setImportance(Number(e.target.value));
+            setStatus(null);
+          }}
+        >
+          {[5, 4, 3, 2, 1].map((n) => (
+            <option key={n} value={n}>
+              {IMPORTANCE_LABELS[n]}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Темы" hint="можно несколько или ни одной">
+        <div className="flex flex-wrap gap-2">
+          {TOPIC_OPTIONS.map((o) => {
+            const on = topics.includes(o.value);
+            return (
+              <button
+                key={o.value}
+                type="button"
+                aria-pressed={on}
+                onClick={() => toggle(o.value)}
+                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                  on ? "bg-[var(--sys-blue)] text-white" : "bg-[var(--fill)] text-slate-700 hover:bg-[var(--fill-strong)]"
+                }`}
+              >
+                {o.label}
+              </button>
+            );
+          })}
+        </div>
+      </Field>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={save}
+          disabled={isSaving || !isDirty}
+          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+        >
+          {isSaving ? "Сохранение…" : "Сохранить"}
+        </button>
+        {status && <span className="text-sm text-slate-500">{status}</span>}
+      </div>
+    </Section>
   );
 }

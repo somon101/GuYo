@@ -18,7 +18,7 @@ from app.models.rating import (
     UserWordPoints,
 )
 from app.models.user import User
-from app.models.word import Word, WordForm, WordTranslation
+from app.models.word import Word, WordForm, WordTopic, WordTranslation
 from app.models.word_level import WordLevel
 from app.models.word_progress import WordProgress
 from app.models.word_attempt import WordAttempt

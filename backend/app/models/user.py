@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, func
+from sqlalchemy import JSON, DateTime, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -69,4 +69,8 @@ class User(Base):
     age_group: Mapped[str | None] = mapped_column(String(32), nullable=True)
     learning_goal: Mapped[str | None] = mapped_column(String(32), nullable=True)
     referral_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # Topic codes (app.core.topics) the user picked; words in them come
+    # first in a random lesson. None = never asked yet, so the app asks
+    # once; [] = asked and chose nothing.
+    learning_topics: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

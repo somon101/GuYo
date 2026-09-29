@@ -157,6 +157,7 @@ class ApiClient {
     required String learningLanguage,
     required String ageGroup,
     required String learningGoal,
+    List<String>? learningTopics,
     required String referralSource,
   }) async {
     final res = await http.post(
@@ -172,6 +173,7 @@ class ApiClient {
         'learning_language': learningLanguage,
         'age_group': ageGroup,
         'learning_goal': learningGoal,
+        if (learningTopics != null) 'learning_topics': learningTopics,
         'referral_source': referralSource,
       }),
     );
@@ -700,12 +702,14 @@ class ApiClient {
     String? firstName,
     String? lastName,
     String? email,
+    List<String>? learningTopics,
   }) async {
     final body = <String, dynamic>{
       if (login != null) 'login': login,
       if (firstName != null) 'first_name': firstName,
       if (lastName != null) 'last_name': lastName,
       if (email != null) 'email': email,
+      if (learningTopics != null) 'learning_topics': learningTopics,
     };
     final res = await http.patch(
       _uri('/users/me/profile'),

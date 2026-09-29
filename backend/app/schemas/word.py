@@ -1,6 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.core.topics import WordTopicCode
 
 
 class WordTranslationOut(BaseModel):
@@ -31,6 +33,8 @@ class WordOut(BaseModel):
     image_url: str | None
     category_id: int | None
     category_name: str | None
+    importance: int = 3
+    topics: list[str] = []
     created_at: datetime
     updated_at: datetime
 
@@ -58,3 +62,10 @@ class WordOut(BaseModel):
     score: int | None = None
     word_level_id: int | None = None
     word_level_name: str | None = None
+
+
+class WordLearningIn(BaseModel):
+    """How a word is prioritised for lessons -- its own small admin form."""
+
+    importance: int = Field(ge=1, le=5)
+    topics: list[WordTopicCode]

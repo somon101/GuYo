@@ -66,6 +66,7 @@ def new_user_row(
     age_group: str | None = None,
     learning_goal: str | None = None,
     referral_source: str | None = None,
+    learning_topics: list[str] | None = None,
 ) -> User:
     """The one place a User row is ever built -- admin_router's
     create_user below and auth.py's public register_user both call this,
@@ -89,6 +90,7 @@ def new_user_row(
         age_group=age_group,
         learning_goal=learning_goal,
         referral_source=referral_source,
+        learning_topics=learning_topics,
     )
     db.add(user)
     db.flush()
@@ -154,6 +156,7 @@ def _profile_out(db: Session, user: User) -> UserProfileOut:
         age_group=user.age_group,
         learning_goal=user.learning_goal,
         referral_source=user.referral_source,
+        learning_topics=user.learning_topics,
     )
 
 
@@ -199,6 +202,8 @@ def update_my_profile(
         user.first_name = fields["first_name"].strip() if fields["first_name"] else None
     if "last_name" in fields:
         user.last_name = fields["last_name"].strip() if fields["last_name"] else None
+    if "learning_topics" in fields:
+        user.learning_topics = list(dict.fromkeys(fields["learning_topics"] or []))
 
     db.commit()
     db.refresh(user)

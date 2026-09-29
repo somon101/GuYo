@@ -34,6 +34,10 @@ class UserProfile {
 
   bool get isPremium => premiumUntil != null;
 
+  /// Topic codes from "Мои темы" (see models/learning_topics.dart).
+  /// Null = never asked yet, so the app asks once.
+  final List<String>? learningTopics;
+
   UserProfile({
     required this.id,
     required this.publicId,
@@ -46,6 +50,7 @@ class UserProfile {
     required this.lessonsCompleted,
     required this.wordsLearned,
     this.premiumUntil,
+    this.learningTopics,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -61,6 +66,7 @@ class UserProfile {
       lessonsCompleted: json['lessons_completed'] as int,
       wordsLearned: json['words_learned'] as int,
       premiumUntil: json['premium_until'] == null ? null : DateTime.parse(json['premium_until'] as String).toLocal(),
+      learningTopics: (json['learning_topics'] as List<dynamic>?)?.cast<String>(),
     );
   }
 }

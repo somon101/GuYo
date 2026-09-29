@@ -48,6 +48,7 @@ from app.models.dictionary import Dictionary
 from app.models.learning_settings import LearningSettings
 from app.models.lesson import Lesson, LessonExercise, LessonWord
 from app.models.user import User
+from app.models.word import Word, WordTopic
 from app.models.word_attempt import WordAttempt
 from app.models.word_progress import WordProgress
 from app.premium import LessonLimitReached, check_lesson_quota
@@ -448,12 +449,28 @@ def create_lesson(
         if not eligible_ids:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Нет доступных слов для нового урока")
         count = min(payload.random_count, len(eligible_ids))
-        selected_ids = random.sample(sorted(eligible_ids), k=count)
+        selected_ids = [w.id for w in prioritized_words(db, user, eligible_words)[:count]]
 
     lesson = build_lesson(db, user, dictionary, selected_ids, threshold)
     db.commit()
     db.refresh(lesson)
     return _lesson_to_out(db, lesson, threshold)
+
+
+def prioritized_words(db: Session, user: User, words: list[Word]) -> list[Word]:
+    """The order a random lesson draws from: words in the user's own topics
+    first, then the rest; within each, the most important first; words of
+    equal standing shuffled, so two lessons are never the same list."""
+    topics = set(user.learning_topics or [])
+    in_topic: set[int] = set()
+    if topics and words:
+        in_topic = {
+            word_id
+            for (word_id,) in db.query(WordTopic.word_id)
+            .filter(WordTopic.word_id.in_([w.id for w in words]), WordTopic.topic.in_(topics))
+            .all()
+        }
+    return sorted(words, key=lambda w: (w.id not in in_topic, -w.importance, random.random()))
 
 
 def build_lesson(

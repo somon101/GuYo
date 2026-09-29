@@ -3,6 +3,8 @@ import '../api/api_client.dart';
 import '../models/user_profile.dart';
 import '../theme/app_colors.dart';
 import '../widgets/user_avatar.dart';
+import '../models/learning_topics.dart';
+import 'topics_screen.dart';
 
 /// "Настройки": everything about the account the user may change
 /// themselves -- login, photo, first name, last name and email.
@@ -213,6 +215,16 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               icon: Icons.mail_outline_rounded,
               keyboardType: TextInputType.emailAddress,
             ),
+            const SizedBox(height: 12),
+            _TopicsRow(
+              topics: _profile.learningTopics ?? const [],
+              onTap: () async {
+                final saved = await Navigator.of(context).push<UserProfile>(
+                  MaterialPageRoute(builder: (_) => TopicsScreen(initial: _profile.learningTopics ?? const [])),
+                );
+                if (saved != null && mounted) setState(() => _profile = saved);
+              },
+            ),
             const SizedBox(height: 14),
             // The account number is shown, never edited: it is permanent
             // by definition.
@@ -378,6 +390,57 @@ class _Field extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _TopicsRow extends StatelessWidget {
+  final List<String> topics;
+  final VoidCallback onTap;
+
+  const _TopicsRow({required this.topics, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = [
+      for (final goal in learningGoals)
+        if (topics.contains(goal.code)) goal.label,
+    ];
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(AppShapes.rowRadius),
+      child: InkWell(
+        key: const ValueKey('settings-topics'),
+        borderRadius: BorderRadius.circular(AppShapes.rowRadius),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppShapes.rowRadius),
+            border: Border.all(color: AppColors.cardBorder),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.flag_outlined, size: 20, color: AppColors.secondaryText),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Мои темы', style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
+                    const SizedBox(height: 2),
+                    Text(
+                      labels.isEmpty ? 'Не выбраны' : labels.join(', '),
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

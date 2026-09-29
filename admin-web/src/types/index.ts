@@ -83,6 +83,8 @@ export interface Word {
   image_url: string | null;
   category_id: number | null;
   category_name: string | null;
+  importance: number;
+  topics: WordTopic[];
   created_at: string;
   updated_at: string;
   // Convenience mirror of translations[0], kept for the word-list card.
@@ -620,3 +622,7 @@ export interface Reminders {
   settings: ReminderSettings;
   rules: ReminderRule[];
 }
+
+// The sign-up "why are you learning" list, reused as word topics
+// (backend app/core/topics.py).
+export type WordTopic = "study" | "work" | "communication" | "travel" | "relocation";

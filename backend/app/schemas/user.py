@@ -74,6 +74,8 @@ class RegisterIn(BaseModel):
     learning_language: str = Field(min_length=1, max_length=16)
     age_group: AgeGroup
     learning_goal: LearningGoal
+    # Several goals may be picked; older app versions send only learning_goal.
+    learning_topics: list[LearningGoal] | None = None
     referral_source: ReferralSource
 
     @field_validator("email")
@@ -101,6 +103,7 @@ class UserUpdateIn(BaseModel):
     first_name: str | None = Field(default=None, min_length=1, max_length=100)
     last_name: str | None = Field(default=None, min_length=1, max_length=100)
     email: str | None = Field(default=None, min_length=3, max_length=255)
+    learning_topics: list[LearningGoal] | None = None
 
     @field_validator("email")
     @classmethod
@@ -161,3 +164,4 @@ class UserProfileOut(BaseModel):
     age_group: str | None = None
     learning_goal: str | None = None
     referral_source: str | None = None
+    learning_topics: list[str] | None = None

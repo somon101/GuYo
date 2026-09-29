@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -35,6 +35,9 @@ class Word(Base):
 
     word: Mapped[str] = mapped_column(String(255), nullable=False)
     transcription: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # 1-5, 5 = the words a beginner needs first. A random lesson takes the
+    # most important unlearned words first (see app.routers.lessons).
+    importance: Mapped[int] = mapped_column(Integer, nullable=False, default=3, server_default="3")
 
     # Storage keys (relative paths), not raw bytes -- see app/core/storage.py.
     word_audio_key: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -53,6 +56,13 @@ class Word(Base):
     forms: Mapped[list["WordForm"]] = relationship(
         back_populates="word", cascade="all, delete-orphan", order_by="WordForm.id"
     )
+    topic_links: Mapped[list["WordTopic"]] = relationship(cascade="all, delete-orphan", order_by="WordTopic.id")
+
+    __table_args__ = (CheckConstraint("importance BETWEEN 1 AND 5", name="ck_word_importance_range"),)
+
+    @property
+    def topics(self) -> list[str]:
+        return [link.topic for link in self.topic_links]
 
 
 class WordTranslation(Base):
@@ -104,3 +114,16 @@ class WordForm(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     word: Mapped["Word"] = relationship(back_populates="forms")
+
+
+class WordTopic(Base):
+    """One learning topic a Word is useful for. Topics are the fixed
+    "why are you learning" list from sign-up (app.core.topics), not rows
+    an admin creates; a word can belong to any number of them."""
+
+    __tablename__ = "word_topics"
+    __table_args__ = (UniqueConstraint("word_id", "topic", name="uq_word_topic"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    word_id: Mapped[int] = mapped_column(ForeignKey("words.id", ondelete="CASCADE"), nullable=False, index=True)
+    topic: Mapped[str] = mapped_column(String(32), nullable=False)
