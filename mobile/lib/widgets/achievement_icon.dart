@@ -41,8 +41,20 @@ class AchievementIcon extends StatelessWidget {
     } else {
       child = _fallbackIcon(color);
     }
-    return Opacity(opacity: dimmed ? 0.35 : 1, child: child);
+    if (!dimmed) return child;
+    // Not yet earned: a grey, faded version of the real badge.
+    return Opacity(
+      opacity: 0.45,
+      child: ColorFiltered(colorFilter: const ColorFilter.matrix(_greyscale), child: child),
+    );
   }
+
+  static const List<double> _greyscale = [
+    0.2126, 0.7152, 0.0722, 0, 0,
+    0.2126, 0.7152, 0.0722, 0, 0,
+    0.2126, 0.7152, 0.0722, 0, 0,
+    0, 0, 0, 1, 0,
+  ];
 
   Widget _fallbackIcon(Color color) {
     return Container(
