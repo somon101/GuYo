@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     seed_admin_login: str = "admin"
     seed_admin_password: str = "123456"
 
+    # The Firebase service-account key file's full JSON text. Empty means
+    # push is off: notifications still land in the in-app inbox.
+    firebase_service_account_json: str = ""
+
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]

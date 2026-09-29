@@ -25,6 +25,10 @@ import type {
   Quest,
   Rank,
   RatingSettings,
+  ReminderRule,
+  ReminderRuleInput,
+  Reminders,
+  ReminderSettings,
   Retention,
   Season,
   Slogan,
@@ -1160,4 +1164,28 @@ export async function getRetention(selfRegisteredOnly: boolean): Promise<Retenti
     params: { self_registered_only: selfRegisteredOnly },
   });
   return data;
+}
+
+export async function getReminders(): Promise<Reminders> {
+  const { data } = await api.get("/admin/notifications/reminders");
+  return data;
+}
+
+export async function updateReminderSettings(input: ReminderSettings): Promise<ReminderSettings> {
+  const { data } = await api.put("/admin/notifications/reminders/settings", input);
+  return data;
+}
+
+export async function createReminder(input: ReminderRuleInput): Promise<ReminderRule> {
+  const { data } = await api.post("/admin/notifications/reminders", input);
+  return data;
+}
+
+export async function updateReminder(id: number, input: ReminderRuleInput): Promise<ReminderRule> {
+  const { data } = await api.put(`/admin/notifications/reminders/${id}`, input);
+  return data;
+}
+
+export async function deleteReminder(id: number): Promise<void> {
+  await api.delete(`/admin/notifications/reminders/${id}`);
 }

@@ -2,6 +2,16 @@ import axios from "axios";
 import { useEffect, useState, type FormEvent } from "react";
 import { listSentNotifications, listUsers, sendNotification } from "../api/endpoints";
 import type { AdminNotification, AdminUser } from "../types";
+import { RemindersSection } from "./RemindersSection";
+
+const SOURCE_LABELS: Record<string, string> = {
+  manual: "вручную",
+  premium: "Premium",
+  rank_move: "рейтинг",
+  reminder_inactivity: "напоминание: не заходит",
+  reminder_streak_risk: "напоминание: серия",
+  reminder_streak_milestone: "поздравление с серией",
+};
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
@@ -46,15 +56,17 @@ export function NotificationsPage() {
     <div className="p-6">
       <h1 className="mb-1 text-[26px] font-bold tracking-tight text-slate-900">Уведомления</h1>
       <p className="mb-6 max-w-2xl text-sm text-slate-500">
-        Сообщение приходит выбранному пользователю в раздел «Уведомления» в приложении: у него появляется индикатор, а
-        при открытии сообщение отмечается прочитанным. Автоматические уведомления по событиям пока не настраиваются, но
-        они будут попадать в этот же список.
+        Сообщение приходит выбранному пользователю push-уведомлением на телефон и в раздел «Уведомления» в
+        приложении: у него появляется индикатор, а при открытии сообщение отмечается прочитанным. Автоматические
+        напоминания настраиваются ниже и попадают в этот же список.
       </p>
 
       <SendForm
         users={users}
         onSent={(notification) => setSent((prev) => [notification, ...prev])}
       />
+
+      <RemindersSection />
 
       <div className="mt-8 mb-3 flex items-center gap-3">
         <h2 className="text-sm font-semibold text-slate-900">Отправленные</h2>
@@ -101,7 +113,7 @@ export function NotificationsPage() {
                     {n.body}
                   </td>
                   <td className="px-4 py-3 text-slate-500">
-                    {n.source === "manual" ? "вручную" : n.source}
+                    {SOURCE_LABELS[n.source] ?? n.source}
                   </td>
                   <td className="px-4 py-3 text-slate-500">{formatDate(n.created_at)}</td>
                   <td className="px-4 py-3">

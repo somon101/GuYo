@@ -10,6 +10,7 @@ import 'notifications_screen.dart';
 import 'practice_screen.dart';
 import 'profile_screen.dart';
 import 'rating_screen.dart';
+import '../services/push_service.dart';
 
 /// The app's main hub, reached right after login.
 ///
@@ -73,6 +74,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _loadPremiumEnabled();
     _loadDictionaries();
+    // Every way into the app (login, sign-up, an already-saved session)
+    // lands here, so this is the one place the phone is registered.
+    PushService.instance.registerCurrentUser();
   }
 
   @override
@@ -150,6 +154,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _logout() async {
+    await PushService.instance.unregisterCurrentUser();
     await ApiClient.instance.logout();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
@@ -427,12 +432,14 @@ class _NotificationsButtonState extends State<_NotificationsButton> with Widgets
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    PushService.instance.foregroundMessages.addListener(_refresh);
     _refresh();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    PushService.instance.foregroundMessages.removeListener(_refresh);
     super.dispose();
   }
 

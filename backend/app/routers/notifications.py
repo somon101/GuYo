@@ -10,14 +10,20 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_admin, get_current_user
 from app.database import get_db
-from app.models.notification import SOURCE_MANUAL, Notification
+from app.models.notification import SOURCE_MANUAL, Notification, PushToken, ReminderRule
 from app.models.user import User
 from app.notifications import mark_all_read, send_notification, unread_count
+from app.notifications.reminders import get_reminder_settings
 from app.schemas.notification import (
     AdminNotificationOut,
     NotificationListOut,
     NotificationOut,
     NotificationSendIn,
+    PushTokenIn,
+    ReminderRuleIn,
+    ReminderRuleOut,
+    RemindersOut,
+    ReminderSettingsIn,
     UnreadCountOut,
 )
 
@@ -94,6 +100,26 @@ def mark_all_notifications_read(db: Session = Depends(get_db), user: User = Depe
     return NotificationListOut(unread_count=unread_count(db, user), items=[_out(n) for n in items])
 
 
+@router.post("/notifications/push-token", status_code=status.HTTP_204_NO_CONTENT)
+def register_push_token(payload: PushTokenIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """The app reports its phone's FCM token after every login and whenever
+    Firebase rotates it. A token is one phone: if another account used it
+    before, it moves to this one."""
+    row = db.query(PushToken).filter(PushToken.token == payload.token).first()
+    if row is None:
+        db.add(PushToken(user_id=user.id, token=payload.token))
+    elif row.user_id != user.id:
+        row.user_id = user.id
+    db.commit()
+
+
+@router.delete("/notifications/push-token", status_code=status.HTTP_204_NO_CONTENT)
+def unregister_push_token(payload: PushTokenIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """On logout, so the phone stops receiving this account's pushes."""
+    db.query(PushToken).filter(PushToken.token == payload.token, PushToken.user_id == user.id).delete()
+    db.commit()
+
+
 # --- Admin: write to one user ------------------------------------------------
 
 admin_router = APIRouter(prefix="/admin/notifications", tags=["admin-notifications"])
@@ -141,3 +167,74 @@ def list_sent_notifications(
         query = query.filter(Notification.user_id == user_id)
     rows = query.order_by(Notification.created_at.desc(), Notification.id.desc()).limit(INBOX_LIMIT).all()
     return [_admin_out(notification, login) for notification, login in rows]
+
+
+# --- Admin: automatic reminders ---------------------------------------------
+
+
+def _rule_out(rule: ReminderRule) -> ReminderRuleOut:
+    return ReminderRuleOut(
+        id=rule.id, kind=rule.kind, days=rule.days, title=rule.title, body=rule.body, enabled=rule.enabled
+    )
+
+
+def _clean_title(title: str | None) -> str | None:
+    return (title.strip() or None) if title else None
+
+
+@admin_router.get("/reminders", response_model=RemindersOut)
+def list_reminders(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    settings = get_reminder_settings(db)
+    db.commit()
+    rules = db.query(ReminderRule).order_by(ReminderRule.kind, ReminderRule.days, ReminderRule.id).all()
+    return RemindersOut(
+        settings=ReminderSettingsIn(streak_risk_hour=settings.streak_risk_hour, default_hour=settings.default_hour),
+        rules=[_rule_out(r) for r in rules],
+    )
+
+
+@admin_router.put("/reminders/settings", response_model=ReminderSettingsIn)
+def update_reminder_settings(payload: ReminderSettingsIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    settings = get_reminder_settings(db)
+    settings.streak_risk_hour = payload.streak_risk_hour
+    settings.default_hour = payload.default_hour
+    db.commit()
+    return payload
+
+
+@admin_router.post("/reminders", response_model=ReminderRuleOut, status_code=status.HTTP_201_CREATED)
+def create_reminder(payload: ReminderRuleIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    rule = ReminderRule(
+        kind=payload.kind,
+        days=payload.days,
+        title=_clean_title(payload.title),
+        body=payload.body.strip(),
+        enabled=payload.enabled,
+    )
+    db.add(rule)
+    db.commit()
+    db.refresh(rule)
+    return _rule_out(rule)
+
+
+@admin_router.put("/reminders/{rule_id}", response_model=ReminderRuleOut)
+def update_reminder(rule_id: int, payload: ReminderRuleIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    rule = db.get(ReminderRule, rule_id)
+    if rule is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reminder not found")
+    rule.kind = payload.kind
+    rule.days = payload.days
+    rule.title = _clean_title(payload.title)
+    rule.body = payload.body.strip()
+    rule.enabled = payload.enabled
+    db.commit()
+    return _rule_out(rule)
+
+
+@admin_router.delete("/reminders/{rule_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_reminder(rule_id: int, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    rule = db.get(ReminderRule, rule_id)
+    if rule is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reminder not found")
+    db.delete(rule)
+    db.commit()

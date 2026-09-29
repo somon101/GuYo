@@ -654,6 +654,25 @@ class ApiClient {
     return NotificationInbox.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
+  /// Tells the server which phone to send this user's pushes to.
+  Future<void> registerPushToken(String pushToken) async {
+    final res = await http.post(
+      _uri('/notifications/push-token'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'token': pushToken}),
+    );
+    await _throwIfUnauthorized(res);
+  }
+
+  Future<void> unregisterPushToken(String pushToken) async {
+    final res = await http.delete(
+      _uri('/notifications/push-token'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'token': pushToken}),
+    );
+    await _throwIfUnauthorized(res);
+  }
+
   /// Just the number behind the bell's dot -- its own call so the app bar
   /// never pulls the whole inbox to decide whether to show one.
   Future<int> fetchUnreadNotificationCount() async {

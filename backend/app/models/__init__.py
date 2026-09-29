@@ -23,7 +23,7 @@ from app.models.word_level import WordLevel
 from app.models.word_progress import WordProgress
 from app.models.word_attempt import WordAttempt
 from app.models.priority import PrioritySettings, PriorityRecencyBand, PriorityStabilityBand, PriorityLevelBand
-from app.models.notification import Notification
+from app.models.notification import Notification, PushToken, ReminderRule, ReminderSettings
 from app.models.quest import Quest, QuestWord, UserQuestWordDay
 from app.models.slogan import Slogan, UserDailySlogan
 from app.models.premium import PremiumGrant, PremiumSettings
@@ -57,6 +57,9 @@ __all__ = [
     "Achievement",
     "UserAchievement",
     "UserActivityDay",
+    "PushToken",
+    "ReminderRule",
+    "ReminderSettings",
     "RatingSettings",
     "Rank",
     "Season",

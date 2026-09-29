@@ -10,7 +10,7 @@ from datetime import timedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.dates import utc_today
+from app.core.dates import dushanbe_today
 from app.models.dictionary import Dictionary
 from app.models.lesson import Lesson
 from app.models.phrase import Phrase
@@ -87,7 +87,7 @@ def streak_days_count(db: Session, user: User) -> int:
     if not activity_dates:
         return 0
 
-    today = utc_today()
+    today = dushanbe_today()
     most_recent = activity_dates[0]
     if most_recent not in (today, today - timedelta(days=1)):
         return 0  # most recent activity was more than a day ago -- streak is broken

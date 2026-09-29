@@ -21,8 +21,10 @@ because the next one recomputes the same thing from scratch.
 
 import asyncio
 import logging
+import time
 
 from app.database import SessionLocal
+from app.notifications.reminders import run_reminders_once
 from app.rating import refresh_rank_positions, sync_season_states
 
 logger = logging.getLogger(__name__)
@@ -32,6 +34,9 @@ logger = logging.getLogger(__name__)
 # admin's own season list, and GET /users/me/rating) sync on their own
 # anyway, so this loop is the safety net rather than the mechanism.
 SEASON_SYNC_INTERVAL_SECONDS = 60
+# Reminders are decided per hour and deduplicated, so a few minutes of
+# lag is invisible and the sweep need not run every minute.
+REMINDER_INTERVAL_SECONDS = 300
 
 
 def sync_once() -> bool:
@@ -52,10 +57,14 @@ async def run_season_scheduler() -> None:
     """Sweeps once immediately (catching up on everything missed while the
     process was down), then every SEASON_SYNC_INTERVAL_SECONDS until
     cancelled at shutdown."""
+    last_reminders = 0.0
     while True:
         if await asyncio.to_thread(sync_once):
             logger.info("season states updated")
         # Places move when OTHER people earn points, so this can't wait
         # for anyone to open Рейтинг -- the notifications depend on it.
         await asyncio.to_thread(refresh_rank_positions, force=True)
+        if time.monotonic() - last_reminders >= REMINDER_INTERVAL_SECONDS:
+            last_reminders = time.monotonic()
+            await asyncio.to_thread(run_reminders_once)
         await asyncio.sleep(SEASON_SYNC_INTERVAL_SECONDS)

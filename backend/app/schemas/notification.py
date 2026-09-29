@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -48,3 +49,32 @@ class AdminNotificationOut(NotificationOut):
 
     user_id: int
     user_login: str
+
+
+class PushTokenIn(BaseModel):
+    token: str = Field(min_length=10, max_length=512)
+
+
+ReminderKind = Literal["inactivity", "streak_risk", "streak_milestone"]
+
+
+class ReminderRuleIn(BaseModel):
+    kind: ReminderKind
+    days: int = Field(ge=1, le=3650)
+    title: str | None = Field(default=None, max_length=120)
+    body: str = Field(min_length=1, max_length=1000)
+    enabled: bool = True
+
+
+class ReminderRuleOut(ReminderRuleIn):
+    id: int
+
+
+class ReminderSettingsIn(BaseModel):
+    streak_risk_hour: int = Field(ge=0, le=23)
+    default_hour: int = Field(ge=0, le=23)
+
+
+class RemindersOut(BaseModel):
+    settings: ReminderSettingsIn
+    rules: list[ReminderRuleOut]

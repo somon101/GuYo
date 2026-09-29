@@ -4,6 +4,7 @@
          plugin) needs the mic; the user is prompted for this at runtime,
          same as any other dangerous permission. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="GuYo"
         android:name="${applicationName}"

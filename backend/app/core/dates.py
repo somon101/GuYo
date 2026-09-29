@@ -2,9 +2,10 @@
 WHICH timezone, never the process's own local system timezone (whatever
 the host happens to be configured with, not guaranteed).
 
-- `utc_today()`: the activity streak (app/achievements/) and season dates
-  (app/rating/) -- unchanged, still UTC.
-- `dushanbe_today()`: Quests' daily one-word-per-day limit
+- `utc_today()`: season dates (app/rating/) -- unchanged, still UTC.
+- `dushanbe_today()`: the activity streak (app/achievements/) and the
+  reminders built on it (app/notifications/reminders.py), Quests' daily
+  one-word-per-day limit
   (app/quests/service.py), the greeting slogan's own day
   (app/slogans/service.py), and Premium's daily/weekly lesson limits
   (app/premium/service.py) -- GuYo is a Tajik-language app, so a "new day"

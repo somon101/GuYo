@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "551993136459",
+    "project_id": "guyo-1e112",
+    "storage_bucket": "guyo-1e112.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:551993136459:android:811561c33a886a9c4fc4ce",
+        "android_client_info": {
+          "package_name": "com.guyo.guyo_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCD1e_JqOShC06rmgonJp7cEC6jUTHDWq0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

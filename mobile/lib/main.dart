@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'api/api_client.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'services/push_service.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await PushService.instance.init();
   runApp(const GuyoApp());
 }
 

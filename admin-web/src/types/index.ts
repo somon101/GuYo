@@ -596,3 +596,27 @@ export interface Retention extends RetentionGroup {
   cohorts: RetentionCohort[];
   sources: RetentionSource[];
 }
+
+export type ReminderKind = "inactivity" | "streak_risk" | "streak_milestone";
+
+export interface ReminderRuleInput {
+  kind: ReminderKind;
+  days: number;
+  title: string | null;
+  body: string;
+  enabled: boolean;
+}
+
+export interface ReminderRule extends ReminderRuleInput {
+  id: number;
+}
+
+export interface ReminderSettings {
+  streak_risk_hour: number;
+  default_hour: number;
+}
+
+export interface Reminders {
+  settings: ReminderSettings;
+  rules: ReminderRule[];
+}

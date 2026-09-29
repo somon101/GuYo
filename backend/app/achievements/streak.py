@@ -10,7 +10,7 @@ what it already does.
 from sqlalchemy.orm import Session
 
 from app.achievements.service import check_and_grant_achievements
-from app.core.dates import utc_today
+from app.core.dates import dushanbe_today
 from app.models.achievement import UserActivityDay
 from app.models.user import User
 
@@ -21,7 +21,7 @@ def record_activity(db: Session, user: User) -> None:
     activity_date). Only re-checks streak achievements the FIRST time
     today is recorded, since that's the only moment the streak count
     could have changed."""
-    today = utc_today()
+    today = dushanbe_today()
     exists = (
         db.query(UserActivityDay)
         .filter(UserActivityDay.user_id == user.id, UserActivityDay.activity_date == today)
@@ -33,3 +33,7 @@ def record_activity(db: Session, user: User) -> None:
     db.add(UserActivityDay(user_id=user.id, activity_date=today))
     db.flush()  # this session's autoflush is off -- streak_days_count below must see today's own row
     check_and_grant_achievements(db, user, "streak_days")
+
+    from app.notifications.reminders import congratulate_streak  # app.notifications imports this package
+
+    congratulate_streak(db, user)

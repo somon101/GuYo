@@ -94,8 +94,9 @@ class UserAchievement(Base):
 
 class UserActivityDay(Base):
     """One row = this user did SOMETHING in the app on this calendar date
-    (server-side, UTC date -- never the phone's local clock, so streaks
-    can't be gamed or corrupted by a device's timezone/clock). Recorded
+    (server-side Asia/Dushanbe date -- never the phone's local clock, so
+    streaks can't be gamed or corrupted by a device's timezone/clock; rows
+    before 2026-09-29 were recorded as UTC dates). Recorded
     idempotently (see app/achievements/streak.py's record_activity) from a
     small set of existing, already-fired endpoints (opening the dictionary
     list, answering a lesson exercise, fetching available phrases) rather

@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.core.dates import utc_now
 from app.models.notification import SOURCE_MANUAL, Notification
 from app.models.user import User
+from app.notifications.push import queue_push
 
 
 def send_notification(
@@ -84,6 +85,7 @@ def send_notification(
         # Lost a race against a concurrent send of the same dedupe_key --
         # the message is in the inbox either way.
         return None
+    queue_push(db, notification)
     return notification
 
 

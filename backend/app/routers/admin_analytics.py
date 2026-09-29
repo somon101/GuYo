@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import Date, cast, exists, func
 from sqlalchemy.orm import Session, aliased
 
-from app.core.dates import utc_today
+from app.core.dates import dushanbe_today
 from app.core.deps import get_current_admin
 from app.database import get_db
 from app.models.achievement import UserActivityDay
@@ -359,8 +359,8 @@ def get_word_diagnostics(
 
 # --- «Удержание» ------------------------------------------------------------
 # Built entirely on UserActivityDay, which the app already writes on every
-# open (see app.routers.dictionaries.list_dictionaries). Dates are UTC on
-# both sides -- the same calendar UserActivityDay itself is recorded in.
+# open (see app.routers.dictionaries.list_dictionaries). Dates are
+# Asia/Dushanbe on both sides -- the calendar UserActivityDay is recorded in.
 
 RETENTION_DAYS = 30
 RETENTION_COHORT_WEEKS = 12
@@ -400,8 +400,8 @@ def get_retention(
     """`self_registered_only` keeps only accounts made through the app's own
     sign-up (they always have a referral_source) -- Admin Web-made test and
     bot accounts never do."""
-    today = utc_today()
-    signup = cast(func.timezone("UTC", User.created_at), Date)
+    today = dushanbe_today()
+    signup = cast(func.timezone("Asia/Dushanbe", User.created_at), Date)
     next_day = aliased(UserActivityDay)
     week_later = aliased(UserActivityDay)
     month_later = aliased(UserActivityDay)
