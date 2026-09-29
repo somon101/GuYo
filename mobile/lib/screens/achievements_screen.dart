@@ -23,9 +23,33 @@ String _formatEarnedDate(DateTime date) {
 /// date it was earned, or progress towards it). Renders exactly what the
 /// backend already decided (GET /users/me/achievements) -- it is handed the
 /// same list the Profile screen already loaded and computes nothing itself.
+/// Same order as Admin Web's groups (backend CONDITION_TYPES).
+const List<String> _typeOrder = ['phrases_opened', 'words_learned', 'lessons_completed', 'streak_days'];
+
+/// Earned first, then not yet earned, hidden last; within each, grouped by
+/// type and then climbing by goal, so a chain reads like steps.
+List<UserAchievement> sortAchievements(List<UserAchievement> list) {
+  int typeRank(UserAchievement a) {
+    final i = _typeOrder.indexOf(a.conditionType ?? '');
+    return i == -1 ? _typeOrder.length : i;
+  }
+
+  int group(UserAchievement a) => a.earned ? 0 : (a.isLocked ? 2 : 1);
+
+  return [...list]..sort((a, b) {
+      final byGroup = group(a).compareTo(group(b));
+      if (byGroup != 0) return byGroup;
+      final byType = typeRank(a).compareTo(typeRank(b));
+      if (byType != 0) return byType;
+      final byGoal = (a.conditionValue ?? 0).compareTo(b.conditionValue ?? 0);
+      return byGoal != 0 ? byGoal : a.id.compareTo(b.id);
+    });
+}
+
 class AchievementsScreen extends StatelessWidget {
   final List<UserAchievement> achievements;
-  const AchievementsScreen({super.key, required this.achievements});
+  AchievementsScreen({super.key, required List<UserAchievement> achievements})
+      : achievements = sortAchievements(achievements);
 
   @override
   Widget build(BuildContext context) {

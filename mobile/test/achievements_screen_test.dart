@@ -3,14 +3,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:guyo_app/models/user_profile.dart';
 import 'package:guyo_app/screens/achievements_screen.dart';
 
-UserAchievement _a(int id, {String? title, String? description, int? goal, bool earned = false, int? current}) {
+UserAchievement _a(int id,
+    {String? title, String? description, int? goal, bool earned = false, int? current, String type = 'words_learned'}) {
   return UserAchievement.fromJson({
     'id': id,
     'title': title,
     'description': description,
     'icon_url': null,
     'color': '#5862DD',
-    'condition_type': title == null ? null : 'words_learned',
+    'condition_type': title == null ? null : type,
     'condition_value': goal,
     'earned': earned,
     'earned_at': earned ? '2026-09-21T10:00:00Z' : null,
@@ -41,12 +42,12 @@ void main() {
     expect(find.text('Скрытое'), findsOneWidget);
     expect(find.text('5'), findsOneWidget);
     expect(find.text('?'), findsOneWidget);
-    // Three per row: the first three badges share a row.
+    // Three per row; the hidden one sorts last, onto the second row.
     final y1 = tester.getTopLeft(find.byKey(const ValueKey('achievement-1'))).dy;
+    final y2 = tester.getTopLeft(find.byKey(const ValueKey('achievement-2'))).dy;
     final y3 = tester.getTopLeft(find.byKey(const ValueKey('achievement-3'))).dy;
-    final y4 = tester.getTopLeft(find.byKey(const ValueKey('achievement-4'))).dy;
-    expect(y1, y3);
-    expect(y4, greaterThan(y1));
+    expect(y1, y2);
+    expect(y3, greaterThan(y1));
   });
 
   testWidgets('tapping a badge in progress shows its progress', (tester) async {
@@ -66,5 +67,18 @@ void main() {
   testWidgets('fits a narrow phone without overflow', (tester) async {
     await pump(tester, const Size(320, 640));
     expect(tester.takeException(), isNull);
+  });
+
+  test('earned first, then by type in admin order, then by goal; hidden last', () {
+    final sorted = sortAchievements([
+      _a(10, title: 'Серия 7', goal: 7, type: 'streak_days'),
+      _a(11, title: 'Фразы 50', goal: 50, type: 'phrases_opened'),
+      _a(12, title: 'Уроки 1', goal: 1, type: 'lessons_completed', earned: true),
+      _a(13), // hidden
+      _a(14, title: 'Фразы 5', goal: 5, type: 'phrases_opened', earned: true),
+      _a(15, title: 'Фразы 10', goal: 10, type: 'phrases_opened'),
+      _a(16, title: 'Серия 3', goal: 3, type: 'streak_days', earned: true),
+    ]);
+    expect(sorted.map((a) => a.id).toList(), [14, 12, 16, 15, 11, 10, 13]);
   });
 }
