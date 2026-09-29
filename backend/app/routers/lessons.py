@@ -29,6 +29,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.dates import utc_now
 from app.core.deps import get_current_admin, get_current_user
 from app.core.storage import url_for_key
 from app.database import get_db
@@ -41,11 +42,13 @@ from app.exercises.common import (
     get_points,
     get_threshold,
     is_exercise_enabled,
+    lesson_words_below_threshold,
 )
 from app.models.dictionary import Dictionary
 from app.models.learning_settings import LearningSettings
 from app.models.lesson import Lesson, LessonExercise, LessonWord
 from app.models.user import User
+from app.models.word_attempt import WordAttempt
 from app.models.word_progress import WordProgress
 from app.premium import LessonLimitReached, check_lesson_quota
 from app.priority import maybe_create_adaptive_lesson, maybe_create_personal_quest
@@ -58,10 +61,13 @@ from app.schemas.lesson import (
     LearningSettingsIn,
     LearningSettingsOut,
     LessonCandidateWordsOut,
+    LessonPassStatsOut,
     LessonListOut,
     LessonOut,
     LessonSummaryOut,
     LessonWordOut,
+    PassExerciseStatOut,
+    PassWordStatOut,
     ListenWordRoundOut,
     SpeakingWordRoundOut,
     SubmitAnswerIn,
@@ -284,6 +290,113 @@ def get_lesson(
     return _lesson_to_out(db, lesson, get_threshold(db))
 
 
+@router.post("/lessons/{lesson_id}/pass", response_model=LessonOut)
+def start_lesson_pass(
+    lesson_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Starts one pass through this lesson's exercises: freezes the words
+    still below their level RIGHT NOW as the set every exercise in this
+    pass draws from (Lesson.pass_word_ids, read by lesson_words_pending).
+    A word that reaches its level in exercise 1 therefore still goes
+    through exercises 2, 3, ... of the same pass; only the next pass
+    leaves it out. The app calls this at the start of every pass --
+    first run and each "Повторить урок" alike. Changes no score."""
+    lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
+    threshold = get_threshold(db)
+    lesson.pass_word_ids = [w.id for w in lesson_words_below_threshold(db, lesson, threshold)]
+    # The baseline the end-of-pass statistics are measured against.
+    lesson.pass_started_at = utc_now()
+    lesson.pass_start_scores = {str(word_id): score for word_id, score in _word_scores(db, user.id, lesson).items()}
+    db.commit()
+    db.refresh(lesson)
+    return _lesson_to_out(db, lesson, threshold)
+
+
+def _word_scores(db: Session, user_id: int, lesson: Lesson) -> dict[int, int]:
+    """Every word of this lesson -> this user's current score (0 when the
+    word has never been answered)."""
+    word_ids = [lw.word_id for lw in lesson.words]
+    scores = dict(
+        db.query(WordProgress.word_id, WordProgress.score)
+        .filter(WordProgress.user_id == user_id, WordProgress.word_id.in_(word_ids))
+        .all()
+    ) if word_ids else {}
+    return {word_id: scores.get(word_id, 0) for word_id in word_ids}
+
+
+@router.get("/lessons/{lesson_id}/pass/stats", response_model=LessonPassStatsOut)
+def get_lesson_pass_stats(
+    lesson_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """How the current pass went: answers, accuracy, a per-exercise
+    breakdown, and each word's score before and after. Counts only answers
+    given in THIS lesson (WordAttempt.lesson_id) since the pass started;
+    nothing here changes any score. A lesson no pass was ever started for
+    reports every answer ever given in it, measured from zero."""
+    lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
+    threshold = get_threshold(db)
+
+    attempts_q = db.query(WordAttempt).filter(WordAttempt.user_id == user.id, WordAttempt.lesson_id == lesson.id)
+    if lesson.pass_started_at is not None:
+        attempts_q = attempts_q.filter(WordAttempt.created_at >= lesson.pass_started_at)
+    attempts = attempts_q.all()
+
+    per_exercise: dict[str, list[int]] = {}
+    for attempt in attempts:
+        counts = per_exercise.setdefault(attempt.exercise_key, [0, 0])
+        counts[1] += 1
+        if attempt.is_correct:
+            counts[0] += 1
+    order = {key: i for i, key in enumerate(EXERCISE_TYPES)}
+    exercises = [
+        PassExerciseStatOut(exercise_key=key, correct=c, total=t)
+        for key, (c, t) in sorted(per_exercise.items(), key=lambda kv: order.get(kv[0], len(order)))
+    ]
+
+    before = {int(k): v for k, v in (lesson.pass_start_scores or {}).items()}
+    after = _word_scores(db, user.id, lesson)
+    frozen = set(lesson.pass_word_ids) if lesson.pass_word_ids is not None else None
+    words = []
+    for lw in lesson.words:
+        if frozen is not None and lw.word_id not in frozen:
+            continue  # not part of this pass
+        was, now = before.get(lw.word_id, 0), after.get(lw.word_id, 0)
+        words.append(
+            PassWordStatOut(
+                word_id=lw.word_id,
+                word=lw.word.word,
+                score_before=was,
+                score_after=now,
+                gained=now - was,
+                became_learned=was < threshold <= now,
+            )
+        )
+
+    total = len(attempts)
+    correct = sum(1 for a in attempts if a.is_correct)
+    duration = 0
+    if lesson.pass_started_at is not None:
+        last = max((a.created_at for a in attempts), default=None)
+        end = last if last is not None else lesson.pass_started_at
+        duration = max(0, int((end - lesson.pass_started_at).total_seconds()))
+    return LessonPassStatsOut(
+        started_at=lesson.pass_started_at,
+        duration_seconds=duration,
+        total_answers=total,
+        correct_answers=correct,
+        wrong_answers=total - correct,
+        accuracy=round(correct * 100 / total) if total else 0,
+        exercises=exercises,
+        words=words,
+        score_gained=sum(w.gained for w in words),
+        newly_learned=sum(1 for w in words if w.became_learned),
+    )
+
+
 @router.post("/lessons", response_model=LessonOut, status_code=status.HTTP_201_CREATED)
 def create_lesson(
     payload: CreateLessonIn,
@@ -490,6 +603,7 @@ def submit_answer(
         exercise_key=exercise_key,
         is_correct=payload.is_correct,
         score_after=progress.score,
+        lesson_id=lesson.id,
     )
 
     threshold = get_threshold(db)

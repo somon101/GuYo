@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field, model_validator
 
 from app.schemas.word import WordOut
@@ -49,6 +51,40 @@ class LessonOut(BaseModel):
     is_completed: bool
     exercise_keys: list[str]
     words: list[LessonWordOut]
+
+
+class PassExerciseStatOut(BaseModel):
+    exercise_key: str
+    correct: int
+    total: int
+
+
+class PassWordStatOut(BaseModel):
+    word_id: int
+    word: str
+    score_before: int
+    score_after: int
+    gained: int
+    # Crossed its level during this pass.
+    became_learned: bool
+
+
+class LessonPassStatsOut(BaseModel):
+    """How the current pass through a lesson went -- what the results
+    screen's statistics block shows. Counts only this lesson's answers
+    since the pass started; quest answers and earlier passes never count.
+    `accuracy` is 0-100 (0 when there were no answers)."""
+
+    started_at: datetime | None
+    duration_seconds: int
+    total_answers: int
+    correct_answers: int
+    wrong_answers: int
+    accuracy: int
+    exercises: list[PassExerciseStatOut]
+    words: list[PassWordStatOut]
+    score_gained: int
+    newly_learned: int
 
 
 class LessonSummaryOut(BaseModel):

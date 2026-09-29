@@ -41,4 +41,10 @@ class WordAttempt(Base):
     # history of an account that predates a settings change. This column
     # is the one honest source for "what was the score at this moment".
     score_after: Mapped[int] = mapped_column(Integer, nullable=False)
+    # The lesson this answer was given in, for a lesson's own end-of-pass
+    # statistics (GET /lessons/{id}/pass/stats). NULL for quest answers
+    # and for every attempt recorded before this column existed.
+    lesson_id: Mapped[int | None] = mapped_column(
+        ForeignKey("lessons.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)

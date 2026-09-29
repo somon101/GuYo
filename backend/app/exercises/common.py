@@ -102,17 +102,28 @@ def fill_word_progress(db: Session, user_id: int, words_out: list, word_ids: lis
 
 
 def lesson_words_pending(db: Session, lesson: Lesson, threshold: int) -> list[Word]:
-    """This lesson's own words that HAVEN'T yet reached the threshold --
-    what every exercise type's build_round now draws its round from,
-    instead of the lesson's full original set. On a lesson's first pass
-    every word is still below threshold, so this is identical to the old
-    "all lesson words" behavior; it only starts excluding words once some
-    of them cross the threshold -- whether mid-sequence (an earlier
-    exercise type in this same pass already pushed a word over) or on a
-    later "Повторить урок" pass, so a repeat only ever re-tests the words
-    still short of their level, never words already secured. A word with
-    no WordProgress row at all counts as below threshold (score 0), same
-    convention as everywhere else scoring is read."""
+    """The words every exercise type's build_round draws its round from.
+
+    Once a pass has been started (Lesson.pass_word_ids, set by POST
+    /lessons/{id}/pass), that is exactly the set frozen at its start:
+    within one pass every word goes through every exercise, even a word
+    that crosses its level partway through. The narrowing to "only what's
+    still short" happens when the NEXT pass starts, so a "Повторить урок"
+    pass never re-tests words already secured.
+
+    A lesson no pass was ever started for (older app versions) keeps the
+    old behavior: the words below the threshold right now."""
+    if lesson.pass_word_ids is not None:
+        frozen = set(lesson.pass_word_ids)
+        return [lw.word for lw in lesson.words if lw.word_id in frozen]
+    return lesson_words_below_threshold(db, lesson, threshold)
+
+
+def lesson_words_below_threshold(db: Session, lesson: Lesson, threshold: int) -> list[Word]:
+    """This lesson's own words that HAVEN'T yet reached the threshold right
+    now -- what a new pass covers. On a lesson's first pass that is every
+    word. A word with no WordProgress row at all counts as below threshold
+    (score 0), same convention as everywhere else scoring is read."""
     word_ids = [lw.word_id for lw in lesson.words]
     if not word_ids:
         return []

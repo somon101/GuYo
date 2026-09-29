@@ -1,11 +1,11 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import '../../api/api_client.dart';
 import '../../models/exercise.dart';
 import '../../services/answer_sound.dart';
 import '../../theme/app_colors.dart';
 import '../audio_button.dart';
+import '../ios_ui.dart';
+import 'exercise_timer.dart';
 
 /// One letter button/slot's contents, with a unique instance id so two
 /// identical letters (e.g. HELLO's two L's) are always distinguishable and
@@ -17,10 +17,10 @@ class _Tile {
 }
 
 /// "Собери слово", as ONE self-contained widget: the translation prompt,
-/// the letter slots, the pool, the "Проверить" button, and the ONLY timer
-/// any exercise carries (15 seconds, per spec) -- all in one place, so a
-/// Lesson host and a Quest host render the exact same thing and neither
-/// has to reimplement the countdown.
+/// the letter slots, the pool, the "Проверить" button, and its timer
+/// (ExerciseTimeLimits.buildWordSeconds) -- all in one place, so a Lesson
+/// host and a Quest host render the exact same thing and neither has to
+/// reimplement the countdown.
 ///
 /// [item] is treated as fixed for this widget's whole lifetime -- a host
 /// placing this in a multi-item sequence must give it a fresh `key`
@@ -42,41 +42,38 @@ class BuildWordExercise extends StatefulWidget {
 }
 
 class _BuildWordExerciseState extends State<BuildWordExercise> {
-  static const int _answerSeconds = 15;
-
-  List<_Tile> _pool = [];
+  // Every letter keeps its own place in the pool: a used one leaves an
+  // empty key behind instead of the row closing up, so the next letter
+  // never slides away from under the finger.
+  List<_Tile> _tiles = [];
+  Set<String> _available = {};
   List<_Tile?> _slots = [];
   List<Color?> _slotColors = [];
   bool _isLocked = false;
 
-  // A plain Timer, not an AnimationController -- see true_or_false_exercise
-  // .dart's own note (removed from there, still true here): a running
-  // controller keeps a frame permanently scheduled, which would make every
-  // tester.pumpAndSettle() in the integration suite block for the full 15
-  // seconds while this widget is on screen.
-  Timer? _ticker;
-  int _secondsLeft = _answerSeconds;
+  late final AnswerCountdown _countdown = AnswerCountdown(
+    seconds: ExerciseTimeLimits.buildWordSeconds,
+    onTick: (_) {
+      if (mounted) setState(() {});
+    },
+    onExpired: () {
+      if (mounted) _resolve(timedOut: true);
+    },
+  );
 
   @override
   void initState() {
     super.initState();
-    _pool = [for (var i = 0; i < widget.item.letters.length; i++) _Tile('$i-${widget.item.letters[i]}', widget.item.letters[i])];
+    _tiles = [for (var i = 0; i < widget.item.letters.length; i++) _Tile('$i-${widget.item.letters[i]}', widget.item.letters[i])];
+    _available = {for (final t in _tiles) t.id};
     _slots = List<_Tile?>.filled(widget.item.correctWord.length, null);
     _slotColors = List<Color?>.filled(widget.item.correctWord.length, null);
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      if (_secondsLeft <= 1) {
-        _ticker?.cancel();
-        _resolve(timedOut: true);
-        return;
-      }
-      setState(() => _secondsLeft--);
-    });
+    _countdown.start();
   }
 
   @override
   void dispose() {
-    _ticker?.cancel();
+    _countdown.cancel();
     super.dispose();
   }
 
@@ -86,7 +83,7 @@ class _BuildWordExerciseState extends State<BuildWordExercise> {
     if (emptyIndex == -1) return;
     setState(() {
       _slots[emptyIndex] = tile;
-      _pool = _pool.where((t) => t.id != tile.id).toList();
+      _available.remove(tile.id);
       _slotColors = List<Color?>.filled(_slots.length, null);
     });
   }
@@ -97,7 +94,7 @@ class _BuildWordExerciseState extends State<BuildWordExercise> {
     if (tile == null) return;
     setState(() {
       _slots[index] = null;
-      _pool = [..._pool, tile];
+      _available.add(tile.id);
       _slotColors = List<Color?>.filled(_slots.length, null);
     });
   }
@@ -109,7 +106,7 @@ class _BuildWordExerciseState extends State<BuildWordExercise> {
   void _resolve({required bool timedOut}) {
     if (_isLocked) return;
     if (!timedOut && _slots.contains(null)) return;
-    _ticker?.cancel();
+    _countdown.cancel();
 
     var allCorrect = !timedOut;
     final colors = <Color?>[];
@@ -135,7 +132,6 @@ class _BuildWordExerciseState extends State<BuildWordExercise> {
     final item = widget.item;
     final hasTranslationAudio = item.translationAudioUrl != null && item.translationAudioUrl!.isNotEmpty;
     final canCheck = !_slots.contains(null) && !_isLocked;
-    final isUrgent = _secondsLeft <= 3;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -172,7 +168,10 @@ class _BuildWordExerciseState extends State<BuildWordExercise> {
               ),
             ),
             const SizedBox(width: 10),
-            _TimerBadge(secondsLeft: _secondsLeft, urgent: isUrgent),
+            ExerciseTimerBadge(
+              secondsLeft: _countdown.secondsLeft,
+              totalSeconds: ExerciseTimeLimits.buildWordSeconds,
+            ),
           ],
         ),
         const SizedBox(height: 20),
@@ -189,18 +188,20 @@ class _BuildWordExerciseState extends State<BuildWordExercise> {
         const SizedBox(height: 20),
         SizedBox(
           width: double.infinity,
-          child: Material(
-            color: canCheck ? AppColors.primary : AppColors.primary.withValues(alpha: 0.35),
-            borderRadius: BorderRadius.circular(AppShapes.pillRadius),
-            child: InkWell(
-              key: const ValueKey('build-word-check-button'),
-              borderRadius: BorderRadius.circular(AppShapes.pillRadius),
-              onTap: canCheck ? () => _resolve(timedOut: false) : null,
-              child: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 15),
-                child: Center(
-                  child: Text('Проверить', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
-                ),
+          child: IosPressable(
+            key: const ValueKey('build-word-check-button'),
+            onTap: canCheck ? () => _resolve(timedOut: false) : null,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              height: 52,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: canCheck ? AppColors.primary : AppColors.primary.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Text(
+                'Проверить',
+                style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700, color: Colors.white),
               ),
             ),
           ),
@@ -212,7 +213,11 @@ class _BuildWordExerciseState extends State<BuildWordExercise> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            for (final tile in _pool) _LetterButton(key: ValueKey(tile.id), letter: tile.letter, onTap: () => _tapPool(tile)),
+            for (final tile in _tiles)
+              if (_available.contains(tile.id))
+                _LetterButton(key: ValueKey(tile.id), letter: tile.letter, onTap: () => _tapPool(tile))
+              else
+                const _UsedKey(),
           ],
         ),
       ],
@@ -220,41 +225,8 @@ class _BuildWordExerciseState extends State<BuildWordExercise> {
   }
 }
 
-/// The one timer badge in the app: a small ring + seconds, next to the
-/// prompt rather than dominating it -- «Собери слово» already has a lot on
-/// screen (prompt, slots, pool), so the countdown stays compact.
-class _TimerBadge extends StatelessWidget {
-  final int secondsLeft;
-  final bool urgent;
-  const _TimerBadge({required this.secondsLeft, required this.urgent});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = urgent ? AppColors.danger : AppColors.primary;
-    return SizedBox(
-      width: 44,
-      height: 44,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          SizedBox(
-            width: 44,
-            height: 44,
-            child: CircularProgressIndicator(
-              value: (secondsLeft / _BuildWordExerciseState._answerSeconds).clamp(0.0, 1.0),
-              strokeWidth: 3.5,
-              strokeCap: StrokeCap.round,
-              backgroundColor: AppColors.progressTrack,
-              valueColor: AlwaysStoppedAnimation(color),
-            ),
-          ),
-          Text('$secondsLeft', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: color)),
-        ],
-      ),
-    );
-  }
-}
-
+/// One place in the word being built: a light empty box, the letter once
+/// placed (tap it to send the letter back), green/red once checked.
 class _LetterSlot extends StatelessWidget {
   final String? letter;
   final Color? color;
@@ -264,27 +236,55 @@ class _LetterSlot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final filled = letter != null;
-    return InkWell(
+    final Color background;
+    final Color border;
+    if (color != null) {
+      background = color!.withValues(alpha: 0.12);
+      border = color!;
+    } else if (filled) {
+      background = Colors.white;
+      border = AppColors.primary.withValues(alpha: 0.35);
+    } else {
+      background = AppColors.violetSurface;
+      border = Colors.transparent;
+    }
+    return IosPressable(
       onTap: filled ? onTap : null,
-      borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
         width: 42,
         height: 50,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: color != null ? color!.withValues(alpha: 0.10) : AppColors.violetSurface,
-          border: Border.all(color: color ?? AppColors.cardBorder, width: color != null ? 2 : 1),
-          borderRadius: BorderRadius.circular(AppShapes.rowRadius),
+          color: background,
+          border: Border.all(color: border, width: color != null ? 2 : 1.2),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
           letter ?? '',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: color ?? AppColors.primaryDark),
+          style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700, color: color ?? AppColors.primaryDark),
         ),
       ),
     );
   }
 }
 
+/// The empty place a used letter leaves in the pool.
+class _UsedKey extends StatelessWidget {
+  const _UsedKey();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 46,
+      height: 52,
+      decoration: BoxDecoration(color: AppColors.progressTrack.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(10)),
+    );
+  }
+}
+
+/// A letter in the pool, drawn like an iOS keyboard key: white, softly
+/// rounded, with the thin shadow underneath that makes a key look raised.
 class _LetterButton extends StatelessWidget {
   final String letter;
   final VoidCallback onTap;
@@ -292,23 +292,21 @@ class _LetterButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-        child: Container(
-          width: 46,
-          height: 50,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            border: Border.all(color: AppColors.cardBorder),
-            borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-            boxShadow: AppShapes.cardShadow,
-          ),
-          child: Text(letter, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
+    return IosPressable(
+      onTap: onTap,
+      child: Container(
+        width: 46,
+        height: 52,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: const [
+            BoxShadow(color: Color(0x33101B63), offset: Offset(0, 1.5), blurRadius: 0),
+            BoxShadow(color: Color(0x14101B63), offset: Offset(0, 3), blurRadius: 8),
+          ],
         ),
+        child: Text(letter, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w600, color: AppColors.primaryDark)),
       ),
     );
   }

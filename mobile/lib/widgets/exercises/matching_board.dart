@@ -6,6 +6,7 @@ import '../../models/word.dart';
 import '../../services/answer_sound.dart';
 import '../../theme/app_colors.dart';
 import '../audio_button.dart';
+import '../ios_ui.dart';
 import '../guyo_ui.dart';
 
 /// "Сопоставление", as ONE self-contained widget: shuffles [words] into two
@@ -263,13 +264,15 @@ class _MatchCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color background = Colors.white;
-    Color border = AppColors.cardBorder;
+    Color border = Colors.transparent;
     Color textColor = AppColors.primaryDark;
+    List<BoxShadow>? shadow = AppShapes.cardShadow;
 
     if (isMatched) {
+      // A found pair quietly steps back: faded green, no shadow.
       background = AppColors.successLight;
-      border = AppColors.success;
       textColor = AppColors.success;
+      shadow = null;
     } else if (isMismatched) {
       background = AppColors.dangerLight;
       border = AppColors.danger;
@@ -277,33 +280,36 @@ class _MatchCard extends StatelessWidget {
     } else if (isSelected) {
       background = AppColors.violetSurface;
       border = AppColors.primary;
+      textColor = AppColors.primary;
     }
 
-    return Material(
-      color: background,
-      borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-      child: InkWell(
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 220),
+      opacity: isMatched ? 0.55 : 1,
+      child: IosPressable(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          constraints: const BoxConstraints(minHeight: 52),
+          padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 10),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-            border: Border.all(color: border, width: (isMatched || isMismatched || isSelected) ? 1.6 : 1),
+            color: background,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: border, width: 1.6),
+            boxShadow: shadow,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              if (isMatched) ...[
+                const Icon(Icons.check_rounded, size: 16, color: AppColors.success),
+                const SizedBox(width: 4),
+              ],
               Flexible(
                 child: Text(
                   label,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    decoration: isMatched ? TextDecoration.lineThrough : null,
-                    color: textColor,
-                  ),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: textColor),
                 ),
               ),
               if (audioUrl != null) ...[

@@ -11,7 +11,14 @@ from app.models.word_attempt import WordAttempt
 
 
 def record_word_attempt(
-    db: Session, *, user_id: int, word_id: int, exercise_key: str, is_correct: bool, score_after: int
+    db: Session,
+    *,
+    user_id: int,
+    word_id: int,
+    exercise_key: str,
+    is_correct: bool,
+    score_after: int,
+    lesson_id: int | None = None,
 ) -> None:
     """Logs one real answer for Admin Web's «Аналитика» -- purely additive
     bookkeeping alongside whatever the caller already did to WordProgress/
@@ -27,6 +34,7 @@ def record_word_attempt(
             exercise_key=exercise_key,
             is_correct=is_correct,
             score_after=score_after,
+            lesson_id=lesson_id,
         )
     )
     db.flush()

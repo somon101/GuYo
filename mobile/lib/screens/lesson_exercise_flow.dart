@@ -1,49 +1,34 @@
 import 'package:flutter/material.dart';
 
-/// Connects an exercise to the lesson run hosting it (LessonRunScreen):
-/// the run plays every exercise in place, inside one screen, and this is
-/// how an exercise tells it "my round is over, show the next one".
-class LessonRunScope extends InheritedWidget {
-  final VoidCallback onExerciseFinished;
-
-  const LessonRunScope({super.key, required this.onExerciseFinished, required super.child});
-
-  static LessonRunScope of(BuildContext context) {
-    final scope = context.getInheritedWidgetOfExactType<LessonRunScope>();
-    assert(scope != null, 'A lesson exercise must be shown inside LessonRunScreen');
-    return scope!;
-  }
-
-  @override
-  bool updateShouldNotify(LessonRunScope oldWidget) => onExerciseFinished != oldWidget.onExerciseFinished;
-}
-
 /// What every exercise inside a lesson does when its round is over: hand
-/// control straight back to the lesson run.
+/// control straight back to the lesson runner.
 ///
-/// A lesson is ONE continuous run. LessonRunScreen walks the lesson's
-/// available exercises in order and swaps each one in, in place; an
+/// A lesson is ONE continuous run on ONE screen (LessonRunScreen): its
+/// exercises replace each other in place, so the user never sees the
+/// lesson's word list, a menu, or any other screen between them. An
 /// exercise's only job is to play its round over the lesson's words and
-/// then report that it's done, so the next exercise starts by itself --
-/// the user never lands back on the lesson's word list in between.
+/// then say it is done, so the next exercise starts by itself.
 ///
 /// That is why there is deliberately no per-exercise completion screen --
-/// no "Упражнение завершено!", no "Играть ещё раз", no "К уроку", no
-/// manual step of any kind between exercises. The one completion screen
-/// in a lesson is LessonResultsScreen, shown once, after every available
+/// no "Упражнение завершено!", no "Играть ещё раз", no "К уроку", no manual
+/// step of any kind between exercises. The one completion screen in a
+/// lesson is LessonResultsScreen, shown once, after every available
 /// exercise has been through every word.
 ///
 /// Repeating is a property of the LESSON, not of one exercise: if some
 /// words are still short of their level, the results screen offers
 /// "Повторить урок", and the whole sequence runs again -- covering only
-/// the words that still need it, since every round re-fetches what is
-/// actually pending.
+/// the words that still need it.
 mixin LessonExerciseFlow<T extends StatefulWidget> on State<T> {
   bool _finished = false;
 
   /// Ends this exercise. Safe to call from anywhere, including twice: only
-  /// the first call reports, so a round that finishes while the handoff is
-  /// already under way can never make the run skip an exercise.
+  /// the first call counts, so a round that finishes while the hand-off is
+  /// already in flight can never skip the next exercise.
+  ///
+  /// Inside a LessonRunScreen this tells the runner, which swaps in the
+  /// next exercise on the same screen. Anywhere else (an exercise pushed
+  /// as a route of its own) it pops, as before.
   ///
   /// [skippedBecause] is for an exercise that could not run at all (a
   /// device with no speech recognition, say). The lesson still moves on --
@@ -62,18 +47,39 @@ mixin LessonExerciseFlow<T extends StatefulWidget> on State<T> {
       );
     }
 
-    LessonRunScope.of(context).onExerciseFinished();
+    final scope = LessonRunScope.maybeOf(context);
+    if (scope != null) {
+      scope.onExerciseFinished();
+      return;
+    }
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) navigator.pop();
   }
 
   /// Whether [finishExercise] has already run -- what `build` checks so it
   /// never tries to render an item past the end of a finished round during
-  /// the frame between the call and the next exercise replacing this one.
+  /// the frame between the call and the next exercise actually appearing.
   bool get isFinishing => _finished;
 }
 
-/// The neutral frame shown in the instant between one exercise ending and
-/// the next appearing. Not a completion screen: it carries no result, no
-/// buttons and nothing to read.
+/// Put above the current exercise by LessonRunScreen: how an exercise's
+/// [LessonExerciseFlow.finishExercise] reaches the runner without knowing
+/// anything about it.
+class LessonRunScope extends InheritedWidget {
+  final VoidCallback onExerciseFinished;
+
+  const LessonRunScope({super.key, required this.onExerciseFinished, required super.child});
+
+  static LessonRunScope? maybeOf(BuildContext context) => context.getInheritedWidgetOfExactType<LessonRunScope>();
+
+  @override
+  bool updateShouldNotify(LessonRunScope oldWidget) => false;
+}
+
+/// The neutral frame an exercise shows in the instant between its round
+/// ending and the next exercise appearing. Not a completion screen: it
+/// carries no result, no buttons and nothing to read -- it exists only so
+/// the last frame isn't an empty or half-built layout.
 class LessonExerciseHandoff extends StatelessWidget {
   const LessonExerciseHandoff({super.key});
 

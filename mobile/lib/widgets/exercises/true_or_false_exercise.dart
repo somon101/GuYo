@@ -4,7 +4,9 @@ import '../../models/exercise.dart';
 import '../../services/answer_sound.dart';
 import '../../theme/app_colors.dart';
 import '../audio_button.dart';
+import '../ios_ui.dart';
 import '../remote_image.dart';
+import 'exercise_timer.dart';
 
 /// "Правда или ложь", as ONE self-contained widget: the card plus its two
 /// answer buttons, and everything that happens between a tap and the
@@ -15,7 +17,10 @@ import '../remote_image.dart';
 /// everywhere at once, and neither host has to re-implement the reveal
 /// flash, the lock-while-answered state, or the tap logic itself.
 ///
-/// No timer: per spec, only «Собери слово» carries one.
+/// Each card has ExerciseTimeLimits.trueOrFalseSeconds to answer. Running
+/// out counts as a wrong answer and goes through the exact same reveal
+/// and [onAnswer] path as a wrong tap. The countdown restarts for every
+/// new item.
 ///
 /// [onAnswer] fires exactly once per item, AFTER the brief reveal flash
 /// finishes -- a host never needs its own "wait, then report" delay; it
@@ -34,20 +39,46 @@ class _TrueOrFalseExerciseState extends State<TrueOrFalseExercise> {
   bool _isLocked = false;
   bool? _reveal;
 
+  late final AnswerCountdown _countdown = AnswerCountdown(
+    seconds: ExerciseTimeLimits.trueOrFalseSeconds,
+    onTick: (_) {
+      if (mounted) setState(() {});
+    },
+    onExpired: () {
+      if (mounted) _resolve(false);
+    },
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _countdown.start();
+  }
+
+  @override
+  void dispose() {
+    _countdown.cancel();
+    super.dispose();
+  }
+
   @override
   void didUpdateWidget(covariant TrueOrFalseExercise oldWidget) {
     super.didUpdateWidget(oldWidget);
     // A new item means the host moved the round on -- start this card
-    // fresh rather than carrying over the previous one's lock/flash.
+    // fresh rather than carrying over the previous one's lock/flash or
+    // what was left of its time.
     if (oldWidget.item.wordId != widget.item.wordId) {
       _isLocked = false;
       _reveal = null;
+      _countdown.start();
     }
   }
 
-  void _answer(bool userSaidTrue) {
+  void _answer(bool userSaidTrue) => _resolve(userSaidTrue == widget.item.isCorrect);
+
+  void _resolve(bool correct) {
     if (_isLocked) return;
-    final correct = userSaidTrue == widget.item.isCorrect;
+    _countdown.cancel();
     setState(() {
       _isLocked = true;
       _reveal = correct;
@@ -66,6 +97,12 @@ class _TrueOrFalseExerciseState extends State<TrueOrFalseExercise> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        ExerciseTimerBadge(
+          secondsLeft: _countdown.secondsLeft,
+          totalSeconds: ExerciseTimeLimits.trueOrFalseSeconds,
+          size: 40,
+        ),
+        const SizedBox(height: 12),
         _TrueOrFalseCard(item: widget.item, reveal: _reveal),
         const SizedBox(height: 18),
         _AnswerButtons(isLocked: _isLocked, onAnswer: _answer),
@@ -220,27 +257,25 @@ class _AnswerButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isEnabled = onTap != null;
-    return Material(
-      color: isEnabled ? color : color.withValues(alpha: 0.4),
-      borderRadius: BorderRadius.circular(AppShapes.pillRadius),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppShapes.pillRadius),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 26,
-                height: 26,
-                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                child: Icon(icon, size: 16, color: color),
-              ),
-              const SizedBox(width: 10),
-              Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
-            ],
-          ),
+    return IosPressable(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        height: 54,
+        decoration: BoxDecoration(
+          color: isEnabled ? color : color.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: isEnabled
+              ? [BoxShadow(color: color.withValues(alpha: 0.28), blurRadius: 12, offset: const Offset(0, 4))]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 20, color: Colors.white),
+            const SizedBox(width: 8),
+            Text(label, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white)),
+          ],
         ),
       ),
     );

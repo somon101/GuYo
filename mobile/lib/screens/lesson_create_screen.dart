@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
+import '../models/lesson.dart';
 import '../models/word.dart';
 import '../widgets/premium_ui.dart';
-import '../widgets/word_card.dart';
+import '../widgets/ios_ui.dart';
 
 /// Word selection for a new lesson: either a random count (1-15) or a
 /// manual, per-word pick (also capped at 15), grouped by category so
@@ -11,7 +13,9 @@ import '../widgets/word_card.dart';
 /// the SAME pool -- GET /dictionaries/{id}/lesson-candidate-words, every
 /// word in this dictionary the user hasn't already learned -- and both
 /// ultimately just call POST /lessons, which is the only place a Lesson
-/// actually gets created (never client-side).
+/// actually gets created (never client-side). The button says "Начать
+/// урок" because that is what it does: the created lesson is popped back
+/// to the caller, which runs it immediately (see LessonRunScreen).
 class LessonCreateScreen extends StatefulWidget {
   final GuyoDictionary dictionary;
   const LessonCreateScreen({super.key, required this.dictionary});
@@ -28,9 +32,6 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
   bool _isLoading = true;
   String? _loadError;
   List<GuyoWord> _candidates = [];
-  // Only decides each card's level stripe; failing to load it just leaves
-  // the stripes neutral.
-  List<WordLevelSummary> _levels = [];
 
   _Mode _mode = _Mode.random;
   int _randomCount = 5;
@@ -39,21 +40,43 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
   bool _isSubmitting = false;
   String? _submitError;
 
+  final _search = TextEditingController();
+  String _query = '';
+
   @override
   void initState() {
     super.initState();
     _load();
-    _loadLevels();
   }
 
-  Future<void> _loadLevels() async {
-    try {
-      final levels = await ApiClient.instance.fetchWordLevels();
-      if (!mounted) return;
-      setState(() => _levels = levels);
-    } catch (_) {
-      // Neutral stripes are an acceptable degraded state.
-    }
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  int get _maxCount => _candidates.length < _maxLessonWords ? _candidates.length : _maxLessonWords;
+
+  /// Selects every word of [words] that still fits, or clears them all when
+  /// every one is already selected.
+  void _toggleAll(List<GuyoWord> words) {
+    setState(() {
+      final ids = words.map((w) => w.id).toList();
+      if (ids.every(_selectedIds.contains)) {
+        _selectedIds.removeAll(ids);
+      } else {
+        for (final id in ids) {
+          if (_selectedIds.length >= _maxLessonWords) break;
+          _selectedIds.add(id);
+        }
+      }
+    });
+  }
+
+  bool _matchesQuery(GuyoWord w) {
+    if (_query.isEmpty) return true;
+    final q = _query.toLowerCase();
+    return w.word.toLowerCase().contains(q) || w.translation.toLowerCase().contains(q);
   }
 
   void _toggleWord(int wordId) {
@@ -94,13 +117,16 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
       _submitError = null;
     });
     try {
+      final Lesson lesson;
       if (_mode == _Mode.random) {
-        await ApiClient.instance.createLesson(dictionaryId: widget.dictionary.id, randomCount: _randomCount);
+        lesson = await ApiClient.instance.createLesson(dictionaryId: widget.dictionary.id, randomCount: _randomCount);
       } else {
-        await ApiClient.instance.createLesson(dictionaryId: widget.dictionary.id, wordIds: _selectedIds.toList());
+        lesson = await ApiClient.instance.createLesson(dictionaryId: widget.dictionary.id, wordIds: _selectedIds.toList());
       }
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      // Hands the new lesson back so the caller starts it straight away --
+      // "Начать урок" means exactly that, with no stop at the lesson list.
+      Navigator.of(context).pop(lesson);
     } on ApiException catch (e) {
       if (!mounted) return;
       if (e.statusCode == 429) {
@@ -135,7 +161,8 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Новый урок')),
+      backgroundColor: AppColors.canvas,
+      appBar: AppBar(title: const Text('Новый урок'), backgroundColor: AppColors.canvas),
       body: _buildBody(),
       bottomNavigationBar: _isLoading || _loadError != null || _candidates.isEmpty ? null : _buildSubmitBar(),
     );
@@ -167,6 +194,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
           child: Text(
             'Все доступные слова уже изучены -- новых слов для урока нет.',
             textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.secondaryText),
           ),
         ),
       );
@@ -175,14 +203,11 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-          child: SegmentedButton<_Mode>(
-            segments: const [
-              ButtonSegment(value: _Mode.random, label: Text('Случайно'), icon: Icon(Icons.shuffle)),
-              ButtonSegment(value: _Mode.manual, label: Text('Вручную'), icon: Icon(Icons.checklist)),
-            ],
-            selected: {_mode},
-            onSelectionChanged: (s) => setState(() => _mode = s.first),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: IosSegmented<_Mode>(
+            value: _mode,
+            segments: const {_Mode.random: 'Случайно', _Mode.manual: 'Вручную'},
+            onChanged: (m) => setState(() => _mode = m),
           ),
         ),
         Expanded(
@@ -191,111 +216,241 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
         if (_submitError != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Text(_submitError!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
+            child: Text(_submitError!, style: const TextStyle(color: AppColors.danger), textAlign: TextAlign.center),
           ),
       ],
     );
   }
 
   Widget _buildRandomPicker() {
-    final maxCount = _candidates.length < _maxLessonWords ? _candidates.length : _maxLessonWords;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+    final maxCount = _maxCount;
+    final presets = [5, 10, 15].where((n) => n <= maxCount).toList();
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+      children: [
+        IosSection(
+          header: 'Количество слов',
           children: [
-            const Text('Сколько слов взять в урок?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            Text('От 1 до $maxCount (доступно: ${_candidates.length})', style: const TextStyle(color: Colors.black54)),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton.filledTonal(
-                  onPressed: _randomCount > 1 ? () => setState(() => _randomCount--) : null,
-                  icon: const Icon(Icons.remove),
-                ),
-                SizedBox(
-                  width: 64,
-                  child: Text(
-                    '$_randomCount',
-                    key: const ValueKey('lesson-random-count'),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 22, 16, 18),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _RoundStepButton(
+                        icon: Icons.remove_rounded,
+                        onTap: _randomCount > 1 ? () => setState(() => _randomCount--) : null,
+                      ),
+                      SizedBox(
+                        width: 96,
+                        child: Text(
+                          '$_randomCount',
+                          key: const ValueKey('lesson-random-count'),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 48,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primaryDark,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ),
+                      _RoundStepButton(
+                        icon: Icons.add_rounded,
+                        onTap: _randomCount < maxCount ? () => setState(() => _randomCount++) : null,
+                      ),
+                    ],
                   ),
-                ),
-                IconButton.filledTonal(
-                  onPressed: _randomCount < maxCount ? () => setState(() => _randomCount++) : null,
-                  icon: const Icon(Icons.add),
-                ),
-              ],
+                  const SizedBox(height: 6),
+                  Text(
+                    'слов в уроке · доступно ${_candidates.length}',
+                    style: const TextStyle(fontSize: 13.5, color: AppColors.secondaryText),
+                  ),
+                  if (presets.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final n in presets)
+                          _PresetChip(
+                            label: '$n',
+                            selected: _randomCount == n,
+                            onTap: () => setState(() => _randomCount = n),
+                          ),
+                        if (!presets.contains(maxCount))
+                          _PresetChip(
+                            label: 'Все $maxCount',
+                            selected: _randomCount == maxCount,
+                            onTap: () => setState(() => _randomCount = maxCount),
+                          ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),
-      ),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Text(
+            'Слова возьмём случайно из тех, что вы ещё не выучили.',
+            style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildManualPicker() {
-    final groups = _groupByCategory(_candidates);
-    final categoryNames = groups.keys.toList();
+    final groups = _groupByCategory(_candidates.where(_matchesQuery).toList());
+    final full = _selectedIds.length >= _maxLessonWords;
     return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Text(
-            'Выбрано: ${_selectedIds.length}/$_maxLessonWords',
-            style: const TextStyle(color: Colors.black54, fontSize: 13),
-          ),
+        IosSearchField(
+          controller: _search,
+          placeholder: 'Поиск слова или перевода',
+          onChanged: (v) => setState(() => _query = v.trim()),
         ),
-        for (final categoryName in categoryNames)
-          ExpansionTile(
-            title: Text(categoryName),
-            subtitle: Text('${groups[categoryName]!.length} слов'),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Row(
             children: [
-              for (final word in groups[categoryName]!)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: WordCard(
-                    word: word.word,
-                    transcription: word.transcription,
-                    translation: word.translation,
-                    audioUrl: word.wordAudioUrl,
-                    level: WordLevelView.resolve(word.wordLevelId, word.wordLevelName, _levels),
-                    selected: _selectedIds.contains(word.id),
-                    onTap: () => _toggleWord(word.id),
-                    trailing: Checkbox(
-                      key: ValueKey('lesson-word-checkbox-${word.id}'),
-                      visualDensity: VisualDensity.compact,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      value: _selectedIds.contains(word.id),
-                      onChanged: (_) => _toggleWord(word.id),
-                    ),
+              Expanded(
+                child: Text(
+                  'Выбрано ${_selectedIds.length} из $_maxLessonWords',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: full ? AppColors.primary : AppColors.secondaryText,
+                  ),
+                ),
+              ),
+              if (_selectedIds.isNotEmpty)
+                GestureDetector(
+                  onTap: () => setState(_selectedIds.clear),
+                  child: const Text(
+                    'Сбросить',
+                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.primary),
                   ),
                 ),
             ],
           ),
+        ),
+        if (groups.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 32),
+            child: Text('Ничего не найдено', textAlign: TextAlign.center, style: TextStyle(color: AppColors.secondaryText)),
+          ),
+        for (final entry in groups.entries) ...[
+          IosSection(
+            header: '${entry.key} · ${entry.value.length}',
+            actionLabel: entry.value.every((w) => _selectedIds.contains(w.id)) ? 'Снять' : 'Выбрать все',
+            onAction: () => _toggleAll(entry.value),
+            children: [
+              for (final word in entry.value)
+                IosCheckRow(
+                  key: ValueKey('lesson-word-checkbox-${word.id}'),
+                  title: word.word,
+                  subtitle: word.translation,
+                  selected: _selectedIds.contains(word.id),
+                  enabled: !full,
+                  onTap: () => _toggleWord(word.id),
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
+        ],
       ],
     );
   }
 
   Widget _buildSubmitBar() {
     final canSubmit = !_isSubmitting && (_mode == _Mode.random ? _randomCount >= 1 : _selectedIds.isNotEmpty);
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: FilledButton(
-          onPressed: canSubmit ? _submit : null,
-          child: _isSubmitting
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                )
-              : Text(_mode == _Mode.random ? 'Создать урок' : 'Создать урок (${_selectedIds.length})'),
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.canvas,
+        border: Border(top: BorderSide(color: AppColors.cardBorder)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+          child: SizedBox(
+            height: 52,
+            child: FilledButton(
+              onPressed: canSubmit ? _submit : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                textStyle: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700),
+              ),
+              child: _isSubmitting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white),
+                    )
+                  : Text(_mode == _Mode.random ? 'Начать урок' : 'Начать урок (${_selectedIds.length})'),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The round − / + next to the word count.
+class _RoundStepButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onTap;
+  const _RoundStepButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    return IosPressable(
+      onTap: onTap,
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: enabled ? AppColors.violetSurface : AppColors.progressTrack,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, size: 26, color: enabled ? AppColors.primary : AppColors.muted),
+      ),
+    );
+  }
+}
+
+/// A quick-pick amount (5 / 10 / 15) under the counter.
+class _PresetChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _PresetChip({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return IosPressable(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : AppColors.violetSurface,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 14.5,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : AppColors.primary,
+          ),
         ),
       ),
     );

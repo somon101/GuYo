@@ -251,11 +251,11 @@ void main() {
       final countFinder = find.byKey(const ValueKey('lesson-random-count'));
       var current = int.parse(tester.widget<Text>(countFinder).data!);
       while (current > 3) {
-        await tester.tap(find.byIcon(Icons.remove));
+        await tester.tap(find.byIcon(Icons.remove_rounded));
         await tester.pump();
         current--;
       }
-      await tester.tap(find.widgetWithText(FilledButton, 'Создать урок'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Начать урок'));
       await tester.pumpAndSettle(const Duration(seconds: 2));
 
       // Back on the chain -- Lesson 1 now shows as its own (in-progress)
@@ -407,9 +407,9 @@ void main() {
         await tester.tap(find.byKey(ValueKey('lesson-word-checkbox-$id')));
         await tester.pump();
       }
-      expect(find.textContaining('Выбрано: 3/15'), findsOneWidget);
+      expect(find.textContaining('Выбрано 3 из 15'), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Создать урок (3)'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Начать урок (3)'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 2));
       await tester.pumpAndSettle(const Duration(seconds: 2));

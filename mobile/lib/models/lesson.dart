@@ -275,3 +275,93 @@ class ListenWordRound {
     );
   }
 }
+
+/// One exercise's share of a pass: how many of its answers were right.
+class PassExerciseStat {
+  final String exerciseKey;
+  final int correct;
+  final int total;
+
+  PassExerciseStat({required this.exerciseKey, required this.correct, required this.total});
+
+  factory PassExerciseStat.fromJson(Map<String, dynamic> json) => PassExerciseStat(
+        exerciseKey: json['exercise_key'] as String,
+        correct: json['correct'] as int,
+        total: json['total'] as int,
+      );
+}
+
+/// One word's score change over a pass.
+class PassWordStat {
+  final int wordId;
+  final String word;
+  final int scoreBefore;
+  final int scoreAfter;
+  final int gained;
+  final bool becameLearned;
+
+  PassWordStat({
+    required this.wordId,
+    required this.word,
+    required this.scoreBefore,
+    required this.scoreAfter,
+    required this.gained,
+    required this.becameLearned,
+  });
+
+  factory PassWordStat.fromJson(Map<String, dynamic> json) => PassWordStat(
+        wordId: json['word_id'] as int,
+        word: json['word'] as String,
+        scoreBefore: json['score_before'] as int,
+        scoreAfter: json['score_after'] as int,
+        gained: json['gained'] as int,
+        becameLearned: json['became_learned'] as bool,
+      );
+}
+
+/// The end-of-pass statistics (GET /lessons/{id}/pass/stats): only the
+/// answers given in the pass that just finished, never earlier ones.
+class LessonPassStats {
+  final int durationSeconds;
+  final int totalAnswers;
+  final int correctAnswers;
+  final int wrongAnswers;
+  final int accuracy;
+  final List<PassExerciseStat> exercises;
+  final List<PassWordStat> words;
+  final int scoreGained;
+  final int newlyLearned;
+
+  LessonPassStats({
+    required this.durationSeconds,
+    required this.totalAnswers,
+    required this.correctAnswers,
+    required this.wrongAnswers,
+    required this.accuracy,
+    required this.exercises,
+    required this.words,
+    required this.scoreGained,
+    required this.newlyLearned,
+  });
+
+  factory LessonPassStats.fromJson(Map<String, dynamic> json) => LessonPassStats(
+        durationSeconds: json['duration_seconds'] as int,
+        totalAnswers: json['total_answers'] as int,
+        correctAnswers: json['correct_answers'] as int,
+        wrongAnswers: json['wrong_answers'] as int,
+        accuracy: json['accuracy'] as int,
+        exercises: (json['exercises'] as List<dynamic>)
+            .map((e) => PassExerciseStat.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        words: (json['words'] as List<dynamic>).map((e) => PassWordStat.fromJson(e as Map<String, dynamic>)).toList(),
+        scoreGained: json['score_gained'] as int,
+        newlyLearned: json['newly_learned'] as int,
+      );
+
+  PassWordStat? forWord(int wordId) {
+    for (final w in words) {
+      if (w.wordId == wordId) return w;
+    }
+    return null;
+  }
+}

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/lesson.dart';
@@ -13,24 +11,16 @@ import 'word_detail_screen.dart';
 /// score/learned status, and one "Начать урок" button. Reached by tapping a
 /// link in the "Уроки" chain (LessonsScreen).
 ///
-/// The user never picks which exercise to play: tapping "Начать урок" opens
-/// [LessonRunScreen], which plays this lesson's own `exerciseKeys` (decided
-/// once at creation, unchanged) one after another inside that one screen,
-/// skips any with nothing left to test, and ends on the lesson's results.
-/// This screen is only seen again once the whole run is over.
+/// The user never picks which exercise to play: "Начать урок" opens
+/// LessonRunScreen, which plays every available exercise back to back on
+/// one screen and ends with the results. This screen is never shown
+/// between exercises.
 ///
 /// For an already-completed lesson this is a read-only look back at what
 /// was learned -- no "Начать урок" button, a finished lesson is history.
 class LessonDetailScreen extends StatefulWidget {
   final int lessonId;
-  // Set only by the "Продолжить" button on the "Уроки" list's in-progress
-  // card: jumps straight into the exercise sequence the moment this
-  // screen's own first load finishes, instead of waiting for a tap on
-  // "Начать урок" -- the exact same _startLesson() flow either way, this
-  // just skips the one extra tap. Ignored for an already-completed lesson
-  // (nothing to start) or one with no available exercises.
-  final bool autoStart;
-  const LessonDetailScreen({super.key, required this.lessonId, this.autoStart = false});
+  const LessonDetailScreen({super.key, required this.lessonId});
 
   @override
   State<LessonDetailScreen> createState() => _LessonDetailScreenState();
@@ -41,11 +31,6 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
   String? _loadError;
   Lesson? _lesson;
   bool _isRunning = false;
-  // One-shot: _load() also runs again at the end of every _startLesson()
-  // pass (to refresh word/status state) and on pull-to-refresh -- without
-  // this guard, autoStart would re-trigger itself forever the moment its
-  // own run finishes.
-  bool _autoStartTriggered = false;
   // Only decides the shared word card's stripe color; a failure to load it
   // leaves the cards uncolored rather than failing the lesson.
   List<WordLevelSummary> _levels = [];
@@ -97,10 +82,6 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
         _lesson = lesson;
         _isLoading = false;
       });
-      if (widget.autoStart && !_autoStartTriggered && !lesson.isCompleted && lesson.exerciseKeys.isNotEmpty) {
-        _autoStartTriggered = true;
-        unawaited(_startLesson());
-      }
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -110,19 +91,19 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
     }
   }
 
-  /// Runs the whole lesson in [LessonRunScreen] -- every available exercise,
-  /// then the results -- and refreshes this screen's words/status once the
-  /// user is back.
+  /// Runs the lesson on its own screen (LessonRunScreen): every available
+  /// exercise back to back, then the results. This screen only reappears
+  /// once the user leaves the lesson, and refreshes what it shows then.
   Future<void> _startLesson() async {
     final lesson = _lesson;
     if (lesson == null || _isRunning) return;
     setState(() => _isRunning = true);
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => LessonRunScreen(lesson: lesson)),
-    );
-    if (!mounted) return;
-    setState(() => _isRunning = false);
-    await _load();
+    try {
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => LessonRunScreen.forLesson(lesson)));
+    } finally {
+      if (mounted) setState(() => _isRunning = false);
+      await _load();
+    }
   }
 
   @override
