@@ -58,6 +58,8 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.4
   integration_test:
     sdk: flutter
+  # Lets a widget test stand in for the device's speech recognizer.
+  speech_to_text_platform_interface: ^2.5.0
 
 flutter_launcher_icons:
   android: true
