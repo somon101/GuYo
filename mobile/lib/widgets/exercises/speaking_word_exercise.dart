@@ -76,6 +76,19 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
   bool _sessionHandled = false;
   Timer? _recordingTimer;
 
+  // Android keeps sending the previous recording's tail for a moment (its
+  // "done", or a "recognizer busy/client" error) and a new recording can
+  // fail to start while the old one is still being released. So a new
+  // recording only counts events once the recognizer has said it is
+  // listening, gets one quiet automatic restart if it fails right away,
+  // and never starts sooner than [_restartGap] after the last one ended.
+  static const Duration _restartGap = Duration(milliseconds: 450);
+  static const Duration _earlyFailure = Duration(milliseconds: 1500);
+  bool _listeningSeen = false;
+  bool _restarted = false;
+  DateTime _sessionStartedAt = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _lastSessionEnd = DateTime.fromMillisecondsSinceEpoch(0);
+
   @override
   void initState() {
     super.initState();
@@ -114,11 +127,16 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
   }
 
   void _onStatus(String status) {
-    if (!mounted || _micState != _MicState.recording) return;
+    if (!mounted || _micState != _MicState.recording || _sessionHandled) return;
+    if (status == SpeechToText.listeningStatus) {
+      _listeningSeen = true;
+      return;
+    }
     // "done" is only sent once the recognizer has fully finished (after
     // its final result, if it had one) -- so here, anything still
-    // unhandled means nothing usable was heard.
-    if (status == SpeechToText.doneStatus) {
+    // unhandled means nothing usable was heard. Before this recording
+    // has even started listening, a "done" is the previous one's tail.
+    if (status == SpeechToText.doneStatus && _listeningSeen) {
       final session = _session;
       Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) _handleRecognized(session, _recognizedText);
@@ -127,8 +145,26 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
   }
 
   void _onError(SpeechRecognitionError error) {
-    if (!mounted || _micState != _MicState.recording) return;
+    if (!mounted || _micState != _MicState.recording || _sessionHandled) return;
+    final early = !_listeningSeen || DateTime.now().difference(_sessionStartedAt) < _earlyFailure;
+    if (early && !_restarted && _recognizedText.isEmpty) {
+      // Most likely the recognizer was still busy with the last recording
+      // (or this is that one's leftover error): start again, quietly.
+      _restarted = true;
+      _restart(_session);
+      return;
+    }
     _handleRecognized(_session, _recognizedText);
+  }
+
+  Future<void> _restart(int session) async {
+    try {
+      await _speech.cancel();
+    } catch (_) {}
+    await Future.delayed(_restartGap);
+    if (!mounted || session != _session || _sessionHandled) return;
+    _listeningSeen = false;
+    await _listen(session);
   }
 
   Future<void> _onMicTap() async {
@@ -149,6 +185,8 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
     _bindCallbacks();
     final session = ++_session;
     _sessionHandled = false;
+    _listeningSeen = false;
+    _restarted = false;
     setState(() {
       _micState = _MicState.recording;
       _recognizedText = '';
@@ -158,6 +196,21 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
     _recordingTimer = Timer(_recordingLimit, () {
       if (mounted && session == _session) _handleRecognized(session, _recognizedText);
     });
+
+    // Let the previous recording be fully released first.
+    if (_speech.isListening) {
+      try {
+        await _speech.cancel();
+      } catch (_) {}
+    }
+    final sinceLast = DateTime.now().difference(_lastSessionEnd);
+    if (sinceLast < _restartGap) await Future.delayed(_restartGap - sinceLast);
+    if (!mounted || session != _session || _sessionHandled) return;
+    await _listen(session);
+  }
+
+  Future<void> _listen(int session) async {
+    _sessionStartedAt = DateTime.now();
     try {
       await _speech.listen(
         onResult: (SpeechRecognitionResult result) {
@@ -168,12 +221,17 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
         listenOptions: SpeechListenOptions(partialResults: true, cancelOnError: true),
       );
     } catch (_) {
-      if (mounted && session == _session && !_sessionHandled) {
-        _sessionHandled = true;
-        _recordingTimer?.cancel();
-        setState(() => _micState = _MicState.idle);
-        _showHint('Не удалось включить микрофон, попробуйте ещё раз');
+      if (!mounted || session != _session || _sessionHandled) return;
+      if (!_restarted) {
+        _restarted = true;
+        await _restart(session);
+        return;
       }
+      _sessionHandled = true;
+      _recordingTimer?.cancel();
+      _lastSessionEnd = DateTime.now();
+      setState(() => _micState = _MicState.idle);
+      _showHint('Не удалось включить микрофон, попробуйте ещё раз');
     }
   }
 
@@ -184,7 +242,10 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
     if (!mounted || session != _session || _sessionHandled) return;
     _sessionHandled = true;
     _recordingTimer?.cancel();
-    if (_speech.isListening) _speech.stop();
+    _lastSessionEnd = DateTime.now();
+    // Cancel, not stop: the answer is already decided, and a stop would
+    // make the recognizer send one more round of events.
+    if (_speech.isListening) _speech.cancel();
 
     if (recognized.trim().isEmpty) {
       // A technical non-detection (silence, noise, a recognizer error) --

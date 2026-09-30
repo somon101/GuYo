@@ -13,7 +13,10 @@ import 'package:guyo_app/widgets/exercises/speaking_word_exercise.dart';
 
 /// Plays the device recognizer: the test decides what gets "heard".
 class _FakeRecognizer extends SpeechToTextPlatform {
-  bool failNextListen = false;
+  int failListens = 0;
+  // Real Android says "listening" only once the mic is actually open; a
+  // test can hold that back to send stale events first.
+  bool autoListening = true;
   int listens = 0;
 
   @override
@@ -31,12 +34,12 @@ class _FakeRecognizer extends SpeechToTextPlatform {
     sampleRate = 0,
     SpeechListenOptions? options,
   }) async {
-    if (failNextListen) {
-      failNextListen = false;
+    if (failListens > 0) {
+      failListens--;
       throw PlatformException(code: 'busy');
     }
     listens++;
-    onStatus?.call('listening');
+    if (autoListening) onStatus?.call('listening');
     return true;
   }
 
@@ -73,7 +76,8 @@ Future<void> _show(WidgetTester tester, SpeakingWordItem item, List<bool> answer
 
 Future<void> _tapMic(WidgetTester tester) async {
   await tester.tap(_mic);
-  await tester.pump();
+  // A new recording waits a moment for the previous one to be released.
+  await tester.pump(const Duration(milliseconds: 500));
 }
 
 void main() {
@@ -97,6 +101,9 @@ void main() {
     await _show(tester, _item(2, 'китоб'), answers);
     await _tapMic(tester);
     expect(find.text('Нажмите, чтобы остановить'), findsOneWidget);
+    // An immediate failure is retried quietly once; failing again is real.
+    recognizer.fail('error_no_match');
+    await tester.pump(const Duration(milliseconds: 600));
     recognizer.fail('error_no_match');
     await tester.pump();
     expect(find.text('Речь не распознана, попробуйте ещё раз'), findsOneWidget);
@@ -133,9 +140,9 @@ void main() {
   testWidgets('a failed start never leaves it recording', (tester) async {
     final answers = <bool>[];
     await _show(tester, _item(5, 'об'), answers);
-    recognizer.failNextListen = true;
+    recognizer.failListens = 2; // the quiet retry fails too
     await _tapMic(tester);
-    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
     expect(find.text('Нажмите и произнесите слово'), findsOneWidget);
     await _tapMic(tester);
     expect(find.text('Нажмите, чтобы остановить'), findsOneWidget);
@@ -187,6 +194,54 @@ void main() {
     await _tapMic(tester);
     // "кито" is 80% similar -- at the threshold, so right straight away.
     recognizer.hear('кито');
+    await tester.pump(const Duration(seconds: 3));
+    expect(answers, [true]);
+  });
+
+  testWidgets('the previous recording\'s late "done" does not end the new one', (tester) async {
+    final answers = <bool>[];
+    await _show(tester, _item(9, 'хона'), answers);
+    await _tapMic(tester);
+    await _tapMic(tester); // stop with nothing heard
+    await tester.pump(const Duration(seconds: 1));
+
+    recognizer.autoListening = false;
+    await _tapMic(tester);
+    recognizer.onStatus?.call('done'); // the old recording's tail
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Нажмите, чтобы остановить'), findsOneWidget, reason: 'still recording');
+
+    recognizer.onStatus?.call('listening');
+    recognizer.hear('хона');
+    await tester.pump(const Duration(seconds: 3));
+    expect(answers, [true]);
+    recognizer.autoListening = true;
+  });
+
+  testWidgets('a "busy" error right after tapping restarts quietly and keeps recording', (tester) async {
+    final answers = <bool>[];
+    await _show(tester, _item(10, 'мактаб'), answers);
+    await _tapMic(tester);
+    final before = recognizer.listens;
+    recognizer.fail('error_busy');
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(recognizer.listens, before + 1, reason: 'listening again');
+    expect(find.text('Речь не распознана, попробуйте ещё раз'), findsNothing);
+    expect(find.text('Нажмите, чтобы остановить'), findsOneWidget);
+
+    recognizer.hear('мактаб');
+    await tester.pump(const Duration(seconds: 3));
+    expect(answers, [true]);
+  });
+
+  testWidgets('a failed start is retried once before giving up', (tester) async {
+    final answers = <bool>[];
+    await _show(tester, _item(11, 'нон'), answers);
+    recognizer.failListens = 1;
+    await _tapMic(tester);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('Нажмите, чтобы остановить'), findsOneWidget, reason: 'the retry got the mic');
+    recognizer.hear('нон');
     await tester.pump(const Duration(seconds: 3));
     expect(answers, [true]);
   });
