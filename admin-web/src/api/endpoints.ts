@@ -1,5 +1,7 @@
 import { api } from "./client";
 import type {
+  StatusEmoji,
+  StatusPhrase,
   PromoActivation,
   PromoCode,
   PromoLink,
@@ -1020,6 +1022,77 @@ export async function reorderSlogans(sloganIds: number[]): Promise<Slogan[]> {
 
 export async function deleteSlogan(id: number): Promise<void> {
   await api.delete(`/admin/slogans/${id}`);
+}
+
+// --- Статусы в рейтинге --------------------------------------------------------
+
+export async function listStatusEmojis(): Promise<StatusEmoji[]> {
+  const { data } = await api.get("/admin/status/emojis");
+  return data;
+}
+
+export interface StatusEmojiInput {
+  name?: string;
+  enabled?: boolean;
+  image?: File | null;
+}
+
+function statusEmojiForm(input: StatusEmojiInput): FormData {
+  const form = new FormData();
+  if (input.name !== undefined) form.append("name", input.name);
+  if (input.enabled !== undefined) form.append("enabled", String(input.enabled));
+  if (input.image) form.append("image", input.image);
+  return form;
+}
+
+export async function createStatusEmoji(input: StatusEmojiInput): Promise<StatusEmoji> {
+  const { data } = await api.post("/admin/status/emojis", statusEmojiForm(input), {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+export async function updateStatusEmoji(id: number, input: StatusEmojiInput): Promise<StatusEmoji> {
+  const { data } = await api.patch(`/admin/status/emojis/${id}`, statusEmojiForm(input), {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+export async function reorderStatusEmojis(ids: number[]): Promise<StatusEmoji[]> {
+  const { data } = await api.put("/admin/status/emojis/order", { ids });
+  return data;
+}
+
+export async function deleteStatusEmoji(id: number): Promise<void> {
+  await api.delete(`/admin/status/emojis/${id}`);
+}
+
+export async function listStatusPhrases(): Promise<StatusPhrase[]> {
+  const { data } = await api.get("/admin/status/phrases");
+  return data;
+}
+
+export async function createStatusPhrase(input: { text: string; enabled: boolean }): Promise<StatusPhrase> {
+  const { data } = await api.post("/admin/status/phrases", input);
+  return data;
+}
+
+export async function updateStatusPhrase(
+  id: number,
+  input: Partial<{ text: string; enabled: boolean }>,
+): Promise<StatusPhrase> {
+  const { data } = await api.patch(`/admin/status/phrases/${id}`, input);
+  return data;
+}
+
+export async function reorderStatusPhrases(ids: number[]): Promise<StatusPhrase[]> {
+  const { data } = await api.put("/admin/status/phrases/order", { ids });
+  return data;
+}
+
+export async function deleteStatusPhrase(id: number): Promise<void> {
+  await api.delete(`/admin/status/phrases/${id}`);
 }
 
 // --- Уведомления ---------------------------------------------------------------

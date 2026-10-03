@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/user_rating.dart';
+import '../widgets/leaderboard_status.dart';
+import 'status_picker_sheet.dart';
 import '../theme/app_colors.dart';
 import '../widgets/position_change.dart';
 import '../widgets/rank_icon.dart';
@@ -27,6 +29,13 @@ class RatingScreen extends StatefulWidget {
   State<RatingScreen> createState() => _RatingScreenState();
 }
 
+LeaderboardEntry? _myEntry(Leaderboard board) {
+  for (final e in board.entries) {
+    if (e.isMe) return e;
+  }
+  return null;
+}
+
 class _RatingScreenState extends State<RatingScreen> {
   bool _isLoading = true;
   String? _loadError;
@@ -40,6 +49,12 @@ class _RatingScreenState extends State<RatingScreen> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  /// Opens the status picker; a saved status shows on the board at once.
+  Future<void> _editStatus() async {
+    final saved = await showStatusPicker(context);
+    if (saved != null) _load();
   }
 
   Future<void> _load() async {
@@ -145,10 +160,16 @@ class _RatingScreenState extends State<RatingScreen> {
         else ...[
           if (board.entries.isNotEmpty) ...[
             const SizedBox(height: 4),
-            LeaderboardPodium(entries: board.entries),
+            LeaderboardPodium(entries: board.entries, onEditMyStatus: _editStatus),
           ],
           const SizedBox(height: 14),
-          _RankCard(rank: rank, color: color, onTap: _rating == null ? null : _openAllRanks),
+          _RankCard(
+            rank: rank,
+            color: color,
+            onTap: _rating == null ? null : _openAllRanks,
+            myStatusEmojiUrl: _myEntry(board)?.statusEmojiUrl,
+            onEditStatus: _editStatus,
+          ),
           const SizedBox(height: 14),
           if (board.entries.isEmpty)
             const Padding(
@@ -164,7 +185,7 @@ class _RatingScreenState extends State<RatingScreen> {
             // board shares the caller's own rank, so a per-row rank badge
             // would repeat the card above on every line.
             for (final entry in board.entries.skip(LeaderboardPodium.placeCount))
-              LeaderboardRow(entry: entry, accentColor: color),
+              LeaderboardRow(entry: entry, accentColor: color, onEditMyStatus: _editStatus),
         ],
       ],
     );
@@ -234,7 +255,10 @@ class LeaderboardPodium extends StatelessWidget {
 
   final List<LeaderboardEntry> entries;
 
-  const LeaderboardPodium({super.key, required this.entries});
+  /// Tapping your own place opens the status picker.
+  final VoidCallback? onEditMyStatus;
+
+  const LeaderboardPodium({super.key, required this.entries, this.onEditMyStatus});
 
   @override
   Widget build(BuildContext context) {
@@ -265,9 +289,9 @@ class LeaderboardPodium extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Expanded(child: _PodiumPlace(entry: second, place: 2)),
-              Expanded(child: _PodiumPlace(entry: first, place: 1)),
-              Expanded(child: _PodiumPlace(entry: third, place: 3)),
+              Expanded(child: _PodiumPlace(entry: second, place: 2, onEditMyStatus: onEditMyStatus)),
+              Expanded(child: _PodiumPlace(entry: first, place: 1, onEditMyStatus: onEditMyStatus)),
+              Expanded(child: _PodiumPlace(entry: third, place: 3, onEditMyStatus: onEditMyStatus)),
             ],
           ),
         ),
@@ -289,8 +313,9 @@ const Map<int, Color> _placeColors = {
 class _PodiumPlace extends StatelessWidget {
   final LeaderboardEntry? entry;
   final int place;
+  final VoidCallback? onEditMyStatus;
 
-  const _PodiumPlace({required this.entry, required this.place});
+  const _PodiumPlace({required this.entry, required this.place, this.onEditMyStatus});
 
   @override
   Widget build(BuildContext context) {
@@ -304,7 +329,7 @@ class _PodiumPlace extends StatelessWidget {
       return SizedBox(height: isFirst ? 0 : 150);
     }
 
-    return Padding(
+    final card = Padding(
       padding: EdgeInsets.only(bottom: isFirst ? 0 : 10),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -344,6 +369,12 @@ class _PodiumPlace extends StatelessWidget {
                   right: -6,
                   child: PositionChangeBadge(change: person.positionChange, fontSize: 11, outlined: true),
                 ),
+                if (person.statusEmojiUrl != null)
+                  Positioned(
+                    left: -4,
+                    bottom: isFirst ? 14 : 10,
+                    child: StatusEmojiBadge(url: person.statusEmojiUrl!, size: isFirst ? 30 : 24),
+                  ),
                 Positioned(
                   bottom: 0,
                   child: Container(
@@ -402,6 +433,10 @@ class _PodiumPlace extends StatelessWidget {
         ],
       ),
     );
+    if (person.isMe && onEditMyStatus != null) {
+      return GestureDetector(behavior: HitTestBehavior.opaque, onTap: onEditMyStatus, child: card);
+    }
+    return StatusBubble(emojiUrl: person.statusEmojiUrl, text: person.statusText, child: card);
   }
 }
 
@@ -461,8 +496,16 @@ class _RankCard extends StatelessWidget {
   final RankSummary rank;
   final Color color;
   final VoidCallback? onTap;
+  final String? myStatusEmojiUrl;
+  final VoidCallback onEditStatus;
 
-  const _RankCard({required this.rank, required this.color, required this.onTap});
+  const _RankCard({
+    required this.rank,
+    required this.color,
+    required this.onTap,
+    required this.myStatusEmojiUrl,
+    required this.onEditStatus,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -503,6 +546,7 @@ class _RankCard extends StatelessWidget {
                   ],
                 ),
               ),
+              _StatusChip(emojiUrl: myStatusEmojiUrl, onTap: onEditStatus),
               if (onTap != null) Icon(Icons.chevron_right, color: color.withValues(alpha: 0.8)),
             ],
           ),
@@ -523,18 +567,23 @@ class LeaderboardRow extends StatelessWidget {
   final Color accentColor;
   final bool showRank;
 
+  /// Tapping your own row opens the status picker; tapping anyone else's
+  /// shows their status.
+  final VoidCallback? onEditMyStatus;
+
   const LeaderboardRow({
     super.key,
     required this.entry,
     required this.accentColor,
     this.showRank = false,
+    this.onEditMyStatus,
   });
 
   @override
   Widget build(BuildContext context) {
     final rowRank = entry.rank;
     final rowColor = rowRank != null ? parseHexColor(rowRank.color) : accentColor;
-    return Padding(
+    final row = Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -557,19 +606,31 @@ class LeaderboardRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 6),
-            UserAvatar(avatarUrl: entry.avatarUrl, login: entry.login, size: 36),
+            AvatarWithStatus(
+              emojiUrl: entry.statusEmojiUrl,
+              badgeSize: 19,
+              child: UserAvatar(avatarUrl: entry.avatarUrl, login: entry.login, size: 36),
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: UserNameText(
-                  entry.login,
-                  isPremium: entry.isPremium,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: entry.isMe ? FontWeight.w800 : FontWeight.w600,
-                    color: AppColors.primaryDark,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: UserNameText(
+                        entry.login,
+                        isPremium: entry.isPremium,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: entry.isMe ? FontWeight.w800 : FontWeight.w600,
+                          color: AppColors.primaryDark,
+                        ),
+                      ),
+                    ),
+                    if (entry.statusText != null) const StatusPhraseHint(),
+                  ],
                 ),
               ),
             ),
@@ -585,6 +646,46 @@ class LeaderboardRow extends StatelessWidget {
               '${entry.totalPoints}',
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.rewardText),
             ),
+          ],
+        ),
+      ),
+    );
+    if (entry.isMe && onEditMyStatus != null) {
+      return GestureDetector(behavior: HitTestBehavior.opaque, onTap: onEditMyStatus, child: row);
+    }
+    return StatusBubble(emojiUrl: entry.statusEmojiUrl, text: entry.statusText, child: row);
+  }
+}
+
+/// The small "Статус" button on the rank card: your emoji, or a plus
+/// when you have none yet.
+class _StatusChip extends StatelessWidget {
+  final String? emojiUrl;
+  final VoidCallback onTap;
+  const _StatusChip({required this.emojiUrl, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      key: const ValueKey('rating-status-chip'),
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(left: 8),
+        padding: const EdgeInsets.fromLTRB(6, 5, 12, 5),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: AppShapes.cardShadow),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            emojiUrl != null
+                ? StatusEmojiBadge(url: emojiUrl!, size: 24)
+                : Container(
+                    width: 24,
+                    height: 24,
+                    decoration: const BoxDecoration(color: AppColors.violetSurface, shape: BoxShape.circle),
+                    child: const Icon(Icons.add_rounded, size: 18, color: AppColors.primary),
+                  ),
+            const SizedBox(width: 6),
+            const Text('Статус', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
           ],
         ),
       ),
@@ -632,6 +733,11 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
         _loadError = 'Не удалось загрузить рейтинг';
       });
     }
+  }
+
+  Future<void> _editStatus() async {
+    final saved = await showStatusPicker(context);
+    if (saved != null) _load();
   }
 
   @override
@@ -682,10 +788,10 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
       children: [
-        LeaderboardPodium(entries: entries),
+        LeaderboardPodium(entries: entries, onEditMyStatus: _editStatus),
         const SizedBox(height: 16),
         for (final entry in entries.skip(LeaderboardPodium.placeCount))
-          LeaderboardRow(entry: entry, accentColor: AppColors.primary, showRank: true),
+          LeaderboardRow(entry: entry, accentColor: AppColors.primary, showRank: true, onEditMyStatus: _editStatus),
       ],
     );
   }

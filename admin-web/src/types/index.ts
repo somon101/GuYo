@@ -450,6 +450,27 @@ export interface Slogan {
   created_at: string;
 }
 
+// --- Статусы в рейтинге --------------------------------------------------------
+// The emoji (GuYo's own pictures) and phrases a user picks from to show next
+// to their name on the leaderboard. Users never type their own.
+
+export interface StatusEmoji {
+  id: number;
+  name: string;
+  image_url: string | null;
+  enabled: boolean;
+  order: number;
+  created_at: string;
+}
+
+export interface StatusPhrase {
+  id: number;
+  text: string;
+  enabled: boolean;
+  order: number;
+  created_at: string;
+}
+
 // --- Уведомления ---------------------------------------------------------------
 // One inbox row per message. `source` is provenance -- "manual" for a message
 // an admin wrote here, and whatever a future automatic rule stamps. Both are

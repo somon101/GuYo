@@ -22,6 +22,7 @@ from app.rating import (
     position_changes,
     refresh_rank_positions,
 )
+from app.status import statuses_for
 from app.schemas.rating import LeaderboardEntryOut, LeaderboardOut, RankPublicOut, rank_public_out
 
 router = APIRouter(prefix="/rating", tags=["rating"])
@@ -36,6 +37,7 @@ def _entries_out(
     # Arrows describe moves WITHIN a rank, so only the own-rank board,
     # whose positions are exactly those, gets them.
     moves = position_changes(db, user_ids) if with_moves else {}
+    statuses = statuses_for(db, list(users.values()))
 
     # Every rank fetched once, not per row -- current_rank_for_points
     # itself queries the DB, and a global board can be up to 100 rows.
@@ -64,6 +66,8 @@ def _entries_out(
                 is_me=user.id == me.id,
                 is_premium=user.id in premium_ids,
                 position_change=moves.get(user.id),
+                status_emoji_url=statuses.get(user.id, (None, None))[0],
+                status_text=statuses.get(user.id, (None, None))[1],
             )
         )
     return entries

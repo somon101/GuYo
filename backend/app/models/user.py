@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Integer, String, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -73,4 +73,12 @@ class User(Base):
     # first in a random lesson. None = never asked yet, so the app asks
     # once; [] = asked and chose nothing.
     learning_topics: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    # The leaderboard status the user picked (app/models/status.py); either
+    # can be unset. Deleting an emoji or phrase just clears it here.
+    status_emoji_id: Mapped[int | None] = mapped_column(
+        ForeignKey("status_emojis.id", ondelete="SET NULL"), nullable=True
+    )
+    status_phrase_id: Mapped[int | None] = mapped_column(
+        ForeignKey("status_phrases.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

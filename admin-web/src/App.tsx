@@ -4,6 +4,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Layout } from "./components/Layout";
 import { LoginPage } from "./pages/LoginPage";
 import { UsersPage } from "./pages/UsersPage";
+import { StatusesPage } from "./pages/StatusesPage";
 import { SlogansPage } from "./pages/SlogansPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { PremiumPage } from "./pages/PremiumPage";
@@ -241,6 +242,16 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <SlogansPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/statuses"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <StatusesPage />
                 </Layout>
               </ProtectedRoute>
             }

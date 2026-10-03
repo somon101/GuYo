@@ -15,6 +15,7 @@ from app.core.storage import save_bytes
 from app.database import SessionLocal
 from app.models.admin import Admin
 from app.models.rating import Rank
+from app.models.status import StatusEmoji, StatusPhrase
 
 settings = get_settings()
 
@@ -83,6 +84,58 @@ def seed_ranks() -> None:
         db.close()
 
 
+STATUS_EMOJI_DIR = Path(__file__).parent / "seed_assets" / "status_emojis"
+
+# GuYo's own status emoji (drawn for the app, so they look the same on
+# every phone) and starter phrases. Seeded once, when each list is empty;
+# the admin edits, disables or replaces them freely afterwards.
+DEFAULT_STATUS_EMOJIS: list[tuple[str, str]] = [
+    ("Огонь", "fire.png"),
+    ("Корона", "crown.png"),
+    ("Ракета", "rocket.png"),
+    ("Молния", "bolt.png"),
+    ("Кубок", "trophy.png"),
+    ("Звезда", "star.png"),
+    ("Алмаз", "diamond.png"),
+    ("Цель", "target.png"),
+    ("Крутой", "cool.png"),
+    ("Первое место", "medal.png"),
+]
+DEFAULT_STATUS_PHRASES: list[str] = [
+    "Я буду первым!",
+    "Этот ранг будет моим",
+    "Меня не догнать",
+    "Я самый сильный",
+    "Цель — топ-1",
+    "Догоняй, если сможешь",
+    "Каждый день — новый рекорд",
+    "Учусь, пока другие отдыхают",
+    "Ман аввал мешавам!",
+    "Ман қавӣ ҳастам",
+]
+
+
+def seed_statuses() -> None:
+    db = SessionLocal()
+    try:
+        if db.query(StatusEmoji).first() is None:
+            for order, (name, filename) in enumerate(DEFAULT_STATUS_EMOJIS):
+                path = STATUS_EMOJI_DIR / filename
+                if not path.is_file():
+                    continue
+                key = save_bytes(path.read_bytes(), subdir="status/emojis", filename_hint=filename)
+                db.add(StatusEmoji(name=name, image_key=key, order=order, enabled=True))
+            print(f"[seed] created {len(DEFAULT_STATUS_EMOJIS)} status emojis")
+        if db.query(StatusPhrase).first() is None:
+            for order, text in enumerate(DEFAULT_STATUS_PHRASES):
+                db.add(StatusPhrase(text=text, order=order, enabled=True))
+            print(f"[seed] created {len(DEFAULT_STATUS_PHRASES)} status phrases")
+        db.commit()
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
     seed_admin()
     seed_ranks()
+    seed_statuses()

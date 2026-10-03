@@ -153,6 +153,10 @@ class LeaderboardEntryOut(BaseModel):
     # Places moved in this person's latest move within their rank, if it
     # happened in the last day: +3 up, -2 down. Own-rank board only.
     position_change: int | None = None
+    # The status this person picked (app/models/status.py): GuYo's own
+    # emoji picture and/or a preset phrase; null when unset.
+    status_emoji_url: str | None = None
+    status_text: str | None = None
 
 
 class LeaderboardOut(BaseModel):
