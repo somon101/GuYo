@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { getUserHistory, type UserHistory, type UserHistoryItem } from "../api/endpoints";
 
 const EXERCISES: Record<string, string> = {
@@ -26,65 +26,88 @@ function lessonName(item: UserHistoryItem): string {
   return n != null ? `урок ${n}` : "урок";
 }
 
-/** One readable line per step. */
-function describe(item: UserHistoryItem): { icon: string; text: string; tone: "ok" | "bad" | "info" } {
+type Tone = "ok" | "bad" | "info";
+type Line = { icon: string; title: string; detail?: string; tone: Tone };
+
+/** One step as a bold title and a quieter detail line. */
+function describe(item: UserHistoryItem): Line {
   const d = item.data ?? {};
   switch (item.kind) {
     case "answer": {
       const where = `${SOURCES[item.source ?? ""] ?? item.source}${item.lesson_number ? ` ${item.lesson_number}` : ""}`;
       const ex = EXERCISES[item.exercise_key ?? ""] ?? item.exercise_key;
-      const secs = item.duration_ms != null ? ` · ${(item.duration_ms / 1000).toFixed(1)} с` : "";
-      if (item.is_correct) {
-        return { icon: "✅", tone: "ok", text: `«${item.word}» (${item.translation ?? "—"}) — верно · ${ex} · ${where}${secs}` };
-      }
+      const secs = item.duration_ms != null ? `${(item.duration_ms / 1000).toFixed(1)} с` : null;
+      const meta = [ex, where, secs].filter(Boolean).join(" · ");
+      const title = `${item.word} — ${item.translation ?? "—"}`;
+      if (item.is_correct) return { icon: "✓", tone: "ok", title, detail: meta };
       const given = item.timed_out
-        ? "время вышло"
+        ? "Время вышло"
         : item.given_answer
-          ? `ответил «${item.given_answer}»`
-          : "неверно";
-      return { icon: "❌", tone: "bad", text: `«${item.word}» (${item.translation ?? "—"}) — ${given} · ${ex} · ${where}${secs}` };
+          ? `Ответил «${item.given_answer}»`
+          : "Ошибся";
+      return { icon: "✕", tone: "bad", title, detail: `${given} · ${meta}` };
     }
     case "lesson_created":
       return {
-        icon: d.adaptive ? "🤖" : "📘",
+        icon: d.adaptive ? "★" : "+",
         tone: "info",
-        text: `${d.adaptive ? "Автоматически создан персональный" : "Создан"} ${lessonName(item)} (${d.words} слов)`,
+        title: d.adaptive ? `Появился персональный ${lessonName(item)}` : `Создал ${lessonName(item)}`,
+        detail: `${d.words} слов`,
       };
     case "lesson_opened":
-      return { icon: "▶️", tone: "info", text: `Открыл ${lessonName(item)}` };
+      return { icon: "▶", tone: "info", title: `Открыл ${lessonName(item)}` };
     case "lesson_left":
       return {
-        icon: "🚪",
+        icon: "⏏",
         tone: "bad",
-        text: `Вышел из ${lessonName(item)}${d.exercise ? ` на упражнении ${d.exercise}${d.of ? ` из ${d.of}` : ""}` : ""}`,
+        title: `Вышел из ${lessonName(item)}`,
+        detail: d.exercise ? `на упражнении ${d.exercise}${d.of ? ` из ${d.of}` : ""}` : undefined,
       };
     case "lesson_completed":
-      return { icon: "🏁", tone: "ok", text: `Прошёл ${lessonName(item)}${d.adaptive ? " (персональный)" : ""}` };
+      return { icon: "✓", tone: "ok", title: `Прошёл ${lessonName(item)}`, detail: d.adaptive ? "персональный" : undefined };
     case "personal_quest_created":
-      return { icon: "🎯", tone: "info", text: `Появился персональный квест «${d.name}» (${d.words} слов)` };
+      return { icon: "★", tone: "info", title: "Появился персональный квест", detail: `${d.name} · ${d.words} слов` };
     case "quest_opened":
-      return { icon: "▶️", tone: "info", text: `Открыл квест${d.name ? ` «${d.name}»` : ""}` };
+      return { icon: "▶", tone: "info", title: "Открыл квест", detail: d.name };
     case "quest_left":
-      return { icon: "🚪", tone: "bad", text: `Вышел из квеста${d.name ? ` «${d.name}»` : ""}` };
+      return { icon: "⏏", tone: "bad", title: "Вышел из квеста", detail: d.name };
     case "quest_answered":
       return {
-        icon: d.correct ? "🏆" : "💥",
+        icon: d.correct ? "✓" : "✕",
         tone: d.correct ? "ok" : "bad",
-        text: `${d.personal ? "Персональный квест" : "Квест"} «${d.name}»: «${d.word}» — ${d.correct ? "решил" : "не решил"}`,
+        title: `${d.personal ? "Персональный квест" : "Квест"}: ${d.correct ? "решил" : "не решил"}`,
+        detail: `${d.name} · ${d.word}`,
       };
     case "app_opened":
-      return { icon: "📱", tone: "info", text: "Открыл приложение" };
+      return { icon: "●", tone: "info", title: "Открыл приложение" };
     default:
-      return { icon: "•", tone: "info", text: item.kind };
+      return { icon: "•", tone: "info", title: item.kind };
   }
 }
 
-const TONE = { ok: "text-slate-700", bad: "text-red-700", info: "text-indigo-700" };
+// Theme variables only (index.css), so light and dark both read well.
+const DOT: Record<Tone, string> = {
+  ok: "bg-[color-mix(in_srgb,var(--sys-green)_18%,transparent)] text-[var(--sys-green-ink)]",
+  bad: "bg-[color-mix(in_srgb,var(--sys-red)_18%,transparent)] text-[var(--sys-red-ink)]",
+  info: "bg-[color-mix(in_srgb,var(--sys-blue)_18%,transparent)] text-[var(--sys-blue-ink)]",
+};
+const DETAIL: Record<Tone, string> = { ok: "text-slate-500", bad: "text-[var(--sys-red-ink)]", info: "text-slate-500" };
 
-function Stat({ label, value }: { label: string; value: string | number }) {
+function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-      <div className="text-lg font-semibold text-slate-900">{value}</div>
+    <div className="rounded-xl bg-[var(--fill)] p-3">
+      <div className="mb-2 text-xs font-semibold text-slate-500">{title}</div>
+      <div className="flex flex-wrap gap-x-6 gap-y-2">{children}</div>
+    </div>
+  );
+}
+
+function Num({ value, label, tone }: { value: string | number; label: string; tone?: "ok" | "bad" }) {
+  const color =
+    tone === "ok" ? "text-[var(--sys-green-ink)]" : tone === "bad" ? "text-[var(--sys-red-ink)]" : "text-[var(--label)]";
+  return (
+    <div>
+      <div className={`text-2xl font-bold leading-tight tabular-nums ${color}`}>{value}</div>
       <div className="text-xs text-slate-500">{label}</div>
     </div>
   );
@@ -107,6 +130,8 @@ export function UserHistorySection({ userId }: { userId: number }) {
 
   const s = history?.summary;
   const accuracy = s && s.answers ? Math.round((s.correct / s.answers) * 100) : null;
+  const wrong = s ? s.answers - s.correct : 0;
+  const questsFailed = s ? s.personal_quest_answers - s.personal_quest_correct : 0;
 
   const groups: { day: string; items: UserHistoryItem[] }[] = [];
   for (const item of history?.items ?? []) {
@@ -117,14 +142,16 @@ export function UserHistorySection({ userId }: { userId: number }) {
 
   return (
     <section className="card p-5">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">История</h2>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold text-[var(--label)]">История</h2>
         <div className="flex gap-1">
           {PERIODS.map((p) => (
             <button
               key={p}
               onClick={() => setDays(p)}
-              className={`rounded-full px-3 py-1 text-xs font-medium ${p === days ? "bg-indigo-600 text-white" : "btn-tinted"}`}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                p === days ? "bg-[var(--sys-blue)] text-white" : "btn-tinted"
+              }`}
             >
               {p === 1 ? "сутки" : `${p} дн.`}
             </button>
@@ -132,32 +159,45 @@ export function UserHistorySection({ userId }: { userId: number }) {
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-[var(--sys-red-ink)]">{error}</p>}
       {!history && !error && <p className="text-sm text-slate-500">Загрузка истории…</p>}
 
       {s && (
         <>
-          <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <Stat label="ответов" value={s.answers} />
-            <Stat label="точность" value={accuracy != null ? `${accuracy}%` : "—"} />
-            <Stat label="время вышло" value={s.timed_out} />
-            <Stat label="открытий приложения" value={s.app_opens} />
-            <Stat label="уроков создано / пройдено" value={`${s.lessons_created} / ${s.lessons_completed}`} />
-            <Stat label="из них персональных" value={s.adaptive_lessons_created} />
-            <Stat label="выходов из урока" value={s.lessons_left} />
-            <Stat
-              label="перс. квесты: появилось / решено"
-              value={`${s.personal_quests_created} / ${s.personal_quest_correct} из ${s.personal_quest_answers}`}
-            />
+          <div className="mb-4 grid gap-2 sm:grid-cols-2">
+            <Group title="Ответы">
+              <Num value={s.answers} label="всего" />
+              <Num
+                value={accuracy != null ? `${accuracy}%` : "—"}
+                label="верно"
+                tone={accuracy == null ? undefined : accuracy >= 80 ? "ok" : "bad"}
+              />
+              <Num value={wrong} label="ошибок" tone={wrong ? "bad" : undefined} />
+              <Num value={s.timed_out} label="время вышло" tone={s.timed_out ? "bad" : undefined} />
+            </Group>
+            <Group title="Уроки">
+              <Num value={s.lessons_created} label="создано" />
+              <Num value={s.lessons_completed} label="пройдено" tone={s.lessons_completed ? "ok" : undefined} />
+              <Num value={s.lessons_left} label="бросил" tone={s.lessons_left ? "bad" : undefined} />
+              <Num value={s.adaptive_lessons_created} label="персональных" />
+            </Group>
+            <Group title="Персональные квесты">
+              <Num value={s.personal_quests_created} label="появилось" />
+              <Num value={s.personal_quest_correct} label="решил" tone={s.personal_quest_correct ? "ok" : undefined} />
+              <Num value={questsFailed} label="не решил" tone={questsFailed ? "bad" : undefined} />
+            </Group>
+            <Group title="Приложение">
+              <Num value={s.app_opens} label="открытий" />
+            </Group>
           </div>
 
           {s.top_mistakes.length > 0 && (
             <div className="mb-4">
-              <div className="mb-1 text-xs font-semibold text-slate-500">Чаще всего ошибается</div>
+              <div className="mb-1.5 text-xs font-semibold text-slate-500">Чаще всего ошибается</div>
               <div className="flex flex-wrap gap-1.5">
                 {s.top_mistakes.map((m) => (
-                  <span key={m.word_id} className="rounded-full bg-red-50 px-2.5 py-1 text-xs text-red-700">
-                    {m.word} ({m.translation ?? "—"}) × {m.wrong}
+                  <span key={m.word_id} className={`rounded-full px-2.5 py-1 text-xs font-medium ${DOT.bad}`}>
+                    {m.word} — {m.translation ?? "—"} · {m.wrong}×
                   </span>
                 ))}
               </div>
@@ -167,18 +207,27 @@ export function UserHistorySection({ userId }: { userId: number }) {
           {groups.length === 0 ? (
             <p className="text-sm text-slate-500">За этот период ничего не было.</p>
           ) : (
-            <div className="max-h-[600px] overflow-y-auto pr-1">
+            <div className="max-h-[640px] overflow-y-auto pr-1">
               {groups.map((g) => (
-                <div key={g.day} className="mb-3">
-                  <div className="sticky top-0 bg-white py-1 text-xs font-semibold text-slate-500">{g.day}</div>
-                  <ul className="flex flex-col gap-0.5">
+                <div key={g.day} className="mb-4">
+                  <div className="sticky top-0 z-10 bg-[var(--card)] py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    {g.day}
+                  </div>
+                  <ul className="flex flex-col">
                     {g.items.map((item, i) => {
                       const line = describe(item);
                       return (
-                        <li key={i} className={`flex gap-2 text-sm ${TONE[line.tone]}`}>
-                          <span className="w-11 shrink-0 tabular-nums text-slate-400">{time(item.at)}</span>
-                          <span className="w-5 shrink-0">{line.icon}</span>
-                          <span>{line.text}</span>
+                        <li key={i} className="flex items-start gap-3 border-b border-[var(--separator)] py-2 last:border-0">
+                          <span className="w-11 shrink-0 pt-0.5 text-xs tabular-nums text-slate-500">{time(item.at)}</span>
+                          <span
+                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${DOT[line.tone]}`}
+                          >
+                            {line.icon}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium text-[var(--label)]">{line.title}</div>
+                            {line.detail && <div className={`text-xs ${DETAIL[line.tone]}`}>{line.detail}</div>}
+                          </div>
                         </li>
                       );
                     })}
@@ -187,8 +236,8 @@ export function UserHistorySection({ userId }: { userId: number }) {
               ))}
             </div>
           )}
-          <p className="mt-2 text-xs text-slate-400">
-            Записанный ответ («ответил …») и события «открыл / вышел» появляются с новой версии приложения.
+          <p className="mt-2 text-xs text-slate-500">
+            Сам ответ («Ответил …») и «открыл / вышел» записываются только из новой версии приложения.
           </p>
         </>
       )}
