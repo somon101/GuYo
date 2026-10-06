@@ -60,7 +60,7 @@ function describe(item: UserHistoryItem): Line {
       return {
         icon: "🚪",
         tone: "bad",
-        title: `Вышел из ${lessonName(item)}`,
+        title: `Вышел из ${lessonName(item).replace("урок", "урока")}`,
         detail: d.exercise ? `на упражнении ${d.exercise}${d.of ? ` из ${d.of}` : ""}` : undefined,
       };
     case "lesson_completed":
@@ -220,7 +220,7 @@ export function UserHistorySection({ userId }: { userId: number }) {
                         <li key={i} className="flex items-start gap-3 border-b border-[var(--separator)] py-2 last:border-0">
                           <span className="w-11 shrink-0 pt-0.5 text-xs tabular-nums text-slate-500">{time(item.at)}</span>
                           <span
-                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm ${DOT[line.tone]}`}
+                            className="w-7 shrink-0 text-center text-xl leading-6"
                           >
                             {line.icon}
                           </span>
