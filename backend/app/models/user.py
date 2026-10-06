@@ -73,6 +73,8 @@ class User(Base):
     # first in a random lesson. None = never asked yet, so the app asks
     # once; [] = asked and chose nothing.
     learning_topics: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    # Interface language: "ru", "tg" or "uz" (app/core/content_language.py).
+    ui_language: Mapped[str] = mapped_column(String(8), nullable=False, default="ru", server_default="ru")
     # The leaderboard status the user picked (app/models/status.py); either
     # can be unset. Deleting an emoji or phrase just clears it here.
     status_emoji_id: Mapped[int | None] = mapped_column(

@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 # client's own concern (see mobile/lib/screens/register_screen.dart).
 AgeGroup = Literal["12-17", "18-24", "25+"]
 LearningGoal = Literal["study", "work", "communication", "travel", "relocation", "personal", "other"]
+UiLanguage = Literal["ru", "tg", "uz"]
 ReferralSource = Literal["social", "youtube", "telegram", "search", "friends", "ads", "other"]
 
 
@@ -77,6 +78,7 @@ class RegisterIn(BaseModel):
     # Several goals may be picked; older app versions send only learning_goal.
     learning_topics: list[LearningGoal] | None = None
     referral_source: ReferralSource
+    ui_language: UiLanguage = "ru"
 
     @field_validator("email")
     @classmethod
@@ -104,6 +106,7 @@ class UserUpdateIn(BaseModel):
     last_name: str | None = Field(default=None, min_length=1, max_length=100)
     email: str | None = Field(default=None, min_length=3, max_length=255)
     learning_topics: list[LearningGoal] | None = None
+    ui_language: UiLanguage | None = None
 
     @field_validator("email")
     @classmethod
@@ -165,3 +168,4 @@ class UserProfileOut(BaseModel):
     learning_goal: str | None = None
     referral_source: str | None = None
     learning_topics: list[str] | None = None
+    ui_language: str = "ru"

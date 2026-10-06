@@ -9,6 +9,7 @@ from app.core.security import TokenPayload, decode_access_token
 from app.database import get_db
 from app.models.admin import Admin
 from app.models.user import User
+from app.core.content_language import set_content_language_for
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -53,6 +54,7 @@ def get_current_user(
     user = db.get(User, payload.subject)
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    set_content_language_for(user.ui_language)
     return user
 
 
@@ -72,8 +74,10 @@ def get_current_principal(
         if db.get(Admin, payload.subject) is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Admin not found")
     elif payload.role == "user":
-        if db.get(User, payload.subject) is None:
+        user = db.get(User, payload.subject)
+        if user is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        set_content_language_for(user.ui_language)
     else:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid role")
     return Principal(role=payload.role, id=payload.subject)

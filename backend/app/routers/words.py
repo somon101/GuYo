@@ -28,6 +28,7 @@ from app.schemas.bulk import (
     ImportSummary,
 )
 from app.schemas.word import WordFormOut, WordLearningIn, WordOut, WordTranslationOut
+from app.core.content_language import only_translated, primary_translation
 
 router = APIRouter(tags=["words"])
 
@@ -50,7 +51,8 @@ def form_to_out(f: WordForm) -> WordFormOut:
 
 def word_to_out(word: Word) -> WordOut:
     translations = [translation_to_out(t) for t in word.translations]
-    primary = translations[0] if translations else None
+    chosen = primary_translation(word)
+    primary = translation_to_out(chosen) if chosen is not None else None
     return WordOut(
         id=word.id,
         dictionary_id=word.dictionary_id,
@@ -121,6 +123,8 @@ def list_words(
     if category_id is not None:
         query = query.filter(Word.category_id == category_id)
     words = query.order_by(Word.id).all()
+    if principal.role == "user":
+        words = only_translated(words)
     out = [word_to_out(w) for w in words]
     # A logged-in user also gets their OWN progress on each word (score, and
     # which reinforcement level that score falls into), so the shared word

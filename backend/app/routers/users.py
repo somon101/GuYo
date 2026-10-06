@@ -67,6 +67,7 @@ def new_user_row(
     learning_goal: str | None = None,
     referral_source: str | None = None,
     learning_topics: list[str] | None = None,
+    ui_language: str = "ru",
 ) -> User:
     """The one place a User row is ever built -- admin_router's
     create_user below and auth.py's public register_user both call this,
@@ -91,6 +92,7 @@ def new_user_row(
         learning_goal=learning_goal,
         referral_source=referral_source,
         learning_topics=learning_topics,
+        ui_language=ui_language,
     )
     db.add(user)
     db.flush()
@@ -157,6 +159,7 @@ def _profile_out(db: Session, user: User) -> UserProfileOut:
         learning_goal=user.learning_goal,
         referral_source=user.referral_source,
         learning_topics=user.learning_topics,
+        ui_language=user.ui_language,
     )
 
 
@@ -202,6 +205,8 @@ def update_my_profile(
         user.first_name = fields["first_name"].strip() if fields["first_name"] else None
     if "last_name" in fields:
         user.last_name = fields["last_name"].strip() if fields["last_name"] else None
+    if fields.get("ui_language"):
+        user.ui_language = fields["ui_language"]
     if "learning_topics" in fields:
         user.learning_topics = list(dict.fromkeys(fields["learning_topics"] or []))
 

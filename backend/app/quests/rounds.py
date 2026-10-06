@@ -25,6 +25,7 @@ from app.priority.distractors import prefer_distractor_words
 from app.routers.words import word_to_out
 from app.schemas.exercise import BuildWordRoundOut, ExerciseWordsOut, TrueOrFalseItemOut, TrueOrFalseRoundOut
 from app.schemas.lesson import ListenWordItemOut, ListenWordOptionOut, ListenWordRoundOut, SpeakingWordItemOut, SpeakingWordRoundOut
+from app.core.content_language import primary_translation
 
 # How many extra words (besides the quest's own target) pad a matching/
 # listening board -- purely a board-size choice, not a rule from anywhere
@@ -65,21 +66,21 @@ def build_matching_round(db: Session, user: User, dictionary_id: int, threshold:
 
 def build_true_or_false_round(db: Session, user: User, dictionary_id: int, threshold: int, target: Word) -> TrueOrFalseRoundOut:
     learned_pool = get_learned_pool(db, user.id, dictionary_id, threshold)
-    real_text = target.translations[0].text
+    real_text = primary_translation(target).text
     show_real = random.random() < 0.5
 
     fake_candidates = []
     if not show_real:
-        fake_candidates = [w for w in learned_pool if w.id != target.id and w.translations[0].text != real_text]
+        fake_candidates = [w for w in learned_pool if w.id != target.id and primary_translation(w).text != real_text]
 
     if show_real or not fake_candidates:
         shown_text = real_text
-        shown_audio = url_for_key(target.translations[0].audio_key)
+        shown_audio = url_for_key(primary_translation(target).audio_key)
         is_correct = True
     else:
         fake_word = prefer_distractor_words(db, user.id, fake_candidates)[0]
-        shown_text = fake_word.translations[0].text
-        shown_audio = url_for_key(fake_word.translations[0].audio_key)
+        shown_text = primary_translation(fake_word).text
+        shown_audio = url_for_key(primary_translation(fake_word).audio_key)
         is_correct = False
 
     item = TrueOrFalseItemOut(

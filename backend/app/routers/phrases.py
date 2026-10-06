@@ -31,6 +31,7 @@ from app.schemas.bulk import (
     ImportPhraseSummary,
 )
 from app.schemas.phrase import PhraseOut
+from app.core.content_language import only_translated_phrases, phrase_translation
 
 router = APIRouter(tags=["phrases"])
 
@@ -102,6 +103,8 @@ def phrase_to_out(phrase: Phrase) -> PhraseOut:
         original=phrase.original,
         transcription=phrase.transcription,
         translation_tg=phrase.translation_tg,
+        translation_uz=phrase.translation_uz,
+        translation=phrase_translation(phrase),
         original_audio_url=url_for_key(phrase.original_audio_key),
         translation_audio_url=url_for_key(phrase.translation_audio_key),
         created_at=phrase.created_at,
@@ -150,6 +153,8 @@ def list_phrases(
     if category_id is not None:
         query = query.filter(Phrase.category_id == category_id)
     phrases = query.order_by(Phrase.id).all()
+    if principal.role == "user":
+        phrases = only_translated_phrases(phrases)
     return [phrase_to_out(p) for p in phrases]
 
 
@@ -170,7 +175,7 @@ def list_available_phrases(
     dictionary = _get_published_dictionary_or_404(db, dictionary_id)
     learned_tokens = _get_learned_word_tokens(db, user.id, dictionary)
     phrases = db.query(Phrase).filter(Phrase.dictionary_id == dictionary_id).order_by(Phrase.id).all()
-    available = [p for p in phrases if _phrase_is_available(p, learned_tokens)]
+    available = [p for p in only_translated_phrases(phrases) if _phrase_is_available(p, learned_tokens)]
 
     # Fires from both Practice and "Мои фразы" -- another natural,
     # already-existing activity signal for the streak. This is otherwise a

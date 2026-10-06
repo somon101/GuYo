@@ -16,6 +16,7 @@ from app.models.lesson import Lesson
 from app.models.user import User
 from app.models.word import Word
 from app.schemas.exercise import BuildWordItemOut, BuildWordRoundOut
+from app.core.content_language import primary_translation as pick_translation
 
 KEY = "build_word"
 DEFAULT_WRONG_LETTER_COUNT = 3
@@ -68,7 +69,7 @@ def build_item(word: Word, alphabet: str, wrong_letter_count: int) -> BuildWordI
     all_letters = correct_letters + wrong_letters
     random.shuffle(all_letters)
 
-    primary_translation = word.translations[0]
+    primary_translation = pick_translation(word)
     return BuildWordItemOut(
         word_id=word.id,
         translation=primary_translation.text,

@@ -25,6 +25,7 @@ from app.models.word_level import WordLevel
 from app.models.word_progress import WordProgress
 from app.quests.rounds import build_round_for_quest, is_quest_word_feasible
 from app.rating import grant_rating_points
+from app.core.content_language import only_translated
 
 
 def _words_used_today(db: Session, user_id: int) -> set[int]:
@@ -144,7 +145,9 @@ def pick_quest_word(db: Session, user: User, quest: Quest, dictionary_id: int) -
     this never makes a quest impossible: with no High/Medium candidate at
     all, the first feasible word from the rest is picked exactly as
     before Priority existed."""
-    candidates = order_candidates_by_priority(db, user.id, candidate_words_for_quest(db, user, quest, dictionary_id))
+    candidates = order_candidates_by_priority(
+        db, user.id, only_translated(candidate_words_for_quest(db, user, quest, dictionary_id))
+    )
     threshold = get_threshold(db)
     for word in candidates:
         if is_quest_word_feasible(db, user, dictionary_id, threshold, quest.exercise_key, word):

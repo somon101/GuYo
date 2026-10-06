@@ -16,6 +16,7 @@ import random
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.content_language import primary_translation
 from app.core.deps import get_current_admin, get_current_user
 from app.core.storage import url_for_key
 from app.database import get_db
@@ -166,10 +167,10 @@ def get_true_or_false_round(
         return TrueOrFalseRoundOut(dictionary_id=dictionary_id, available_count=available_count, items=[])
 
     def primary_text(word: Word) -> str:
-        return word.translations[0].text
+        return primary_translation(word).text
 
     def primary_audio(word: Word) -> str | None:
-        return url_for_key(word.translations[0].audio_key)
+        return url_for_key(primary_translation(word).audio_key)
 
     items: list[TrueOrFalseItemOut] = []
     for word in selected:

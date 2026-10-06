@@ -23,6 +23,7 @@ from app.models.word import Word
 from app.models.word_progress import WordProgress
 from app.routers.lessons import _get_threshold
 from app.routers.words import word_to_out
+from app.core.content_language import has_translation, content_language
 from app.schemas.learning import CreateLearningSessionIn, LearnedCategoryOut, LearningSessionOut
 from app.schemas.word import WordOut
 from app.word_levels import level_for_score_in, ordered_enabled_levels
@@ -330,7 +331,7 @@ def list_learned_words(
     elif category_id is not None:
         query = query.filter(Word.category_id == category_id)
 
-    rows = query.order_by(Word.id).all()
+    rows = [(w, score) for w, score in query.order_by(Word.id).all() if content_language() != "uz" or has_translation(w)]
 
     if not include_in_progress:
         return [word_to_out(w) for w, _score in rows]

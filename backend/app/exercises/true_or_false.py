@@ -16,6 +16,7 @@ from app.models.word import Word
 from app.priority.calculate import calculate_priorities
 from app.priority.distractors import prefer_distractor_words
 from app.schemas.exercise import TrueOrFalseItemOut, TrueOrFalseRoundOut
+from app.core.content_language import primary_translation
 
 KEY = "true_or_false"
 
@@ -31,10 +32,10 @@ def build_round(db: Session, lesson: Lesson, threshold: int) -> TrueOrFalseRound
     learned_pool = get_learned_pool(db, lesson.user_id, lesson.dictionary_id, threshold)
 
     def primary_text(word: Word) -> str:
-        return word.translations[0].text
+        return primary_translation(word).text
 
     def primary_audio(word: Word) -> str | None:
-        return url_for_key(word.translations[0].audio_key)
+        return url_for_key(primary_translation(word).audio_key)
 
     pool_priorities = calculate_priorities(db, lesson.user_id, [w.id for w in learned_pool])
 

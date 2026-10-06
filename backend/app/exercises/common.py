@@ -15,6 +15,7 @@ from app.models.lesson import Lesson
 from app.models.word import Word
 from app.models.word_progress import WordProgress
 from app.word_levels import level_for_score_in, ordered_enabled_levels, top_level_threshold
+from app.core.content_language import only_translated
 
 DEFAULT_THRESHOLD = 60
 # (correct, incorrect) points, only used when an admin hasn't configured a
@@ -72,7 +73,8 @@ def get_eligible_words(db: Session, user_id: int, dictionary_id: int, threshold:
     from app.memory import secured_word_ids
 
     secured = secured_word_ids(db, user_id, None, threshold)
-    return [w for w in db.query(Word).filter(Word.dictionary_id == dictionary_id).all() if w.id not in secured]
+    words = [w for w in db.query(Word).filter(Word.dictionary_id == dictionary_id).all() if w.id not in secured]
+    return only_translated(words)
 
 
 def fill_word_progress(db: Session, user_id: int, words_out: list, word_ids: list[int]) -> None:
@@ -147,4 +149,4 @@ def get_learned_pool(db: Session, user_id: int, dictionary_id: int, threshold: i
         .filter(Word.dictionary_id == dictionary_id, Word.id.in_(learned_ids))
         .all()
     )
-    return [w for w in words if w.translations]
+    return [w for w in only_translated(words) if w.translations]

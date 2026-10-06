@@ -29,6 +29,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.content_language import primary_translation
 from app.core.dates import utc_now
 from app.core.deps import get_current_admin, get_current_user
 from app.core.storage import url_for_key
@@ -138,7 +139,7 @@ def _lesson_to_out(db: Session, lesson: Lesson, threshold: int) -> LessonOut:
     for lw in lesson_words:
         w = lw.word
         score = progress_by_word.get(lw.word_id, 0)
-        primary = w.translations[0] if w.translations else None
+        primary = primary_translation(w)
         level = level_for_score_in(levels, score)
         words_out.append(
             LessonWordOut(

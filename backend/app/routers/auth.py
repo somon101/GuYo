@@ -56,6 +56,7 @@ def register_user(payload: RegisterIn, db: Session = Depends(get_db)):
         learning_goal=payload.learning_goal,
         referral_source=payload.referral_source,
         learning_topics=list(dict.fromkeys(payload.learning_topics or [payload.learning_goal])),
+        ui_language=payload.ui_language,
     )
     db.commit()
     token = create_access_token(subject=user.id, role="user")
