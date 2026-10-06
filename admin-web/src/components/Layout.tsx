@@ -19,6 +19,7 @@ const navItems = [
   { to: "/promo", label: "Промокоды" },
   { to: "/retention", label: "Удержание" },
   { to: "/analytics", label: "Аналитика" },
+  { to: "/translation", label: "ИИ-перевод" },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {

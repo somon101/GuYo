@@ -1273,3 +1273,35 @@ export async function updateWordLearning(
   const { data } = await api.put(`/words/${wordId}/learning`, input);
   return data;
 }
+
+export interface TranslationState {
+  key_set: boolean;
+  key_masked: string | null;
+  status: "idle" | "running" | "completed" | "failed" | "stopped";
+  total: number;
+  done: number;
+  failed: number;
+  error: string | null;
+  missing_words: number;
+  missing_phrases: number;
+}
+
+export async function getTranslationState(): Promise<TranslationState> {
+  const { data } = await api.get("/admin/translation");
+  return data;
+}
+
+export async function setTranslationKey(apiKey: string): Promise<TranslationState> {
+  const { data } = await api.put("/admin/translation/key", { api_key: apiKey });
+  return data;
+}
+
+export async function startTranslation(): Promise<TranslationState> {
+  const { data } = await api.post("/admin/translation/start");
+  return data;
+}
+
+export async function stopTranslation(): Promise<TranslationState> {
+  const { data } = await api.post("/admin/translation/stop");
+  return data;
+}

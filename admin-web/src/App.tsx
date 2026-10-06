@@ -30,6 +30,7 @@ import { RetentionPage } from "./pages/RetentionPage";
 import { WordDiagnosticsPage } from "./pages/WordDiagnosticsPage";
 import { AchievementsPage } from "./pages/AchievementsPage";
 import { RatingPage } from "./pages/RatingPage";
+import { TranslationPage } from "./pages/TranslationPage";
 
 // HashRouter is used deliberately: GitHub Pages serves static files with no
 // server-side rewrites, so a BrowserRouter route like /dictionaries/3 would
@@ -222,6 +223,16 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <PrioritySettingsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/translation"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <TranslationPage />
                 </Layout>
               </ProtectedRoute>
             }
