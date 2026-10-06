@@ -14,13 +14,14 @@ export const DEFAULT_LANGUAGE_PRESETS: { value: string; label: string }[] = [
 // not capped at 3 -- a word can carry translations into any of these,
 // independent of which dictionaries exist. Adding a new one here (plus on
 // the backend's allow-list) is all a future language needs.
-export type TranslationLanguage = "en" | "ru" | "zh" | "tg";
+export type TranslationLanguage = "en" | "ru" | "zh" | "tg" | "uz";
 
 export const TRANSLATION_LANGUAGE_LABELS: Record<TranslationLanguage, string> = {
   en: "English",
   ru: "Русский",
   zh: "中文",
   tg: "Тоҷикӣ",
+  uz: "Oʻzbekcha",
 };
 
 export interface AdminUser {
@@ -115,6 +116,7 @@ export interface Phrase {
   original: string;
   transcription: string | null;
   translation_tg: string;
+  translation_uz: string | null;
   original_audio_url: string | null;
   translation_audio_url: string | null;
   created_at: string;

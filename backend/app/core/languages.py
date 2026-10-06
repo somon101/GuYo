@@ -17,6 +17,7 @@ TRANSLATION_LANGUAGE_LABELS: dict[str, str] = {
     "ru": "Русский",
     "zh": "中文",
     "tg": "Тоҷикӣ",
+    "uz": "Oʻzbekcha",
 }
 
 ALLOWED_TRANSLATION_LANGUAGES = set(TRANSLATION_LANGUAGE_LABELS)

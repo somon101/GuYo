@@ -367,6 +367,7 @@ export interface UpdatePhraseInput {
   transcription?: string;
   removeTranscription?: boolean;
   translationTg?: string;
+  translationUz?: string;
   categoryId?: number;
   removeCategory?: boolean;
   originalAudio?: File | null;
@@ -381,6 +382,7 @@ export async function updatePhrase(phraseId: number, input: UpdatePhraseInput): 
   if (input.transcription !== undefined) form.append("transcription", input.transcription);
   if (input.removeTranscription) form.append("remove_transcription", "true");
   if (input.translationTg !== undefined) form.append("translation_tg", input.translationTg);
+  if (input.translationUz !== undefined) form.append("translation_uz", input.translationUz);
   if (input.categoryId !== undefined) form.append("category_id", String(input.categoryId));
   if (input.removeCategory) form.append("remove_category", "true");
   if (input.originalAudio) form.append("original_audio", input.originalAudio);

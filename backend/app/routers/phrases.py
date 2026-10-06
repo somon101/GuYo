@@ -243,6 +243,7 @@ def update_phrase(
     transcription: str | None = Form(None),
     remove_transcription: bool = Form(False),
     translation_tg: str | None = Form(None),
+    translation_uz: str | None = Form(None),
     category_id: int | None = Form(None),
     remove_category: bool = Form(False),
     original_audio: UploadFile | None = File(None),
@@ -263,6 +264,10 @@ def update_phrase(
 
     if translation_tg is not None and translation_tg.strip():
         db_phrase.translation_tg = translation_tg.strip()
+
+    # Sent empty, the Uzbek translation is cleared (it is optional).
+    if translation_uz is not None:
+        db_phrase.translation_uz = translation_uz.strip() or None
 
     if remove_transcription:
         db_phrase.transcription = None

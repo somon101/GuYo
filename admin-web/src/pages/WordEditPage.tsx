@@ -72,6 +72,7 @@ export function WordEditPage() {
   const [translations, setTranslations] = useState<TranslationRow[]>([]);
 
   const [isSaving, setIsSaving] = useState(false);
+  const savedTranslations = translations.filter((t) => !t.isNew).length;
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedNotice, setSavedNotice] = useState(false);
 
@@ -81,15 +82,19 @@ export function WordEditPage() {
     setCategoryId(w.category_id);
     setImage(freshStage(w.image_url));
     setWordAudio(freshStage(w.word_audio_url));
-    setTranslations(
-      w.translations.map((t) => ({
-        language: t.language,
-        originalText: t.text,
-        text: t.text,
-        audio: freshStage(t.audio_url),
-        isNew: false,
-      })),
-    );
+    const rows: TranslationRow[] = w.translations.map((t) => ({
+      language: t.language,
+      originalText: t.text,
+      text: t.text,
+      audio: freshStage(t.audio_url),
+      isNew: false,
+    }));
+    // Uzbek is always offered: an empty field until someone (or the AI
+    // translator) fills it. Uzbek-interface learners only see translated words.
+    if (!rows.some((r) => r.language === "uz")) {
+      rows.push({ language: "uz", originalText: "", text: "", audio: freshStage(null), isNew: true });
+    }
+    setTranslations(rows);
   }
 
   async function reload() {
@@ -158,6 +163,7 @@ export function WordEditPage() {
       }
 
       for (const t of translations) {
+        if (t.isNew && !t.text.trim()) continue;
         const textChanged = t.text.trim() !== t.originalText;
         const audioChanged = stageChanged(t.audio);
         if (!textChanged && !audioChanged) continue;
@@ -309,16 +315,28 @@ export function WordEditPage() {
               <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
                 Перевод: {TRANSLATION_LANGUAGE_LABELS[t.language]}
               </span>
-              <button
-                type="button"
-                onClick={() => handleDeleteTranslation(t.language)}
-                disabled={translations.length <= 1}
-                title={translations.length <= 1 ? "У слова должен остаться хотя бы один перевод" : undefined}
-                className="text-xs text-slate-400 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-slate-400"
-              >
-                Удалить этот перевод
-              </button>
+              {!t.isNew && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteTranslation(t.language)}
+                  disabled={savedTranslations <= 1}
+                  title={savedTranslations <= 1 ? "У слова должен остаться хотя бы один перевод" : undefined}
+                  className="text-xs text-slate-400 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-slate-400"
+                >
+                  Удалить этот перевод
+                </button>
+              )}
             </div>
+            {i > 0 && (
+              <input
+                className="mb-3 w-full field px-3 py-2 text-sm"
+                value={t.text}
+                placeholder={t.isNew ? "Пока нет перевода" : undefined}
+                onChange={(e) =>
+                  setTranslations((rows) => rows.map((r, j) => (j === i ? { ...r, text: e.target.value } : r)))
+                }
+              />
+            )}
             <AudioBlock
               languageLabel={TRANSLATION_LANGUAGE_LABELS[t.language]}
               text={t.text || t.originalText}
