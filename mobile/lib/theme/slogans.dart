@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'dart:math';
 
 /// Where the greeting's one-line slogan on Главная comes from.
@@ -47,12 +48,12 @@ class BackendSloganSource implements SloganSource {
 /// user is using the app (a random pick per rebuild would make it flicker
 /// on every setState) but still varies day to day.
 class LocalSloganSource implements SloganSource {
-  static const List<String> slogans = [
-    'Давай учиться сегодня!',
-    'Пара слов в день — и язык твой.',
-    'Сегодня отличный день для нового слова.',
-    'Продолжай — у тебя получается.',
-    'Немного практики каждый день.',
+  static List<String> get slogans => [
+    tr('Давай учиться сегодня!'),
+    tr('Пара слов в день — и язык твой.'),
+    tr('Сегодня отличный день для нового слова.'),
+    tr('Продолжай — у тебя получается.'),
+    tr('Немного практики каждый день.'),
   ];
 
   final DateTime Function() _now;

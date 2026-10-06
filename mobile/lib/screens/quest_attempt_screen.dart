@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
@@ -75,7 +76,7 @@ class _QuestAttemptScreenState extends State<QuestAttemptScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Не удалось загрузить квест';
+        _errorMessage = tr('Не удалось загрузить квест');
       });
     }
   }
@@ -94,7 +95,7 @@ class _QuestAttemptScreenState extends State<QuestAttemptScreen> {
       setState(() => _result = result);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _errorMessage = 'Не удалось сохранить результат');
+      setState(() => _errorMessage = tr('Не удалось сохранить результат'));
     }
   }
 
@@ -121,7 +122,7 @@ class _QuestAttemptScreenState extends State<QuestAttemptScreen> {
           children: [
             Text(_errorMessage!, textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            FilledButton(onPressed: _load, child: const Text('Повторить')),
+            FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
           ],
         ),
       );
@@ -155,7 +156,7 @@ class _QuestAttemptScreenState extends State<QuestAttemptScreen> {
       case 'matching':
         return _MatchingQuest(payload: round.payload, onAnswer: _submit);
       default:
-        return const Text('Неизвестный тип упражнения');
+        return Text(tr('Неизвестный тип упражнения'));
     }
   }
 }
@@ -181,11 +182,11 @@ class _QuestResultView extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           Text(
-            correct ? 'Квест выполнен!' : 'Не в этот раз',
+            correct ? tr('Квест выполнен!') : tr('Не в этот раз'),
             style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
           ),
           const SizedBox(height: 6),
-          Text('Очки закрепления слова: ${result.score}', style: const TextStyle(color: AppColors.secondaryText)),
+          Text(tr('Очки закрепления слова: {0}', [result.score]), style: const TextStyle(color: AppColors.secondaryText)),
           if (result.rewardGranted > 0) ...[
             const SizedBox(height: 10),
             Container(
@@ -197,7 +198,7 @@ class _QuestResultView extends StatelessWidget {
                   const Icon(Icons.star_rounded, size: 16, color: AppColors.rewardText),
                   const SizedBox(width: 4),
                   Text(
-                    '+${result.rewardGranted} рейтинговых очков',
+                    tr('+{0} рейтинговых очков', [result.rewardGranted]),
                     style: const TextStyle(color: AppColors.rewardText, fontWeight: FontWeight.w800),
                   ),
                 ],
@@ -205,7 +206,7 @@ class _QuestResultView extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 28),
-          SizedBox(width: 200, child: FilledButton(onPressed: onDone, child: const Text('Готово'))),
+          SizedBox(width: 200, child: FilledButton(onPressed: onDone, child: Text(tr('Готово')))),
         ],
       ),
     );
@@ -287,7 +288,7 @@ class _MatchingQuestState extends State<_MatchingQuest> {
                   child: Text(_target.transcription!, style: const TextStyle(color: AppColors.secondaryText)),
                 ),
               const SizedBox(height: 6),
-              const Text('Выберите перевод', style: TextStyle(color: AppColors.secondaryText, fontSize: 13)),
+              Text(tr('Выберите перевод'), style: TextStyle(color: AppColors.secondaryText, fontSize: 13)),
             ],
           ),
         ),

@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 class GuyoDictionary {
   final int id;
   final String name;
@@ -20,9 +21,9 @@ class GuyoDictionary {
     );
   }
 
-  static const Map<String, String> languageLabels = {
+  static Map<String, String> get languageLabels => {
     'en': 'English',
-    'ru': 'Русский',
+    'ru': tr('Русский'),
     'zh': '中文',
   };
 

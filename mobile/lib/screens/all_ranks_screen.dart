@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/user_rating.dart';
@@ -49,7 +50,7 @@ class _AllRanksScreenState extends State<AllRanksScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = 'Не удалось загрузить уровни';
+        _loadError = tr('Не удалось загрузить уровни');
       });
     }
   }
@@ -57,7 +58,7 @@ class _AllRanksScreenState extends State<AllRanksScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Все уровни')),
+      appBar: AppBar(title: Text(tr('Все уровни'))),
       body: SafeArea(child: _buildBody()),
     );
   }
@@ -75,14 +76,14 @@ class _AllRanksScreenState extends State<AllRanksScreen> {
             children: [
               Text(_loadError!, textAlign: TextAlign.center),
               const SizedBox(height: 12),
-              FilledButton(onPressed: _load, child: const Text('Повторить')),
+              FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
             ],
           ),
         ),
       );
     }
     if (_ranks.isEmpty) {
-      return const Center(child: Text('Уровни ещё не настроены', style: TextStyle(color: AppColors.secondaryText)));
+      return Center(child: Text(tr('Уровни ещё не настроены'), style: TextStyle(color: AppColors.secondaryText)));
     }
 
     final totalPoints = widget.rating.totalPoints;
@@ -116,8 +117,8 @@ class _AllRanksScreenState extends State<AllRanksScreen> {
         // shows that system in full.
         if (history.isNotEmpty) ...[
           const SizedBox(height: 8),
-          const Text(
-            'История сезонов',
+          Text(
+            tr('История сезонов'),
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
           ),
           const SizedBox(height: 10),
@@ -233,8 +234,8 @@ class _RankCard extends StatelessWidget {
   const _RankCard({required this.rank, required this.status, required this.color, required this.totalPoints});
 
   String _pointsRangeLabel() {
-    if (rank.maxPoints == null) return 'от ${rank.minPoints} очков';
-    return '${rank.minPoints}–${rank.maxPoints} очков';
+    if (rank.maxPoints == null) return tr('от {0} очков', [rank.minPoints]);
+    return tr('{0}–{1} очков', [rank.minPoints, rank.maxPoints]);
   }
 
   @override
@@ -268,8 +269,8 @@ class _RankCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(20)),
-                  child: const Text(
-                    'Вы здесь',
+                  child: Text(
+                    tr('Вы здесь'),
                     style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
                   ),
                 )
@@ -294,13 +295,13 @@ class _RankCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Осталось ${rank.maxPoints! + 1 - totalPoints} очков до следующего уровня',
+              tr('Осталось {0} очков до следующего уровня', [rank.maxPoints! + 1 - totalPoints]),
               style: const TextStyle(fontSize: 11, color: AppColors.secondaryText),
             ),
           ] else if (isFuture) ...[
             const SizedBox(height: 4),
             Text(
-              'Нужно ещё ${rank.minPoints - totalPoints} очков',
+              tr('Нужно ещё {0} очков', [rank.minPoints - totalPoints]),
               style: const TextStyle(fontSize: 11, color: AppColors.secondaryText, fontWeight: FontWeight.w600),
             ),
           ],

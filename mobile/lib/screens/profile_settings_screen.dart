@@ -1,3 +1,5 @@
+import '../widgets/language_picker.dart';
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/user_profile.dart';
@@ -53,6 +55,19 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   bool _isPhotoBusy = false;
   String? _error;
 
+  /// Saved to the account first (it decides which translations the
+  /// server sends), then applied here -- the app restarts on its home tab.
+  Future<void> _changeLanguage(String code) async {
+    try {
+      await ApiClient.instance.updateMyProfile(uiLanguage: code);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Не удалось сохранить. Проверьте интернет.'))));
+      return;
+    }
+    await setAppLanguage(code);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -96,7 +111,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       return;
     }
     if (changes.containsKey('login') && changes['login']!.length < 3) {
-      setState(() => _error = 'Логин должен быть не короче 3 символов');
+      setState(() => _error = tr('Логин должен быть не короче 3 символов'));
       return;
     }
 
@@ -116,7 +131,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         _profile = saved;
         _isSaving = false;
       });
-      _showSnack('Сохранено');
+      _showSnack(tr('Сохранено'));
       Navigator.of(context).pop();
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -130,7 +145,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       if (!mounted) return;
       setState(() {
         _isSaving = false;
-        _error = 'Не удалось сохранить изменения';
+        _error = tr('Не удалось сохранить изменения');
       });
     }
   }
@@ -171,8 +186,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         backgroundColor: AppColors.canvas,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          'Настройки',
+        title: Text(
+          tr('Настройки'),
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
         ),
         iconTheme: const IconThemeData(color: AppColors.primaryDark),
@@ -190,28 +205,28 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             ),
             const SizedBox(height: 18),
             _Field(
-              label: 'Логин',
-              hint: 'Как вы входите в приложение',
+              label: tr('Логин'),
+              hint: tr('Как вы входите в приложение'),
               controller: _login,
               icon: Icons.alternate_email_rounded,
             ),
             const SizedBox(height: 12),
             _Field(
-              label: 'Имя',
+              label: tr('Имя'),
               controller: _firstName,
               icon: Icons.person_outline_rounded,
               textCapitalization: TextCapitalization.words,
             ),
             const SizedBox(height: 12),
             _Field(
-              label: 'Фамилия',
+              label: tr('Фамилия'),
               controller: _lastName,
               icon: Icons.badge_outlined,
               textCapitalization: TextCapitalization.words,
             ),
             const SizedBox(height: 12),
             _Field(
-              label: 'Электронная почта',
+              label: tr('Электронная почта'),
               controller: _email,
               icon: Icons.mail_outline_rounded,
               keyboardType: TextInputType.emailAddress,
@@ -225,6 +240,13 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 );
                 if (saved != null && mounted) setState(() => _profile = saved);
               },
+            ),
+            const SizedBox(height: 16),
+            Text(tr('Язык интерфейса'), style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: LanguagePicker(selected: appLanguage.value, onSelected: _changeLanguage),
             ),
             const SizedBox(height: 14),
             // The account number is shown, never edited: it is permanent
@@ -253,7 +275,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppShapes.pillRadius)),
                 ),
-                child: Text(_isSaving ? 'Сохранение…' : 'Сохранить'),
+                child: Text(_isSaving ? tr('Сохранение…') : tr('Сохранить')),
               ),
             ),
           ],
@@ -304,24 +326,24 @@ class _PhotoSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'Фотография',
+                Text(
+                  tr('Фотография'),
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  hasPhoto ? 'Ваше фото' : 'Пока используется стандартный аватар',
+                  hasPhoto ? tr('Ваше фото') : tr('Пока используется стандартный аватар'),
                   style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
                 ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    TextButton(onPressed: onChange, child: const Text('Изменить')),
+                    TextButton(onPressed: onChange, child: Text(tr('Изменить'))),
                     if (hasPhoto)
                       TextButton(
                         onPressed: onRemove,
                         style: TextButton.styleFrom(foregroundColor: const Color(0xFFD03A48)),
-                        child: const Text('Удалить'),
+                        child: Text(tr('Удалить')),
                       ),
                   ],
                 ),
@@ -426,10 +448,10 @@ class _TopicsRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Мои темы', style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
+                    Text(tr('Мои темы'), style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
                     const SizedBox(height: 2),
                     Text(
-                      labels.isEmpty ? 'Не выбраны' : labels.join(', '),
+                      labels.isEmpty ? tr('Не выбраны') : labels.join(', '),
                       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
                     ),
                   ],

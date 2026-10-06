@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -208,7 +209,7 @@ class IosSearchField extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final String placeholder;
 
-  const IosSearchField({super.key, required this.controller, required this.onChanged, this.placeholder = 'Поиск'});
+  IosSearchField({super.key, required this.controller, required this.onChanged, String? placeholder}) : placeholder = placeholder ?? tr('Поиск');
 
   @override
   Widget build(BuildContext context) {

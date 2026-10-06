@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -126,7 +127,7 @@ class _BuildPhraseByEarScreenState extends State<BuildPhraseByEarScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Не удалось загрузить упражнение';
+        _errorMessage = tr('Не удалось загрузить упражнение');
       });
     }
   }
@@ -208,7 +209,7 @@ class _BuildPhraseByEarScreenState extends State<BuildPhraseByEarScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Собери фразу на слух'),
+        title: Text(tr('Собери фразу на слух')),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -229,7 +230,7 @@ class _BuildPhraseByEarScreenState extends State<BuildPhraseByEarScreen> {
             children: [
               Text(_errorMessage!, textAlign: TextAlign.center),
               const SizedBox(height: 12),
-              FilledButton(onPressed: _load, child: const Text('Повторить')),
+              FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
             ],
           ),
         ),
@@ -244,14 +245,14 @@ class _BuildPhraseByEarScreenState extends State<BuildPhraseByEarScreen> {
             children: [
               Icon(Icons.headphones_outlined, size: 48, color: Colors.indigo.shade300),
               const SizedBox(height: 16),
-              const Text(
-                'Пока недостаточно данных для практики',
+              Text(
+                tr('Пока недостаточно данных для практики'),
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Нужны доступные фразы из 2+ слов с озвучкой. Изучите больше слов, чтобы открыть их.',
+              Text(
+                tr('Нужны доступные фразы из 2+ слов с озвучкой. Изучите больше слов, чтобы открыть их.'),
                 style: TextStyle(color: Colors.black54),
                 textAlign: TextAlign.center,
               ),
@@ -291,7 +292,7 @@ class _BuildPhraseByEarScreenState extends State<BuildPhraseByEarScreen> {
                   const SizedBox(height: 8),
                   if (_isEvaluated) ...[
                     const SizedBox(height: 8),
-                    _ResultBanner(isCorrect: _isCorrect, translation: _tasks[_index].phrase.translationTg),
+                    _ResultBanner(isCorrect: _isCorrect, translation: _tasks[_index].phrase.shownTranslation),
                   ],
                   const SizedBox(height: 16),
                   Container(
@@ -330,7 +331,7 @@ class _ProgressHeader extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Фраза $current из $total',
+              tr('Фраза {0} из {1}', [current, total]),
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black54),
             ),
             Row(
@@ -395,9 +396,9 @@ class _ListenCard extends StatelessWidget {
                 child: Icon(isPlaying ? Icons.graphic_eq : Icons.volume_up_rounded, color: Colors.white, size: 22),
               ),
               const SizedBox(width: 14),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Прослушать ещё раз',
+                  tr('Прослушать ещё раз'),
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.black87),
                 ),
               ),
@@ -441,8 +442,8 @@ class _AssembledArea extends StatelessWidget {
         ),
       ),
       child: tiles.isEmpty
-          ? const Center(
-              child: Text('Соберите фразу из слов ниже', style: TextStyle(color: Colors.black38, fontSize: 13)),
+          ? Center(
+              child: Text(tr('Соберите фразу из слов ниже'), style: TextStyle(color: Colors.black38, fontSize: 13)),
             )
           : Wrap(
               alignment: WrapAlignment.center,
@@ -542,7 +543,7 @@ class _ResultBanner extends StatelessWidget {
               Icon(isCorrect ? Icons.check_circle : Icons.cancel, color: color.shade600, size: 18),
               const SizedBox(width: 6),
               Text(
-                isCorrect ? 'Правильно' : 'Неправильный порядок',
+                isCorrect ? tr('Правильно') : tr('Неправильный порядок'),
                 style: TextStyle(fontWeight: FontWeight.w700, color: color.shade800, fontSize: 14),
               ),
             ],
@@ -581,11 +582,11 @@ class _RoundCompleteView extends StatelessWidget {
             children: [
               Icon(Icons.emoji_events_outlined, color: AppColors.gold, size: 48),
               const SizedBox(height: 12),
-              const Text('Практика завершена!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+              Text(tr('Практика завершена!'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
               const SizedBox(height: 6),
-              Text('Правильно: $correctCount из $total', style: const TextStyle(color: Colors.black54)),
+              Text(tr('Правильно: {0} из {1}', [correctCount, total]), style: const TextStyle(color: Colors.black54)),
               const SizedBox(height: 22),
-              FilledButton.icon(onPressed: onPlayAgain, icon: const Icon(Icons.refresh), label: const Text('Играть ещё раз')),
+              FilledButton.icon(onPressed: onPlayAgain, icon: const Icon(Icons.refresh), label: Text(tr('Играть ещё раз'))),
             ],
           ),
         ),

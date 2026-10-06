@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -43,7 +44,7 @@ class _PromoScreenState extends State<PromoScreen> {
   Future<void> _submit() async {
     final text = _controller.text.trim();
     if (text.isEmpty) {
-      setState(() => _error = 'Введите промокод или вставьте ссылку');
+      setState(() => _error = tr('Введите промокод или вставьте ссылку'));
       return;
     }
     FocusScope.of(context).unfocus();
@@ -69,7 +70,7 @@ class _PromoScreenState extends State<PromoScreen> {
       if (!mounted) return;
       setState(() {
         _isSubmitting = false;
-        _error = 'Не удалось проверить промокод. Проверьте интернет.';
+        _error = tr('Не удалось проверить промокод. Проверьте интернет.');
       });
     }
   }
@@ -78,7 +79,7 @@ class _PromoScreenState extends State<PromoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      appBar: AppBar(title: const Text('Промокод'), backgroundColor: AppColors.canvas),
+      appBar: AppBar(title: Text(tr('Промокод')), backgroundColor: AppColors.canvas),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
         children: [
@@ -90,13 +91,13 @@ class _PromoScreenState extends State<PromoScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Промокод или ссылка',
+                Text(
+                  tr('Промокод или ссылка'),
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Введите промокод или вставьте ссылку на видео GuYo и получите дни Premium.',
+                Text(
+                  tr('Введите промокод или вставьте ссылку на видео GuYo и получите дни Premium.'),
                   style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
                 ),
                 const SizedBox(height: 14),
@@ -111,7 +112,7 @@ class _PromoScreenState extends State<PromoScreen> {
                     if (_error != null) setState(() => _error = null);
                   },
                   decoration: InputDecoration(
-                    hintText: 'GUYO2026 или https://youtu.be/…',
+                    hintText: tr('GUYO2026 или https://youtu.be/…'),
                     filled: true,
                     fillColor: AppColors.violetSurface,
                     border: OutlineInputBorder(
@@ -121,7 +122,7 @@ class _PromoScreenState extends State<PromoScreen> {
                     errorText: _error,
                     errorMaxLines: 3,
                     suffixIcon: IconButton(
-                      tooltip: 'Вставить',
+                      tooltip: tr('Вставить'),
                       icon: const Icon(Icons.content_paste_rounded, color: AppColors.primary),
                       onPressed: _isSubmitting ? null : _paste,
                     ),
@@ -137,31 +138,31 @@ class _PromoScreenState extends State<PromoScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppShapes.rowRadius)),
                     ),
                     child: _isSubmitting
-                        ? const SkeletonPulse(child: Text('Проверяем…', style: TextStyle(fontWeight: FontWeight.w700)))
-                        : const Text('Активировать', style: TextStyle(fontWeight: FontWeight.w700)),
+                        ? SkeletonPulse(child: Text(tr('Проверяем…'), style: TextStyle(fontWeight: FontWeight.w700)))
+                        : Text(tr('Активировать'), style: TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 14),
-          const GuyoCard(
+          GuyoCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Где взять',
+                  tr('Где взять'),
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                 ),
                 SizedBox(height: 8),
                 _Hint(
                   icon: Icons.smart_display_rounded,
-                  text: 'Смотрите видео GuYo в соцсетях и вставляйте сюда их ссылки. '
-                      'Первая ссылка даёт больше всего дней, каждая следующая — ещё немного.',
+                  text: tr('Смотрите видео GuYo в соцсетях и вставляйте сюда их ссылки. ') +
+                      tr('Первая ссылка даёт больше всего дней, каждая следующая — ещё немного.'),
                 ),
                 _Hint(
                   icon: Icons.confirmation_number_rounded,
-                  text: 'Промокоды мы публикуем в соцсетях и дарим на акциях. Каждый можно активировать один раз.',
+                  text: tr('Промокоды мы публикуем в соцсетях и дарим на акциях. Каждый можно активировать один раз.'),
                 ),
               ],
             ),
@@ -202,18 +203,18 @@ class _SuccessCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '+${result.days} дн. Premium',
+                  tr('+{0} дн. Premium', [result.days]),
                   style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Premium активен до ${formatPremiumDate(result.premiumUntil)}',
+                  tr('Premium активен до {0}', [formatPremiumDate(result.premiumUntil)]),
                   style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.rewardText),
                 ),
                 if (result.isFirstLink) ...[
                   const SizedBox(height: 3),
-                  const Text(
-                    'Бонус за первую ссылку!',
+                  Text(
+                    tr('Бонус за первую ссылку!'),
                     style: TextStyle(fontSize: 12.5, color: AppColors.rewardText),
                   ),
                 ],

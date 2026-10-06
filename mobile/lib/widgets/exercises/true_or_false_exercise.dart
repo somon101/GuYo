@@ -1,3 +1,4 @@
+import '../../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../../api/api_client.dart';
 import '../../models/exercise.dart';
@@ -230,7 +231,7 @@ class _AnswerButtons extends StatelessWidget {
         Expanded(
           child: _AnswerButton(
             key: const ValueKey('true-or-false-answer-true'),
-            label: 'Правда',
+            label: tr('Правда'),
             icon: Icons.check_rounded,
             color: AppColors.success,
             onTap: isLocked ? null : () => onAnswer(true),
@@ -240,7 +241,7 @@ class _AnswerButtons extends StatelessWidget {
         Expanded(
           child: _AnswerButton(
             key: const ValueKey('true-or-false-answer-false'),
-            label: 'Ложь',
+            label: tr('Ложь'),
             icon: Icons.close_rounded,
             color: AppColors.danger,
             onTap: isLocked ? null : () => onAnswer(false),

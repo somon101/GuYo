@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
@@ -24,7 +25,7 @@ class PositionChangeBadge extends StatelessWidget {
     final up = value > 0;
     final color = up ? AppColors.success : AppColors.danger;
     return Semantics(
-      label: up ? 'Поднялся на $value' : 'Опустился на ${-value}',
+      label: up ? tr('Поднялся на {0}', [value]) : tr('Опустился на {0}', [-value]),
       child: Container(
         padding: EdgeInsets.fromLTRB(fontSize * 0.25, fontSize * 0.1, fontSize * 0.55, fontSize * 0.1),
         decoration: BoxDecoration(

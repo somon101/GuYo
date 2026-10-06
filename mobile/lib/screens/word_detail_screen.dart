@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../theme/app_colors.dart';
@@ -37,7 +38,7 @@ class WordDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
     return Scaffold(
-      appBar: AppBar(title: const Text('Слово')),
+      appBar: AppBar(title: Text(tr('Слово'))),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
@@ -120,7 +121,7 @@ class WordDetailScreen extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      level.name ?? 'Уровень не определён',
+                      level.name ?? tr('Уровень не определён'),
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: level.color),
                     ),
                   ),

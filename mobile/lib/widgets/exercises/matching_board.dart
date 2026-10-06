@@ -1,3 +1,4 @@
+import '../../l10n/l10n.dart';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -180,7 +181,7 @@ class _MatchingProgressHeader extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(color: AppColors.dangerLight, borderRadius: BorderRadius.circular(AppShapes.pillRadius)),
               child: Text(
-                'Ошибок: $mistakes',
+                tr('Ошибок: {0}', [mistakes]),
                 style: const TextStyle(fontSize: 13, color: AppColors.danger, fontWeight: FontWeight.w700),
               ),
             ),

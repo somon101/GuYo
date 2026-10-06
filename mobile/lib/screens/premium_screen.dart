@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -42,7 +43,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'Не удалось загрузить данные');
+      setState(() => _error = tr('Не удалось загрузить данные'));
     }
   }
 
@@ -66,7 +67,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                               children: [
                                 Text(_error!),
                                 const SizedBox(height: 12),
-                                FilledButton(onPressed: _load, child: const Text('Повторить')),
+                                FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
                               ],
                             ),
                     ),
@@ -103,7 +104,7 @@ class _Body extends StatelessWidget {
               onPromoUsed();
             },
             icon: const Icon(Icons.confirmation_number_rounded, size: 18),
-            label: const Text('Есть промокод или ссылка на видео?'),
+            label: Text(tr('Есть промокод или ссылка на видео?')),
           ),
         ),
         const SizedBox(height: 4),
@@ -148,14 +149,14 @@ class _StatusHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  status.isPremium ? 'Premium активен' : 'Учитесь без ограничений',
+                  status.isPremium ? tr('Premium активен') : tr('Учитесь без ограничений'),
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   status.isPremium
-                      ? (until == null ? 'Спасибо за поддержку!' : 'До ${formatPremiumDate(until)}')
-                      : 'Сейчас у вас бесплатный доступ',
+                      ? (until == null ? tr('Спасибо за поддержку!') : tr('До {0}', [formatPremiumDate(until)]))
+                      : tr('Сейчас у вас бесплатный доступ'),
                   style: const TextStyle(fontSize: 13.5, color: AppColors.rewardText, fontWeight: FontWeight.w600),
                 ),
               ],
@@ -175,36 +176,36 @@ class _Benefits extends StatelessWidget {
   Widget build(BuildContext context) {
     final quota = status.lessons;
     final freeLimits = <String>[
-      if (!status.isPremium && quota.dailyLimit != null) '${quota.dailyLimit} в день',
-      if (!status.isPremium && quota.weeklyLimit != null) '${quota.weeklyLimit} в неделю',
+      if (!status.isPremium && quota.dailyLimit != null) tr('{0} в день', [quota.dailyLimit]),
+      if (!status.isPremium && quota.weeklyLimit != null) tr('{0} в неделю', [quota.weeklyLimit]),
     ];
     return GuyoCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Что даёт Premium',
+          Text(
+            tr('Что даёт Premium'),
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
           ),
           const SizedBox(height: 12),
           _BenefitRow(
             icon: Icons.all_inclusive_rounded,
-            title: 'Уроки без ограничений',
+            title: tr('Уроки без ограничений'),
             subtitle: freeLimits.isEmpty
-                ? 'Создавайте столько уроков, сколько хотите'
-                : 'Без Premium — не больше ${freeLimits.join(' и ')}',
+                ? tr('Создавайте столько уроков, сколько хотите')
+                : tr('Без Premium — не больше {0}', [freeLimits.join(' и ')]),
           ),
           if (status.adaptiveLessonsPremiumOnly)
-            const _BenefitRow(
+            _BenefitRow(
               icon: Icons.autorenew_rounded,
-              title: 'Автоуроки для закрепления',
-              subtitle: 'Слова, которые даются трудно, сами соберутся в урок',
+              title: tr('Автоуроки для закрепления'),
+              subtitle: tr('Слова, которые даются трудно, сами соберутся в урок'),
             ),
           if (status.personalQuestsPremiumOnly)
-            const _BenefitRow(
+            _BenefitRow(
               icon: Icons.flag_rounded,
-              title: 'Персональные квесты',
-              subtitle: 'Задания под ваши слабые места с бонусными очками',
+              title: tr('Персональные квесты'),
+              subtitle: tr('Задания под ваши слабые места с бонусными очками'),
             ),
         ],
       ),
@@ -260,7 +261,7 @@ class _HowToPay extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            status.isPremium ? 'Продлить Premium' : 'Как подключить',
+            status.isPremium ? tr('Продлить Premium') : tr('Как подключить'),
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
           ),
           if (status.priceText.isNotEmpty) ...[
@@ -274,7 +275,7 @@ class _HowToPay extends StatelessWidget {
           Text(
             status.paymentInstructions.isNotEmpty
                 ? status.paymentInstructions
-                : 'Способ оплаты скоро появится здесь.',
+                : tr('Способ оплаты скоро появится здесь.'),
             style: const TextStyle(fontSize: 14, height: 1.4, color: AppColors.primaryDark),
           ),
           const SizedBox(height: 14),
@@ -290,7 +291,7 @@ class _HowToPay extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Ваш ID', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+                      Text(tr('Ваш ID'), style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
                       Text(
                         id,
                         style: const TextStyle(
@@ -308,18 +309,18 @@ class _HowToPay extends StatelessWidget {
                   onPressed: () async {
                     await Clipboard.setData(ClipboardData(text: id));
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ID скопирован')));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('ID скопирован'))));
                   },
                   icon: const Icon(Icons.copy_rounded, size: 18),
-                  label: const Text('Копировать'),
+                  label: Text(tr('Копировать')),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 10),
           Text(
-            'Укажите ID в комментарии к переводу. После проверки оплаты Premium '
-            '${status.isPremium ? 'продлится' : 'включится'}, и вам придёт уведомление.',
+            tr('Укажите ID в комментарии к переводу. После проверки оплаты Premium ') +
+                tr('{0}, и вам придёт уведомление.', [status.isPremium ? tr('продлится') : tr('включится')]),
             style: const TextStyle(fontSize: 12.5, height: 1.35, color: AppColors.secondaryText),
           ),
         ],

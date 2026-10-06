@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
@@ -23,20 +24,20 @@ class RegisterScreen extends StatefulWidget {
 
 const int _totalSteps = 5;
 
-const List<({String code, String label})> _ageGroups = [
-  (code: '12-17', label: '12–17 лет'),
-  (code: '18-24', label: '18–24 года'),
-  (code: '25+', label: '25+ лет'),
+List<({String code, String label})> get _ageGroups => [
+  (code: '12-17', label: tr('12–17 лет')),
+  (code: '18-24', label: tr('18–24 года')),
+  (code: '25+', label: tr('25+ лет')),
 ];
 
-const List<({String code, String label})> _referralSources = [
-  (code: 'social', label: 'Социальные сети'),
+List<({String code, String label})> get _referralSources => [
+  (code: 'social', label: tr('Социальные сети')),
   (code: 'youtube', label: 'YouTube'),
   (code: 'telegram', label: 'Telegram'),
-  (code: 'search', label: 'Поисковик'),
-  (code: 'friends', label: 'От друзей или знакомых'),
-  (code: 'ads', label: 'Реклама'),
-  (code: 'other', label: 'Другое'),
+  (code: 'search', label: tr('Поисковик')),
+  (code: 'friends', label: tr('От друзей или знакомых')),
+  (code: 'ads', label: tr('Реклама')),
+  (code: 'other', label: tr('Другое')),
 ];
 
 class _RegisterScreenState extends State<RegisterScreen> {
@@ -112,7 +113,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       setState(() {
         _isLoadingLanguages = false;
-        _languagesError = 'Не удалось загрузить список языков. Проверьте интернет.';
+        _languagesError = tr('Не удалось загрузить список языков. Проверьте интернет.');
       });
     }
   }
@@ -163,20 +164,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final emailLooksValid = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
 
     setState(() {
-      _firstNameError = firstName.isEmpty ? 'Введите имя' : null;
-      _lastNameError = lastName.isEmpty ? 'Введите фамилию' : null;
+      _firstNameError = firstName.isEmpty ? tr('Введите имя') : null;
+      _lastNameError = lastName.isEmpty ? tr('Введите фамилию') : null;
       _emailError = email.isEmpty
-          ? 'Введите email'
-          : (!emailLooksValid ? 'Некорректный email' : null);
+          ? tr('Введите email')
+          : (!emailLooksValid ? tr('Некорректный email') : null);
       _loginError = login.isEmpty
-          ? 'Введите логин'
-          : (login.length < 3 ? 'Минимум 3 символа' : null);
+          ? tr('Введите логин')
+          : (login.length < 3 ? tr('Минимум 3 символа') : null);
       _passwordError = password.isEmpty
-          ? 'Введите пароль'
-          : (password.length < 4 ? 'Минимум 4 символа' : null);
+          ? tr('Введите пароль')
+          : (password.length < 4 ? tr('Минимум 4 символа') : null);
       _confirmError = confirm.isEmpty
-          ? 'Повторите пароль'
-          : (confirm != password ? 'Пароли не совпадают' : null);
+          ? tr('Повторите пароль')
+          : (confirm != password ? tr('Пароли не совпадают') : null);
     });
 
     return _firstNameError == null &&
@@ -221,12 +222,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       setState(() {
         _isSubmitting = false;
-        _submitError = 'Не удалось подключиться к серверу. Данные не потеряны — можно попробовать ещё раз.';
+        _submitError = tr('Не удалось подключиться к серверу. Данные не потеряны — можно попробовать ещё раз.');
       });
     }
   }
 
-  String get _nextLabel => _step == _totalSteps - 1 ? 'Создать аккаунт' : 'Далее';
+  String get _nextLabel => _step == _totalSteps - 1 ? tr('Создать аккаунт') : tr('Далее');
 
   @override
   Widget build(BuildContext context) {
@@ -313,7 +314,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       case 2:
         return _ChoiceStep(
-          title: 'Укажите ваш возраст',
+          title: tr('Укажите ваш возраст'),
           keyPrefix: 'age',
           options: _ageGroups,
           selected: _ageGroup,
@@ -321,8 +322,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       case 3:
         return _ChoiceStep(
-          title: 'Для чего вы изучаете язык?',
-          subtitle: 'Можно выбрать несколько',
+          title: tr('Для чего вы изучаете язык?'),
+          subtitle: tr('Можно выбрать несколько'),
           keyPrefix: 'goal',
           options: learningGoals,
           selectedMany: _learningGoals,
@@ -332,7 +333,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       case 4:
         return _ChoiceStep(
-          title: 'Как вы нас нашли?',
+          title: tr('Как вы нас нашли?'),
           keyPrefix: 'referral',
           options: _referralSources,
           selected: _referralSource,
@@ -444,13 +445,13 @@ class _LanguageStep extends StatelessWidget {
     }
     if (error != null) {
       return _StepScaffold(
-        title: 'Какой язык хотите изучать?',
+        title: tr('Какой язык хотите изучать?'),
         child: GuyoCard(
           child: Column(
             children: [
               Text(error!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.secondaryText)),
               const SizedBox(height: 12),
-              FilledButton(onPressed: onRetry, child: const Text('Повторить')),
+              FilledButton(onPressed: onRetry, child: Text(tr('Повторить'))),
             ],
           ),
         ),
@@ -458,10 +459,10 @@ class _LanguageStep extends StatelessWidget {
     }
     if (languages.isEmpty) {
       return _StepScaffold(
-        title: 'Какой язык хотите изучать?',
-        child: const GuyoCard(
+        title: tr('Какой язык хотите изучать?'),
+        child: GuyoCard(
           child: Text(
-            'Пока нет доступных языков для изучения. Загляните чуть позже.',
+            tr('Пока нет доступных языков для изучения. Загляните чуть позже.'),
             style: TextStyle(color: AppColors.secondaryText),
           ),
         ),
@@ -472,8 +473,8 @@ class _LanguageStep extends StatelessWidget {
     final showMoreButton = !showAll && languages.length > 4;
 
     return _StepScaffold(
-      title: 'Какой язык хотите изучать?',
-      subtitle: 'Это будет ваш основной язык обучения в GuYo.',
+      title: tr('Какой язык хотите изучать?'),
+      subtitle: tr('Это будет ваш основной язык обучения в GuYo.'),
       child: Column(
         children: [
           for (final dict in visible) ...[
@@ -489,7 +490,7 @@ class _LanguageStep extends StatelessWidget {
             TextButton(
               key: const ValueKey('register-show-all-languages'),
               onPressed: onShowAll,
-              child: const Text('Другие доступные языки', style: TextStyle(fontWeight: FontWeight.w700)),
+              child: Text(tr('Другие доступные языки'), style: TextStyle(fontWeight: FontWeight.w700)),
             ),
         ],
       ),
@@ -531,12 +532,12 @@ class _AccountStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _StepScaffold(
-      title: 'Данные аккаунта',
+      title: tr('Данные аккаунта'),
       child: Column(
         children: [
           _FormField(
             fieldKey: const ValueKey('register-field-first-name'),
-            label: 'Имя',
+            label: tr('Имя'),
             controller: firstNameCtrl,
             error: firstNameError,
             onChanged: onChanged,
@@ -544,7 +545,7 @@ class _AccountStep extends StatelessWidget {
           const SizedBox(height: 12),
           _FormField(
             fieldKey: const ValueKey('register-field-last-name'),
-            label: 'Фамилия',
+            label: tr('Фамилия'),
             controller: lastNameCtrl,
             error: lastNameError,
             onChanged: onChanged,
@@ -561,7 +562,7 @@ class _AccountStep extends StatelessWidget {
           const SizedBox(height: 12),
           _FormField(
             fieldKey: const ValueKey('register-field-login'),
-            label: 'Логин',
+            label: tr('Логин'),
             controller: loginCtrl,
             error: loginError,
             onChanged: onChanged,
@@ -570,7 +571,7 @@ class _AccountStep extends StatelessWidget {
           const SizedBox(height: 12),
           _FormField(
             fieldKey: const ValueKey('register-field-password'),
-            label: 'Пароль',
+            label: tr('Пароль'),
             controller: passwordCtrl,
             error: passwordError,
             onChanged: onChanged,
@@ -579,7 +580,7 @@ class _AccountStep extends StatelessWidget {
           const SizedBox(height: 12),
           _FormField(
             fieldKey: const ValueKey('register-field-confirm'),
-            label: 'Подтверждение пароля',
+            label: tr('Подтверждение пароля'),
             controller: confirmCtrl,
             error: confirmError,
             onChanged: onChanged,

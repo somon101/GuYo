@@ -9,6 +9,11 @@ class GuyoPhrase {
   final String original;
   final String? transcription;
   final String translationTg;
+  /// The translation in the reader's interface language (Uzbek or Tajik),
+  /// chosen by the server.
+  final String? translation;
+
+  String get shownTranslation => translation ?? translationTg;
   final String? originalAudioUrl;
   final String? translationAudioUrl;
 
@@ -20,6 +25,7 @@ class GuyoPhrase {
     required this.original,
     required this.transcription,
     required this.translationTg,
+    this.translation,
     required this.originalAudioUrl,
     required this.translationAudioUrl,
   });
@@ -33,6 +39,7 @@ class GuyoPhrase {
       original: json['original'] as String,
       transcription: json['transcription'] as String?,
       translationTg: json['translation_tg'] as String,
+      translation: json['translation'] as String?,
       originalAudioUrl: json['original_audio_url'] as String?,
       translationAudioUrl: json['translation_audio_url'] as String?,
     );

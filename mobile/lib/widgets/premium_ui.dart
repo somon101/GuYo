@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
@@ -134,13 +135,13 @@ class LessonQuotaCardState extends State<LessonQuotaCard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Text(
-          'Уроки без ограничений',
+        Text(
+          tr('Уроки без ограничений'),
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
         ),
         const SizedBox(height: 2),
         Text(
-          until == null ? 'GuYo Premium' : 'GuYo Premium до ${formatPremiumDate(until)}',
+          until == null ? 'GuYo Premium' : tr('GuYo Premium до {0}', [formatPremiumDate(until)]),
           style: const TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
         ),
       ],
@@ -154,20 +155,20 @@ class LessonQuotaCardState extends State<LessonQuotaCard> {
     // The count shown is the limit that matters right now: the week's once
     // that is what blocks, otherwise today's.
     if (quota.dailyLimit != null && blocked != 'week') {
-      title = 'Уроки сегодня: ${quota.dailyUsed} из ${quota.dailyLimit}';
+      title = tr('Уроки сегодня: {0} из {1}', [quota.dailyUsed, quota.dailyLimit]);
     } else if (quota.weeklyLimit != null) {
-      title = 'Уроки на неделе: ${quota.weeklyUsed} из ${quota.weeklyLimit}';
+      title = tr('Уроки на неделе: {0} из {1}', [quota.weeklyUsed, quota.weeklyLimit]);
     } else {
-      title = 'Уроки без ограничений';
+      title = tr('Уроки без ограничений');
     }
     if (blocked == 'week') {
-      subtitle = 'Новые уроки — с понедельника';
+      subtitle = tr('Новые уроки — с понедельника');
     } else if (blocked == 'day') {
-      subtitle = 'Новые уроки — завтра';
+      subtitle = tr('Новые уроки — завтра');
     } else if (quota.dailyLimit != null && quota.weeklyLimit != null) {
-      subtitle = 'На этой неделе: ${quota.weeklyUsed} из ${quota.weeklyLimit}';
+      subtitle = tr('На этой неделе: {0} из {1}', [quota.weeklyUsed, quota.weeklyLimit]);
     } else {
-      subtitle = 'С Premium — без ограничений';
+      subtitle = tr('С Premium — без ограничений');
     }
 
     // The bar follows the limit that is actually closest to running out.
@@ -220,10 +221,10 @@ Future<void> showLessonLimitDialog(BuildContext context, String message) {
     context: context,
     builder: (dialogContext) => AlertDialog(
       icon: const Icon(Icons.hourglass_bottom_rounded, color: AppColors.primary),
-      title: const Text('Лимит уроков'),
+      title: Text(tr('Лимит уроков')),
       content: Text(message),
       actions: [
-        TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Понятно')),
+        TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: Text(tr('Понятно'))),
         FilledButton.icon(
           onPressed: () {
             Navigator.of(dialogContext).pop();

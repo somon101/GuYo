@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/lesson.dart';
@@ -68,7 +69,7 @@ class _SpeakingWordScreenState extends State<SpeakingWordScreen> with LessonExer
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Не удалось загрузить упражнение';
+        _errorMessage = tr('Не удалось загрузить упражнение');
       });
     }
   }
@@ -107,7 +108,7 @@ class _SpeakingWordScreenState extends State<SpeakingWordScreen> with LessonExer
             children: [
               Text(_errorMessage!, textAlign: TextAlign.center),
               const SizedBox(height: 12),
-              FilledButton(onPressed: _load, child: const Text('Повторить')),
+              FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
             ],
           ),
         ),
@@ -115,10 +116,10 @@ class _SpeakingWordScreenState extends State<SpeakingWordScreen> with LessonExer
     }
     final round = _round;
     if (round == null || round.items.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
           padding: EdgeInsets.all(24),
-          child: Text('Для этого упражнения пока нет слов', textAlign: TextAlign.center),
+          child: Text(tr('Для этого упражнения пока нет слов'), textAlign: TextAlign.center),
         ),
       );
     }
@@ -143,7 +144,7 @@ class _SpeakingWordScreenState extends State<SpeakingWordScreen> with LessonExer
                           matchThreshold: round.matchThreshold,
                           onAnswer: _onAnswer,
                           onUnavailable: () =>
-                              finishExercise(skippedBecause: 'Произнеси слово пропущено: распознавание речи недоступно'),
+                              finishExercise(skippedBecause: tr('Произнеси слово пропущено: распознавание речи недоступно')),
                         ),
                       ),
                     ),

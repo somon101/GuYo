@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -51,7 +52,7 @@ class _StatusPickerSheetState extends State<_StatusPickerSheet> {
         _phraseId = options.mine.phraseId;
       });
     } catch (_) {
-      if (mounted) setState(() => _error = 'Не удалось загрузить статусы');
+      if (mounted) setState(() => _error = tr('Не удалось загрузить статусы'));
     }
   }
 
@@ -66,7 +67,7 @@ class _StatusPickerSheetState extends State<_StatusPickerSheet> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Не удалось сохранить статус')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Не удалось сохранить статус'))));
     }
   }
 
@@ -94,11 +95,11 @@ class _StatusPickerSheetState extends State<_StatusPickerSheet> {
         children: [
           const SizedBox(height: 10),
           Container(width: 40, height: 5, decoration: BoxDecoration(color: AppColors.muted, borderRadius: BorderRadius.circular(3))),
-          const Padding(
+          Padding(
             padding: EdgeInsets.fromLTRB(20, 14, 20, 2),
-            child: Text('Мой статус', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+            child: Text(tr('Мой статус'), style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
           ),
-          const Text('Его видят все в рейтинге', style: TextStyle(fontSize: 14, color: AppColors.secondaryText)),
+          Text(tr('Его видят все в рейтинге'), style: TextStyle(fontSize: 14, color: AppColors.secondaryText)),
           const SizedBox(height: 12),
           Expanded(
             child: options == null
@@ -108,7 +109,7 @@ class _StatusPickerSheetState extends State<_StatusPickerSheet> {
                         : Column(mainAxisSize: MainAxisSize.min, children: [
                             Text(_error!, style: const TextStyle(color: AppColors.secondaryText)),
                             const SizedBox(height: 10),
-                            FilledButton(onPressed: _load, child: const Text('Повторить')),
+                            FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
                           ]),
                   )
                 : ListView(
@@ -117,7 +118,7 @@ class _StatusPickerSheetState extends State<_StatusPickerSheet> {
                       _Preview(emojiUrl: _emojiUrl, text: _phraseText),
                       const SizedBox(height: 18),
                       IosSection(
-                        header: 'Эмодзи',
+                        header: tr('Эмодзи'),
                         children: [
                           Padding(
                             padding: const EdgeInsets.all(12),
@@ -147,11 +148,11 @@ class _StatusPickerSheetState extends State<_StatusPickerSheet> {
                       ),
                       const SizedBox(height: 18),
                       IosSection(
-                        header: 'Фраза',
+                        header: tr('Фраза'),
                         children: [
                           IosCheckRow(
                             key: const ValueKey('status-phrase-none'),
-                            title: 'Без фразы',
+                            title: tr('Без фразы'),
                             selected: _phraseId == null,
                             onTap: () => setState(() => _phraseId = null),
                           ),
@@ -184,7 +185,7 @@ class _StatusPickerSheetState extends State<_StatusPickerSheet> {
                     ),
                     child: _saving
                         ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white))
-                        : const Text('Сохранить', style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700)),
+                        : Text(tr('Сохранить'), style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700)),
                   ),
                 ),
               ),
@@ -218,7 +219,7 @@ class _Preview extends StatelessWidget {
             Flexible(
               child: Text(text!, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
             ),
-          if (empty) const Text('Статус не выбран', style: TextStyle(fontSize: 15, color: AppColors.secondaryText)),
+          if (empty) Text(tr('Статус не выбран'), style: TextStyle(fontSize: 15, color: AppColors.secondaryText)),
         ],
       ),
     );

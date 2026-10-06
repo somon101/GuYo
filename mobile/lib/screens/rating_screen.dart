@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/user_rating.dart';
@@ -74,7 +75,7 @@ class _RatingScreenState extends State<RatingScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = 'Не удалось загрузить рейтинг';
+        _loadError = tr('Не удалось загрузить рейтинг');
       });
     }
     _loadRating();
@@ -124,7 +125,7 @@ class _RatingScreenState extends State<RatingScreen> {
               children: [
                 Text(_loadError!, textAlign: TextAlign.center),
                 const SizedBox(height: 12),
-                FilledButton(onPressed: _load, child: const Text('Повторить')),
+                FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
               ],
             ),
           ),
@@ -139,7 +140,7 @@ class _RatingScreenState extends State<RatingScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
       children: [
-        LeaderboardHeader(title: 'Рейтинг', onOpenGlobal: _openGlobal),
+        LeaderboardHeader(title: tr('Рейтинг'), onOpenGlobal: _openGlobal),
         if (rank == null)
           Padding(
             padding: const EdgeInsets.only(top: 24),
@@ -150,8 +151,8 @@ class _RatingScreenState extends State<RatingScreen> {
                 borderRadius: BorderRadius.circular(AppShapes.cardRadius),
                 border: Border.all(color: AppColors.cardBorder),
               ),
-              child: const Text(
-                'Пока нет ранга — начните учить слова, чтобы попасть в рейтинг',
+              child: Text(
+                tr('Пока нет ранга — начните учить слова, чтобы попасть в рейтинг'),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.secondaryText),
               ),
@@ -172,10 +173,10 @@ class _RatingScreenState extends State<RatingScreen> {
           ),
           const SizedBox(height: 14),
           if (board.entries.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Text(
-                'Пока никто не в этом ранге',
+                tr('Пока никто не в этом ранге'),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.secondaryText),
               ),
@@ -224,13 +225,13 @@ class LeaderboardHeader extends StatelessWidget {
                   border: Border.all(color: AppColors.cardBorder),
                   boxShadow: AppShapes.cardShadow,
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.public, size: 16, color: AppColors.primary),
                     SizedBox(width: 6),
                     Text(
-                      'Глобальный рейтинг',
+                      tr('Глобальный рейтинг'),
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
                     ),
                   ],
@@ -538,7 +539,7 @@ class _RankCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Топ-100 «${rank.name}»',
+                      tr('Топ-100 «{0}»', [rank.name]),
                       style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -685,7 +686,7 @@ class _StatusChip extends StatelessWidget {
                     child: const Icon(Icons.add_rounded, size: 18, color: AppColors.primary),
                   ),
             const SizedBox(width: 6),
-            const Text('Статус', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
+            Text(tr('Статус'), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
           ],
         ),
       ),
@@ -730,7 +731,7 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = 'Не удалось загрузить рейтинг';
+        _loadError = tr('Не удалось загрузить рейтинг');
       });
     }
   }
@@ -748,8 +749,8 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
         backgroundColor: AppColors.canvas,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          'Глобальный рейтинг',
+        title: Text(
+          tr('Глобальный рейтинг'),
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
         ),
         iconTheme: const IconThemeData(color: AppColors.primaryDark),
@@ -772,7 +773,7 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
               children: [
                 Text(_loadError!, textAlign: TextAlign.center),
                 const SizedBox(height: 12),
-                FilledButton(onPressed: _load, child: const Text('Повторить')),
+                FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
               ],
             ),
           ),
@@ -781,8 +782,8 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
     }
     final entries = _board!.entries;
     if (entries.isEmpty) {
-      return const Center(
-        child: Text('Рейтинг пока пуст', style: TextStyle(color: AppColors.secondaryText)),
+      return Center(
+        child: Text(tr('Рейтинг пока пуст'), style: TextStyle(color: AppColors.secondaryText)),
       );
     }
     return ListView(

@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
@@ -50,7 +51,7 @@ class _TopicsScreenState extends State<TopicsScreen> {
       if (!mounted) return;
       setState(() {
         _isSaving = false;
-        _error = 'Не удалось сохранить. Проверьте интернет.';
+        _error = tr('Не удалось сохранить. Проверьте интернет.');
       });
     }
   }
@@ -64,8 +65,8 @@ class _TopicsScreenState extends State<TopicsScreen> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         automaticallyImplyLeading: !widget.firstTime,
-        title: const Text(
-          'Мои темы',
+        title: Text(
+          tr('Мои темы'),
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
         ),
         iconTheme: const IconThemeData(color: AppColors.primaryDark),
@@ -74,7 +75,7 @@ class _TopicsScreenState extends State<TopicsScreen> {
             TextButton(
               key: const ValueKey('topics-skip'),
               onPressed: _isSaving ? null : () => _save(const []),
-              child: const Text('Пропустить'),
+              child: Text(tr('Пропустить')),
             ),
         ],
       ),
@@ -82,9 +83,9 @@ class _TopicsScreenState extends State<TopicsScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
           children: [
-            const Text(
-              'Для чего вы изучаете язык? Можно выбрать несколько — уроки будут начинаться со слов, '
-              'которые нужны именно вам.',
+            Text(
+              tr('Для чего вы изучаете язык? Можно выбрать несколько — уроки будут начинаться со слов, ') +
+              tr('которые нужны именно вам.'),
               style: TextStyle(fontSize: 14, color: AppColors.secondaryText, height: 1.35),
             ),
             const SizedBox(height: 16),
@@ -112,7 +113,7 @@ class _TopicsScreenState extends State<TopicsScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppShapes.pillRadius)),
                 ),
-                child: Text(_isSaving ? 'Сохранение…' : 'Сохранить'),
+                child: Text(_isSaving ? tr('Сохранение…') : tr('Сохранить')),
               ),
             ),
           ],

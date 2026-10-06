@@ -1,3 +1,4 @@
+import '../../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../guyo_ui.dart';
@@ -35,19 +36,19 @@ class PracticeRoundComplete extends StatelessWidget {
               iconColor: AppColors.rewardText,
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Практика завершена!',
+            Text(
+              tr('Практика завершена!'),
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
             ),
             const SizedBox(height: 6),
-            Text('Правильно: $correctCount из $total', style: const TextStyle(color: AppColors.secondaryText)),
+            Text(tr('Правильно: {0} из {1}', [correctCount, total]), style: const TextStyle(color: AppColors.secondaryText)),
             const SizedBox(height: 22),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                OutlinedButton(onPressed: onBack, child: const Text('Назад')),
+                OutlinedButton(onPressed: onBack, child: Text(tr('Назад'))),
                 const SizedBox(width: 12),
-                FilledButton.icon(onPressed: onPlayAgain, icon: const Icon(Icons.refresh_rounded), label: const Text('Играть ещё раз')),
+                FilledButton.icon(onPressed: onPlayAgain, icon: const Icon(Icons.refresh_rounded), label: Text(tr('Играть ещё раз'))),
               ],
             ),
           ],
@@ -73,14 +74,14 @@ class PracticeEmptyState extends StatelessWidget {
           children: [
             const RoundIconChip(icon: Icons.auto_awesome_rounded, size: 56),
             const SizedBox(height: 16),
-            const Text(
-              'Пока недостаточно слов для практики',
+            Text(
+              tr('Пока недостаточно слов для практики'),
               style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Изучите больше слов в Уроках, чтобы открыть это упражнение здесь.',
+            Text(
+              tr('Изучите больше слов в Уроках, чтобы открыть это упражнение здесь.'),
               style: TextStyle(color: AppColors.secondaryText),
               textAlign: TextAlign.center,
             ),

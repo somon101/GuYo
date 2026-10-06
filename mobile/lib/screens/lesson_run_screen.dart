@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -15,12 +16,12 @@ import 'speaking_word_screen.dart';
 import 'true_or_false_screen.dart';
 
 /// The human-readable name of each exercise type, for the run's title bar.
-const Map<String, String> lessonExerciseLabels = {
-  'true_or_false': 'Правда или ложь',
-  'matching': 'Сопоставление',
-  'build_word': 'Собери слово',
-  'speaking_word': 'Произнеси слово',
-  'listen_word': 'Услышь слово',
+Map<String, String> get lessonExerciseLabels => {
+  'true_or_false': tr('Правда или ложь'),
+  'matching': tr('Сопоставление'),
+  'build_word': tr('Собери слово'),
+  'speaking_word': tr('Произнеси слово'),
+  'listen_word': tr('Услышь слово'),
 };
 
 /// Everything the run needs from outside -- the backend and the screens --
@@ -228,11 +229,11 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
     final leave = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Прервать урок?'),
-        content: const Text('Ответы уже сохранены. Урок можно продолжить позже.'),
+        title: Text(tr('Прервать урок?')),
+        content: Text(tr('Ответы уже сохранены. Урок можно продолжить позже.')),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Продолжить')),
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Выйти')),
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: Text(tr('Продолжить'))),
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: Text(tr('Выйти'))),
         ],
       ),
     );
@@ -243,7 +244,7 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
   Widget build(BuildContext context) {
     final keys = widget.exerciseKeys;
     final key = keys.isEmpty ? null : keys[_index];
-    final title = key == null ? 'Урок ${widget.lessonNumber}' : (lessonExerciseLabels[key] ?? key);
+    final title = key == null ? tr('Урок {0}', [widget.lessonNumber]) : (lessonExerciseLabels[key] ?? key);
     final progress = keys.isEmpty ? 0.0 : (_index + (_showingExercise ? 0 : 1)) / keys.length;
 
     return PopScope(
@@ -260,7 +261,7 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
               Text(title),
               if (keys.isNotEmpty)
                 Text(
-                  'Урок ${widget.lessonNumber} · упражнение ${_index + 1} из ${keys.length}',
+                  tr('Урок {0} · упражнение {1} из {2}', [widget.lessonNumber, _index + 1, keys.length]),
                   style: const TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
                 ),
             ],
@@ -288,16 +289,16 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Не удалось загрузить результаты урока', textAlign: TextAlign.center),
+              Text(tr('Не удалось загрузить результаты урока'), textAlign: TextAlign.center),
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: () {
                   setState(() => _failed = false);
                   _showResults();
                 },
-                child: const Text('Повторить'),
+                child: Text(tr('Повторить')),
               ),
-              TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Выйти')),
+              TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(tr('Выйти'))),
             ],
           ),
         ),

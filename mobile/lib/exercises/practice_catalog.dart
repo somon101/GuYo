@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../models/dictionary.dart';
 import '../screens/build_phrase_by_ear_screen.dart';
@@ -46,37 +47,37 @@ class PracticeExercise {
 List<PracticeExercise> practiceExercises(GuyoDictionary dictionary) => [
       PracticeExercise(
         type: trueOrFalseExerciseType,
-        description: 'Определите, правильно ли показан перевод слова',
+        description: tr('Определите, правильно ли показан перевод слова'),
         builder: (_) => PracticeExerciseScreen(dictionary: dictionary, type: trueOrFalseExerciseType),
       ),
       PracticeExercise(
         type: matchingExerciseType,
-        description: 'Соедините слова с их переводами',
+        description: tr('Соедините слова с их переводами'),
         builder: (_) => PracticeMatchingScreen(dictionary: dictionary),
       ),
       PracticeExercise(
         type: buildWordExerciseType,
-        description: 'Соберите слово по переводу из букв',
+        description: tr('Соберите слово по переводу из букв'),
         builder: (_) => PracticeExerciseScreen(dictionary: dictionary, type: buildWordExerciseType),
       ),
       PracticeExercise(
         type: speakingWordExerciseType,
-        description: 'Произнесите слово вслух',
+        description: tr('Произнесите слово вслух'),
         builder: (_) => PracticeExerciseScreen(dictionary: dictionary, type: speakingWordExerciseType),
       ),
       PracticeExercise(
         type: listenWordExerciseType,
-        description: 'Прослушайте слово и выберите его среди вариантов',
+        description: tr('Прослушайте слово и выберите его среди вариантов'),
         builder: (_) => PracticeExerciseScreen(dictionary: dictionary, type: listenWordExerciseType),
       ),
       PracticeExercise(
         type: buildPhraseExerciseType,
-        description: 'Восстановите пропущенное слово по переводу',
+        description: tr('Восстановите пропущенное слово по переводу'),
         builder: (_) => BuildPhraseScreen(dictionary: dictionary),
       ),
       PracticeExercise(
         type: buildPhraseByEarExerciseType,
-        description: 'Прослушайте фразу и соберите её из слов',
+        description: tr('Прослушайте фразу и соберите её из слов'),
         builder: (_) => BuildPhraseByEarScreen(dictionary: dictionary),
       ),
     ];

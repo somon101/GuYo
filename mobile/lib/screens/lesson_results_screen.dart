@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/lesson.dart';
@@ -58,7 +59,7 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> {
         if (!didPop) Navigator.of(context).pop(false);
       },
       child: Scaffold(
-        appBar: AppBar(title: Text('Урок ${lesson.number}: результаты'), automaticallyImplyLeading: false),
+        appBar: AppBar(title: Text(tr('Урок {0}: результаты', [lesson.number])), automaticallyImplyLeading: false),
         body: SafeArea(
           child: FutureBuilder<List<WordLevelSummary>>(
             future: _levelsFuture,
@@ -73,7 +74,7 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> {
                     _PassStatsBlock(stats: widget.stats!),
                   ],
                   const SizedBox(height: 24),
-                  const Text('Прогресс по словам', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                  Text(tr('Прогресс по словам'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 10),
                   for (final word in lesson.words)
                     _WordProgressRow(word: word, levels: levels, gained: widget.stats?.forWord(word.wordId)?.gained),
@@ -83,7 +84,7 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> {
                     child: FilledButton(
                       onPressed: () => Navigator.of(context).pop(!allLearned),
                       style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-                      child: Text(allLearned ? 'Готово' : 'Повторить урок'),
+                      child: Text(allLearned ? tr('Готово') : tr('Повторить урок')),
                     ),
                   ),
                 ],
@@ -121,7 +122,7 @@ class _OutcomeBanner extends StatelessWidget {
               Icon(allLearned ? Icons.check_circle : Icons.timelapse_rounded, color: color, size: 26),
               const SizedBox(width: 10),
               Text(
-                allLearned ? 'Урок пройден' : 'Ещё не всё закреплено',
+                allLearned ? tr('Урок пройден') : tr('Ещё не всё закреплено'),
                 style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: color),
               ),
             ],
@@ -129,8 +130,8 @@ class _OutcomeBanner extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             allLearned
-                ? 'Все $total слов этого урока достигли нужного уровня.'
-                : 'Достигли нужного уровня: $learnedCount из $total. Остальные слова нужно закрепить ещё раз.',
+                ? tr('Все {0} слов этого урока достигли нужного уровня.', [total])
+                : tr('Достигли нужного уровня: {0} из {1}. Остальные слова нужно закрепить ещё раз.', [learnedCount, total]),
             style: const TextStyle(color: Colors.black54, fontSize: 13),
           ),
           const SizedBox(height: 10),
@@ -214,7 +215,7 @@ class _WordProgressRow extends StatelessWidget {
           ),
           const SizedBox(height: 3),
           Text(
-            word.isLearned ? 'Закреплено' : 'Нужно ещё · ${word.score}/100',
+            word.isLearned ? tr('Закреплено') : tr('Нужно ещё · {0}/100', [word.score]),
             style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
           ),
         ],
@@ -224,10 +225,10 @@ class _WordProgressRow extends StatelessWidget {
 }
 
 String _formatDuration(int seconds) {
-  if (seconds < 60) return '$seconds с';
+  if (seconds < 60) return tr('{0} с', [seconds]);
   final m = seconds ~/ 60;
   final s = seconds % 60;
-  return s == 0 ? '$m мин' : '$m мин $s с';
+  return s == 0 ? tr('{0} мин', [m]) : tr('{0} мин {1} с', [m, s]);
 }
 
 /// The pass in numbers: an accuracy ring, right / wrong / time tiles, a
@@ -280,7 +281,7 @@ class _PassStatsBlock extends StatelessWidget {
                           '${stats.accuracy}%',
                           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: ringColor),
                         ),
-                        const Text('точность', style: TextStyle(fontSize: 10.5, color: AppColors.secondaryText)),
+                        Text(tr('точность'), style: TextStyle(fontSize: 10.5, color: AppColors.secondaryText)),
                       ],
                     ),
                   ],
@@ -291,8 +292,8 @@ class _PassStatsBlock extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Статистика урока',
+                    Text(
+                      tr('Статистика урока'),
                       style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                     ),
                     const SizedBox(height: 8),
@@ -301,13 +302,13 @@ class _PassStatsBlock extends StatelessWidget {
                       runSpacing: 6,
                       children: [
                         _Pill(
-                          text: '+${stats.scoreGained} очков',
+                          text: tr('+{0} очков', [stats.scoreGained]),
                           color: AppColors.rewardText,
                           background: AppColors.gold.withValues(alpha: 0.35),
                         ),
                         if (stats.newlyLearned > 0)
                           _Pill(
-                            text: 'Выучено новых: ${stats.newlyLearned}',
+                            text: tr('Выучено новых: {0}', [stats.newlyLearned]),
                             color: AppColors.success,
                             background: AppColors.successLight,
                           ),
@@ -321,13 +322,13 @@ class _PassStatsBlock extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _StatTile(label: 'Верно', value: '${stats.correctAnswers}', color: AppColors.success)),
+              Expanded(child: _StatTile(label: tr('Верно'), value: '${stats.correctAnswers}', color: AppColors.success)),
               const SizedBox(width: 8),
-              Expanded(child: _StatTile(label: 'Ошибки', value: '${stats.wrongAnswers}', color: AppColors.danger)),
+              Expanded(child: _StatTile(label: tr('Ошибки'), value: '${stats.wrongAnswers}', color: AppColors.danger)),
               const SizedBox(width: 8),
               Expanded(
                 child: _StatTile(
-                  label: 'Время',
+                  label: tr('Время'),
                   value: _formatDuration(stats.durationSeconds),
                   color: AppColors.primary,
                 ),
@@ -336,8 +337,8 @@ class _PassStatsBlock extends StatelessWidget {
           ),
           if (stats.exercises.isNotEmpty) ...[
             const SizedBox(height: 18),
-            const Text(
-              'ПО УПРАЖНЕНИЯМ',
+            Text(
+              tr('ПО УПРАЖНЕНИЯМ'),
               style: TextStyle(
                 fontSize: 12,
                 letterSpacing: 0.4,
@@ -421,7 +422,7 @@ class _ExerciseBar extends StatelessWidget {
                 ),
               ),
               Text(
-                '${stat.correct} из ${stat.total}',
+                tr('{0} из {1}', [stat.correct, stat.total]),
                 style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
               ),
             ],

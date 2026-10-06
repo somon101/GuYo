@@ -1,12 +1,13 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../models/user_profile.dart';
 import '../theme/app_colors.dart';
 import '../widgets/achievement_icon.dart';
 import '../widgets/rank_icon.dart';
 
-const List<String> _russianMonthsGenitive = [
-  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+List<String> get _russianMonthsGenitive => [
+  tr('января'), tr('февраля'), tr('марта'), tr('апреля'), tr('мая'), tr('июня'),
+  tr('июля'), tr('августа'), tr('сентября'), tr('октября'), tr('ноября'), tr('декабря'),
 ];
 
 /// "21 сентября 2026" -- from `earnedAt`, which the backend always sends as
@@ -60,18 +61,18 @@ class AchievementsScreen extends StatelessWidget {
         backgroundColor: AppColors.canvas,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          'Достижения',
+        title: Text(
+          tr('Достижения'),
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
         ),
         iconTheme: const IconThemeData(color: AppColors.primaryDark),
       ),
       body: SafeArea(
         child: achievements.isEmpty
-            ? const Center(
+            ? Center(
                 child: Padding(
                   padding: EdgeInsets.all(24),
-                  child: Text('Пока нет доступных достижений', style: TextStyle(color: AppColors.secondaryText)),
+                  child: Text(tr('Пока нет доступных достижений'), style: TextStyle(color: AppColors.secondaryText)),
                 ),
               )
             : CustomScrollView(
@@ -120,7 +121,7 @@ class _Summary extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Получено $earned из $total',
+            tr('Получено {0} из {1}', [earned, total]),
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
           ),
           const SizedBox(height: 10),
@@ -149,8 +150,8 @@ class _Badge extends StatelessWidget {
   Widget build(BuildContext context) {
     final earned = achievement.earned;
     final locked = achievement.isLocked;
-    final title = locked ? 'Скрытое' : achievement.title!;
-    final description = locked ? 'Условие откроется позже' : achievement.description!;
+    final title = locked ? tr('Скрытое') : achievement.title!;
+    final description = locked ? tr('Условие откроется позже') : achievement.description!;
 
     return InkWell(
       key: ValueKey('achievement-${achievement.id}'),
@@ -271,13 +272,13 @@ void _showDetails(BuildContext context, UserAchievement achievement) {
             _BadgeArt(achievement: achievement, size: 120),
             const SizedBox(height: 16),
             Text(
-              locked ? 'Скрытое достижение' : achievement.title!,
+              locked ? tr('Скрытое достижение') : achievement.title!,
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
             ),
             const SizedBox(height: 6),
             Text(
-              locked ? 'Условие откроется, когда вы получите это достижение' : achievement.description!,
+              locked ? tr('Условие откроется, когда вы получите это достижение') : achievement.description!,
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 14, color: AppColors.secondaryText),
             ),
@@ -290,7 +291,7 @@ void _showDetails(BuildContext context, UserAchievement achievement) {
                   borderRadius: BorderRadius.circular(AppShapes.pillRadius),
                 ),
                 child: Text(
-                  'Получено ${_formatEarnedDate(achievement.earnedAt!)}',
+                  tr('Получено {0}', [_formatEarnedDate(achievement.earnedAt!)]),
                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
                 ),
               )
@@ -308,7 +309,7 @@ void _showDetails(BuildContext context, UserAchievement achievement) {
               ),
               const SizedBox(height: 6),
               Text(
-                '${achievement.currentValue ?? 0} из ${achievement.conditionValue}',
+                tr('{0} из {1}', [achievement.currentValue ?? 0, achievement.conditionValue]),
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondaryText),
               ),
             ],

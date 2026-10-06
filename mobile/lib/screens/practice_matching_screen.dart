@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
@@ -57,7 +58,7 @@ class _PracticeMatchingScreenState extends State<PracticeMatchingScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Не удалось загрузить упражнение';
+        _errorMessage = tr('Не удалось загрузить упражнение');
       });
     }
   }
@@ -66,7 +67,7 @@ class _PracticeMatchingScreenState extends State<PracticeMatchingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      appBar: AppBar(title: const Text('Сопоставление')),
+      appBar: AppBar(title: Text(tr('Сопоставление'))),
       body: SafeArea(child: Padding(padding: const EdgeInsets.all(16), child: _buildBody())),
     );
   }
@@ -82,7 +83,7 @@ class _PracticeMatchingScreenState extends State<PracticeMatchingScreen> {
           children: [
             Text(_errorMessage!, textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            FilledButton(onPressed: _load, child: const Text('Повторить')),
+            FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
           ],
         ),
       );
@@ -106,9 +107,9 @@ class _PracticeMatchingScreenState extends State<PracticeMatchingScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              OutlinedButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Назад')),
+              OutlinedButton(onPressed: () => Navigator.of(context).pop(), child: Text(tr('Назад'))),
               const SizedBox(width: 12),
-              FilledButton.icon(onPressed: _load, icon: const Icon(Icons.refresh_rounded), label: const Text('Играть ещё раз')),
+              FilledButton.icon(onPressed: _load, icon: const Icon(Icons.refresh_rounded), label: Text(tr('Играть ещё раз'))),
             ],
           ),
         ],

@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/word.dart';
@@ -79,7 +80,7 @@ class _MatchingScreenState extends State<MatchingScreen> with LessonExerciseFlow
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Не удалось загрузить слова для тренажёра';
+        _errorMessage = tr('Не удалось загрузить слова для тренажёра');
       });
     }
   }
@@ -121,7 +122,7 @@ class _MatchingScreenState extends State<MatchingScreen> with LessonExerciseFlow
             children: [
               Text(_errorMessage!, textAlign: TextAlign.center),
               const SizedBox(height: 12),
-              FilledButton(onPressed: _load, child: const Text('Повторить')),
+              FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
             ],
           ),
         ),
@@ -130,10 +131,10 @@ class _MatchingScreenState extends State<MatchingScreen> with LessonExerciseFlow
 
     final words = _words;
     if (words == null || words.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
           padding: EdgeInsets.all(24),
-          child: Text('Для этого упражнения пока нет слов', textAlign: TextAlign.center),
+          child: Text(tr('Для этого упражнения пока нет слов'), textAlign: TextAlign.center),
         ),
       );
     }

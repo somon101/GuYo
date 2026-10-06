@@ -1,3 +1,4 @@
+import '../../l10n/l10n.dart';
 import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
@@ -149,9 +150,9 @@ class _ReplayPrompt extends StatelessWidget {
                 child: Icon(isPlaying ? Icons.graphic_eq_rounded : Icons.volume_up_rounded, color: Colors.white, size: 24),
               ),
               const SizedBox(width: 14),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Прослушать ещё раз',
+                  tr('Прослушать ещё раз'),
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
                 ),
               ),

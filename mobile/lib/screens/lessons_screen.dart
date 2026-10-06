@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
@@ -61,7 +62,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = 'Не удалось загрузить уроки';
+        _loadError = tr('Не удалось загрузить уроки');
       });
     }
   }
@@ -88,7 +89,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
       lesson = await ApiClient.instance.fetchLesson(lessonId);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Не удалось открыть урок')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Не удалось открыть урок'))));
       return;
     }
     if (!mounted) return;
@@ -135,7 +136,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
               children: [
                 Text(_loadError!, textAlign: TextAlign.center),
                 const SizedBox(height: 12),
-                FilledButton(onPressed: _load, child: const Text('Повторить')),
+                FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
               ],
             ),
           ),
@@ -161,13 +162,13 @@ class _LessonsScreenState extends State<LessonsScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
       children: [
-        const Text(
-          'Уроки',
+        Text(
+          tr('Уроки'),
           style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
         ),
         const SizedBox(height: 6),
         Text(
-          lessons.isEmpty ? 'Создайте первый урок, чтобы начать' : 'Пройдено $completedCount из ${lessons.length}',
+          lessons.isEmpty ? tr('Создайте первый урок, чтобы начать') : tr('Пройдено {0} из {1}', [completedCount, lessons.length]),
           style: const TextStyle(color: AppColors.secondaryText, fontSize: 14),
         ),
         const SizedBox(height: 22),
@@ -175,8 +176,8 @@ class _LessonsScreenState extends State<LessonsScreen> {
           _LessonCard(
             state: _LessonCardState.unlocked,
             number: nextNumber,
-            title: 'Урок $nextNumber',
-            subtitle: lessons.isEmpty ? 'Создать урок' : 'Доступен для создания',
+            title: tr('Урок {0}', [nextNumber]),
+            subtitle: lessons.isEmpty ? tr('Создать урок') : tr('Доступен для создания'),
             progress: null,
             onTap: _createNextLesson,
           ),
@@ -184,8 +185,8 @@ class _LessonsScreenState extends State<LessonsScreen> {
           _LessonCard(
             state: lesson.isCompleted ? _LessonCardState.completed : _LessonCardState.inProgress,
             number: lesson.number,
-            title: 'Урок ${lesson.number}',
-            subtitle: 'Изучено ${lesson.learnedCount} из ${lesson.wordCount} слов',
+            title: tr('Урок {0}', [lesson.number]),
+            subtitle: tr('Изучено {0} из {1} слов', [lesson.learnedCount, lesson.wordCount]),
             progress: lesson.wordCount == 0 ? 0.0 : lesson.learnedCount / lesson.wordCount,
             onTap: () => _openLesson(lesson.id),
             onContinue: lesson.isCompleted ? null : () => _continueLesson(lesson.id),
@@ -301,8 +302,8 @@ class _LessonCard extends StatelessWidget {
                                 color: AppColors.successLight,
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              child: const Text(
-                                'Пройден',
+                              child: Text(
+                                tr('Пройден'),
                                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.success),
                               ),
                             ),
@@ -427,10 +428,10 @@ class _ContinueButton extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(30),
         onTap: onTap,
-        child: const Padding(
+        child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 9),
           child: Text(
-            'Продолжить',
+            tr('Продолжить'),
             style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
           ),
         ),

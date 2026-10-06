@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
@@ -8,12 +9,12 @@ import 'home_dashboard_screen.dart';
 import 'quest_attempt_screen.dart';
 import '../widgets/skeleton.dart';
 
-const Map<String, String> _exerciseLabels = {
-  'true_or_false': 'Правда или ложь',
-  'matching': 'Сопоставление',
-  'build_word': 'Собери слово',
-  'speaking_word': 'Произнеси слово',
-  'listen_word': 'Услышь слово',
+Map<String, String> get _exerciseLabels => {
+  'true_or_false': tr('Правда или ложь'),
+  'matching': tr('Сопоставление'),
+  'build_word': tr('Собери слово'),
+  'speaking_word': tr('Произнеси слово'),
+  'listen_word': tr('Услышь слово'),
 };
 
 const Map<String, IconData> _exerciseIcons = {
@@ -68,7 +69,7 @@ class _SeasonQuestsScreenState extends State<SeasonQuestsScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = 'Не удалось загрузить квесты';
+        _loadError = tr('Не удалось загрузить квесты');
       });
     }
   }
@@ -101,8 +102,8 @@ class _SeasonQuestsScreenState extends State<SeasonQuestsScreen> {
         backgroundColor: AppColors.canvas,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          'Квесты',
+        title: Text(
+          tr('Квесты'),
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
         ),
         iconTheme: const IconThemeData(color: AppColors.primaryDark),
@@ -127,7 +128,7 @@ class _SeasonQuestsScreenState extends State<SeasonQuestsScreen> {
               children: [
                 Text(_loadError!, textAlign: TextAlign.center),
                 const SizedBox(height: 12),
-                FilledButton(onPressed: _load, child: const Text('Повторить')),
+                FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
               ],
             ),
           ),
@@ -150,16 +151,16 @@ class _SeasonQuestsScreenState extends State<SeasonQuestsScreen> {
         ),
         const SizedBox(height: 22),
         SectionHeader(
-          title: 'Ежедневные квесты',
+          title: tr('Ежедневные квесты'),
           trailing: '${overview.questsDoneToday} / ${overview.questsTotal}',
         ),
         const SizedBox(height: 12),
         if (overview.quests.isEmpty)
-          const GuyoCard(
+          GuyoCard(
             child: Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Text(
-                'Ежедневных квестов пока нет',
+                tr('Ежедневных квестов пока нет'),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.secondaryText),
               ),
@@ -232,13 +233,13 @@ class _SeasonBanner extends StatelessWidget {
                         ),
                       ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Квесты сезона',
+                    Text(
+                      tr('Квесты сезона'),
                       style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
-                      'Выполняй задания, получай очки и повышай свой ранг.',
+                    Text(
+                      tr('Выполняй задания, получай очки и повышай свой ранг.'),
                       style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText, height: 1.35),
                     ),
                   ],
@@ -248,8 +249,8 @@ class _SeasonBanner extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           if (season == null)
-            const Text(
-              'Сейчас нет активного сезона',
+            Text(
+              tr('Сейчас нет активного сезона'),
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
             )
           else
@@ -280,7 +281,7 @@ class _StatsRow extends StatelessWidget {
               child: StatColumn(
                 icon: Icons.star_rounded,
                 value: '+${overview.pointsToday}',
-                label: 'Очков сегодня',
+                label: tr('Очков сегодня'),
                 iconColor: AppColors.gold,
               ),
             ),
@@ -289,7 +290,7 @@ class _StatsRow extends StatelessWidget {
               child: StatColumn(
                 icon: Icons.emoji_events_rounded,
                 value: overview.rankPosition == null ? '—' : '#${overview.rankPosition}',
-                label: 'Место в рейтинге',
+                label: tr('Место в рейтинге'),
               ),
             ),
             const StatDivider(),
@@ -297,7 +298,7 @@ class _StatsRow extends StatelessWidget {
               child: StatColumn(
                 icon: Icons.track_changes_rounded,
                 value: '${overview.questsDoneToday} / ${overview.questsTotal}',
-                label: 'Квестов выполнено',
+                label: tr('Квестов выполнено'),
                 iconColor: AppColors.success,
               ),
             ),
@@ -324,10 +325,10 @@ class _QuestRow extends StatelessWidget {
     final done = quest.isDoneToday;
     final canAttempt = quest.available && !done;
     final subtitle = done
-        ? 'Выполнено сегодня'
+        ? tr('Выполнено сегодня')
         : quest.available
             ? '${_exerciseLabels[quest.exerciseKey] ?? quest.exerciseKey} · ${quest.wordLevelName}'
-            : 'Нет подходящих слов';
+            : tr('Нет подходящих слов');
 
     return GuyoCard(
       radius: AppShapes.rowRadius,

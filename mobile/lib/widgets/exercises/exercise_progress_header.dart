@@ -1,3 +1,4 @@
+import '../../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../guyo_ui.dart';
@@ -37,7 +38,7 @@ class ExerciseProgressHeader extends StatelessWidget {
             // One plain Text, not Text.rich, so a test can find the whole
             // phrase with a single textContaining match.
             child: Text(
-              'Слова $position из $total',
+              tr('Слова {0} из {1}', [position, total]),
               style: const TextStyle(fontSize: 13, color: AppColors.primaryDark, fontWeight: FontWeight.w700),
             ),
           ),

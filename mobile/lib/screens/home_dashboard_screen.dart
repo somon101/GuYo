@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
@@ -93,7 +94,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = 'Не удалось загрузить данные';
+        _loadError = tr('Не удалось загрузить данные');
       });
     }
   }
@@ -152,7 +153,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
               children: [
                 Text(_loadError!, textAlign: TextAlign.center),
                 const SizedBox(height: 12),
-                FilledButton(onPressed: _load, child: const Text('Повторить')),
+                FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
               ],
             ),
           )
@@ -191,7 +192,7 @@ class _Greeting extends StatelessWidget {
         // bar reaches, never a second copy of it.
         Semantics(
           button: true,
-          label: 'Открыть профиль',
+          label: tr('Открыть профиль'),
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: onOpenProfile,
@@ -208,7 +209,7 @@ class _Greeting extends StatelessWidget {
                 children: [
                   Flexible(
                     child: UserNameText(
-                      login.isEmpty ? 'Привет!' : 'Привет, $login',
+                      login.isEmpty ? tr('Привет!') : tr('Привет, {0}', [login]),
                       isPremium: profile?.isPremium ?? false,
                       style: const TextStyle(
                         fontSize: 18,
@@ -315,8 +316,8 @@ class _SeasonHeaderRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    'Квесты сезона',
+                  Text(
+                    tr('Квесты сезона'),
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                   ),
                   const SizedBox(height: 2),
@@ -343,7 +344,7 @@ class _SeasonHeaderRow extends StatelessWidget {
 /// made the block read as a jumble.
 String seasonSubtitle(SeasonQuestOverview overview) {
   final season = overview.season;
-  if (season == null) return 'Сейчас нет активного сезона';
+  if (season == null) return tr('Сейчас нет активного сезона');
   return season.name;
 }
 
@@ -365,7 +366,7 @@ class _StatsCard extends StatelessWidget {
                   child: StatColumn(
                     icon: Icons.star_rounded,
                     value: '+${overview.pointsToday}',
-                    label: 'очков сегодня',
+                    label: tr('очков сегодня'),
                     iconColor: AppColors.gold,
                   ),
                 ),
@@ -374,7 +375,7 @@ class _StatsCard extends StatelessWidget {
                   child: StatColumn(
                     icon: Icons.emoji_events_rounded,
                     value: overview.rankPosition == null ? '—' : '#${overview.rankPosition}',
-                    label: 'место в рейтинге',
+                    label: tr('место в рейтинге'),
                   ),
                 ),
                 const StatDivider(),
@@ -382,7 +383,7 @@ class _StatsCard extends StatelessWidget {
                   child: StatColumn(
                     icon: Icons.check_box_rounded,
                     value: '${overview.questsDoneToday}/${overview.questsTotal}',
-                    label: 'заданий выполнено',
+                    label: tr('заданий выполнено'),
                     iconColor: AppColors.success,
                   ),
                 ),
@@ -446,7 +447,7 @@ class DailyQuestCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Квест дня',
+                  tr('Квест дня'),
                   style: TextStyle(
                     fontSize: compact ? 13 : 15,
                     fontWeight: FontWeight.w800,
@@ -455,7 +456,7 @@ class DailyQuestCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Изучай новые слова',
+                  tr('Изучай новые слова'),
                   style: TextStyle(fontSize: compact ? 12.5 : 13.5, color: AppColors.secondaryText),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -463,8 +464,8 @@ class DailyQuestCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   wordsLearnedToday == 0
-                      ? 'Сегодня пока ни одного'
-                      : 'Сегодня изучено: $wordsLearnedToday',
+                      ? tr('Сегодня пока ни одного')
+                      : tr('Сегодня изучено: {0}', [wordsLearnedToday]),
                   style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.primary),
                 ),
               ],

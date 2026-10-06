@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 /// One exercise type's identity: its key (matches the backend's
@@ -20,46 +21,46 @@ class ExerciseTypeInfo {
   const ExerciseTypeInfo({required this.key, required this.label, required this.icon});
 }
 
-const trueOrFalseExerciseType = ExerciseTypeInfo(
+ExerciseTypeInfo get trueOrFalseExerciseType => ExerciseTypeInfo(
   key: 'true_or_false',
-  label: 'Правда или ложь',
+  label: tr('Правда или ложь'),
   icon: Icons.rule_outlined,
 );
-const matchingExerciseType = ExerciseTypeInfo(
+ExerciseTypeInfo get matchingExerciseType => ExerciseTypeInfo(
   key: 'matching',
-  label: 'Сопоставление',
+  label: tr('Сопоставление'),
   icon: Icons.extension_outlined,
 );
-const buildWordExerciseType = ExerciseTypeInfo(
+ExerciseTypeInfo get buildWordExerciseType => ExerciseTypeInfo(
   key: 'build_word',
-  label: 'Собери слово',
+  label: tr('Собери слово'),
   icon: Icons.abc_outlined,
 );
-const speakingWordExerciseType = ExerciseTypeInfo(
+ExerciseTypeInfo get speakingWordExerciseType => ExerciseTypeInfo(
   key: 'speaking_word',
-  label: 'Произнеси слово 🎙️',
+  label: tr('Произнеси слово 🎙️'),
   icon: Icons.mic_rounded,
 );
-const listenWordExerciseType = ExerciseTypeInfo(
+ExerciseTypeInfo get listenWordExerciseType => ExerciseTypeInfo(
   key: 'listen_word',
-  label: 'Услышь слово 🔊',
+  label: tr('Услышь слово 🔊'),
   icon: Icons.hearing_rounded,
 );
-const buildPhraseExerciseType = ExerciseTypeInfo(
+ExerciseTypeInfo get buildPhraseExerciseType => ExerciseTypeInfo(
   key: 'build_phrase',
-  label: 'Собери фразу',
+  label: tr('Собери фразу'),
   icon: Icons.text_fields_rounded,
 );
-const buildPhraseByEarExerciseType = ExerciseTypeInfo(
+ExerciseTypeInfo get buildPhraseByEarExerciseType => ExerciseTypeInfo(
   key: 'build_phrase_by_ear',
-  label: 'Собери фразу на слух',
+  label: tr('Собери фразу на слух'),
   icon: Icons.headphones_rounded,
 );
 
 /// Every exercise type a Lesson can include, keyed exactly like the
 /// backend's LessonOut.exercise_keys -- LessonDetailScreen looks itself up
 /// in here instead of keeping its own separate label/icon map.
-const Map<String, ExerciseTypeInfo> lessonExerciseTypes = {
+Map<String, ExerciseTypeInfo> get lessonExerciseTypes => {
   'true_or_false': trueOrFalseExerciseType,
   'matching': matchingExerciseType,
   'build_word': buildWordExerciseType,

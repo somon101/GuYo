@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
@@ -42,7 +43,7 @@ class _MyPhrasesScreenState extends State<MyPhrasesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Мои фразы')),
+      appBar: AppBar(title: Text(tr('Мои фразы'))),
       body: RefreshIndicator(
         onRefresh: _reload,
         child: FutureBuilder<List<GuyoPhrase>>(
@@ -59,9 +60,9 @@ class _MyPhrasesScreenState extends State<MyPhrasesScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('Не удалось загрузить фразы', textAlign: TextAlign.center),
+                        Text(tr('Не удалось загрузить фразы'), textAlign: TextAlign.center),
                         const SizedBox(height: 12),
-                        FilledButton(onPressed: _reload, child: const Text('Повторить')),
+                        FilledButton(onPressed: _reload, child: Text(tr('Повторить'))),
                       ],
                     ),
                   ),
@@ -71,11 +72,11 @@ class _MyPhrasesScreenState extends State<MyPhrasesScreen> {
             final phrases = snapshot.data ?? [];
             if (phrases.isEmpty) {
               return ListView(
-                children: const [
+                children: [
                   Padding(
                     padding: EdgeInsets.all(24),
                     child: Text(
-                      'Пока нет доступных фраз.\nФраза появится здесь, как только вы изучите все слова в ней.',
+                      tr('Пока нет доступных фраз.\nФраза появится здесь, как только вы изучите все слова в ней.'),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -136,7 +137,7 @@ class _PhraseTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Text(phrase.translationTg, style: const TextStyle(fontSize: 15)),
+                  child: Text(phrase.shownTranslation, style: const TextStyle(fontSize: 15)),
                 ),
                 if (hasTranslationAudio) ...[
                   const SizedBox(width: 6),

@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/notification.dart';
@@ -61,7 +62,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = 'Не удалось загрузить уведомления';
+        _loadError = tr('Не удалось загрузить уведомления');
       });
     }
   }
@@ -74,8 +75,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         backgroundColor: AppColors.canvas,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          'Уведомления',
+        title: Text(
+          tr('Уведомления'),
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
         ),
         iconTheme: const IconThemeData(color: AppColors.primaryDark),
@@ -98,7 +99,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               children: [
                 Text(_loadError!, textAlign: TextAlign.center),
                 const SizedBox(height: 12),
-                FilledButton(onPressed: _load, child: const Text('Повторить')),
+                FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
               ],
             ),
           ),
@@ -107,12 +108,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
     if (_items.isEmpty) {
       return ListView(
-        children: const [
+        children: [
           SizedBox(height: 80),
           Icon(Icons.notifications_none_rounded, size: 56, color: AppColors.muted),
           SizedBox(height: 12),
           Text(
-            'Пока нет уведомлений',
+            tr('Пока нет уведомлений'),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
           ),
@@ -120,7 +121,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 40),
             child: Text(
-              'Здесь появятся сообщения от GuYo',
+              tr('Здесь появятся сообщения от GuYo'),
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
             ),
@@ -196,8 +197,8 @@ class _NotificationCard extends StatelessWidget {
                           color: AppColors.primary,
                           borderRadius: BorderRadius.circular(AppShapes.pillRadius),
                         ),
-                        child: const Text(
-                          'Новое',
+                        child: Text(
+                          tr('Новое'),
                           style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white),
                         ),
                       ),
@@ -216,9 +217,9 @@ class _NotificationCard extends StatelessWidget {
 /// "25 сент., 14:03" -- the device's own local time, since the model
 /// already converted the timestamp on the way in.
 String formatNotificationMoment(DateTime moment) {
-  const months = [
-    'янв.', 'февр.', 'марта', 'апр.', 'мая', 'июня',
-    'июля', 'авг.', 'сент.', 'окт.', 'нояб.', 'дек.',
+  final months = [
+    tr('янв.'), tr('февр.'), tr('марта'), tr('апр.'), tr('мая'), tr('июня'),
+    tr('июля'), tr('авг.'), tr('сент.'), tr('окт.'), tr('нояб.'), tr('дек.'),
   ];
   final minute = moment.minute.toString().padLeft(2, '0');
   return '${moment.day} ${months[moment.month - 1]}, ${moment.hour}:$minute';

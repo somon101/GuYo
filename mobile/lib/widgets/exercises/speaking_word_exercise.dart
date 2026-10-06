@@ -1,3 +1,4 @@
+import '../../l10n/l10n.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -233,7 +234,7 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
       _recordingTimer?.cancel();
       _lastSessionEnd = DateTime.now();
       setState(() => _micState = _MicState.idle);
-      _showHint('Не удалось включить микрофон, попробуйте ещё раз');
+      _showHint(tr('Не удалось включить микрофон, попробуйте ещё раз'));
     }
   }
 
@@ -254,7 +255,7 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
       // not a demonstrated wrong answer, so nothing is scored and the mic
       // is simply ready again.
       setState(() => _micState = _MicState.idle);
-      _showHint('Речь не распознана, попробуйте ещё раз');
+      _showHint(tr('Речь не распознана, попробуйте ещё раз'));
       return;
     }
 
@@ -307,19 +308,19 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
           children: [
             Icon(Icons.mic_off_rounded, size: 44, color: AppColors.muted),
             const SizedBox(height: 16),
-            const Text(
-              'Распознавание речи недоступно',
+            Text(
+              tr('Распознавание речи недоступно'),
               style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Проверьте, что микрофон разрешён приложению и на устройстве установлен сервис распознавания речи.',
+            Text(
+              tr('Проверьте, что микрофон разрешён приложению и на устройстве установлен сервис распознавания речи.'),
               style: TextStyle(color: AppColors.secondaryText),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            OutlinedButton(onPressed: _initSpeech, child: const Text('Проверить снова')),
+            OutlinedButton(onPressed: _initSpeech, child: Text(tr('Проверить снова'))),
           ],
         ),
       );
@@ -350,7 +351,7 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
                 key: const ValueKey('speaking-word-next'),
                 onPressed: () => _finish(false),
                 style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12)),
-                child: const Text('Дальше'),
+                child: Text(tr('Дальше')),
               ),
               const SizedBox(width: 12),
               FilledButton.icon(
@@ -358,7 +359,7 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
                 onPressed: _retry,
                 style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12)),
                 icon: const Icon(Icons.refresh_rounded, size: 20),
-                label: const Text('Ещё раз'),
+                label: Text(tr('Ещё раз')),
               ),
             ],
           ),
@@ -558,7 +559,7 @@ class _StateLabel extends StatelessWidget {
     switch (state) {
       case _MicState.idle:
         return Text(
-          attempt > 1 ? 'Попытка $attempt из $maxAttempts · нажмите и скажите ещё раз' : 'Нажмите и произнесите слово',
+          attempt > 1 ? tr('Попытка {0} из {1} · нажмите и скажите ещё раз', [attempt, maxAttempts]) : tr('Нажмите и произнесите слово'),
           style: const TextStyle(color: AppColors.secondaryText, fontSize: 14),
           textAlign: TextAlign.center,
         );
@@ -566,16 +567,16 @@ class _StateLabel extends StatelessWidget {
         return Column(
           children: [
             Text(
-              recognizedText.isEmpty ? 'Слушаю…' : recognizedText,
+              recognizedText.isEmpty ? tr('Слушаю…') : recognizedText,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
-            const Text('Нажмите, чтобы остановить', style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText)),
+            Text(tr('Нажмите, чтобы остановить'), style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText)),
           ],
         );
       case _MicState.processing:
-        return const Text('Проверяю…', style: TextStyle(color: AppColors.secondaryText, fontSize: 14));
+        return Text(tr('Проверяю…'), style: TextStyle(color: AppColors.secondaryText, fontSize: 14));
       case _MicState.result:
         final correct = isCorrect ?? false;
         final color = correct ? AppColors.success : AppColors.danger;
@@ -587,7 +588,7 @@ class _StateLabel extends StatelessWidget {
                 Icon(correct ? Icons.check_circle_rounded : Icons.cancel_rounded, color: color, size: 20),
                 const SizedBox(width: 6),
                 Text(
-                  correct ? 'Правильно' : 'Неправильно',
+                  correct ? tr('Правильно') : tr('Неправильно'),
                   style: TextStyle(fontWeight: FontWeight.w800, color: color, fontSize: 15),
                 ),
               ],
@@ -595,7 +596,7 @@ class _StateLabel extends StatelessWidget {
             if (!correct) ...[
               const SizedBox(height: 4),
               Text(
-                'Услышано: «$recognizedText», нужно: «$target»',
+                tr('Услышано: «{0}», нужно: «{1}»', [recognizedText, target]),
                 style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
                 textAlign: TextAlign.center,
               ),

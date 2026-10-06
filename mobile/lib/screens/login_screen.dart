@@ -1,3 +1,5 @@
+import '../widgets/language_picker.dart';
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../theme/app_colors.dart';
@@ -43,7 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Не удалось подключиться к серверу');
+      setState(() => _error = tr('Не удалось подключиться к серверу'));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -68,6 +70,12 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                LanguagePicker(
+                  selected: appLanguage.value,
+                  enabled: !_isSubmitting,
+                  onSelected: setAppLanguage,
+                ),
+                const SizedBox(height: 20),
                 const RoundIconChip(icon: Icons.auto_stories_rounded, size: 64),
                 const SizedBox(height: 16),
                 const Text(
@@ -76,8 +84,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Вход',
+                Text(
+                  tr('Вход'),
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 14, color: AppColors.secondaryText),
                 ),
@@ -86,10 +94,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _LoginField(label: 'Логин', controller: _loginController, textInputAction: TextInputAction.next),
+                      _LoginField(label: tr('Логин'), controller: _loginController, textInputAction: TextInputAction.next),
                       const SizedBox(height: 14),
                       _LoginField(
-                        label: 'Пароль',
+                        label: tr('Пароль'),
                         controller: _passwordController,
                         obscure: true,
                         textInputAction: TextInputAction.done,
@@ -110,10 +118,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppShapes.rowRadius)),
                         ),
                         child: _isSubmitting
-                            ? const SkeletonPulse(
-                                child: Text('Входим…', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                            ? SkeletonPulse(
+                                child: Text(tr('Входим…'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                               )
-                            : const Text('Войти', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                            : Text(tr('Войти'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                       ),
                     ],
                   ),
@@ -122,10 +130,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text('Нет аккаунта?', style: TextStyle(color: AppColors.secondaryText, fontSize: 13.5)),
+                    Text(tr('Нет аккаунта?'), style: TextStyle(color: AppColors.secondaryText, fontSize: 13.5)),
                     TextButton(
                       onPressed: _isSubmitting ? null : _openRegister,
-                      child: const Text('Регистрация', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+                      child: Text(tr('Регистрация'), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
                     ),
                   ],
                 ),

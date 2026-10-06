@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
@@ -234,13 +235,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                sessionExpired ? 'Сессия истекла' : 'Не удалось загрузить словари',
+                sessionExpired ? tr('Сессия истекла') : tr('Не удалось загрузить словари'),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: sessionExpired ? _logout : _loadDictionaries,
-                child: Text(sessionExpired ? 'Войти заново' : 'Повторить'),
+                child: Text(sessionExpired ? tr('Войти заново') : tr('Повторить')),
               ),
             ],
           ),
@@ -258,9 +259,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Пока нет доступных словарей', textAlign: TextAlign.center),
+              Text(tr('Пока нет доступных словарей'), textAlign: TextAlign.center),
               const SizedBox(height: 12),
-              OutlinedButton(onPressed: _loadDictionaries, child: const Text('Проверить снова')),
+              OutlinedButton(onPressed: _loadDictionaries, child: Text(tr('Проверить снова'))),
             ],
           ),
         ),
@@ -327,7 +328,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         actions: [
           if (isProfileTab)
             IconButton(
-              tooltip: 'Настройки',
+              tooltip: tr('Настройки'),
               icon: const Icon(Icons.settings_outlined, color: AppColors.primary),
               onPressed: () => _profileKey.currentState?.openSettings(),
             )
@@ -355,7 +356,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               }
 
               return PopupMenuButton<GuyoDictionary>(
-                tooltip: 'Выбрать язык',
+                tooltip: tr('Выбрать язык'),
                 onSelected: (d) => setState(() => _selectedDictionary = d),
                 itemBuilder: (context) => [
                   for (final option in options)
@@ -376,14 +377,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
           const _NotificationsButton(),
           PopupMenuButton<String>(
-            tooltip: 'Ещё',
+            tooltip: tr('Ещё'),
             onSelected: (value) {
               if (value == 'promo') openPromoScreen(context);
               if (value == 'logout') _logout();
             },
             itemBuilder: (context) => [
-              if (_premiumEnabled) const PopupMenuItem(value: 'promo', child: Text('Промокод')),
-              const PopupMenuItem(value: 'logout', child: Text('Выйти')),
+              if (_premiumEnabled) PopupMenuItem(value: 'promo', child: Text(tr('Промокод'))),
+              PopupMenuItem(value: 'logout', child: Text(tr('Выйти'))),
             ],
           ),
           ],
@@ -413,12 +414,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         child: NavigationBar(
           selectedIndex: _selectedTabIndex,
           onDestinationSelected: (index) => setState(() => _selectedTabIndex = index),
-          destinations: const [
-            NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Главная'),
-            NavigationDestination(icon: Icon(Icons.auto_stories_outlined), label: 'Уроки'),
-            NavigationDestination(icon: Icon(Icons.fitness_center_outlined), label: 'Практика'),
-            NavigationDestination(icon: Icon(Icons.leaderboard_outlined), label: 'Рейтинг'),
-            NavigationDestination(icon: Icon(Icons.person_outline), label: 'Профиль'),
+          destinations: [
+            NavigationDestination(icon: Icon(Icons.home_outlined), label: tr('Главная')),
+            NavigationDestination(icon: Icon(Icons.auto_stories_outlined), label: tr('Уроки')),
+            NavigationDestination(icon: Icon(Icons.fitness_center_outlined), label: tr('Практика')),
+            NavigationDestination(icon: Icon(Icons.leaderboard_outlined), label: tr('Рейтинг')),
+            NavigationDestination(icon: Icon(Icons.person_outline), label: tr('Профиль')),
           ],
         ),
       ),
@@ -493,7 +494,7 @@ class _NotificationsButtonState extends State<_NotificationsButton> with Widgets
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      tooltip: 'Уведомления',
+      tooltip: tr('Уведомления'),
       onPressed: _open,
       icon: Stack(
         clipBehavior: Clip.none,

@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/exercise.dart';
@@ -69,7 +70,7 @@ class _TrueOrFalseScreenState extends State<TrueOrFalseScreen> with LessonExerci
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Не удалось загрузить упражнение';
+        _errorMessage = tr('Не удалось загрузить упражнение');
       });
     }
   }
@@ -110,17 +111,17 @@ class _TrueOrFalseScreenState extends State<TrueOrFalseScreen> with LessonExerci
             children: [
               Text(_errorMessage!, textAlign: TextAlign.center),
               const SizedBox(height: 12),
-              FilledButton(onPressed: _load, child: const Text('Повторить')),
+              FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
             ],
           ),
         ),
       );
     }
     if (_items.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
           padding: EdgeInsets.all(24),
-          child: Text('Для этого упражнения пока нет слов', textAlign: TextAlign.center),
+          child: Text(tr('Для этого упражнения пока нет слов'), textAlign: TextAlign.center),
         ),
       );
     }

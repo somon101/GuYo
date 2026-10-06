@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/lesson.dart';
@@ -87,7 +88,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = 'Не удалось загрузить урок';
+        _loadError = tr('Не удалось загрузить урок');
       });
     }
   }
@@ -110,7 +111,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_lesson != null ? 'Урок ${_lesson!.number}' : 'Урок')),
+      appBar: AppBar(title: Text(_lesson != null ? tr('Урок {0}', [_lesson!.number]) : tr('Урок'))),
       body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
     );
   }
@@ -131,7 +132,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
               children: [
                 Text(_loadError!, textAlign: TextAlign.center),
                 const SizedBox(height: 12),
-                FilledButton(onPressed: _load, child: const Text('Повторить')),
+                FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
               ],
             ),
           ),
@@ -159,7 +160,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
               children: [
                 const Icon(Icons.check_circle, color: AppColors.success),
                 const SizedBox(width: 10),
-                const Text('Урок пройден', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
+                Text(tr('Урок пройден'), style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
               ],
             ),
           ),
@@ -174,7 +175,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Изучено $learnedCount из ${lesson.words.length} слов',
+                tr('Изучено {0} из {1} слов', [learnedCount, lesson.words.length]),
                 style: const TextStyle(color: AppColors.secondaryText, fontSize: 13, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
@@ -191,7 +192,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
           ),
         ),
         const SizedBox(height: 20),
-        const Text('Слова урока', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+        Text(tr('Слова урока'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
         const SizedBox(height: 10),
         for (final word in lesson.words)
           WordCard(
@@ -208,10 +209,10 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
         if (!lesson.isCompleted) ...[
           const SizedBox(height: 12),
           if (lesson.exerciseKeys.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Text(
-                'Для этого урока пока нет доступных упражнений.',
+                tr('Для этого урока пока нет доступных упражнений.'),
                 style: TextStyle(color: Colors.black54),
               ),
             )
@@ -221,7 +222,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
               child: FilledButton.icon(
                 onPressed: _isRunning ? null : _startLesson,
                 icon: const Icon(Icons.play_arrow_rounded),
-                label: _isRunning ? const SkeletonPulse(child: Text('Готовим урок…')) : const Text('Начать урок'),
+                label: _isRunning ? SkeletonPulse(child: Text(tr('Готовим урок…'))) : Text(tr('Начать урок')),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   padding: const EdgeInsets.symmetric(vertical: 14),

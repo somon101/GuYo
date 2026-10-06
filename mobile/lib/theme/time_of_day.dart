@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -65,11 +66,11 @@ class TimeOfDayScheme {
 /// name read out by screen readers. Kept beside the scheme so adding a part
 /// means adding one entry here, one window above and one scene in
 /// [DaySkyPainter] -- nothing else changes.
-const Map<DayPart, ({Color skyTop, Color skyBottom, String label})> dayPartLooks = {
-  DayPart.morning: (skyTop: Color(0xFFFFE2B8), skyBottom: Color(0xFFFFB38A), label: 'Утро'),
-  DayPart.day: (skyTop: Color(0xFF7CCBFF), skyBottom: Color(0xFFBDE7FF), label: 'День'),
-  DayPart.evening: (skyTop: Color(0xFF7B5CD6), skyBottom: Color(0xFFFF8C7A), label: 'Вечер'),
-  DayPart.night: (skyTop: Color(0xFF1E2257), skyBottom: Color(0xFF3B3F8F), label: 'Ночь'),
+Map<DayPart, ({Color skyTop, Color skyBottom, String label})> get dayPartLooks => {
+  DayPart.morning: (skyTop: Color(0xFFFFE2B8), skyBottom: Color(0xFFFFB38A), label: tr('Утро')),
+  DayPart.day: (skyTop: Color(0xFF7CCBFF), skyBottom: Color(0xFFBDE7FF), label: tr('День')),
+  DayPart.evening: (skyTop: Color(0xFF7B5CD6), skyBottom: Color(0xFFFF8C7A), label: tr('Вечер')),
+  DayPart.night: (skyTop: Color(0xFF1E2257), skyBottom: Color(0xFF3B3F8F), label: tr('Ночь')),
 };
 
 /// The sky object beside the greeting: a small round window onto the sky

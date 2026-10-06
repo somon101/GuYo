@@ -1,3 +1,4 @@
+import '../../l10n/l10n.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -61,7 +62,7 @@ class ExerciseTimerBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = secondsLeft <= 3 ? AppColors.danger : AppColors.primary;
     return Semantics(
-      label: 'Осталось $secondsLeft сек',
+      label: tr('Осталось {0} сек', [secondsLeft]),
       child: SizedBox(
         width: size,
         height: size,

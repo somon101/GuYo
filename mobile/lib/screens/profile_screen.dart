@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -116,7 +117,7 @@ class ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = 'Не удалось загрузить профиль';
+        _loadError = tr('Не удалось загрузить профиль');
       });
     }
   }
@@ -154,7 +155,7 @@ class ProfileScreenState extends State<ProfileScreen> {
     return showGeneralDialog(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'Достижение получено',
+      barrierLabel: tr('Достижение получено'),
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 260),
       pageBuilder: (_, _, _) => _AchievementUnlockedDialog(achievement: achievement),
@@ -173,7 +174,7 @@ class ProfileScreenState extends State<ProfileScreen> {
     try {
       picked = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, imageQuality: 85);
     } catch (e) {
-      _showSnack('Не удалось открыть галерею: $e');
+      _showSnack(tr('Не удалось открыть галерею: {0}', [e]));
       return null;
     }
     if (picked == null) {
@@ -182,7 +183,7 @@ class ProfileScreenState extends State<ProfileScreen> {
       // even after the user visibly picks something (a cancelled/failed
       // crop step, for instance), which otherwise looks identical to
       // every other kind of silent no-op.
-      _showSnack('Файл не выбран');
+      _showSnack(tr('Файл не выбран'));
       return null;
     }
 
@@ -214,7 +215,7 @@ class ProfileScreenState extends State<ProfileScreen> {
       // unhandled Future error -- no snackbar, no state change, the exact
       // "picks a photo, then nothing happens at all" this was chasing.
       if (mounted) setState(() => _isUpdatingAvatar = false);
-      _showSnack('Не удалось прочитать фото: $e');
+      _showSnack(tr('Не удалось прочитать фото: {0}', [e]));
       return null;
     }
     if (!mounted) return null;
@@ -232,7 +233,7 @@ class ProfileScreenState extends State<ProfileScreen> {
       // real upload that landed fine on the backend but whose new photo
       // failed to actually RENDER (bad network, a stale cached widget)
       // looked identical to "nothing happened at all".
-      _showSnack('Фото обновлено');
+      _showSnack(tr('Фото обновлено'));
       return profile;
     } on ApiException catch (e) {
       if (mounted) setState(() => _pendingAvatarBytes = null);
@@ -243,7 +244,7 @@ class ProfileScreenState extends State<ProfileScreen> {
       // with no visible cause, so surfacing exactly what threw is worth
       // more here than a clean but uninformative message.
       if (mounted) setState(() => _pendingAvatarBytes = null);
-      _showSnack('Не удалось загрузить фото: $e');
+      _showSnack(tr('Не удалось загрузить фото: {0}', [e]));
     } finally {
       if (mounted) setState(() => _isUpdatingAvatar = false);
     }
@@ -261,7 +262,7 @@ class ProfileScreenState extends State<ProfileScreen> {
       setState(() => _profile = profile);
       return profile;
     } catch (_) {
-      _showSnack('Не удалось удалить фото');
+      _showSnack(tr('Не удалось удалить фото'));
     } finally {
       if (mounted) setState(() => _isUpdatingAvatar = false);
     }
@@ -346,7 +347,7 @@ class ProfileScreenState extends State<ProfileScreen> {
               children: [
                 Text(_loadError!, textAlign: TextAlign.center),
                 const SizedBox(height: 12),
-                FilledButton(onPressed: _load, child: const Text('Повторить')),
+                FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
               ],
             ),
           ),
@@ -372,7 +373,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                 icon: Icons.local_fire_department_rounded,
                 iconColor: const Color(0xFFFF7A29),
                 iconBackground: const Color(0xFFFFF0E6),
-                label: 'Серий',
+                label: tr('Серий'),
                 value: '${profile.currentStreakDays} ${_dayWord(profile.currentStreakDays)}',
               ),
             ),
@@ -382,7 +383,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                 icon: Icons.menu_book_rounded,
                 iconColor: AppColors.primary,
                 iconBackground: const Color(0xFFEDEEFC),
-                label: 'Уроки',
+                label: tr('Уроки'),
                 // Still the backend's own completed-lessons count -- the
                 // card just leads to the lesson chain now.
                 value: '${profile.lessonsCompleted}',
@@ -395,7 +396,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                 icon: Icons.star_rounded,
                 iconColor: AppColors.primary,
                 iconBackground: const Color(0xFFEDEEFC),
-                label: 'Мои слова',
+                label: tr('Мои слова'),
                 value: '${profile.wordsLearned}',
                 // Still the same counter it always was -- it just leads
                 // somewhere now.
@@ -415,16 +416,16 @@ class ProfileScreenState extends State<ProfileScreen> {
 
 String _dayWord(int n) {
   final mod100 = n % 100;
-  if (mod100 >= 11 && mod100 <= 14) return 'дней';
+  if (mod100 >= 11 && mod100 <= 14) return tr('дней');
   switch (n % 10) {
     case 1:
-      return 'день';
+      return tr('день');
     case 2:
     case 3:
     case 4:
-      return 'дня';
+      return tr('дня');
     default:
-      return 'дней';
+      return tr('дней');
   }
 }
 
@@ -527,7 +528,7 @@ class _ProfileHeader extends StatelessWidget {
         if (_hasPhoto)
           Semantics(
             button: true,
-            label: 'Открыть фото профиля',
+            label: tr('Открыть фото профиля'),
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () => _openViewer(context),
@@ -633,7 +634,7 @@ class _AvatarViewer extends StatelessWidget {
                 top: 4,
                 right: 4,
                 child: IconButton(
-                  tooltip: 'Закрыть',
+                  tooltip: tr('Закрыть'),
                   icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
                   onPressed: () => Navigator.of(context).maybePop(),
                 ),
@@ -783,7 +784,7 @@ class _RankCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          rank?.name ?? 'Без ранга',
+                          rank?.name ?? tr('Без ранга'),
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -809,7 +810,7 @@ class _RankCard extends StatelessWidget {
                             Icon(Icons.workspace_premium_rounded, size: 16, color: color),
                             const SizedBox(width: 5),
                             Text(
-                              '${rating.totalPoints} очков',
+                              tr('{0} очков', [rating.totalPoints]),
                               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
                             ),
                           ],
@@ -834,8 +835,8 @@ class _RankCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Text(
-                      'До следующего уровня',
+                    Text(
+                      tr('До следующего уровня'),
                       style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
                     ),
                     const Spacer(),
@@ -856,9 +857,9 @@ class _RankCard extends StatelessWidget {
   String _positionLabel(UserRating rating) {
     final rank = rating.rank;
     final position = rating.rankPosition;
-    if (rank == null) return 'Ранг пока не присвоен';
+    if (rank == null) return tr('Ранг пока не присвоен');
     if (position == null) return rank.name;
-    return '$position место • ${rank.name}';
+    return tr('{0} место • {1}', [position, rank.name]);
   }
 }
 
@@ -902,8 +903,8 @@ class _AchievementsCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Text(
-                    'Достижения',
+                  Text(
+                    tr('Достижения'),
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                   ),
                   const Spacer(),
@@ -917,9 +918,9 @@ class _AchievementsCard extends StatelessWidget {
                 ],
               ),
               if (achievements.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(top: 10),
-                  child: Text('Пока нет доступных достижений', style: TextStyle(color: AppColors.secondaryText)),
+                  child: Text(tr('Пока нет доступных достижений'), style: TextStyle(color: AppColors.secondaryText)),
                 )
               else ...[
                 const SizedBox(height: 14),
@@ -972,7 +973,7 @@ class _AchievementUnlockedDialog extends StatelessWidget {
                 child: AchievementIcon(achievement: achievement, dimmed: false, size: 88),
               ),
               const SizedBox(height: 18),
-              const Text('Достижение получено!', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondaryText, letterSpacing: 0.5)),
+              Text(tr('Достижение получено!'), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondaryText, letterSpacing: 0.5)),
               const SizedBox(height: 6),
               Text(achievement.title!, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark), textAlign: TextAlign.center),
               const SizedBox(height: 8),
@@ -987,7 +988,7 @@ class _AchievementUnlockedDialog extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                   ),
-                  child: const Text('Отлично!'),
+                  child: Text(tr('Отлично!')),
                 ),
               ),
             ],

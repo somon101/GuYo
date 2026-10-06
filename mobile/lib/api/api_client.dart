@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -119,13 +120,27 @@ class ApiClient {
       body: jsonEncode({'login': login, 'password': password}),
     );
     if (res.statusCode == 401) {
-      throw ApiException('Неверный логин или пароль', statusCode: 401);
+      throw ApiException(tr('Неверный логин или пароль'), statusCode: 401);
     }
     if (res.statusCode != 200) {
-      throw ApiException('Ошибка сервера (${res.statusCode})', statusCode: res.statusCode);
+      throw ApiException(tr('Ошибка сервера ({0})', [res.statusCode]), statusCode: res.statusCode);
     }
     final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
     await _saveToken(data['access_token'] as String);
+    await _syncUiLanguage();
+  }
+
+  /// After login: a language picked on this device is saved to the account;
+  /// otherwise the account's own language is applied here.
+  Future<void> _syncUiLanguage() async {
+    try {
+      if (hasSavedAppLanguage) {
+        await updateMyProfile(uiLanguage: appLanguage.value);
+      } else {
+        final profile = await fetchMyProfile();
+        if (profile.uiLanguage != appLanguage.value) await setAppLanguage(profile.uiLanguage);
+      }
+    } catch (_) {}
   }
 
   Future<void> logout() async {
@@ -177,6 +192,7 @@ class ApiClient {
         'learning_goal': learningGoal,
         if (learningTopics != null) 'learning_topics': learningTopics,
         'referral_source': referralSource,
+        'ui_language': appLanguage.value,
       }),
     );
     await _throwWithDetail(res);
@@ -212,13 +228,13 @@ class ApiClient {
   Future<void> _throwIfUnauthorized(http.Response res) async {
     if (res.statusCode == 401) {
       await clearToken();
-      throw ApiException('Сессия истекла, войдите снова', statusCode: res.statusCode);
+      throw ApiException(tr('Сессия истекла, войдите снова'), statusCode: res.statusCode);
     }
     if (res.statusCode == 403) {
-      throw ApiException('Сессия истекла, войдите снова', statusCode: res.statusCode);
+      throw ApiException(tr('Сессия истекла, войдите снова'), statusCode: res.statusCode);
     }
     if (res.statusCode >= 400) {
-      throw ApiException('Ошибка сервера (${res.statusCode})', statusCode: res.statusCode);
+      throw ApiException(tr('Ошибка сервера ({0})', [res.statusCode]), statusCode: res.statusCode);
     }
   }
 
@@ -229,13 +245,13 @@ class ApiClient {
   Future<void> _throwWithDetail(http.Response res) async {
     if (res.statusCode == 401) {
       await clearToken();
-      throw ApiException('Сессия истекла, войдите снова', statusCode: res.statusCode);
+      throw ApiException(tr('Сессия истекла, войдите снова'), statusCode: res.statusCode);
     }
     if (res.statusCode == 403) {
-      throw ApiException('Сессия истекла, войдите снова', statusCode: res.statusCode);
+      throw ApiException(tr('Сессия истекла, войдите снова'), statusCode: res.statusCode);
     }
     if (res.statusCode >= 400) {
-      String message = 'Ошибка сервера (${res.statusCode})';
+      String message = tr('Ошибка сервера ({0})', [res.statusCode]);
       try {
         final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
         final detail = body['detail'];
@@ -441,7 +457,7 @@ class ApiClient {
   Future<LessonPassStats> fetchLessonPassStats(int lessonId) async {
     final res = await http.get(_uri('/lessons/$lessonId/pass/stats'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
-    if (res.statusCode != 200) throw ApiException('Статистика недоступна', statusCode: res.statusCode);
+    if (res.statusCode != 200) throw ApiException(tr('Статистика недоступна'), statusCode: res.statusCode);
     return LessonPassStats.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
@@ -721,6 +737,7 @@ class ApiClient {
     String? lastName,
     String? email,
     List<String>? learningTopics,
+    String? uiLanguage,
   }) async {
     final body = <String, dynamic>{
       if (login != null) 'login': login,
@@ -728,6 +745,7 @@ class ApiClient {
       if (lastName != null) 'last_name': lastName,
       if (email != null) 'email': email,
       if (learningTopics != null) 'learning_topics': learningTopics,
+      if (uiLanguage != null) 'ui_language': uiLanguage,
     };
     final res = await http.patch(
       _uri('/users/me/profile'),
@@ -763,7 +781,7 @@ class ApiClient {
       );
     final streamed = await req.send().timeout(
       const Duration(seconds: 25),
-      onTimeout: () => throw ApiException('Загрузка не удалась: слишком медленное соединение'),
+      onTimeout: () => throw ApiException(tr('Загрузка не удалась: слишком медленное соединение')),
     );
     final res = await http.Response.fromStream(streamed).timeout(const Duration(seconds: 25));
     await _throwWithDetail(res);
@@ -818,7 +836,7 @@ class ApiClient {
   Future<StatusOptions> fetchStatusOptions() async {
     final res = await http.get(_uri('/status/options'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
-    if (res.statusCode != 200) throw ApiException('Не удалось загрузить статусы', statusCode: res.statusCode);
+    if (res.statusCode != 200) throw ApiException(tr('Не удалось загрузить статусы'), statusCode: res.statusCode);
     return StatusOptions.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
@@ -830,7 +848,7 @@ class ApiClient {
       body: jsonEncode({'emoji_id': emojiId, 'phrase_id': phraseId}),
     );
     await _throwIfUnauthorized(res);
-    if (res.statusCode != 200) throw ApiException('Не удалось сохранить статус', statusCode: res.statusCode);
+    if (res.statusCode != 200) throw ApiException(tr('Не удалось сохранить статус'), statusCode: res.statusCode);
     return MyStatus.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 

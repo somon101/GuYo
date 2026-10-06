@@ -1,3 +1,4 @@
+import '../../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../../api/api_client.dart';
 import '../../models/exercise.dart';
@@ -204,8 +205,8 @@ class _BuildWordExerciseState extends State<BuildWordExercise> {
                 color: canCheck ? AppColors.primary : AppColors.primary.withValues(alpha: 0.35),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Text(
-                'Проверить',
+              child: Text(
+                tr('Проверить'),
                 style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700, color: Colors.white),
               ),
             ),

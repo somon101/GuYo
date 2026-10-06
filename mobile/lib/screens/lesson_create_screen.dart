@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../api/api_client.dart';
@@ -107,7 +108,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = 'Не удалось загрузить доступные слова';
+        _loadError = tr('Не удалось загрузить доступные слова');
       });
     }
   }
@@ -145,7 +146,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
       if (!mounted) return;
       setState(() {
         _isSubmitting = false;
-        _submitError = 'Не удалось создать урок';
+        _submitError = tr('Не удалось создать урок');
       });
     }
   }
@@ -153,7 +154,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
   Map<String, List<GuyoWord>> _groupByCategory(List<GuyoWord> words) {
     final groups = <String, List<GuyoWord>>{};
     for (final w in words) {
-      final name = (w.categoryName == null || w.categoryName!.isEmpty) ? 'Без категории' : w.categoryName!;
+      final name = (w.categoryName == null || w.categoryName!.isEmpty) ? tr('Без категории') : w.categoryName!;
       groups.putIfAbsent(name, () => []).add(w);
     }
     return groups;
@@ -163,7 +164,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      appBar: AppBar(title: const Text('Новый урок'), backgroundColor: AppColors.canvas),
+      appBar: AppBar(title: Text(tr('Новый урок')), backgroundColor: AppColors.canvas),
       body: _buildBody(),
       bottomNavigationBar: _isLoading || _loadError != null || _candidates.isEmpty ? null : _buildSubmitBar(),
     );
@@ -182,18 +183,18 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
             children: [
               Text(_loadError!, textAlign: TextAlign.center),
               const SizedBox(height: 12),
-              FilledButton(onPressed: _load, child: const Text('Повторить')),
+              FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
             ],
           ),
         ),
       );
     }
     if (_candidates.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
           padding: EdgeInsets.all(24),
           child: Text(
-            'Все доступные слова уже изучены -- новых слов для урока нет.',
+            tr('Все доступные слова уже изучены -- новых слов для урока нет.'),
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.secondaryText),
           ),
@@ -207,7 +208,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
           child: IosSegmented<_Mode>(
             value: _mode,
-            segments: const {_Mode.random: 'Случайно', _Mode.manual: 'Вручную'},
+            segments: {_Mode.random: tr('Случайно'), _Mode.manual: tr('Вручную')},
             onChanged: (m) => setState(() => _mode = m),
           ),
         ),
@@ -230,7 +231,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
       children: [
         IosSection(
-          header: 'Количество слов',
+          header: tr('Количество слов'),
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 22, 16, 18),
@@ -265,7 +266,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'слов в уроке · доступно ${_candidates.length}',
+                    tr('слов в уроке · доступно {0}', [_candidates.length]),
                     style: const TextStyle(fontSize: 13.5, color: AppColors.secondaryText),
                   ),
                   if (presets.isNotEmpty) ...[
@@ -281,7 +282,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
                           ),
                         if (!presets.contains(maxCount))
                           _PresetChip(
-                            label: 'Все $maxCount',
+                            label: tr('Все {0}', [maxCount]),
                             selected: _randomCount == maxCount,
                             onTap: () => setState(() => _randomCount = maxCount),
                           ),
@@ -293,10 +294,10 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
             ),
           ],
         ),
-        const Padding(
+        Padding(
           padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: Text(
-            'Слова возьмём случайно из тех, что вы ещё не выучили.',
+            tr('Слова возьмём случайно из тех, что вы ещё не выучили.'),
             style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
           ),
         ),
@@ -312,7 +313,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
       children: [
         IosSearchField(
           controller: _search,
-          placeholder: 'Поиск слова или перевода',
+          placeholder: tr('Поиск слова или перевода'),
           onChanged: (v) => setState(() => _query = v.trim()),
         ),
         Padding(
@@ -321,7 +322,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
             children: [
               Expanded(
                 child: Text(
-                  'Выбрано ${_selectedIds.length} из $_maxLessonWords',
+                  tr('Выбрано {0} из {1}', [_selectedIds.length, _maxLessonWords]),
                   style: TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
@@ -332,8 +333,8 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
               if (_selectedIds.isNotEmpty)
                 GestureDetector(
                   onTap: () => setState(_selectedIds.clear),
-                  child: const Text(
-                    'Сбросить',
+                  child: Text(
+                    tr('Сбросить'),
                     style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.primary),
                   ),
                 ),
@@ -341,14 +342,14 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
           ),
         ),
         if (groups.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 32),
-            child: Text('Ничего не найдено', textAlign: TextAlign.center, style: TextStyle(color: AppColors.secondaryText)),
+            child: Text(tr('Ничего не найдено'), textAlign: TextAlign.center, style: TextStyle(color: AppColors.secondaryText)),
           ),
         for (final entry in groups.entries) ...[
           IosSection(
             header: '${entry.key} · ${entry.value.length}',
-            actionLabel: entry.value.every((w) => _selectedIds.contains(w.id)) ? 'Снять' : 'Выбрать все',
+            actionLabel: entry.value.every((w) => _selectedIds.contains(w.id)) ? tr('Снять') : tr('Выбрать все'),
             onAction: () => _toggleAll(entry.value),
             children: [
               for (final word in entry.value)
@@ -389,8 +390,8 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
                 textStyle: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700),
               ),
               child: _isSubmitting
-                  ? const SkeletonPulse(child: Text('Готовим урок…'))
-                  : Text(_mode == _Mode.random ? 'Начать урок' : 'Начать урок (${_selectedIds.length})'),
+                  ? SkeletonPulse(child: Text(tr('Готовим урок…')))
+                  : Text(_mode == _Mode.random ? tr('Начать урок') : tr('Начать урок ({0})', [_selectedIds.length])),
             ),
           ),
         ),

@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../exercises/exercise_type.dart';
@@ -86,7 +87,7 @@ class _PracticeExerciseScreenState extends State<PracticeExerciseScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Не удалось загрузить упражнение';
+        _errorMessage = tr('Не удалось загрузить упражнение');
       });
     }
   }
@@ -159,7 +160,7 @@ class _PracticeExerciseScreenState extends State<PracticeExerciseScreen> {
           children: [
             Text(_errorMessage!, textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            FilledButton(onPressed: _load, child: const Text('Повторить')),
+            FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
           ],
         ),
       );
@@ -212,7 +213,7 @@ class _PracticeProgressHeader extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(color: AppColors.violetSurface, borderRadius: BorderRadius.circular(AppShapes.pillRadius)),
             child: Text(
-              'Слово $position из $total',
+              tr('Слово {0} из {1}', [position, total]),
               style: const TextStyle(fontSize: 13, color: AppColors.primaryDark, fontWeight: FontWeight.w700),
             ),
           ),

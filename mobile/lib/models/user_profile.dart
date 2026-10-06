@@ -37,6 +37,8 @@ class UserProfile {
   /// Topic codes from "Мои темы" (see models/learning_topics.dart).
   /// Null = never asked yet, so the app asks once.
   final List<String>? learningTopics;
+  /// Interface language: "ru", "tg" or "uz".
+  final String uiLanguage;
 
   UserProfile({
     required this.id,
@@ -51,6 +53,7 @@ class UserProfile {
     required this.wordsLearned,
     this.premiumUntil,
     this.learningTopics,
+    this.uiLanguage = 'ru',
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -67,6 +70,7 @@ class UserProfile {
       wordsLearned: json['words_learned'] as int,
       premiumUntil: json['premium_until'] == null ? null : DateTime.parse(json['premium_until'] as String).toLocal(),
       learningTopics: (json['learning_topics'] as List<dynamic>?)?.cast<String>(),
+      uiLanguage: json['ui_language'] as String? ?? 'ru',
     );
   }
 }

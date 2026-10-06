@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
@@ -80,7 +81,7 @@ class _LearnedWordsScreenState extends State<LearnedWordsScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = 'Не удалось загрузить слова';
+        _loadError = tr('Не удалось загрузить слова');
       });
     }
   }
@@ -124,7 +125,7 @@ class _LearnedWordsScreenState extends State<LearnedWordsScreen> {
       // Near-white with the faintest blue cast, so the white cards and the
       // light-violet accents both read against it.
       backgroundColor: const Color(0xFFFBFCFE),
-      appBar: AppBar(title: const Text('Мои слова')),
+      appBar: AppBar(title: Text(tr('Мои слова'))),
       body: SafeArea(
         child: RefreshIndicator(onRefresh: _load, child: _buildBody()),
       ),
@@ -145,7 +146,7 @@ class _LearnedWordsScreenState extends State<LearnedWordsScreen> {
               children: [
                 Text(_loadError!, textAlign: TextAlign.center),
                 const SizedBox(height: 12),
-                FilledButton(onPressed: _load, child: const Text('Повторить')),
+                FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
               ],
             ),
           ),
@@ -186,9 +187,9 @@ class _LearnedWordsScreenState extends State<LearnedWordsScreen> {
         _PhrasesLink(dictionary: widget.dictionary),
         const SizedBox(height: 12),
         if (groups.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
-            child: Text('Пока нет слов', textAlign: TextAlign.center, style: TextStyle(color: AppColors.secondaryText)),
+            child: Text(tr('Пока нет слов'), textAlign: TextAlign.center, style: TextStyle(color: AppColors.secondaryText)),
           )
         else
           for (final category in groups) ...[
@@ -252,7 +253,7 @@ class _SearchField extends StatelessWidget {
       onChanged: onChanged,
       style: const TextStyle(fontSize: 14, color: AppColors.primaryDark),
       decoration: InputDecoration(
-        hintText: 'Поиск слов...',
+        hintText: tr('Поиск слов...'),
         hintStyle: const TextStyle(fontSize: 14, color: AppColors.secondaryText),
         prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.secondaryText),
         isDense: true,
@@ -287,12 +288,12 @@ class _FilterRow extends StatelessWidget {
   });
 
   String _currentCategoryLabel() {
-    if (uncategorizedSelected) return 'Без категории';
-    if (selectedCategoryId == null) return 'Все категории';
+    if (uncategorizedSelected) return tr('Без категории');
+    if (selectedCategoryId == null) return tr('Все категории');
     for (final c in categories) {
       if (c.categoryId == selectedCategoryId) return c.categoryName;
     }
-    return 'Все категории';
+    return tr('Все категории');
   }
 
   @override
@@ -302,7 +303,7 @@ class _FilterRow extends StatelessWidget {
       child: Row(
         children: [
           PopupMenuButton<String>(
-            tooltip: 'Категория',
+            tooltip: tr('Категория'),
             onSelected: (value) {
               if (value == 'all') {
                 onCategoryChanged(null, false);
@@ -313,7 +314,7 @@ class _FilterRow extends StatelessWidget {
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(value: 'all', child: Text('Все категории')),
+              PopupMenuItem(value: 'all', child: Text(tr('Все категории'))),
               for (final c in categories)
                 PopupMenuItem(
                   value: c.categoryId?.toString() ?? 'none',
@@ -348,7 +349,7 @@ class _FilterRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           _LevelChip(
-            label: 'Все',
+            label: tr('Все'),
             color: AppColors.primary,
             selected: selectedLevelId == null,
             onTap: () => onLevelChanged(null),
@@ -504,16 +505,16 @@ class _CategoryHeader extends StatelessWidget {
 
   String _wordWord(int n) {
     final mod100 = n % 100;
-    if (mod100 >= 11 && mod100 <= 14) return 'слов';
+    if (mod100 >= 11 && mod100 <= 14) return tr('слов');
     switch (n % 10) {
       case 1:
-        return 'слово';
+        return tr('слово');
       case 2:
       case 3:
       case 4:
-        return 'слова';
+        return tr('слова');
       default:
-        return 'слов';
+        return tr('слов');
     }
   }
 }
@@ -540,9 +541,9 @@ class _PhrasesLink extends StatelessWidget {
             children: [
               const Icon(Icons.chat_bubble_outline, size: 20, color: AppColors.primary),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Мои фразы',
+                  tr('Мои фразы'),
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
                 ),
               ),

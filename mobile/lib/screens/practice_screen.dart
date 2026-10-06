@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../exercises/practice_catalog.dart';
 import '../models/dictionary.dart';
@@ -28,21 +29,21 @@ class PracticeScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
           children: [
-            const Text(
-              'Практика',
+            Text(
+              tr('Практика'),
               style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
             ),
             const SizedBox(height: 2),
-            const Text(
-              'Тренируйтесь самостоятельно, вне уроков',
+            Text(
+              tr('Тренируйтесь самостоятельно, вне уроков'),
               style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
             ),
             const SizedBox(height: 18),
             if (exercises.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Text(
-                  'Упражнений пока нет',
+                  tr('Упражнений пока нет'),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: AppColors.secondaryText),
                 ),

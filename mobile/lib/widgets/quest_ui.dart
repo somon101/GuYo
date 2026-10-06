@@ -1,3 +1,4 @@
+import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'guyo_ui.dart';
@@ -13,24 +14,24 @@ export 'guyo_ui.dart';
 
 /// "24 дня осталось" with the right Russian plural for the number.
 String daysLeftLabel(int days) {
-  if (days <= 0) return 'Завершается';
+  if (days <= 0) return tr('Завершается');
   final mod100 = days % 100;
   final String word;
   if (mod100 >= 11 && mod100 <= 14) {
-    word = 'дней';
+    word = tr('дней');
   } else {
     switch (days % 10) {
       case 1:
-        word = 'день';
+        word = tr('день');
       case 2:
       case 3:
       case 4:
-        word = 'дня';
+        word = tr('дня');
       default:
-        word = 'дней';
+        word = tr('дней');
     }
   }
-  return '$days $word осталось';
+  return tr('{0} {1} осталось', [days, word]);
 }
 
 /// "18 сент." -- short enough to sit at either end of the season range
@@ -38,9 +39,9 @@ String daysLeftLabel(int days) {
 /// localization package: this is the only place the app formats a date,
 /// and the app is Russian-only.
 String shortDate(DateTime date) {
-  const months = [
-    'янв.', 'февр.', 'марта', 'апр.', 'мая', 'июня',
-    'июля', 'авг.', 'сент.', 'окт.', 'нояб.', 'дек.',
+  final months = [
+    tr('янв.'), tr('февр.'), tr('марта'), tr('апр.'), tr('мая'), tr('июня'),
+    tr('июля'), tr('авг.'), tr('сент.'), tr('окт.'), tr('нояб.'), tr('дек.'),
   ];
   return '${date.day} ${months[date.month - 1]}';
 }
@@ -153,9 +154,9 @@ class _OpenEndedNote extends StatelessWidget {
         children: [
           const Icon(Icons.schedule_rounded, size: 15, color: AppColors.secondaryText),
           const SizedBox(width: 6),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Без срока окончания',
+              tr('Без срока окончания'),
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
