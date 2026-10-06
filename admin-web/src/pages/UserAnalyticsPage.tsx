@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { UserHistorySection } from "../components/UserHistorySection";
 import {
   getUserPhraseAnalytics,
   listAnalyticsDictionaries,
@@ -127,6 +128,7 @@ export function UserAnalyticsPage() {
             <p className="text-sm text-slate-500">Выберите пользователя, чтобы увидеть аналитику.</p>
           ) : (
             <div className="flex flex-col gap-6">
+              <UserHistorySection userId={selectedUserId} />
               {isLoadingWords ? (
                 <p className="text-sm text-slate-500">Загрузка слов…</p>
               ) : wordsError ? (

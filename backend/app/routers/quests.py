@@ -7,6 +7,7 @@ import math
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.analytics.history import log_event
 from app.achievements import check_and_grant_achievements, record_activity
 from app.core.dates import utc_now
 from app.core.deps import get_current_user
@@ -269,7 +270,11 @@ def submit_quest_answer(
         source="quest",
         duration_ms=payload.duration_ms,
         timed_out=payload.timed_out,
+        given_answer=payload.given_answer,
     )
+    log_event(db, user.id, "quest_answered", quest_id=quest.id,
+              data={"name": quest.name, "personal": quest.owner_user_id is not None,
+                    "word": word.word, "correct": payload.is_correct})
     # Priority's automatic side effects -- see app/priority/lessons.py and
     # app/priority/quests_auto.py. A quest answer is just as valid a
     # trigger for either as a Lesson one.

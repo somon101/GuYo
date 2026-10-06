@@ -24,6 +24,7 @@ from collections import defaultdict
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.analytics.history import log_event
 from app.models.quest import Quest, QuestWord, UserQuestWordDay
 from app.models.user import User
 from app.models.word import Word
@@ -200,4 +201,6 @@ def maybe_create_personal_quest(db: Session, user: User, dictionary_id: int) -> 
     db.flush()
     for word in chosen:
         db.add(QuestWord(quest_id=quest.id, word_id=word.id))
+    log_event(db, user.id, "personal_quest_created", quest_id=quest.id,
+              data={"name": quest.name, "words": len(chosen)})
     return quest

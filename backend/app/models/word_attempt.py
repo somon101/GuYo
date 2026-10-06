@@ -55,5 +55,8 @@ class WordAttempt(Base):
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # The countdown ran out: counted as not recalled, but weaker evidence
     # of forgetting than picking a wrong answer.
+    # What the learner actually gave when it differs from a tap on right/
+    # wrong: the picked option, the built letters, the recognized speech.
+    given_answer: Mapped[str | None] = mapped_column(String(255), nullable=True)
     timed_out: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)

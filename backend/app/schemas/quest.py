@@ -66,6 +66,7 @@ class QuestAnswerIn(BaseModel):
     is_correct: bool
     # Sent by newer app versions; see WordAttempt.duration_ms / timed_out.
     duration_ms: int | None = Field(default=None, ge=0, le=600_000)
+    given_answer: str | None = Field(default=None, max_length=255)
     timed_out: bool = False
 
 

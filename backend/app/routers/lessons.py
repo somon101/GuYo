@@ -29,6 +29,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.analytics.history import log_event
 from app.core.content_language import primary_translation
 from app.core.dates import utc_now
 from app.core.deps import get_current_admin, get_current_user
@@ -200,6 +201,8 @@ def _check_and_apply_lesson_completion(db: Session, lesson: Lesson, threshold: i
     if len(secured_word_ids(db, lesson.user_id, word_ids, threshold)) == len(word_ids):
         lesson.is_completed = True
         lesson.completed_at = func.now()
+        log_event(db, lesson.user_id, "lesson_completed", lesson_id=lesson.id,
+                  data={"number": lesson.number, "adaptive": lesson.is_adaptive})
         return True
     return False
 
@@ -504,6 +507,8 @@ def build_lesson(
         if exercise_type.is_available(db, user, dictionary.id, selected_ids, threshold):
             db.add(LessonExercise(lesson_id=lesson.id, exercise_key=exercise_key))
 
+    log_event(db, user.id, "lesson_created", lesson_id=lesson.id,
+              data={"number": lesson.number, "adaptive": is_adaptive, "words": len(selected_ids)})
     db.flush()
     return lesson
 
@@ -623,6 +628,7 @@ def submit_answer(
         lesson_id=lesson.id,
         duration_ms=payload.duration_ms,
         timed_out=payload.timed_out,
+        given_answer=payload.given_answer,
     )
 
     threshold = get_threshold(db)

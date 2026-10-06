@@ -11,10 +11,11 @@ available` alone can answer.
 from collections import defaultdict
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import Date, cast, exists, func
 from sqlalchemy.orm import Session, aliased
 
+from app.analytics.history import build_history
 from app.core.dates import dushanbe_today
 from app.core.deps import get_current_admin
 from app.database import get_db
@@ -389,6 +390,20 @@ class _RetentionTally:
             percent = round(returned * 100 / eligible, 1) if eligible else None
             out[key] = RetentionRateOut(returned=returned, eligible=eligible, percent=percent)
         return out
+
+
+@router.get("/users/{user_id}/history")
+def get_user_history(
+    user_id: int,
+    days: int = Query(7, ge=1, le=90),
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """Every answer and step of one learner over the last `days` days,
+    newest first, with a summary (app/analytics/history.py)."""
+    if db.get(User, user_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return build_history(db, user_id, days)
 
 
 @router.get("/retention", response_model=RetentionOut)

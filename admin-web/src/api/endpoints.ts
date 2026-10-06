@@ -1305,3 +1305,46 @@ export async function stopTranslation(): Promise<TranslationState> {
   const { data } = await api.post("/admin/translation/stop");
   return data;
 }
+
+export interface UserHistoryItem {
+  at: string;
+  kind: string;
+  source?: string;
+  exercise_key?: string;
+  word_id?: number;
+  word?: string | null;
+  translation?: string | null;
+  is_correct?: boolean;
+  given_answer?: string | null;
+  timed_out?: boolean;
+  duration_ms?: number | null;
+  score_after?: number;
+  lesson_id?: number | null;
+  lesson_number?: number | null;
+  quest_id?: number | null;
+  data?: Record<string, any>;
+}
+
+export interface UserHistory {
+  days: number;
+  summary: {
+    answers: number;
+    correct: number;
+    timed_out: number;
+    lessons_created: number;
+    adaptive_lessons_created: number;
+    lessons_completed: number;
+    lessons_left: number;
+    personal_quests_created: number;
+    personal_quest_answers: number;
+    personal_quest_correct: number;
+    app_opens: number;
+    top_mistakes: { word_id: number; word: string | null; translation: string | null; wrong: number }[];
+  };
+  items: UserHistoryItem[];
+}
+
+export async function getUserHistory(userId: number, days: number): Promise<UserHistory> {
+  const { data } = await api.get(`/admin/analytics/users/${userId}/history`, { params: { days } });
+  return data;
+}

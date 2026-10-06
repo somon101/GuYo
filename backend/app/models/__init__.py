@@ -83,3 +83,4 @@ __all__ = [
     "PromoLink",
     "UserQuestWordDay",
 ]
+from app.models.user_event import UserEvent

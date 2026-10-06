@@ -145,6 +145,7 @@ class PracticeAnswerIn(BaseModel):
     exercise_key: str = Field(max_length=64)
     is_correct: bool
     duration_ms: int | None = Field(default=None, ge=0, le=600_000)
+    given_answer: str | None = Field(default=None, max_length=255)
     timed_out: bool = False
 
 
@@ -174,5 +175,6 @@ def record_practice_answer(
         source="practice",
         duration_ms=payload.duration_ms,
         timed_out=payload.timed_out,
+        given_answer=payload.given_answer,
     )
     db.commit()

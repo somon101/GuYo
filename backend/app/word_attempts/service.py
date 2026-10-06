@@ -22,6 +22,7 @@ def record_word_attempt(
     source: str = "lesson",
     duration_ms: int | None = None,
     timed_out: bool = False,
+    given_answer: str | None = None,
 ) -> None:
     """Logs one real answer for Admin Web's «Аналитика» -- purely additive
     bookkeeping alongside whatever the caller already did to WordProgress/
@@ -41,6 +42,7 @@ def record_word_attempt(
             source=source,
             duration_ms=duration_ms,
             timed_out=timed_out,
+            given_answer=(given_answer or None) and given_answer[:255],
         )
     )
     db.flush()
