@@ -17,15 +17,29 @@ from contextvars import ContextVar
 
 UI_LANGUAGES = ("ru", "tg", "uz")
 
-_language: ContextVar[str] = ContextVar("content_language", default="tg")
+# A mutable holder, not the language itself: FastAPI runs sync dependencies
+# and endpoints in separate threads, each with its own copy of the context,
+# so a plain ContextVar.set() inside get_current_user never reached the
+# endpoint. The middleware puts one fresh holder in the request's context
+# before both run; they share it and the dependency writes into it.
+_language: ContextVar[dict | None] = ContextVar("content_language", default=None)
+
+
+def begin_request() -> None:
+    _language.set({"lang": "tg"})
 
 
 def set_content_language_for(ui_language: str | None) -> None:
-    _language.set("uz" if ui_language == "uz" else "tg")
+    holder = _language.get()
+    if holder is None:
+        holder = {}
+        _language.set(holder)
+    holder["lang"] = "uz" if ui_language == "uz" else "tg"
 
 
 def content_language() -> str:
-    return _language.get()
+    holder = _language.get()
+    return holder["lang"] if holder else "tg"
 
 
 def primary_translation(word, *, strict: bool = False):

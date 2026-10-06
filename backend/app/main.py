@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
+from app.core.content_language import begin_request
 from app.rating.scheduler import run_season_scheduler
 from app.routers import (
     admin_achievements,
@@ -59,6 +60,14 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="GuYo API", version="0.1.0", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def content_language_scope(request, call_next):
+    # Fresh per-request language holder (app/core/content_language.py).
+    begin_request()
+    return await call_next(request)
+
 
 app.add_middleware(
     CORSMiddleware,
