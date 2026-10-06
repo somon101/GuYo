@@ -142,3 +142,30 @@ def memory_coverage(db: Session) -> tuple[int, int]:
     modelled = db.query(func.count(WordProgress.id)).filter(WordProgress.memory_last_review.isnot(None)).scalar()
     total = db.query(func.count(func.distinct(func.concat(WordAttempt.user_id, "-", WordAttempt.word_id)))).scalar()
     return modelled or 0, total or 0
+
+
+def secured_word_ids(db: Session, user_id: int, word_ids: list[int] | None, threshold: int) -> set[int]:
+    """Words that need no more work in a lesson: learned by score AND, while
+    the memory model is on, still remembered (R at or above the target).
+    A learned word the user is forgetting needs work again -- it goes back
+    into lessons and stays there until a review brings R back up. A pair
+    with no memory data yet is judged by score alone. `word_ids=None`
+    means every word this user has progress on."""
+    from app.priority.settings import get_priority_settings
+
+    settings = get_priority_settings(db)
+    query = db.query(WordProgress).filter(WordProgress.user_id == user_id, WordProgress.score >= threshold)
+    if word_ids is not None:
+        if not word_ids:
+            return set()
+        query = query.filter(WordProgress.word_id.in_(word_ids))
+    rows = query.all()
+    if not settings.memory_enabled:
+        return {p.word_id for p in rows}
+    now = utc_now()
+    secured = set()
+    for p in rows:
+        r = recall_probability(p, now)
+        if r is None or r >= settings.memory_target_retention:
+            secured.add(p.word_id)
+    return secured

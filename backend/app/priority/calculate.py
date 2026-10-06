@@ -217,7 +217,43 @@ def calculate_priorities(db: Session, user_id: int, word_ids: list[int]) -> dict
     ):
         attempts[word_id].append(_Attempt(is_correct, created_at))
 
-    return {word_id: _score(ctx, scores.get(word_id, 0), attempts.get(word_id, [])) for word_id in ids}
+    results = {word_id: _score(ctx, scores.get(word_id, 0), attempts.get(word_id, [])) for word_id in ids}
+    if ctx.settings.memory_enabled:
+        _apply_memory(db, user_id, ids, results, ctx)
+    return results
+
+
+def _apply_memory(db: Session, user_id: int, ids: list[int], results: dict, ctx: "_Context") -> None:
+    """With the memory model on, the level comes from the recall
+    probability R, mapped onto the admin's level bands by rank (Критический
+    = the top band, ..., Минимальный = the bottom one) and the score is the
+    chance of forgetting, 0-100. A word with no reviews yet has no level."""
+    from app.memory import recall_probability
+    from app.priority.settings import priority_role_bands
+
+    roles = priority_role_bands(db)
+    s = ctx.settings
+    progress = {
+        p.word_id: p for p in db.query(WordProgress).filter(WordProgress.user_id == user_id, WordProgress.word_id.in_(ids))
+    }
+    for word_id, result in results.items():
+        p = progress.get(word_id)
+        r = recall_probability(p, ctx.now) if p is not None else None
+        if r is None:
+            result.level = None
+            continue
+        if r < s.memory_critical_below:
+            role = "critical"
+        elif r < s.memory_high_below:
+            role = "high"
+        elif r < s.memory_target_retention:
+            role = "medium"
+        elif r < s.memory_minimal_above:
+            role = "low"
+        else:
+            role = "minimal"
+        result.level = roles[role]
+        result.score = round((1 - r) * 100, 1)
 
 
 def calculate_priority(db: Session, user_id: int, word_id: int) -> PriorityResult:

@@ -16,6 +16,11 @@ class PrioritySettingsOut(BaseModel):
     personal_quest_min_words: int
     personal_quest_max_words: int
     personal_quest_reward_points: int
+    memory_enabled: bool
+    memory_target_retention: float
+    memory_critical_below: float
+    memory_high_below: float
+    memory_minimal_above: float
 
 
 class PrioritySettingsIn(BaseModel):
@@ -32,6 +37,11 @@ class PrioritySettingsIn(BaseModel):
     personal_quest_min_words: int = Field(ge=1)
     personal_quest_max_words: int = Field(ge=1)
     personal_quest_reward_points: int = Field(ge=0)
+    memory_enabled: bool = True
+    memory_target_retention: float = Field(default=0.9, gt=0, lt=1)
+    memory_critical_below: float = Field(default=0.7, gt=0, lt=1)
+    memory_high_below: float = Field(default=0.85, gt=0, lt=1)
+    memory_minimal_above: float = Field(default=0.95, gt=0, lt=1)
 
 
 class PriorityRecencyBandOut(BaseModel):

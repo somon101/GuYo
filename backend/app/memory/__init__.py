@@ -3,6 +3,7 @@ from app.memory.service import (
     rebuild_memory,
     rebuild_pending_memories,
     recall_probability,
+    secured_word_ids,
 )
 
-__all__ = ["day_grade", "rebuild_memory", "rebuild_pending_memories", "recall_probability"]
+__all__ = ["day_grade", "rebuild_memory", "rebuild_pending_memories", "recall_probability", "secured_word_ids"]

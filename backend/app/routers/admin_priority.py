@@ -50,6 +50,11 @@ def get_settings(db: Session = Depends(get_db), _admin=Depends(get_current_admin
         personal_quest_min_words=s.personal_quest_min_words,
         personal_quest_max_words=s.personal_quest_max_words,
         personal_quest_reward_points=s.personal_quest_reward_points,
+        memory_enabled=s.memory_enabled,
+        memory_target_retention=s.memory_target_retention,
+        memory_critical_below=s.memory_critical_below,
+        memory_high_below=s.memory_high_below,
+        memory_minimal_above=s.memory_minimal_above,
     )
 
 
@@ -69,6 +74,11 @@ def update_settings(payload: PrioritySettingsIn, db: Session = Depends(get_db), 
     s.personal_quest_min_words = payload.personal_quest_min_words
     s.personal_quest_max_words = payload.personal_quest_max_words
     s.personal_quest_reward_points = payload.personal_quest_reward_points
+    s.memory_enabled = payload.memory_enabled
+    s.memory_target_retention = payload.memory_target_retention
+    s.memory_critical_below = payload.memory_critical_below
+    s.memory_high_below = payload.memory_high_below
+    s.memory_minimal_above = payload.memory_minimal_above
     db.commit()
     return get_settings(db)  # re-reads the row fresh, same shape as GET
 

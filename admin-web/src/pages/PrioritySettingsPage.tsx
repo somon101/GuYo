@@ -144,7 +144,7 @@ function WeightsSection() {
           type="number"
           step="any"
           className={`w-full max-w-[8rem] ${inputClass}`}
-          value={settings[key]}
+          value={settings[key] as number}
           onChange={(e) => setSettings({ ...settings, [key]: Number(e.target.value) })}
         />
         {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
@@ -301,6 +301,32 @@ function WeightsSection() {
                 "Порог доли ошибок (0–1)",
                 "0.5 значит: половина или больше попыток в упражнении — ошибки.",
               )}
+            </div>
+          </div>
+          <div className="border-t border-slate-100 pt-4">
+            <p className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-400">
+              Модель памяти
+              <InfoTooltip label="Что такое модель памяти">
+                Для каждого слова считается R — вероятность, что человек вспомнит его сейчас. Она растёт от правильных
+                ответов в разные дни и падает со временем. Когда модель включена, уровни приоритета считаются по R, а
+                выученное слово с R ниже цели снова попадает в уроки на повторение. Выключите, чтобы вернуться к
+                старому расчёту по весам выше.
+              </InfoTooltip>
+            </p>
+            <label className="mb-4 flex items-center gap-3 text-sm font-medium text-slate-700">
+              <input
+                type="checkbox"
+                className="switch"
+                checked={settings.memory_enabled}
+                onChange={(e) => setSettings({ ...settings, memory_enabled: e.target.checked })}
+              />
+              {settings.memory_enabled ? "Включена — приоритет по вероятности вспомнить" : "Выключена — старый расчёт по весам"}
+            </label>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              {field("memory_target_retention", "Цель (повторять ниже)", "0.9 = повторять, когда шанс вспомнить ниже 90%.")}
+              {field("memory_critical_below", "Критический ниже", "Слова с R ниже — критические (автоурок).")}
+              {field("memory_high_below", "Высокий ниже", "Между критическим и этим — высокий; дальше до цели — средний.")}
+              {field("memory_minimal_above", "Минимальный от", "Слова с R выше — точно помнит (отвлекающие варианты).")}
             </div>
           </div>
           <div className="flex items-center gap-3">

@@ -65,6 +65,15 @@ class PrioritySettings(Base):
     # no admin-authored Quest row of its own to read it from.
     personal_quest_reward_points: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
 
+    # The memory model (app/memory/). When on, a word's Priority level comes
+    # from its recall probability R instead of the four-factor score, and a
+    # learned word whose R fell below the target needs review again.
+    memory_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    memory_target_retention: Mapped[float] = mapped_column(Float, nullable=False, default=0.9, server_default="0.9")
+    memory_critical_below: Mapped[float] = mapped_column(Float, nullable=False, default=0.7, server_default="0.7")
+    memory_high_below: Mapped[float] = mapped_column(Float, nullable=False, default=0.85, server_default="0.85")
+    memory_minimal_above: Mapped[float] = mapped_column(Float, nullable=False, default=0.95, server_default="0.95")
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

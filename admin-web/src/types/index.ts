@@ -391,6 +391,11 @@ export interface PrioritySettings {
   personal_quest_min_words: number;
   personal_quest_max_words: number;
   personal_quest_reward_points: number;
+  memory_enabled: boolean;
+  memory_target_retention: number;
+  memory_critical_below: number;
+  memory_high_below: number;
+  memory_minimal_above: number;
 }
 
 export interface PriorityRecencyBand {

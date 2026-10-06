@@ -65,9 +65,13 @@ def pending_critical_words(db: Session, user_id: int, dictionary_id: int, thresh
     candidates = (
         db.query(Word)
         .join(WordProgress, WordProgress.word_id == Word.id)
-        .filter(WordProgress.user_id == user_id, Word.dictionary_id == dictionary_id, WordProgress.score < threshold)
+        .filter(WordProgress.user_id == user_id, Word.dictionary_id == dictionary_id)
         .all()
     )
+    from app.memory import secured_word_ids
+
+    secured = secured_word_ids(db, user_id, [w.id for w in candidates], threshold)
+    candidates = [w for w in candidates if w.id not in secured]
 
     candidates = [word for word in candidates if word.id not in already_pending]
     priorities = calculate_priorities(db, user_id, [word.id for word in candidates])

@@ -49,6 +49,7 @@ from app.models.learning_settings import LearningSettings
 from app.models.lesson import Lesson, LessonExercise, LessonWord
 from app.models.user import User
 from app.models.word import Word, WordTopic
+from app.memory import recall_probability, secured_word_ids
 from app.models.word_attempt import WordAttempt
 from app.models.word_progress import WordProgress
 from app.premium import LessonLimitReached, check_lesson_quota
@@ -176,17 +177,7 @@ def _lesson_to_summary(db: Session, lesson: Lesson, threshold: int) -> LessonSum
     just the counts the chain screen needs to render one link, not every
     word's own text/translation/score."""
     word_ids = [row[0] for row in db.query(LessonWord.word_id).filter(LessonWord.lesson_id == lesson.id).all()]
-    learned_count = 0
-    if word_ids:
-        learned_count = (
-            db.query(func.count(WordProgress.id))
-            .filter(
-                WordProgress.user_id == lesson.user_id,
-                WordProgress.word_id.in_(word_ids),
-                WordProgress.score >= threshold,
-            )
-            .scalar()
-        )
+    learned_count = len(secured_word_ids(db, lesson.user_id, word_ids, threshold)) if word_ids else 0
     return LessonSummaryOut(
         id=lesson.id,
         number=lesson.number,
@@ -205,12 +196,7 @@ def _check_and_apply_lesson_completion(db: Session, lesson: Lesson, threshold: i
     word_ids = [row[0] for row in db.query(LessonWord.word_id).filter(LessonWord.lesson_id == lesson.id).all()]
     if not word_ids:
         return False
-    learned_count = (
-        db.query(func.count(WordProgress.id))
-        .filter(WordProgress.user_id == lesson.user_id, WordProgress.word_id.in_(word_ids), WordProgress.score >= threshold)
-        .scalar()
-    )
-    if learned_count == len(word_ids):
+    if len(secured_word_ids(db, lesson.user_id, word_ids, threshold)) == len(word_ids):
         lesson.is_completed = True
         lesson.completed_at = func.now()
         return True
@@ -462,6 +448,16 @@ def prioritized_words(db: Session, user: User, words: list[Word]) -> list[Word]:
     first, then the rest; within each, the most important first; words of
     equal standing shuffled, so two lessons are never the same list."""
     topics = set(user.learning_topics or [])
+    # Learned words the user is forgetting come first: they are only in
+    # this pool because their recall fell below the target.
+    due: dict[int, float] = {}
+    if words:
+        for progress in db.query(WordProgress).filter(
+            WordProgress.user_id == user.id, WordProgress.word_id.in_([w.id for w in words])
+        ):
+            r = recall_probability(progress)
+            if r is not None and progress.score >= get_threshold(db):
+                due[progress.word_id] = r
     in_topic: set[int] = set()
     if topics and words:
         in_topic = {
@@ -470,7 +466,10 @@ def prioritized_words(db: Session, user: User, words: list[Word]) -> list[Word]:
             .filter(WordTopic.word_id.in_([w.id for w in words]), WordTopic.topic.in_(topics))
             .all()
         }
-    return sorted(words, key=lambda w: (w.id not in in_topic, -w.importance, random.random()))
+    return sorted(
+        words,
+        key=lambda w: (w.id not in due, due.get(w.id, 1.0), w.id not in in_topic, -w.importance, random.random()),
+    )
 
 
 def build_lesson(

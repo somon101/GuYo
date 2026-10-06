@@ -69,12 +69,10 @@ def get_eligible_words(db: Session, user_id: int, dictionary_id: int, threshold:
     """Every Word in this dictionary NOT already learned (WordProgress.score
     >= threshold) -- the one pool both lesson-creation modes (random and
     manual) draw from, so a word already mastered is never offered again."""
-    learned_ids = (
-        db.query(WordProgress.word_id)
-        .filter(WordProgress.user_id == user_id, WordProgress.score >= threshold)
-        .subquery()
-    )
-    return db.query(Word).filter(Word.dictionary_id == dictionary_id, ~Word.id.in_(learned_ids)).all()
+    from app.memory import secured_word_ids
+
+    secured = secured_word_ids(db, user_id, None, threshold)
+    return [w for w in db.query(Word).filter(Word.dictionary_id == dictionary_id).all() if w.id not in secured]
 
 
 def fill_word_progress(db: Session, user_id: int, words_out: list, word_ids: list[int]) -> None:
@@ -124,16 +122,13 @@ def lesson_words_below_threshold(db: Session, lesson: Lesson, threshold: int) ->
     now -- what a new pass covers. On a lesson's first pass that is every
     word. A word with no WordProgress row at all counts as below threshold
     (score 0), same convention as everywhere else scoring is read."""
+    from app.memory import secured_word_ids
+
     word_ids = [lw.word_id for lw in lesson.words]
     if not word_ids:
         return []
-    learned_ids = {
-        row[0]
-        for row in db.query(WordProgress.word_id)
-        .filter(WordProgress.user_id == lesson.user_id, WordProgress.word_id.in_(word_ids), WordProgress.score >= threshold)
-        .all()
-    }
-    return [lw.word for lw in lesson.words if lw.word_id not in learned_ids]
+    secured = secured_word_ids(db, lesson.user_id, word_ids, threshold)
+    return [lw.word for lw in lesson.words if lw.word_id not in secured]
 
 
 def get_learned_pool(db: Session, user_id: int, dictionary_id: int, threshold: int) -> list[Word]:
