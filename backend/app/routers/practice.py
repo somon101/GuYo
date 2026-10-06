@@ -16,11 +16,10 @@ model, and renders it with the exact same widget, it already has.
 matching round, it is simply N learned words for the client to shuffle
 into a board -- see build_matching_words below.
 
-No answer is ever submitted here, and nothing in this file touches
-WordProgress, UserRating or any achievement -- Practice is self-testing,
-the same "no score of its own" contract Практика's phrase exercises
-(build_phrase/build_phrase_by_ear) already established. A round is
-read-only from end to end.
+Practice changes no score, rating or achievement -- it is self-testing.
+Its answers ARE recorded (POST .../answers) as WordAttempt rows with
+source "practice": they are real evidence of what the user remembers,
+which the memory model (app/memory/) uses.
 """
 
 import random
@@ -45,6 +44,9 @@ from app.quests.rounds import (
 from app.routers.words import word_to_out
 from app.schemas.exercise import BuildWordRoundOut, ExerciseWordsOut, TrueOrFalseRoundOut
 from app.schemas.lesson import ListenWordRoundOut, SpeakingWordRoundOut
+from app.models.word_progress import WordProgress
+from app.word_attempts import record_word_attempt
+from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/dictionaries/{dictionary_id}/practice", tags=["practice"])
 
@@ -136,3 +138,41 @@ def get_practice_listen_word_round(dictionary_id: int, db: Session = Depends(get
     selected, available_count = _sample_feasible_words(db, user, dictionary_id, threshold, listen_word.KEY, pool)
     items = [build_listen_word_round(db, user, dictionary_id, threshold, w).items[0] for w in selected]
     return ListenWordRoundOut(dictionary_id=dictionary_id, available_count=available_count, items=items)
+
+
+class PracticeAnswerIn(BaseModel):
+    word_id: int
+    exercise_key: str = Field(max_length=64)
+    is_correct: bool
+    duration_ms: int | None = Field(default=None, ge=0, le=600_000)
+    timed_out: bool = False
+
+
+@router.post("/answers", status_code=status.HTTP_204_NO_CONTENT)
+def record_practice_answer(
+    dictionary_id: int,
+    payload: PracticeAnswerIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Records one Practice answer as memory evidence. Changes no score:
+    the attempt carries the word's current score unchanged."""
+    _get_dictionary_or_404(db, dictionary_id)
+    word = db.get(Word, payload.word_id)
+    if word is None or word.dictionary_id != dictionary_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Word not found")
+    progress = (
+        db.query(WordProgress).filter(WordProgress.user_id == user.id, WordProgress.word_id == word.id).first()
+    )
+    record_word_attempt(
+        db,
+        user_id=user.id,
+        word_id=word.id,
+        exercise_key=payload.exercise_key,
+        is_correct=payload.is_correct,
+        score_after=progress.score if progress is not None else 0,
+        source="practice",
+        duration_ms=payload.duration_ms,
+        timed_out=payload.timed_out,
+    )
+    db.commit()

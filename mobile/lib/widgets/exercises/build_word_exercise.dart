@@ -6,6 +6,7 @@ import '../../theme/app_colors.dart';
 import '../audio_button.dart';
 import '../ios_ui.dart';
 import 'exercise_timer.dart';
+import '../../services/answer_signals.dart';
 
 /// One letter button/slot's contents, with a unique instance id so two
 /// identical letters (e.g. HELLO's two L's) are always distinguishable and
@@ -57,13 +58,17 @@ class _BuildWordExerciseState extends State<BuildWordExercise> {
       if (mounted) setState(() {});
     },
     onExpired: () {
-      if (mounted) _resolve(timedOut: true);
+      if (mounted) {
+        AnswerSignals.timedOut();
+        _resolve(timedOut: true);
+      }
     },
   );
 
   @override
   void initState() {
     super.initState();
+    AnswerSignals.itemShown();
     _tiles = [for (var i = 0; i < widget.item.letters.length; i++) _Tile('$i-${widget.item.letters[i]}', widget.item.letters[i])];
     _available = {for (final t in _tiles) t.id};
     _slots = List<_Tile?>.filled(widget.item.correctWord.length, null);

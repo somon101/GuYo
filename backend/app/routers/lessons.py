@@ -621,6 +621,8 @@ def submit_answer(
         is_correct=payload.is_correct,
         score_after=progress.score,
         lesson_id=lesson.id,
+        duration_ms=payload.duration_ms,
+        timed_out=payload.timed_out,
     )
 
     threshold = get_threshold(db)

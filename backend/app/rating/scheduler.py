@@ -25,6 +25,7 @@ import time
 
 from app.database import SessionLocal
 from app.notifications.reminders import run_reminders_once
+from app.memory.service import rebuild_pending_memories
 from app.rating import refresh_rank_positions, sync_season_states
 
 logger = logging.getLogger(__name__)
@@ -37,6 +38,21 @@ SEASON_SYNC_INTERVAL_SECONDS = 60
 # Reminders are decided per hour and deduplicated, so a few minutes of
 # lag is invisible and the sweep need not run every minute.
 REMINDER_INTERVAL_SECONDS = 300
+
+
+def backfill_memory_once() -> None:
+    """Models answer history recorded before the memory model existed, one
+    batch per tick, until nothing is left. Never raises."""
+    db = SessionLocal()
+    try:
+        done = rebuild_pending_memories(db)
+        if done:
+            logger.info("memory model: rebuilt %s pairs", done)
+    except Exception:
+        logger.exception("memory backfill failed")
+        db.rollback()
+    finally:
+        db.close()
 
 
 def sync_once() -> bool:
@@ -67,4 +83,5 @@ async def run_season_scheduler() -> None:
         if time.monotonic() - last_reminders >= REMINDER_INTERVAL_SECONDS:
             last_reminders = time.monotonic()
             await asyncio.to_thread(run_reminders_once)
+        await asyncio.to_thread(backfill_memory_once)
         await asyncio.sleep(SEASON_SYNC_INTERVAL_SECONDS)

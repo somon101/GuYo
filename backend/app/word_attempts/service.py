@@ -19,6 +19,9 @@ def record_word_attempt(
     is_correct: bool,
     score_after: int,
     lesson_id: int | None = None,
+    source: str = "lesson",
+    duration_ms: int | None = None,
+    timed_out: bool = False,
 ) -> None:
     """Logs one real answer for Admin Web's «Аналитика» -- purely additive
     bookkeeping alongside whatever the caller already did to WordProgress/
@@ -35,6 +38,19 @@ def record_word_attempt(
             is_correct=is_correct,
             score_after=score_after,
             lesson_id=lesson_id,
+            source=source,
+            duration_ms=duration_ms,
+            timed_out=timed_out,
         )
     )
     db.flush()
+
+    # Keep the memory model current (app/memory/) -- rebuilt from history.
+    from app.memory import rebuild_memory
+    from app.models.word_progress import WordProgress
+
+    progress = (
+        db.query(WordProgress).filter(WordProgress.user_id == user_id, WordProgress.word_id == word_id).first()
+    )
+    if progress is not None:
+        rebuild_memory(db, progress)

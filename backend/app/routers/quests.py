@@ -266,6 +266,9 @@ def submit_quest_answer(
         exercise_key=quest.exercise_key,
         is_correct=payload.is_correct,
         score_after=new_score,
+        source="quest",
+        duration_ms=payload.duration_ms,
+        timed_out=payload.timed_out,
     )
     # Priority's automatic side effects -- see app/priority/lessons.py and
     # app/priority/quests_auto.py. A quest answer is just as valid a

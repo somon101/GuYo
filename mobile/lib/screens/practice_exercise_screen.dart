@@ -91,8 +91,23 @@ class _PracticeExerciseScreenState extends State<PracticeExerciseScreen> {
     }
   }
 
+  int? get _currentWordId => switch (widget.type.key) {
+        'true_or_false' => _trueOrFalse?.items[_index].wordId,
+        'build_word' => _buildWord?.items[_index].wordId,
+        'speaking_word' => _speakingWord?.items[_index].wordId,
+        'listen_word' => _listenWord?.items[_index].wordId,
+        _ => null,
+      };
+
   void _onAnswer(bool correct) {
     if (!mounted) return;
+    final wordId = _currentWordId;
+    if (wordId != null) {
+      // Memory evidence only -- a failed send must never interrupt practice.
+      ApiClient.instance
+          .submitPracticeAnswer(widget.dictionary.id, exerciseKey: widget.type.key, wordId: wordId, isCorrect: correct)
+          .catchError((_) {});
+    }
     setState(() {
       if (correct) _correctCount++;
       _index++;

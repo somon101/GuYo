@@ -17,6 +17,7 @@ import '../models/quest.dart';
 import '../models/user_profile.dart';
 import '../models/user_rating.dart';
 import '../models/word.dart';
+import '../services/answer_signals.dart';
 
 /// package:http's MultipartFile.fromBytes defaults to
 /// application/octet-stream when no contentType is given -- the backend's
@@ -593,7 +594,7 @@ class ApiClient {
     final res = await http.post(
       _uri('/lessons/$lessonId/exercises/$exerciseKey/answers'),
       headers: await _authHeaders(),
-      body: jsonEncode({'word_id': wordId, 'is_correct': isCorrect}),
+      body: jsonEncode({...AnswerSignals.take(), 'word_id': wordId, 'is_correct': isCorrect}),
     );
     await _throwWithDetail(res);
     return SubmitAnswerResult.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
@@ -655,6 +656,22 @@ class ApiClient {
     final res = await http.get(_uri('/notifications'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
     return NotificationInbox.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  /// One Practice answer, recorded as memory evidence only: Practice
+  /// changes no score. Fire-and-forget from the caller's point of view.
+  Future<void> submitPracticeAnswer(
+    int dictionaryId, {
+    required String exerciseKey,
+    required int wordId,
+    required bool isCorrect,
+  }) async {
+    final res = await http.post(
+      _uri('/dictionaries/$dictionaryId/practice/answers'),
+      headers: {...await _authHeaders(), 'Content-Type': 'application/json'},
+      body: jsonEncode({...AnswerSignals.take(), 'word_id': wordId, 'exercise_key': exerciseKey, 'is_correct': isCorrect}),
+    );
+    await _throwIfUnauthorized(res);
   }
 
   /// Tells the server which phone to send this user's pushes to.
@@ -882,7 +899,7 @@ class ApiClient {
     final res = await http.post(
       _uri('/quests/$questId/answers').replace(queryParameters: {'dictionary_id': '$dictionaryId'}),
       headers: {...await _authHeaders(), 'Content-Type': 'application/json'},
-      body: jsonEncode({'word_id': wordId, 'is_correct': isCorrect}),
+      body: jsonEncode({...AnswerSignals.take(), 'word_id': wordId, 'is_correct': isCorrect}),
     );
     await _throwWithDetail(res);
     return QuestAnswerResult.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);

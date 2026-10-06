@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, UniqueConstraint, func
+from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Integer, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -29,3 +29,11 @@ class WordProgress(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+    # The memory model (app/memory/): FSRS stability (days until recall
+    # drops to 90%) and difficulty (1-10), rebuilt from this pair's answer
+    # history one day at a time. NULL until the pair has been modelled.
+    memory_stability: Mapped[float | None] = mapped_column(Float, nullable=True)
+    memory_difficulty: Mapped[float | None] = mapped_column(Float, nullable=True)
+    memory_last_review: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    memory_review_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")

@@ -9,6 +9,7 @@ import '../../services/answer_sound.dart';
 import '../../theme/app_colors.dart';
 import '../remote_image.dart';
 import '../skeleton.dart';
+import '../../services/answer_signals.dart';
 
 enum _MicState { idle, recording, processing, result }
 
@@ -92,6 +93,7 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
   @override
   void initState() {
     super.initState();
+    AnswerSignals.itemShown();
     _initSpeech();
   }
 

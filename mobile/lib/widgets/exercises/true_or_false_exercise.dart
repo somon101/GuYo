@@ -7,6 +7,7 @@ import '../audio_button.dart';
 import '../ios_ui.dart';
 import '../remote_image.dart';
 import 'exercise_timer.dart';
+import '../../services/answer_signals.dart';
 
 /// "Правда или ложь", as ONE self-contained widget: the card plus its two
 /// answer buttons, and everything that happens between a tap and the
@@ -45,13 +46,17 @@ class _TrueOrFalseExerciseState extends State<TrueOrFalseExercise> {
       if (mounted) setState(() {});
     },
     onExpired: () {
-      if (mounted) _resolve(false);
+      if (mounted) {
+        AnswerSignals.timedOut();
+        _resolve(false);
+      }
     },
   );
 
   @override
   void initState() {
     super.initState();
+    AnswerSignals.itemShown();
     _countdown.start();
   }
 

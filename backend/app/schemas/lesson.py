@@ -118,6 +118,9 @@ class LessonCandidateWordsOut(BaseModel):
 class SubmitAnswerIn(BaseModel):
     word_id: int
     is_correct: bool
+    # Sent by newer app versions; see WordAttempt.duration_ms / timed_out.
+    duration_ms: int | None = Field(default=None, ge=0, le=600_000)
+    timed_out: bool = False
 
 
 class SubmitAnswerOut(BaseModel):
