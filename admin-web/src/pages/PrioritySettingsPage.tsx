@@ -1,5 +1,5 @@
 import axios from "axios";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   createPriorityLevelBand,
@@ -143,7 +143,7 @@ function WeightsSection() {
         <input
           type="number"
           step="any"
-          className={`w-32 ${inputClass}`}
+          className={`w-full max-w-[8rem] ${inputClass}`}
           value={settings[key]}
           onChange={(e) => setSettings({ ...settings, [key]: Number(e.target.value) })}
         />
@@ -451,17 +451,20 @@ function RecencyForm({ band, onSaved, onCancel }: { band: PriorityRecencyBand | 
   return (
     <form onSubmit={handleSubmit} className="mb-3 flex flex-col gap-3 rounded-[14px] bg-slate-50 p-4">
       <div className="flex flex-wrap gap-3">
-        <input className={`w-40 ${inputClass}`} value={name} onChange={(e) => setName(e.target.value)} placeholder="Название" autoFocus />
-        <input type="number" min={0} className={`w-24 ${inputClass}`} value={minDays} onChange={(e) => setMinDays(Number(e.target.value))} placeholder="Мин. дней" />
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" checked={hasMax} onChange={(e) => setHasMax(e.target.checked)} className="switch" />
-          <input type="number" min={0} disabled={!hasMax} className={`w-24 ${inputClass} disabled:bg-slate-100`} value={maxDays} onChange={(e) => setMaxDays(Number(e.target.value))} placeholder="Макс. дней" />
-        </label>
-        <input type="number" step="any" className={`w-24 ${inputClass}`} value={contribution} onChange={(e) => setContribution(Number(e.target.value))} placeholder="Вклад" />
-        <input type="number" className={`w-20 ${inputClass}`} value={order} onChange={(e) => setOrder(Number(e.target.value))} placeholder="Порядок" />
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="switch" /> Включён
-        </label>
+        <Labeled label="Название">
+          <input className={`w-40 ${inputClass}`} value={name} onChange={(e) => setName(e.target.value)} placeholder="3-5 дней" autoFocus />
+        </Labeled>
+        <Labeled label="От, дней">
+          <input type="number" min={0} className={`w-24 ${inputClass}`} value={minDays} onChange={(e) => setMinDays(Number(e.target.value))} />
+        </Labeled>
+        <MaxField label="До, дней" hasMax={hasMax} onHasMax={setHasMax}>
+          <input type="number" min={0} disabled={!hasMax} className={`w-24 ${inputClass} disabled:bg-slate-100`} value={maxDays} onChange={(e) => setMaxDays(Number(e.target.value))} />
+        </MaxField>
+        <Labeled label="Вклад, баллов" hint="Сколько баллов (0–100) эта давность добавляет к приоритету слова — до умножения на вес «Давность».">
+          <input type="number" step="any" className={`w-24 ${inputClass}`} value={contribution} onChange={(e) => setContribution(Number(e.target.value))} />
+        </Labeled>
+        <OrderField value={order} onChange={setOrder} />
+        <EnabledField checked={enabled} onChange={setEnabled} />
       </div>
       <div className="flex items-center gap-3">
         <button type="submit" disabled={isSubmitting} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60">
@@ -607,14 +610,20 @@ function StabilityForm({ band, onSaved, onCancel }: { band: PriorityStabilityBan
   return (
     <form onSubmit={handleSubmit} className="mb-3 flex flex-col gap-3 rounded-[14px] bg-slate-50 p-4">
       <div className="flex flex-wrap gap-3">
-        <input className={`w-40 ${inputClass}`} value={name} onChange={(e) => setName(e.target.value)} placeholder="Название" autoFocus />
-        <input type="number" min={0} max={100} className={`w-24 ${inputClass}`} value={minPercent} onChange={(e) => setMinPercent(Number(e.target.value))} placeholder="Мин. %" />
-        <input type="number" min={0} max={100} className={`w-24 ${inputClass}`} value={maxPercent} onChange={(e) => setMaxPercent(Number(e.target.value))} placeholder="Макс. %" />
-        <input type="number" step="any" className={`w-24 ${inputClass}`} value={contribution} onChange={(e) => setContribution(Number(e.target.value))} placeholder="Вклад" />
-        <input type="number" className={`w-20 ${inputClass}`} value={order} onChange={(e) => setOrder(Number(e.target.value))} placeholder="Порядок" />
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="switch" /> Включён
-        </label>
+        <Labeled label="Название">
+          <input className={`w-40 ${inputClass}`} value={name} onChange={(e) => setName(e.target.value)} placeholder="Высокая" autoFocus />
+        </Labeled>
+        <Labeled label="От, % верных">
+          <input type="number" min={0} max={100} className={`w-24 ${inputClass}`} value={minPercent} onChange={(e) => setMinPercent(Number(e.target.value))} />
+        </Labeled>
+        <Labeled label="До, % верных">
+          <input type="number" min={0} max={100} className={`w-24 ${inputClass}`} value={maxPercent} onChange={(e) => setMaxPercent(Number(e.target.value))} />
+        </Labeled>
+        <Labeled label="Вклад, баллов" hint="Сколько баллов (0–100) такая стабильность добавляет к приоритету слова — до умножения на вес «Стабильность».">
+          <input type="number" step="any" className={`w-24 ${inputClass}`} value={contribution} onChange={(e) => setContribution(Number(e.target.value))} />
+        </Labeled>
+        <OrderField value={order} onChange={setOrder} />
+        <EnabledField checked={enabled} onChange={setEnabled} />
       </div>
       <div className="flex items-center gap-3">
         <button type="submit" disabled={isSubmitting} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60">
@@ -768,16 +777,17 @@ function LevelBandForm({ band, onSaved, onCancel }: { band: PriorityLevelBand | 
   return (
     <form onSubmit={handleSubmit} className="mb-3 flex flex-col gap-3 rounded-[14px] bg-slate-50 p-4">
       <div className="flex flex-wrap gap-3">
-        <input className={`w-40 ${inputClass}`} value={name} onChange={(e) => setName(e.target.value)} placeholder="Название" autoFocus />
-        <input type="number" step="any" className={`w-24 ${inputClass}`} value={minScore} onChange={(e) => setMinScore(Number(e.target.value))} placeholder="Мин. очков" />
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" checked={hasMax} onChange={(e) => setHasMax(e.target.checked)} className="switch" />
-          <input type="number" step="any" disabled={!hasMax} className={`w-24 ${inputClass} disabled:bg-slate-100`} value={maxScore} onChange={(e) => setMaxScore(Number(e.target.value))} placeholder="Макс. очков" />
-        </label>
-        <input type="number" className={`w-20 ${inputClass}`} value={order} onChange={(e) => setOrder(Number(e.target.value))} placeholder="Порядок" />
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="switch" /> Включён
-        </label>
+        <Labeled label="Название">
+          <input className={`w-40 ${inputClass}`} value={name} onChange={(e) => setName(e.target.value)} placeholder="Высокий" autoFocus />
+        </Labeled>
+        <Labeled label="От, баллов приоритета">
+          <input type="number" step="any" className={`w-24 ${inputClass}`} value={minScore} onChange={(e) => setMinScore(Number(e.target.value))} />
+        </Labeled>
+        <MaxField label="До, баллов приоритета" hasMax={hasMax} onHasMax={setHasMax}>
+          <input type="number" step="any" disabled={!hasMax} className={`w-24 ${inputClass} disabled:bg-slate-100`} value={maxScore} onChange={(e) => setMaxScore(Number(e.target.value))} />
+        </MaxField>
+        <OrderField value={order} onChange={setOrder} />
+        <EnabledField checked={enabled} onChange={setEnabled} />
       </div>
       <div className="flex items-center gap-3">
         <button type="submit" disabled={isSubmitting} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60">
@@ -789,5 +799,65 @@ function LevelBandForm({ band, onSaved, onCancel }: { band: PriorityLevelBand | 
         {error && <span className="text-sm text-red-600">{error}</span>}
       </div>
     </form>
+  );
+}
+
+/** A band form's field with a label that stays visible -- a placeholder
+ * alone disappears as soon as the field holds a number. */
+function Labeled({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+        {label}
+        {hint && <InfoTooltip>{hint}</InfoTooltip>}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+/** The upper bound, with the switch that turns it off ("и выше"). */
+function MaxField({
+  label,
+  hasMax,
+  onHasMax,
+  children,
+}: {
+  label: string;
+  hasMax: boolean;
+  onHasMax: (value: boolean) => void;
+  children: ReactNode;
+}) {
+  return (
+    <Labeled label={label} hint="Выключите переключатель, чтобы у диапазона не было верхней границы («и выше»).">
+      <div className="flex h-[38px] items-center gap-2">
+        <input
+          type="checkbox"
+          aria-label="Есть верхняя граница"
+          checked={hasMax}
+          onChange={(e) => onHasMax(e.target.checked)}
+          className="switch"
+        />
+        {hasMax ? children : <span className="w-24 text-sm text-slate-500">и выше</span>}
+      </div>
+    </Labeled>
+  );
+}
+
+function OrderField({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  return (
+    <Labeled label="Порядок" hint="Только место строки в этом списке. На расчёт приоритета не влияет.">
+      <input type="number" className={`w-20 ${inputClass}`} value={value} onChange={(e) => onChange(Number(e.target.value))} />
+    </Labeled>
+  );
+}
+
+function EnabledField({ checked, onChange }: { checked: boolean; onChange: (value: boolean) => void }) {
+  return (
+    <Labeled label="Включён" hint="Выключенный диапазон не используется в расчёте.">
+      <label className="flex h-[38px] items-center">
+        <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="switch" />
+      </label>
+    </Labeled>
   );
 }
