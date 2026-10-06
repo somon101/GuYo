@@ -90,6 +90,13 @@ class LeaderboardEntry {
   /// was in the last day: +3 up, -2 down. Own-rank board only.
   final int? positionChange;
 
+  /// The status this person picked: GuYo's own emoji picture and/or a
+  /// preset phrase. Null when unset.
+  final String? statusEmojiUrl;
+  final String? statusText;
+
+  bool get hasStatus => statusEmojiUrl != null || statusText != null;
+
   LeaderboardEntry({
     required this.position,
     required this.userId,
@@ -100,6 +107,8 @@ class LeaderboardEntry {
     required this.isMe,
     this.isPremium = false,
     this.positionChange,
+    this.statusEmojiUrl,
+    this.statusText,
   });
 
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) {
@@ -113,6 +122,8 @@ class LeaderboardEntry {
       isMe: json['is_me'] as bool,
       isPremium: json['is_premium'] as bool? ?? false,
       positionChange: json['position_change'] as int?,
+      statusEmojiUrl: json['status_emoji_url'] as String?,
+      statusText: json['status_text'] as String?,
     );
   }
 }

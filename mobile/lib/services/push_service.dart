@@ -20,6 +20,9 @@ class PushService {
   final ValueNotifier<int> foregroundMessages = ValueNotifier<int>(0);
 
   Future<void> init() async {
+    // Firebase is only set up for the phone apps; on the web it can't
+    // start and would hold up the whole app.
+    if (kIsWeb) return;
     try {
       await Firebase.initializeApp();
       _ready = true;

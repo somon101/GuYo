@@ -26,10 +26,13 @@ from app.models.priority import PrioritySettings, PriorityRecencyBand, PriorityS
 from app.models.notification import Notification, PushToken, ReminderRule, ReminderSettings
 from app.models.quest import Quest, QuestWord, UserQuestWordDay
 from app.models.slogan import Slogan, UserDailySlogan
+from app.models.status import StatusEmoji, StatusPhrase
 from app.models.premium import PremiumGrant, PremiumSettings
 from app.models.promo import PromoActivation, PromoCode, PromoLink
 
 __all__ = [
+    "StatusEmoji",
+    "StatusPhrase",
     "Admin",
     "User",
     "Dictionary",

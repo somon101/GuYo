@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 
@@ -69,7 +70,12 @@ class RemoteImage extends StatelessWidget {
     final decodeWidth = _budget(width, dpr);
     final decodeHeight = _budget(height, dpr);
 
-    ImageProvider provider = CachedNetworkImageProvider(ApiClient.instance.mediaUrl(url));
+    final full = ApiClient.instance.mediaUrl(url);
+    // On the web the disk cache of cached_network_image can hand back the
+    // wrong picture for a URL once many small images load at once (a
+    // whole leaderboard of status emoji did). The browser caches images
+    // itself, so the web build loads them directly.
+    ImageProvider provider = kIsWeb ? NetworkImage(full) : CachedNetworkImageProvider(full);
     if (decodeWidth != null || decodeHeight != null) {
       provider = ResizeImage(
         provider,

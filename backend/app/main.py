@@ -36,6 +36,7 @@ from app.routers import (
     word_levels,
     words,
 )
+from app.routers import status as status_router
 
 settings = get_settings()
 
@@ -89,11 +90,13 @@ app.include_router(admin_rating.router)
 app.include_router(admin_word_levels.router)
 app.include_router(admin_quests.router)
 app.include_router(admin_slogans.router)
+app.include_router(status_router.admin_router)
 app.include_router(notifications.admin_router)
 app.include_router(quests.router)
 app.include_router(rating.router)
 app.include_router(word_levels.router)
 app.include_router(slogans.router)
+app.include_router(status_router.router)
 app.include_router(notifications.router)
 app.include_router(premium.router)
 app.include_router(premium.admin_router)

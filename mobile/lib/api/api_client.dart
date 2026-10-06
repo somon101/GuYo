@@ -5,6 +5,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../config.dart';
+import '../models/status.dart';
 import '../models/dictionary.dart';
 import '../models/exercise.dart';
 import '../models/learning.dart';
@@ -794,6 +795,26 @@ class ApiClient {
     await _throwIfUnauthorized(res);
     final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
     return list.map((e) => WordLevelSummary.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// What the status picker offers, plus the user's current status.
+  Future<StatusOptions> fetchStatusOptions() async {
+    final res = await http.get(_uri('/status/options'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    if (res.statusCode != 200) throw ApiException('Не удалось загрузить статусы', statusCode: res.statusCode);
+    return StatusOptions.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  /// Sets both parts of the leaderboard status; null clears a part.
+  Future<MyStatus> updateMyStatus({int? emojiId, int? phraseId}) async {
+    final res = await http.put(
+      _uri('/status/me'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'emoji_id': emojiId, 'phrase_id': phraseId}),
+    );
+    await _throwIfUnauthorized(res);
+    if (res.statusCode != 200) throw ApiException('Не удалось сохранить статус', statusCode: res.statusCode);
+    return MyStatus.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
   /// Top 100 users across every rank combined.
