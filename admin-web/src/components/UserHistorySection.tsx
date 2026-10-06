@@ -39,47 +39,47 @@ function describe(item: UserHistoryItem): Line {
       const secs = item.duration_ms != null ? `${(item.duration_ms / 1000).toFixed(1)} с` : null;
       const meta = [ex, where, secs].filter(Boolean).join(" · ");
       const title = `${item.word} — ${item.translation ?? "—"}`;
-      if (item.is_correct) return { icon: "✓", tone: "ok", title, detail: meta };
+      if (item.is_correct) return { icon: "✅", tone: "ok", title, detail: meta };
       const given = item.timed_out
         ? "Время вышло"
         : item.given_answer
           ? `Ответил «${item.given_answer}»`
           : "Ошибся";
-      return { icon: "✕", tone: "bad", title, detail: `${given} · ${meta}` };
+      return { icon: "❌", tone: "bad", title, detail: `${given} · ${meta}` };
     }
     case "lesson_created":
       return {
-        icon: d.adaptive ? "★" : "+",
+        icon: d.adaptive ? "🤖" : "📘",
         tone: "info",
         title: d.adaptive ? `Появился персональный ${lessonName(item)}` : `Создал ${lessonName(item)}`,
         detail: `${d.words} слов`,
       };
     case "lesson_opened":
-      return { icon: "▶", tone: "info", title: `Открыл ${lessonName(item)}` };
+      return { icon: "▶️", tone: "info", title: `Открыл ${lessonName(item)}` };
     case "lesson_left":
       return {
-        icon: "⏏",
+        icon: "🚪",
         tone: "bad",
         title: `Вышел из ${lessonName(item)}`,
         detail: d.exercise ? `на упражнении ${d.exercise}${d.of ? ` из ${d.of}` : ""}` : undefined,
       };
     case "lesson_completed":
-      return { icon: "✓", tone: "ok", title: `Прошёл ${lessonName(item)}`, detail: d.adaptive ? "персональный" : undefined };
+      return { icon: "🏁", tone: "ok", title: `Прошёл ${lessonName(item)}`, detail: d.adaptive ? "персональный" : undefined };
     case "personal_quest_created":
-      return { icon: "★", tone: "info", title: "Появился персональный квест", detail: `${d.name} · ${d.words} слов` };
+      return { icon: "🎯", tone: "info", title: "Появился персональный квест", detail: `${d.name} · ${d.words} слов` };
     case "quest_opened":
-      return { icon: "▶", tone: "info", title: "Открыл квест", detail: d.name };
+      return { icon: "▶️", tone: "info", title: "Открыл квест", detail: d.name };
     case "quest_left":
-      return { icon: "⏏", tone: "bad", title: "Вышел из квеста", detail: d.name };
+      return { icon: "🚪", tone: "bad", title: "Вышел из квеста", detail: d.name };
     case "quest_answered":
       return {
-        icon: d.correct ? "✓" : "✕",
+        icon: d.correct ? "🏆" : "💥",
         tone: d.correct ? "ok" : "bad",
         title: `${d.personal ? "Персональный квест" : "Квест"}: ${d.correct ? "решил" : "не решил"}`,
         detail: `${d.name} · ${d.word}`,
       };
     case "app_opened":
-      return { icon: "●", tone: "info", title: "Открыл приложение" };
+      return { icon: "📱", tone: "info", title: "Открыл приложение" };
     default:
       return { icon: "•", tone: "info", title: item.kind };
   }
@@ -220,7 +220,7 @@ export function UserHistorySection({ userId }: { userId: number }) {
                         <li key={i} className="flex items-start gap-3 border-b border-[var(--separator)] py-2 last:border-0">
                           <span className="w-11 shrink-0 pt-0.5 text-xs tabular-nums text-slate-500">{time(item.at)}</span>
                           <span
-                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${DOT[line.tone]}`}
+                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm ${DOT[line.tone]}`}
                           >
                             {line.icon}
                           </span>
