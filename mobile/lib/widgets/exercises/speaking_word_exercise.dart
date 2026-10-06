@@ -288,6 +288,7 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
   void _finish(bool correct) {
     if (!mounted || _answered) return;
     _answered = true;
+    AnswerSignals.given(_recognizedText);
     widget.onAnswer(correct);
   }
 

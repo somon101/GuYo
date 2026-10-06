@@ -80,7 +80,10 @@ class _TrueOrFalseExerciseState extends State<TrueOrFalseExercise> {
     }
   }
 
-  void _answer(bool userSaidTrue) => _resolve(userSaidTrue == widget.item.isCorrect);
+  void _answer(bool userSaidTrue) {
+    AnswerSignals.given(userSaidTrue ? 'Правда' : 'Ложь');
+    _resolve(userSaidTrue == widget.item.isCorrect);
+  }
 
   void _resolve(bool correct) {
     if (_isLocked) return;

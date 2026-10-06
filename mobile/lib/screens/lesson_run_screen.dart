@@ -151,11 +151,25 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
   bool _failed = false;
   Completer<void>? _current;
   LessonRounds _rounds = const LessonRounds({});
+  bool _reachedResults = false;
 
   @override
   void initState() {
     super.initState();
+    ApiClient.instance.logEvent('lesson_opened', lessonId: widget.lessonId);
     unawaited(_run());
+  }
+
+  @override
+  void dispose() {
+    // Left before the results screen: worth seeing where people give up.
+    if (!_reachedResults) {
+      ApiClient.instance.logEvent('lesson_left', lessonId: widget.lessonId, data: {
+        'exercise': _index + 1,
+        'of': widget.exerciseKeys.length,
+      });
+    }
+    super.dispose();
   }
 
   Future<void> _run() async {
@@ -202,6 +216,7 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
   }
 
   Future<void> _showResults() async {
+    _reachedResults = true;
     final Lesson fresh;
     try {
       fresh = await widget.driver.fetchLesson(widget.lessonId);

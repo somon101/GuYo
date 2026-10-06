@@ -75,6 +75,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    ApiClient.instance.logEvent('app_opened');
     _loadPremiumEnabled();
     _loadDictionaries();
     // Every way into the app (login, sign-up, an already-saved session)
@@ -108,6 +109,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  // "resumed" also fires after the image picker or a permission dialog;
+  // only a real return (away for over a minute) counts as opening the app.
+  DateTime? _pausedAt;
+
+  void _logReturn() {
+    final pausedAt = _pausedAt;
+    _pausedAt = null;
+    if (pausedAt != null && DateTime.now().difference(pausedAt) > const Duration(minutes: 1)) {
+      ApiClient.instance.logEvent('app_opened');
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // An admin can publish/unpublish a dictionary at any time from Admin
@@ -117,8 +130,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // Activity (the image picker included, not just switching apps) fires
     // this same "resumed" transition, so it must never reset or rebuild
     // whatever tab is already on screen.
+    if (state == AppLifecycleState.paused) _pausedAt = DateTime.now();
     if (state == AppLifecycleState.resumed) {
       _refreshDictionariesInBackground();
+      _logReturn();
     }
   }
 

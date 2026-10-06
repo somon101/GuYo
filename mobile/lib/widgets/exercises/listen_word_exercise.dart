@@ -71,6 +71,7 @@ class _ListenWordExerciseState extends State<ListenWordExercise> {
   void _choose(ListenWordOption option) {
     if (_isLocked) return;
     final correct = option.wordId == widget.item.wordId;
+    AnswerSignals.given(option.word);
     setState(() {
       _selected = option;
       _isLocked = true;

@@ -1,3 +1,4 @@
+import '../services/answer_signals.dart';
 import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
@@ -49,7 +50,16 @@ class _QuestAttemptScreenState extends State<QuestAttemptScreen> {
   @override
   void initState() {
     super.initState();
+    ApiClient.instance.logEvent('quest_opened', questId: widget.questId, data: {'name': widget.questName});
     _load();
+  }
+
+  @override
+  void dispose() {
+    if (_result == null) {
+      ApiClient.instance.logEvent('quest_left', questId: widget.questId, data: {'name': widget.questName});
+    }
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -250,6 +260,7 @@ class _MatchingQuestState extends State<_MatchingQuest> {
   void _tap(GuyoWord option) {
     if (_locked) return;
     final correct = option.id == _target.id;
+    AnswerSignals.given(option.translation);
     setState(() {
       _selected = option;
       _locked = true;

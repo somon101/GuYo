@@ -143,6 +143,26 @@ class ApiClient {
     } catch (_) {}
   }
 
+  /// One step of the learner's history (backend app/analytics/history.py):
+  /// app_opened, lesson_opened/left, quest_opened/left. Fire-and-forget --
+  /// a lost event must never disturb learning.
+  void logEvent(String kind, {int? lessonId, int? questId, Map<String, Object>? data}) {
+    () async {
+      try {
+        await http.post(
+          _uri('/events'),
+          headers: {...await _authHeaders(), 'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'kind': kind,
+            if (lessonId != null) 'lesson_id': lessonId,
+            if (questId != null) 'quest_id': questId,
+            if (data != null) 'data': data,
+          }),
+        );
+      } catch (_) {}
+    }();
+  }
+
   Future<void> logout() async {
     await clearToken();
   }

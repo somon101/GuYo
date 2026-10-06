@@ -123,6 +123,7 @@ class _BuildWordExerciseState extends State<BuildWordExercise> {
       colors.add(matches ? AppColors.success : AppColors.danger);
       if (!matches) allCorrect = false;
     }
+    if (!timedOut) AnswerSignals.given(_slots.map((s) => s?.letter ?? '_').join());
     setState(() {
       _slotColors = colors;
       _isLocked = true;

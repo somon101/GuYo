@@ -1,3 +1,4 @@
+import '../../services/answer_signals.dart';
 import '../../l10n/l10n.dart';
 import 'dart:math';
 
@@ -86,6 +87,7 @@ class _MatchingBoardState extends State<MatchingBoard> {
     // The only rule that matters: do the two selected cards share the same
     // underlying word_id? Never compare the displayed text.
     final isCorrect = leftId == rightId;
+    AnswerSignals.given(_right.firstWhere((w) => w.id == rightId).translation);
     AnswerSound.play(isCorrect);
     widget.onAttempt?.call(leftId, isCorrect);
 
