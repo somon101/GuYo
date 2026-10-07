@@ -9,12 +9,12 @@ from sqlalchemy.orm import Session
 
 from app.analytics.history import log_event
 from app.achievements import check_and_grant_achievements, record_activity
-from app.core.dates import utc_now
+from app.core.dates import dushanbe_today, utc_now
 from app.core.deps import get_current_user
 from app.core.storage import url_for_key
 from app.database import get_db
 from app.exercises.common import get_threshold
-from app.models.quest import Quest, QuestWord
+from app.models.quest import Quest, QuestWord, UserQuestWordDay
 from app.models.rating import Season, UserWordPoints
 from app.models.word import Word
 from app.models.word_level import WordLevel
@@ -44,6 +44,7 @@ from app.schemas.quest import (
     QuestAnswerIn,
     QuestAnswerOut,
     QuestRoundOut,
+    PointsTodayItemOut,
     SeasonQuestOverviewOut,
 )
 from app.schemas.rating import SeasonOut, rank_public_out
@@ -208,6 +209,36 @@ def get_season_quest_overview(
         words_learned_today=words_learned_today,
         quests=quests,
     )
+
+
+@router.get("/points-today", response_model=list[PointsTodayItemOut])
+def get_points_today(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """What "очков сегодня" is made of, newest first: the same two ledgers
+    the overview sums (learned words, quest-consumed words), on the same
+    Asia/Dushanbe day. Nothing older is ever returned."""
+    day_start, day_end = dushanbe_day_bounds_utc()
+    items: list[PointsTodayItemOut] = []
+    for points, at, text in (
+        db.query(UserWordPoints.points_awarded, UserWordPoints.awarded_at, Word.word)
+        .join(Word, Word.id == UserWordPoints.word_id)
+        .filter(
+            UserWordPoints.user_id == user.id,
+            UserWordPoints.awarded_at >= day_start,
+            UserWordPoints.awarded_at <= day_end,
+        )
+        .all()
+    ):
+        items.append(PointsTodayItemOut(kind="word", word=text, points=points, at=at))
+    for name, reward, at, text in (
+        db.query(Quest.name, Quest.reward_points, UserQuestWordDay.created_at, Word.word)
+        .join(Quest, Quest.id == UserQuestWordDay.quest_id)
+        .join(Word, Word.id == UserQuestWordDay.word_id)
+        .filter(UserQuestWordDay.user_id == user.id, UserQuestWordDay.used_date == dushanbe_today())
+        .all()
+    ):
+        items.append(PointsTodayItemOut(kind="quest", title=name, word=text, points=reward, at=at))
+    items.sort(key=lambda i: i.at, reverse=True)
+    return items
 
 
 def _get_enabled_quest_or_404(db: Session, quest_id: int) -> Quest:

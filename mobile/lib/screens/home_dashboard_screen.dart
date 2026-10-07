@@ -5,6 +5,7 @@ import '../models/dictionary.dart';
 import '../models/quest.dart';
 import '../models/user_profile.dart';
 import '../theme/app_colors.dart';
+import 'points_today_sheet.dart';
 import '../theme/slogans.dart';
 import '../theme/time_of_day.dart';
 import '../widgets/premium_ui.dart';
@@ -36,6 +37,9 @@ class HomeDashboardScreen extends StatefulWidget {
   /// instead of pushing a second copy of that screen.
   final VoidCallback onOpenProfile;
 
+  /// Switches the app to the "Рейтинг" tab -- "место в рейтинге" opens it.
+  final VoidCallback? onOpenRating;
+
   /// Where the greeting's line comes from. Swappable by construction --
   /// the default asks the admin-curated set and falls back to the built-in
   /// list; a test hands in a fixed one (see SloganSource).
@@ -46,6 +50,7 @@ class HomeDashboardScreen extends StatefulWidget {
     required this.dictionary,
     required this.onOpenLessons,
     required this.onOpenProfile,
+    this.onOpenRating,
     this.sloganSource = const BackendSloganSource(fetch: fetchTodaySloganFromApi),
   });
 
@@ -162,6 +167,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             overview: overview,
             onOpen: _openSeasonQuests,
             onOpenLessons: widget.onOpenLessons,
+            onOpenRating: widget.onOpenRating,
           ),
       ],
     );
@@ -245,8 +251,9 @@ class _SeasonBlock extends StatelessWidget {
   final SeasonQuestOverview overview;
   final VoidCallback onOpen;
   final VoidCallback onOpenLessons;
+  final VoidCallback? onOpenRating;
 
-  const _SeasonBlock({required this.overview, required this.onOpen, required this.onOpenLessons});
+  const _SeasonBlock({required this.overview, required this.onOpen, required this.onOpenLessons, this.onOpenRating});
 
   @override
   Widget build(BuildContext context) {
@@ -276,12 +283,13 @@ class _SeasonBlock extends StatelessWidget {
               compact: true,
             ),
           const SizedBox(height: 12),
-          _StatsCard(overview: overview),
+          _StatsCard(overview: overview, onOpenQuests: onOpen, onOpenRating: onOpenRating),
           const SizedBox(height: 12),
           DailyQuestCard(
             pointsPerLearnedWord: overview.pointsPerLearnedWord,
             wordsLearnedToday: overview.wordsLearnedToday,
-            onTap: onOpenLessons,
+            // The quest card opens the quests section itself.
+            onTap: onOpen,
             compact: true,
           ),
         ],
@@ -350,7 +358,20 @@ String seasonSubtitle(SeasonQuestOverview overview) {
 
 class _StatsCard extends StatelessWidget {
   final SeasonQuestOverview overview;
-  const _StatsCard({required this.overview});
+  final VoidCallback onOpenQuests;
+  final VoidCallback? onOpenRating;
+  const _StatsCard({required this.overview, required this.onOpenQuests, this.onOpenRating});
+
+  /// Each stat is its own tap target: points -> today's history,
+  /// place -> the rating, quests -> the season's quests.
+  Widget _tap(String key, VoidCallback? onTap, Widget child) => Expanded(
+        child: InkWell(
+          key: ValueKey(key),
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: child),
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -362,8 +383,10 @@ class _StatsCard extends StatelessWidget {
           IntrinsicHeight(
             child: Row(
               children: [
-                Expanded(
-                  child: StatColumn(
+                _tap(
+                  'stat-points-today',
+                  () => showPointsToday(context, total: overview.pointsToday),
+                  StatColumn(
                     icon: Icons.star_rounded,
                     value: '+${overview.pointsToday}',
                     label: tr('очков сегодня'),
@@ -371,16 +394,20 @@ class _StatsCard extends StatelessWidget {
                   ),
                 ),
                 const StatDivider(),
-                Expanded(
-                  child: StatColumn(
+                _tap(
+                  'stat-rank',
+                  onOpenRating,
+                  StatColumn(
                     icon: Icons.emoji_events_rounded,
                     value: overview.rankPosition == null ? '—' : '#${overview.rankPosition}',
                     label: tr('место в рейтинге'),
                   ),
                 ),
                 const StatDivider(),
-                Expanded(
-                  child: StatColumn(
+                _tap(
+                  'stat-quests',
+                  onOpenQuests,
+                  StatColumn(
                     icon: Icons.check_box_rounded,
                     value: '${overview.questsDoneToday}/${overview.questsTotal}',
                     label: tr('заданий выполнено'),

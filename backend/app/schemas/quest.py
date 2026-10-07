@@ -1,4 +1,5 @@
-from typing import Any
+from datetime import datetime
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -68,6 +69,18 @@ class QuestAnswerIn(BaseModel):
     duration_ms: int | None = Field(default=None, ge=0, le=600_000)
     given_answer: str | None = Field(default=None, max_length=255)
     timed_out: bool = False
+
+
+class PointsTodayItemOut(BaseModel):
+    """One grant in today's points history: a newly learned word, or a word
+    a quest consumed. Only today's are ever listed."""
+
+    kind: Literal["word", "quest"]
+    # The quest's name for kind="quest"; null for a learned word.
+    title: str | None = None
+    word: str | None = None
+    points: int
+    at: datetime
 
 
 class SeasonQuestOverviewOut(BaseModel):

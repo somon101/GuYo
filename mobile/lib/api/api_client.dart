@@ -992,6 +992,16 @@ class ApiClient {
     return SeasonQuestOverview.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
+  /// Today's points, grant by grant, newest first (GET /quests/points-today).
+  Future<List<PointsTodayItem>> fetchPointsToday() async {
+    final res = await http.get(_uri('/quests/points-today'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    if (res.statusCode != 200) throw ApiException('Не удалось загрузить историю', statusCode: res.statusCode);
+    return (jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>)
+        .map((e) => PointsTodayItem.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<QuestRound> fetchQuestRound(int questId, int dictionaryId) async {
     final res = await http.get(
       _uri('/quests/$questId/round').replace(queryParameters: {'dictionary_id': '$dictionaryId'}),

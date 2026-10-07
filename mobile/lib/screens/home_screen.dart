@@ -283,6 +283,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           // switch instead of pushing anything.
           onOpenLessons: () => setState(() => _selectedTabIndex = 1),
           onOpenProfile: () => setState(() => _selectedTabIndex = 4),
+          onOpenRating: () => setState(() => _selectedTabIndex = 3),
         ),
         LessonsScreen(key: ValueKey('lessons-${selected.id}'), dictionary: selected),
         PracticeScreen(key: ValueKey('practice-${selected.id}'), dictionary: selected),
@@ -339,34 +340,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               }
               _selectedDictionary = current;
 
-              if (options.length == 1) {
-                // Exactly one published language: show it plainly, no
-                // dropdown affordance since there's nothing to switch to.
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Center(
-                    child: Text(current.languageLabel, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  ),
-                );
-              }
-
-              return PopupMenuButton<GuyoDictionary>(
-                tooltip: tr('Выбрать язык'),
+              return _LanguageSwitcher(
+                current: current,
+                options: options,
                 onSelected: (d) => setState(() => _selectedDictionary = d),
-                itemBuilder: (context) => [
-                  for (final option in options)
-                    PopupMenuItem(value: option, child: Text(option.languageLabel)),
-                ],
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(current.languageLabel, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      const Icon(Icons.arrow_drop_down),
-                    ],
-                  ),
-                ),
               );
             },
           ),
@@ -533,6 +510,105 @@ class _GuyoWordmark extends StatelessWidget {
           color: Colors.white,
         ),
       ),
+    );
+  }
+}
+
+
+/// The learning-language switcher in the app bar: a soft pill with the
+/// language's short code in a tinted badge, its name and a small chevron;
+/// the menu lists the languages as rows with a check on the current one.
+/// With only one language there is nothing to switch, so no chevron and
+/// no menu.
+class _LanguageSwitcher extends StatelessWidget {
+  final GuyoDictionary current;
+  final List<GuyoDictionary> options;
+  final ValueChanged<GuyoDictionary> onSelected;
+
+  const _LanguageSwitcher({required this.current, required this.options, required this.onSelected});
+
+  Widget _badge(GuyoDictionary d, {bool selected = true}) => Container(
+        width: 26,
+        height: 22,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : AppColors.primary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(7),
+        ),
+        child: Text(
+          d.language.toUpperCase(),
+          style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.3,
+            color: selected ? Colors.white : AppColors.primary,
+          ),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final canSwitch = options.length > 1;
+    final pill = Container(
+      height: 36,
+      padding: EdgeInsets.fromLTRB(6, 0, canSwitch ? 6 : 12, 0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE6E8F2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _badge(current),
+          const SizedBox(width: 8),
+          Text(
+            current.languageLabel,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+          ),
+          if (canSwitch) ...[
+            const SizedBox(width: 2),
+            const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: AppColors.secondaryText),
+          ],
+        ],
+      ),
+    );
+    if (!canSwitch) return Center(child: pill);
+
+    return PopupMenuButton<GuyoDictionary>(
+      key: const ValueKey('language-switcher'),
+      tooltip: tr('Выбрать язык'),
+      onSelected: onSelected,
+      offset: const Offset(0, 44),
+      color: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      elevation: 6,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      itemBuilder: (context) => [
+        for (final option in options)
+          PopupMenuItem(
+            value: option,
+            height: 46,
+            child: Row(
+              children: [
+                _badge(option, selected: option.id == current.id),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    option.languageLabel,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: option.id == current.id ? FontWeight.w700 : FontWeight.w500,
+                      color: AppColors.primaryDark,
+                    ),
+                  ),
+                ),
+                if (option.id == current.id) const Icon(Icons.check_rounded, size: 18, color: AppColors.primary),
+              ],
+            ),
+          ),
+      ],
+      child: Center(child: pill),
     );
   }
 }

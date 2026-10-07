@@ -191,3 +191,23 @@ class QuestAnswerResult {
     );
   }
 }
+
+/// One grant in today's points history (GET /quests/points-today).
+class PointsTodayItem {
+  /// "word" -- a newly learned word; "quest" -- a word a quest consumed.
+  final String kind;
+  final String? title;
+  final String? word;
+  final int points;
+  final DateTime at;
+
+  const PointsTodayItem({required this.kind, this.title, this.word, required this.points, required this.at});
+
+  factory PointsTodayItem.fromJson(Map<String, dynamic> json) => PointsTodayItem(
+        kind: json['kind'] as String,
+        title: json['title'] as String?,
+        word: json['word'] as String?,
+        points: json['points'] as int,
+        at: DateTime.parse(json['at'] as String).toLocal(),
+      );
+}
