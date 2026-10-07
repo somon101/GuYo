@@ -1,5 +1,6 @@
 import 'l10n/l10n.dart';
 
+import 'services/answer_signals.dart';
 import 'package:flutter/material.dart';
 
 import 'api/api_client.dart';
@@ -12,6 +13,7 @@ import 'widgets/skeleton.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  AnswerSignals.init();
   await PushService.instance.init();
   await loadAppLanguage();
   runApp(const GuyoApp());

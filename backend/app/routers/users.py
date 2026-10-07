@@ -488,6 +488,8 @@ def get_my_stats(
     answers_by_day: Counter = Counter()
     weekday: Counter = Counter()
     durations = []
+    week_ms = 0
+    week_start = today - timedelta(days=6)
     for a in attempts:
         per_ex[a.exercise_key][1] += 1
         if a.is_correct:
@@ -496,7 +498,12 @@ def get_my_stats(
         answers_by_day[d] += 1
         weekday[d.weekday()] += 1
         if a.duration_ms:
-            durations.append(min(a.duration_ms, 120_000))
+            # More than 2 minutes on one answer is idling, not studying:
+            # only the first 2 minutes count.
+            ms = min(a.duration_ms, 120_000)
+            durations.append(ms)
+            if d >= week_start:
+                week_ms += ms
 
     # Points per day: learned words plus quest rewards.
     points_by_day: Counter = Counter()
@@ -572,6 +579,7 @@ def get_my_stats(
         "words_learned": words_learned_count(db, user),
         "words_learned_week": learned_week,
         "time_minutes": round(sum(durations) / 60000),
+        "time_week_minutes": round(week_ms / 60000),
         "avg_answer_seconds": round(sum(durations) / len(durations) / 1000, 1) if durations else None,
         "best_weekday": weekday.most_common(1)[0][0] if weekday else None,
         "hard_words": hard_words,

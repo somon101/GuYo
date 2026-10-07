@@ -15,7 +15,7 @@ final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 class InAppBanner {
   InAppBanner._();
 
-  static const Duration visibleFor = Duration(milliseconds: 2500);
+  static const Duration visibleFor = Duration(seconds: 4);
   static OverlayEntry? _current;
 
   static void show({String? title, required String body}) {

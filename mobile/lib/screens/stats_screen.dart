@@ -30,6 +30,7 @@ class UserStats {
   final int wordsLearned;
   final int wordsLearnedWeek;
   final int timeMinutes;
+  final int timeWeekMinutes;
   final double? avgAnswerSeconds;
   final int? bestWeekday;
   final List<({String word, int mistakes})> hardWords;
@@ -57,6 +58,7 @@ class UserStats {
         wordsLearned = j['words_learned'] as int,
         wordsLearnedWeek = j['words_learned_week'] as int,
         timeMinutes = j['time_minutes'] as int,
+        timeWeekMinutes = (j['time_week_minutes'] as int?) ?? 0,
         avgAnswerSeconds = (j['avg_answer_seconds'] as num?)?.toDouble(),
         bestWeekday = j['best_weekday'] as int?,
         hardWords = [
@@ -144,6 +146,8 @@ class _StatsScreenState extends State<StatsScreen> {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
                     children: [
+                      _StudyTimeCard(stats: stats),
+                      const SizedBox(height: 14),
                       _AccuracyCard(stats: stats),
                       const SizedBox(height: 14),
                       _PointsCard(
@@ -191,6 +195,79 @@ Widget _grow({required Widget Function(double t) builder, int ms = 1100}) => Twe
       curve: Curves.easeOutCubic,
       builder: (context, t, _) => builder(t),
     );
+
+String _hm(int minutes) =>
+    minutes < 60 ? tr('{0} мин', [minutes]) : tr('{0} ч {1} мин', [minutes ~/ 60, minutes % 60]);
+
+/// All the time spent studying -- every lesson, practice and quest
+/// together -- with this week's share. Counted per answer, only while the
+/// app is in front, at most 2 minutes per answer (longer is idling).
+class _StudyTimeCard extends StatelessWidget {
+  final UserStats stats;
+  const _StudyTimeCard({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF6C74F0), Color(0xFF8E6CF0)],
+        ),
+        boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.25), blurRadius: 18, offset: const Offset(0, 8))],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), shape: BoxShape.circle),
+            child: const Icon(Icons.schedule_rounded, color: Colors.white, size: 28),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tr('Время учёбы'),
+                  style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.85), fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                _grow(
+                  builder: (t) => Text(
+                    _hm((stats.timeMinutes * t).round()),
+                    style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Colors.white),
+                  ),
+                ),
+                Text(
+                  tr('за всё время, во всех уроках'),
+                  style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.75)),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(14)),
+            child: Column(
+              children: [
+                Text(
+                  _hm(stats.timeWeekMinutes),
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white),
+                ),
+                Text(tr('за неделю'), style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.8))),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// Accuracy as a segmented half-dial, with a chip per exercise type below.
 class _AccuracyCard extends StatelessWidget {
@@ -544,11 +621,9 @@ class _TotalsGrid extends StatelessWidget {
         row(
           _Tile(
             color: const Color(0xFFD5E4FF),
-            icon: Icons.schedule_rounded,
-            value: stats.timeMinutes < 60
-                ? tr('{0} мин', [stats.timeMinutes])
-                : tr('{0} ч {1} мин', [stats.timeMinutes ~/ 60, stats.timeMinutes % 60]),
-            label: tr('Время в заданиях'),
+            icon: Icons.task_alt_rounded,
+            value: '${stats.totalAnswers}',
+            label: tr('Всего ответов'),
           ),
           _Tile(
             color: const Color(0xFFF6D6F4),

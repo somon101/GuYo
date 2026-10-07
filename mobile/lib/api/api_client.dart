@@ -720,11 +720,12 @@ class ApiClient {
     required int wordId,
     required bool isCorrect,
   }) async {
+    final signals = AnswerSignals.take();
     final res = await http.post(
       _uri('/lessons/$lessonId/exercises/$exerciseKey/answers'),
       headers: await _authHeaders(),
       body: jsonEncode({
-        ...AnswerSignals.take(),
+        ...signals,
         'word_id': wordId,
         'is_correct': isCorrect,
         if (deferredLessonId == lessonId) 'deferred': true,
@@ -800,10 +801,11 @@ class ApiClient {
     required int wordId,
     required bool isCorrect,
   }) async {
+    final signals = AnswerSignals.take();
     final res = await http.post(
       _uri('/dictionaries/$dictionaryId/practice/answers'),
       headers: {...await _authHeaders(), 'Content-Type': 'application/json'},
-      body: jsonEncode({...AnswerSignals.take(), 'word_id': wordId, 'exercise_key': exerciseKey, 'is_correct': isCorrect}),
+      body: jsonEncode({...signals, 'word_id': wordId, 'exercise_key': exerciseKey, 'is_correct': isCorrect}),
     );
     await _throwIfUnauthorized(res);
   }
@@ -1093,10 +1095,11 @@ class ApiClient {
     required int wordId,
     required bool isCorrect,
   }) async {
+    final signals = AnswerSignals.take();
     final res = await http.post(
       _uri('/quests/$questId/answers').replace(queryParameters: {'dictionary_id': '$dictionaryId'}),
       headers: {...await _authHeaders(), 'Content-Type': 'application/json'},
-      body: jsonEncode({...AnswerSignals.take(), 'word_id': wordId, 'is_correct': isCorrect}),
+      body: jsonEncode({...signals, 'word_id': wordId, 'is_correct': isCorrect}),
     );
     await _throwWithDetail(res);
     return QuestAnswerResult.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);

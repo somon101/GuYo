@@ -65,6 +65,8 @@ class _MatchingBoardState extends State<MatchingBoard> {
     // answer away.
     _left = List<GuyoWord>.from(widget.words)..shuffle(random);
     _right = List<GuyoWord>.from(widget.words)..shuffle(random);
+    // Each pair's time runs from the board appearing (or the previous pair).
+    AnswerSignals.itemShown();
   }
 
   void _tapLeft(int wordId) {
@@ -90,6 +92,7 @@ class _MatchingBoardState extends State<MatchingBoard> {
     AnswerSignals.given(_right.firstWhere((w) => w.id == rightId).translation);
     AnswerSound.play(isCorrect);
     widget.onAttempt?.call(leftId, isCorrect);
+    AnswerSignals.itemShown();
 
     if (isCorrect) {
       setState(() {
