@@ -2,6 +2,7 @@ import 'l10n/l10n.dart';
 
 import 'services/answer_signals.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'api/api_client.dart';
 import 'screens/login_screen.dart';
@@ -14,6 +15,8 @@ import 'widgets/skeleton.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   AnswerSignals.init();
+  // Portrait only: the app's screens are laid out for a phone held upright.
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await PushService.instance.init();
   await loadAppLanguage();
   runApp(const GuyoApp());
