@@ -1,4 +1,5 @@
 import '../l10n/l10n.dart';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/lesson.dart';
@@ -31,8 +32,23 @@ class LessonResultsScreen extends StatefulWidget {
   State<LessonResultsScreen> createState() => _LessonResultsScreenState();
 }
 
-class _LessonResultsScreenState extends State<LessonResultsScreen> {
+class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTickerProviderStateMixin {
   late Future<List<WordLevelSummary>> _levelsFuture;
+
+  /// The opening sequence: the centre ring, then the rings around it one
+  /// by one, then the cards below one by one, each bar filling as its card
+  /// appears.
+  late final AnimationController _intro =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 3000))..forward();
+
+  Animation<double> _at(double begin, double end) =>
+      CurvedAnimation(parent: _intro, curve: Interval(begin, end.clamp(0.0, 1.0), curve: Curves.easeOutCubic));
+
+  @override
+  void dispose() {
+    _intro.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -77,21 +93,28 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  _ScoreRing(
+                  _ScoreOrbit(
+                    intro: _intro,
                     value: hasStats ? stats.accuracy : (total == 0 ? 0 : (learnedCount * 100 / total).round()),
                     caption: hasStats ? tr('точность') : tr('закреплено'),
+                    satellites: _satellites(stats, learnedCount, total),
                   ),
-                  const SizedBox(height: 14),
-                  _OutcomeCard(
-                    allLearned: allLearned,
-                    learnedCount: learnedCount,
-                    total: total,
-                    scoreGained: hasStats ? stats.scoreGained : null,
+                  const SizedBox(height: 10),
+                  _Reveal(
+                    animation: _at(0.50, 0.68),
+                    child: _OutcomeCard(
+                      allLearned: allLearned,
+                      learnedCount: learnedCount,
+                      total: total,
+                      scoreGained: hasStats ? stats.scoreGained : null,
+                    ),
                   ),
                   if (hasStats) ...[
                     const SizedBox(height: 12),
                     _TileGrid(key: const ValueKey('lesson-pass-stats'), children: [
-                      _MetricTile(
+                      _Reveal(
+                        animation: _at(0.58, 0.78),
+                        child: _MetricTile(
                         icon: Icons.check_circle_rounded,
                         label: tr('Верно'),
                         value: '${stats.correctAnswers}',
@@ -99,7 +122,10 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> {
                         ratio: stats.correctAnswers / stats.totalAnswers,
                         color: AppColors.success,
                       ),
-                      _MetricTile(
+                      ),
+                      _Reveal(
+                        animation: _at(0.64, 0.84),
+                        child: _MetricTile(
                         icon: Icons.cancel_rounded,
                         label: tr('Ошибки'),
                         value: '${stats.wrongAnswers}',
@@ -107,13 +133,19 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> {
                         ratio: stats.wrongAnswers / stats.totalAnswers,
                         color: AppColors.danger,
                       ),
-                      _MetricTile(
+                      ),
+                      _Reveal(
+                        animation: _at(0.70, 0.90),
+                        child: _MetricTile(
                         icon: Icons.timer_rounded,
                         label: tr('Время'),
                         value: _formatDuration(stats.durationSeconds),
                         color: const Color(0xFF2BB5E8),
                       ),
-                      _MetricTile(
+                      ),
+                      _Reveal(
+                        animation: _at(0.76, 0.96),
+                        child: _MetricTile(
                         icon: Icons.auto_awesome_rounded,
                         label: tr('Выучено новых'),
                         value: '${stats.newlyLearned}',
@@ -121,22 +153,29 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> {
                         ratio: total == 0 ? null : stats.newlyLearned / total,
                         color: const Color(0xFFFF8A3D),
                       ),
+                      ),
                     ]),
                     if (stats.exercises.isNotEmpty) ...[
                       const SizedBox(height: 20),
-                      _SectionLabel(tr('По упражнениям')),
+                      _Reveal(animation: _at(0.76, 0.9), child: _SectionLabel(tr('По упражнениям'))),
                       const SizedBox(height: 8),
                       _TileGrid(children: [
                         for (var i = 0; i < stats.exercises.length; i++)
-                          _ExerciseTile(stat: stats.exercises[i], color: _palette[i % _palette.length]),
+                          _Reveal(
+                            animation: _at(0.80 + 0.04 * i, 0.98),
+                            child: _ExerciseTile(stat: stats.exercises[i], color: _palette[i % _palette.length]),
+                          ),
                       ]),
                     ],
                   ],
                   const SizedBox(height: 20),
-                  _SectionLabel(tr('Прогресс по словам')),
+                  _Reveal(animation: _at(0.84, 1.0), child: _SectionLabel(tr('Прогресс по словам'))),
                   const SizedBox(height: 8),
                   for (final word in lesson.words)
-                    _WordProgressRow(word: word, levels: levels, gained: stats?.forWord(word.wordId)?.gained),
+                    _Reveal(
+                      animation: _at(0.85, 1.0),
+                      child: _WordProgressRow(word: word, levels: levels, gained: stats?.forWord(word.wordId)?.gained),
+                    ),
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
@@ -169,6 +208,26 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> {
   }
 }
 
+/// The rings around the centre: one per exercise of the pass, or -- with
+/// fewer than two exercises -- right answers and words learned.
+List<_Satellite> _satellites(LessonPassStats? stats, int learned, int total) {
+  if (stats != null && stats.exercises.length >= 2) {
+    return [
+      for (var i = 0; i < stats.exercises.length; i++)
+        _Satellite(
+          label: lessonExerciseLabels[stats.exercises[i].exerciseKey] ?? stats.exercises[i].exerciseKey,
+          percent: stats.exercises[i].total == 0 ? 0 : (stats.exercises[i].correct * 100 / stats.exercises[i].total).round(),
+          color: _palette[i % _palette.length],
+        ),
+    ];
+  }
+  return [
+    if (stats != null && stats.totalAnswers > 0)
+      _Satellite(label: tr('Верно'), percent: (stats.correctAnswers * 100 / stats.totalAnswers).round(), color: _palette[1]),
+    _Satellite(label: tr('Закреплено'), percent: total == 0 ? 0 : (learned * 100 / total).round(), color: _palette[4]),
+  ];
+}
+
 const _palette = [Color(0xFF2BB5E8), Color(0xFF34C759), Color(0xFFC86DD7), Color(0xFFFF6B6B), Color(0xFFFF8A3D)];
 
 class _SectionLabel extends StatelessWidget {
@@ -182,12 +241,30 @@ class _SectionLabel extends StatelessWidget {
       );
 }
 
-/// The big number in the middle: a soft colourful glow, a ring that fills
-/// up to [value] (out of 100) and the number counting up with it.
-class _ScoreRing extends StatelessWidget {
+/// One small ring around the centre.
+class _Satellite {
+  final String label;
+  final int percent;
+  final Color color;
+  const _Satellite({required this.label, required this.percent, required this.color});
+}
+
+/// The centrepiece: the big score in a ring, and around it a small ring
+/// per part of the lesson with its name written along the circle, little
+/// coloured dots beside each and a pastel glow in their colours. On
+/// opening, the centre comes first, then the rings around it one by one,
+/// each filling up as it lands.
+class _ScoreOrbit extends StatelessWidget {
+  final Animation<double> intro;
   final int value;
   final String caption;
-  const _ScoreRing({required this.value, required this.caption});
+  final List<_Satellite> satellites;
+  const _ScoreOrbit({required this.intro, required this.value, required this.caption, required this.satellites});
+
+  static const double _size = 330;
+  static const double _orbit = 104;
+  static const double _labelRadius = 152;
+  static const double _sat = 56;
 
   Color get _color => value >= 80
       ? AppColors.success
@@ -195,69 +272,244 @@ class _ScoreRing extends StatelessWidget {
           ? AppColors.primary
           : AppColors.danger;
 
+  double _phase(double begin, double end) =>
+      Interval(begin, end, curve: Curves.easeOutBack).transform(intro.value).clamp(0.0, 1.2);
+
+  double _fill(double begin, double end) => Interval(begin, end, curve: Curves.easeOutCubic).transform(intro.value);
+
   @override
   Widget build(BuildContext context) {
+    final n = satellites.length;
+    double angleOf(int i) => -math.pi / 2 + 2 * math.pi * i / n;
+    // Satellite i lands in its own slice of the first half of the intro.
+    (double, double) slot(int i) {
+      final begin = 0.14 + 0.32 * i / n;
+      return (begin, begin + 0.2);
+    }
+
     return SizedBox(
-      height: 220,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // The pastel glow behind the ring.
-          Container(
-            width: 220,
-            height: 220,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [Color(0x3354D2F0), Color(0x22C86DD7), Color(0x0034C759)],
-                stops: [0.2, 0.6, 1],
-              ),
-            ),
-          ),
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: value.toDouble()),
-            duration: const Duration(milliseconds: 1100),
-            curve: Curves.easeOutCubic,
-            builder: (context, v, _) => SizedBox(
-              width: 168,
-              height: 168,
-              child: CustomPaint(
-                painter: _RingPainter(progress: v / 100, color: _color),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+      height: _size,
+      child: AnimatedBuilder(
+        animation: intro,
+        builder: (context, _) {
+          final centreIn = _phase(0.0, 0.2);
+          final centreFill = _fill(0.05, 0.5);
+          return Stack(
+            alignment: Alignment.center,
+            clipBehavior: Clip.none,
+            children: [
+              // The glow, tinted by every ring's colour.
+              Opacity(
+                opacity: _fill(0.0, 0.3),
+                child: SizedBox(
+                  width: _size,
+                  height: _size,
+                  child: Stack(
                     children: [
-                      Text(
-                        '${v.round()}',
-                        style: const TextStyle(
-                          fontSize: 52,
-                          height: 1,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primaryDark,
+                      for (var i = 0; i < n; i++)
+                        Positioned(
+                          left: _size / 2 + math.cos(angleOf(i)) * 60 - 90,
+                          top: _size / 2 + math.sin(angleOf(i)) * 60 - 90,
+                          child: Container(
+                            width: 180,
+                            height: 180,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: RadialGradient(
+                                colors: [satellites[i].color.withValues(alpha: 0.16), satellites[i].color.withValues(alpha: 0)],
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text('/ 100 · $caption', style: const TextStyle(fontSize: 13, color: AppColors.secondaryText)),
                     ],
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
+              // Labels along the circle and the decorative dots.
+              CustomPaint(
+                size: const Size(_size, _size),
+                painter: _OrbitDecorPainter(
+                  satellites: satellites,
+                  orbit: _orbit,
+                  labelRadius: _labelRadius,
+                  appear: [for (var i = 0; i < n; i++) _fill(slot(i).$1, slot(i).$2)],
+                ),
+              ),
+              for (var i = 0; i < n; i++)
+                Positioned(
+                  left: _size / 2 + math.cos(angleOf(i)) * _orbit - _sat / 2,
+                  top: _size / 2 + math.sin(angleOf(i)) * _orbit - _sat / 2,
+                  child: Transform.scale(
+                    scale: _phase(slot(i).$1, slot(i).$2),
+                    child: SizedBox(
+                      width: _sat,
+                      height: _sat,
+                      child: CustomPaint(
+                        painter: _RingPainter(
+                          progress: satellites[i].percent / 100 * _fill(slot(i).$1 + 0.05, slot(i).$2 + 0.2),
+                          color: satellites[i].color,
+                          stroke: 4.5,
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${(satellites[i].percent * _fill(slot(i).$1 + 0.05, slot(i).$2 + 0.2)).round()}',
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              Transform.scale(
+                scale: centreIn,
+                child: SizedBox(
+                  width: 122,
+                  height: 122,
+                  child: CustomPaint(
+                    painter: _RingPainter(progress: value / 100 * centreFill, color: _color, stroke: 8),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${(value * centreFill).round()}',
+                            style: const TextStyle(
+                              fontSize: 40,
+                              height: 1,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primaryDark,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text('/ 100', style: const TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+                          Text(caption, style: const TextStyle(fontSize: 10.5, color: AppColors.secondaryText)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
-class _RingPainter extends CustomPainter {
-  final double progress;
-  final Color color;
-  _RingPainter({required this.progress, required this.color});
+/// Each satellite's name written along the circle (upright at the top and
+/// the bottom alike), two dots of its colour beside it and grey dots in
+/// the gaps between satellites.
+class _OrbitDecorPainter extends CustomPainter {
+  final List<_Satellite> satellites;
+  final double orbit;
+  final double labelRadius;
+  final List<double> appear;
+  _OrbitDecorPainter({required this.satellites, required this.orbit, required this.labelRadius, required this.appear});
 
   @override
   void paint(Canvas canvas, Size size) {
-    const stroke = 12.0;
+    final c = size.center(Offset.zero);
+    final n = satellites.length;
+    for (var i = 0; i < n; i++) {
+      final a = -math.pi / 2 + 2 * math.pi * i / n;
+      final t = appear[i].clamp(0.0, 1.0);
+      if (t <= 0) continue;
+      final color = satellites[i].color;
+      // Dots of the satellite's colour on either side of it.
+      for (final d in [-0.36, 0.36]) {
+        final p = c + Offset(math.cos(a + d), math.sin(a + d)) * orbit;
+        canvas.drawCircle(p, 5.5 * t, Paint()..color = color.withValues(alpha: 0.75 * t));
+      }
+      for (final d in [-0.55, 0.55]) {
+        final p = c + Offset(math.cos(a + d), math.sin(a + d)) * (orbit + 14);
+        canvas.drawCircle(p, 2.2 * t, Paint()..color = color.withValues(alpha: 0.45 * t));
+      }
+      // Grey dots halfway to the next satellite.
+      final mid = a + math.pi / n;
+      canvas.drawCircle(c + Offset(math.cos(mid), math.sin(mid)) * orbit, 9 * t,
+          Paint()..color = const Color(0xFFDCDDE3).withValues(alpha: t));
+      canvas.drawCircle(c + Offset(math.cos(mid), math.sin(mid)) * (orbit + 24), 4 * t,
+          Paint()..color = const Color(0xFFE6E7EC).withValues(alpha: t));
+      _drawArcText(canvas, c, a, satellites[i].label.toUpperCase(), t);
+    }
+  }
+
+  void _drawArcText(Canvas canvas, Offset c, double a, String text, double t) {
+    final style = TextStyle(
+      fontSize: 11,
+      letterSpacing: 1.6,
+      fontWeight: FontWeight.w600,
+      color: AppColors.secondaryText.withValues(alpha: t),
+    );
+    final chars = [
+      for (final ch in text.characters) (TextPainter(text: TextSpan(text: ch, style: style), textDirection: TextDirection.ltr)..layout()),
+    ];
+    final total = chars.fold<double>(0, (sum, p) => sum + p.width);
+    final bottom = math.sin(a) > 0.2;
+    // Left to right means clockwise at the top, anticlockwise at the bottom.
+    final dir = bottom ? -1.0 : 1.0;
+    final r = bottom ? labelRadius + 6 : labelRadius;
+    var angle = a - dir * (total / 2) / r;
+    for (final p in chars) {
+      final half = p.width / 2 / r;
+      angle += dir * half;
+      canvas.save();
+      canvas.translate(c.dx + math.cos(angle) * r, c.dy + math.sin(angle) * r);
+      canvas.rotate(bottom ? angle - math.pi / 2 : angle + math.pi / 2);
+      p.paint(canvas, Offset(-p.width / 2, -p.height / 2));
+      canvas.restore();
+      angle += dir * half;
+    }
+  }
+
+  @override
+  bool shouldRepaint(_OrbitDecorPainter old) => true;
+}
+
+/// Fades and slides [child] in as [animation] runs; bars inside read the
+/// same animation (see _RevealScope) so they fill as the card appears.
+class _Reveal extends StatelessWidget {
+  final Animation<double> animation;
+  final Widget child;
+  const _Reveal({required this.animation, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return _RevealScope(
+      animation: animation,
+      child: AnimatedBuilder(
+        animation: animation,
+        builder: (context, child) => Opacity(
+          opacity: animation.value.clamp(0.0, 1.0),
+          child: Transform.translate(offset: Offset(0, 18 * (1 - animation.value)), child: child),
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _RevealScope extends InheritedWidget {
+  final Animation<double> animation;
+  const _RevealScope({required this.animation, required super.child});
+
+  /// The nearest card's reveal, or an already-finished one.
+  static Animation<double> of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_RevealScope>()?.animation ?? kAlwaysCompleteAnimation;
+
+  @override
+  bool updateShouldNotify(_RevealScope old) => old.animation != animation;
+}
+
+class _RingPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+  final double stroke;
+  _RingPainter({required this.progress, required this.color, this.stroke = 12});
+
+  @override
+  void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
     final arcRect = rect.deflate(stroke / 2);
     canvas.drawCircle(
@@ -472,20 +724,20 @@ class _MetricTile extends StatelessWidget {
 class _Bar extends StatelessWidget {
   final double ratio;
   final Color color;
-  const _Bar({required this.ratio, required this.color});
+  final Color track;
+  const _Bar({required this.ratio, required this.color, this.track = Colors.white});
 
   @override
   Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: ratio.clamp(0.0, 1.0)),
-      duration: const Duration(milliseconds: 900),
-      curve: Curves.easeOutCubic,
-      builder: (context, v, _) => ClipRRect(
+    final reveal = _RevealScope.of(context);
+    return AnimatedBuilder(
+      animation: reveal,
+      builder: (context, _) => ClipRRect(
         borderRadius: BorderRadius.circular(6),
         child: LinearProgressIndicator(
-          value: v,
+          value: ratio.clamp(0.0, 1.0) * reveal.value,
           minHeight: 7,
-          backgroundColor: Colors.white,
+          backgroundColor: track,
           valueColor: AlwaysStoppedAnimation(color),
         ),
       ),
@@ -531,20 +783,7 @@ class _ExerciseTile extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: ratio),
-            duration: const Duration(milliseconds: 900),
-            curve: Curves.easeOutCubic,
-            builder: (context, v, _) => ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: v,
-                minHeight: 7,
-                backgroundColor: AppColors.progressTrack,
-                valueColor: AlwaysStoppedAnimation(color),
-              ),
-            ),
-          ),
+          _Bar(ratio: ratio, color: color, track: AppColors.progressTrack),
         ],
       ),
     );
