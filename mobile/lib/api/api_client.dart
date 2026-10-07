@@ -908,6 +908,26 @@ class ApiClient {
     return list.map((e) => UserAchievement.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  /// Earned but not yet shown to this account (GET /users/me/achievements/new).
+  Future<List<UserAchievement>> fetchNewAchievements() async {
+    final res = await http.get(_uri('/users/me/achievements/new'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    if (res.statusCode != 200) throw ApiException('Не удалось загрузить достижения', statusCode: res.statusCode);
+    final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
+    return list.map((e) => UserAchievement.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// Records on the server that these achievements were celebrated.
+  Future<void> markAchievementsSeen(List<int> ids) async {
+    final res = await http.post(
+      _uri('/users/me/achievements/seen'),
+      headers: {...await _authHeaders(), 'Content-Type': 'application/json'},
+      body: jsonEncode({'ids': ids}),
+    );
+    await _throwIfUnauthorized(res);
+    if (res.statusCode >= 300) throw ApiException('Не удалось сохранить', statusCode: res.statusCode);
+  }
+
   /// A fully separate system from achievements (see backend/app/rating/) --
   /// current points, current season, current rank and season history, all
   /// backend-decided.

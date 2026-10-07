@@ -1,11 +1,12 @@
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.content_language import reading_language
-from app.achievements import CONDITION_TYPES, lessons_completed_count, streak_days_count, words_learned_count
-from app.core.dates import dushanbe_today
+from app.achievements import CONDITION_TYPES, grant_all_due_achievements, lessons_completed_count, streak_days_count, words_learned_count
+from app.core.dates import dushanbe_today, utc_now
 from app.core.deps import get_current_admin, get_current_user
 from app.core.public_id import generate_public_id
 from app.core.security import hash_password
@@ -358,6 +359,43 @@ def get_my_achievements(db: Session = Depends(get_db), user: User = Depends(get_
             )
         )
     return result
+
+
+class AchievementsSeenIn(BaseModel):
+    ids: list[int]
+
+
+@router.get("/me/achievements/new", response_model=list[UserAchievementOut])
+def get_my_new_achievements(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Earned achievements this account hasn't been shown yet -- the app
+    celebrates these (on opening, after a lesson, in Профиль) and then
+    marks them seen, so each one is celebrated exactly once per account,
+    whatever device or login. Grants anything already due first."""
+    grant_all_due_achievements(db, user)
+    db.commit()
+    unseen = {
+        row[0]
+        for row in db.query(UserAchievement.achievement_id)
+        .filter(UserAchievement.user_id == user.id, UserAchievement.seen_at.is_(None))
+        .all()
+    }
+    if not unseen:
+        return []
+    return [a for a in get_my_achievements(db, user) if a.id in unseen and a.earned]
+
+
+@router.post("/me/achievements/seen", status_code=status.HTTP_204_NO_CONTENT)
+def mark_my_achievements_seen(
+    payload: AchievementsSeenIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
+    """Records that these achievements' celebration was shown."""
+    if payload.ids:
+        db.query(UserAchievement).filter(
+            UserAchievement.user_id == user.id,
+            UserAchievement.achievement_id.in_(payload.ids),
+            UserAchievement.seen_at.is_(None),
+        ).update({UserAchievement.seen_at: utc_now()}, synchronize_session=False)
+        db.commit()
 
 
 @router.get("/me/rating", response_model=UserRatingOut)

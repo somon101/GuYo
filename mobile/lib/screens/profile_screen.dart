@@ -1,10 +1,8 @@
 import '../l10n/l10n.dart';
 import 'dart:async';
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import '../api/api_client.dart';
 import '../services/session_cache.dart';
@@ -24,6 +22,7 @@ import 'all_ranks_screen.dart';
 import 'learned_words_screen.dart';
 import 'profile_qr_sheet.dart';
 import 'profile_settings_screen.dart';
+import '../widgets/achievement_celebration.dart';
 import 'streak_sheet.dart';
 import '../widgets/animated_fire.dart';
 import '../widgets/skeleton.dart';
@@ -62,12 +61,6 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => ProfileScreenState();
 }
 
-// Persisted locally purely so the unlock celebration is shown at most once
-// per achievement, even across app restarts -- earning itself is already
-// fully durable on the backend regardless of this; this is only "have I
-// already shown the user this specific celebration".
-const _seenAchievementsKey = 'guyo_seen_achievement_ids';
-final _localStorage = FlutterSecureStorage();
 
 class ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
@@ -137,51 +130,9 @@ class ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<Set<int>> _readSeenIds() async {
-    final raw = await _localStorage.read(key: _seenAchievementsKey);
-    if (raw == null) return {};
-    try {
-      return (jsonDecode(raw) as List<dynamic>).map((e) => e as int).toSet();
-    } catch (_) {
-      return {};
-    }
-  }
-
-  Future<void> _writeSeenIds(Set<int> ids) async {
-    await _localStorage.write(key: _seenAchievementsKey, value: jsonEncode(ids.toList()));
-  }
-
-  /// Shows the unlock celebration for any earned achievement this device
-  /// hasn't already shown it for -- e.g. one earned while the user was
-  /// mid-lesson, only actually seen the next time they open Профиль.
-  Future<void> _celebrateNewlyEarned() async {
-    final seen = await _readSeenIds();
-    final newlyEarned = _achievements.where((a) => a.earned && !seen.contains(a.id)).toList();
-    if (newlyEarned.isEmpty) return;
-
-    await _writeSeenIds({...seen, ...newlyEarned.map((a) => a.id)});
-    for (final achievement in newlyEarned) {
-      if (!mounted) return;
-      await _showUnlockDialog(achievement);
-    }
-  }
-
-  Future<void> _showUnlockDialog(UserAchievement achievement) {
-    return showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: tr('Достижение получено'),
-      barrierColor: Colors.black54,
-      transitionDuration: const Duration(milliseconds: 260),
-      pageBuilder: (_, _, _) => _AchievementUnlockedDialog(achievement: achievement),
-      transitionBuilder: (_, animation, _, child) {
-        return ScaleTransition(
-          scale: CurvedAnimation(parent: animation, curve: Curves.elasticOut),
-          child: FadeTransition(opacity: animation, child: child),
-        );
-      },
-    );
-  }
+  /// Celebrates anything earned but not yet shown to this account -- the
+  /// server remembers what was shown, so each one appears exactly once.
+  Future<void> _celebrateNewlyEarned() => celebrateNewAchievements(context);
 
   Future<UserProfile?> _pickAndUploadAvatar() async {
     final picker = ImagePicker();
@@ -1005,63 +956,6 @@ class _AchievementsCard extends StatelessWidget {
   }
 }
 
-class _AchievementUnlockedDialog extends StatelessWidget {
-  final UserAchievement achievement;
-  const _AchievementUnlockedDialog({required this.achievement});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Material(
-        color: Colors.transparent,
-        child: Container(
-          margin: const EdgeInsets.all(32),
-          padding: const EdgeInsets.fromLTRB(28, 32, 28, 24),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 32, offset: const Offset(0, 12))],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 96,
-                height: 96,
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: parseHexColor(achievement.color).withValues(alpha: 0.15),
-                  boxShadow: [BoxShadow(color: parseHexColor(achievement.color).withValues(alpha: 0.5), blurRadius: 28, spreadRadius: 2)],
-                ),
-                child: AchievementIcon(achievement: achievement, dimmed: false, size: 88),
-              ),
-              const SizedBox(height: 18),
-              Text(tr('Достижение получено!'), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondaryText, letterSpacing: 0.5)),
-              const SizedBox(height: 6),
-              Text(achievement.title!, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark), textAlign: TextAlign.center),
-              const SizedBox(height: 8),
-              Text(achievement.description!, style: const TextStyle(fontSize: 14, color: AppColors.secondaryText), textAlign: TextAlign.center),
-              const SizedBox(height: 22),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                  ),
-                  child: Text(tr('Отлично!')),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 
 /// The avatar's action sheet: a floating, iOS-style card of compact rows

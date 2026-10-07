@@ -88,6 +88,10 @@ class UserAchievement(Base):
         ForeignKey("achievements.id", ondelete="CASCADE"), nullable=False, index=True
     )
     earned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # When the user was shown the "achievement unlocked" celebration; null
+    # until then. Kept here, on the server, so it is shown exactly once per
+    # account -- not once per device or per login.
+    seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     achievement: Mapped["Achievement"] = relationship()
 

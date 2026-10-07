@@ -56,3 +56,14 @@ def check_and_grant_achievements(db: Session, user: User, condition_type: str) -
     if newly_granted:
         db.flush()
     return newly_granted
+
+
+def grant_all_due_achievements(db: Session, user: User) -> list[Achievement]:
+    """Runs the check for every condition type -- for when the app asks
+    "anything new?" (on opening, after a lesson), so an achievement whose
+    condition is already met is granted then even if no single action
+    re-ran its own check."""
+    granted: list[Achievement] = []
+    for condition_type in CONDITION_TYPES:
+        granted += check_and_grant_achievements(db, user, condition_type)
+    return granted

@@ -5,13 +5,14 @@ from app.achievements.conditions import (
     streak_days_count,
     words_learned_count,
 )
-from app.achievements.service import check_and_grant_achievements
+from app.achievements.service import check_and_grant_achievements, grant_all_due_achievements
 from app.achievements.streak import record_activity
 
 __all__ = [
     "CONDITION_TYPES",
     "CONDITION_TYPE_LABELS",
     "check_and_grant_achievements",
+    "grant_all_due_achievements",
     "lessons_completed_count",
     "record_activity",
     "streak_days_count",

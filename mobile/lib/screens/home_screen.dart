@@ -13,6 +13,7 @@ import 'rating_screen.dart';
 import '../services/push_service.dart';
 import 'topics_screen.dart';
 import '../widgets/skeleton.dart';
+import '../widgets/achievement_celebration.dart';
 
 /// The app's main hub, reached right after login.
 ///
@@ -72,7 +73,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // Every way into the app (login, sign-up, an already-saved session)
     // lands here, so this is the one place the phone is registered.
     PushService.instance.registerCurrentUser();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _askTopicsOnce());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _askTopicsOnce();
+      // Anything earned but not yet celebrated -- including achievements
+      // already due on this login -- is shown once, right away.
+      if (mounted) await celebrateNewAchievements(context);
+    });
   }
 
   /// Accounts that have never picked their topics are asked once, right

@@ -7,6 +7,7 @@ import '../models/word.dart';
 import '../theme/app_colors.dart';
 import '../widgets/word_card.dart';
 import 'lesson_run_screen.dart' show lessonExerciseLabels;
+import '../widgets/achievement_celebration.dart';
 
 /// Shown once a "Начать урок" run has walked every available exercise type
 /// (see LessonRunScreen) -- the ONE place a lesson's
@@ -39,7 +40,12 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTi
   /// by one, then the cards below one by one, each bar filling as its card
   /// appears.
   late final AnimationController _intro =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 3000))..forward();
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 3000))
+        // Achievements this lesson earned are celebrated right here, once
+        // the results have played in.
+        ..forward().whenComplete(() {
+          if (mounted) celebrateNewAchievements(context);
+        });
 
   Animation<double> _at(double begin, double end) =>
       CurvedAnimation(parent: _intro, curve: Interval(begin, end.clamp(0.0, 1.0), curve: Curves.easeOutCubic));
