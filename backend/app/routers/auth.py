@@ -47,13 +47,21 @@ def register_user(payload: RegisterIn, db: Session = Depends(get_db)):
     # needing it at module load time is the safer default.
     from app.routers.users import new_user_row
 
+    # The email is the linked Google account's, never typed by the user.
+    identity = _google_identity(payload.id_token)
+    if db.query(User).filter(User.google_sub == identity["sub"]).first() is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Этот Google-аккаунт уже зарегистрирован")
+    if db.query(User).filter(User.email == identity["email"]).first() is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_EMAIL_TAKEN)
+
     user = new_user_row(
         db,
         login=payload.login,
         password=payload.password,
         first_name=payload.first_name,
         last_name=payload.last_name,
-        email=payload.email,
+        email=identity["email"],
+        google_sub=identity["sub"],
         learning_language=payload.learning_language,
         age_group=payload.age_group,
         learning_goal=payload.learning_goal,

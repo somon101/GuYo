@@ -199,13 +199,9 @@ def update_my_profile(
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Этот логин уже занят")
         user.login = login
 
-    if "email" in fields:
-        email = fields["email"]
-        if email is not None:
-            taken = db.query(User).filter(User.email == email, User.id != user.id).first()
-            if taken is not None:
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Этот адрес почты уже занят")
-        user.email = email
+    # The email is the linked Google account's and can't be changed here.
+    if "email" in fields and fields["email"] != user.email:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Почту изменить нельзя: она привязана к Google")
 
     if "first_name" in fields:
         user.first_name = fields["first_name"].strip() if fields["first_name"] else None

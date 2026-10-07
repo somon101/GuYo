@@ -67,7 +67,9 @@ class RegisterIn(BaseModel):
     password_confirm: str = Field(min_length=4, max_length=128)
     first_name: str = Field(min_length=1, max_length=100)
     last_name: str = Field(min_length=1, max_length=100)
-    email: str = Field(min_length=3, max_length=255)
+    # The email is never typed: it comes from the Google account the
+    # sign-up's last step links, verified from this token.
+    id_token: str = Field(min_length=10)
     # A Dictionary.language code (e.g. "en") from GET /dictionaries/public
     # -- never validated against that list here, same trust boundary as
     # every other dictionary_id/language a logged-in request already
@@ -81,11 +83,6 @@ class RegisterIn(BaseModel):
     referral_source: ReferralSource
     ui_language: UiLanguage = "ru"
     translation_language: TranslationLanguage = "tg"
-
-    @field_validator("email")
-    @classmethod
-    def _check_email(cls, value: str) -> str:
-        return normalize_email(value)
 
     @model_validator(mode="after")
     def _check_passwords_match(self) -> "RegisterIn":

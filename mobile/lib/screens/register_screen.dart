@@ -54,6 +54,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   List<String> get _steps => [
     'language',
     if (appLanguage.value == 'ru') 'translation',
+    if (widget.google == null) 'name',
     'account',
     'age',
     'goal',
@@ -75,13 +76,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // --- Step 1: account -----------------------------------------------------
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
   final _loginCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
   String? _firstNameError;
   String? _lastNameError;
-  String? _emailError;
   String? _loginError;
   String? _passwordError;
   String? _confirmError;
@@ -104,7 +103,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void dispose() {
     _firstNameCtrl.dispose();
     _lastNameCtrl.dispose();
-    _emailCtrl.dispose();
     _loginCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
@@ -146,8 +144,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return _selectedLanguage != null;
       case 'translation':
         return true;
+      case 'name':
       case 'account':
-        return true; // this step validates its own fields on Next
+        return true; // these steps validate their own fields on Next
       case 'age':
         return _ageGroup != null;
       case 'goal':
@@ -167,6 +166,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _goNext() {
+    if (_stepKey == 'name' && !_validateNameStep()) return;
     if (_stepKey == 'account' && !(widget.google != null ? _validateLoginOnly() : _validateAccountStep())) {
       return;
     }
@@ -185,33 +185,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return _loginError == null;
   }
 
-  bool _validateAccountStep() {
+  bool _validateNameStep() {
     final firstName = _firstNameCtrl.text.trim();
     final lastName = _lastNameCtrl.text.trim();
-    final email = _emailCtrl.text.trim();
-    final login = _loginCtrl.text.trim();
-    final password = _passwordCtrl.text;
-    final confirm = _confirmCtrl.text;
-
-    final emailLooksValid = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
-
     setState(() {
       _firstNameError = firstName.isEmpty ? tr('Введите имя') : null;
       _lastNameError = lastName.isEmpty ? tr('Введите фамилию') : null;
-      _emailError = email.isEmpty ? tr('Введите email') : (!emailLooksValid ? tr('Некорректный email') : null);
+    });
+    return _firstNameError == null && _lastNameError == null;
+  }
+
+  bool _validateAccountStep() {
+    final login = _loginCtrl.text.trim();
+    final password = _passwordCtrl.text;
+    final confirm = _confirmCtrl.text;
+    setState(() {
       _loginError = login.isEmpty ? tr('Введите логин') : (login.length < 3 ? tr('Минимум 3 символа') : null);
       _passwordError = password.isEmpty ? tr('Введите пароль') : (password.length < 4 ? tr('Минимум 4 символа') : null);
       _confirmError = confirm.isEmpty
           ? tr('Повторите пароль')
           : (confirm != password ? tr('Пароли не совпадают') : null);
     });
-
-    return _firstNameError == null &&
-        _lastNameError == null &&
-        _emailError == null &&
-        _loginError == null &&
-        _passwordError == null &&
-        _confirmError == null;
+    return _loginError == null && _passwordError == null && _confirmError == null;
   }
 
   Future<void> _submit() async {
@@ -233,13 +228,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
           translationLanguage: _translationLanguage,
         );
       } else {
+        // The email is never typed: the last step links a Google account
+        // and the email comes from it.
+        final idToken = await pickGoogleIdToken();
+        if (idToken == null) {
+          if (mounted) setState(() => _isSubmitting = false);
+          return;
+        }
         await ApiClient.instance.register(
+          idToken: idToken,
           login: _loginCtrl.text.trim(),
           password: _passwordCtrl.text,
           passwordConfirm: _confirmCtrl.text,
           firstName: _firstNameCtrl.text.trim(),
           lastName: _lastNameCtrl.text.trim(),
-          email: _emailCtrl.text.trim(),
           learningLanguage: _selectedLanguage!,
           ageGroup: _ageGroup!,
           learningGoal: _learningGoals.first,
@@ -265,7 +267,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  String get _nextLabel => _step == _steps.length - 1 ? tr('Создать аккаунт') : tr('Далее');
+  bool get _isLastStep => _step == _steps.length - 1;
+
+  String get _nextLabel => !_isLastStep
+      ? tr('Далее')
+      : (widget.google != null ? tr('Создать аккаунт') : tr('Привязать Google-аккаунт'));
 
   @override
   Widget build(BuildContext context) {
@@ -292,6 +298,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
             Expanded(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 220),
+                // Steps start under the dots, not floating mid-screen.
+                layoutBuilder: (current, previous) => Stack(
+                  alignment: Alignment.topCenter,
+                  children: [...previous, ?current],
+                ),
                 child: KeyedSubtree(key: ValueKey(_step), child: _buildStep()),
               ),
             ),
@@ -303,14 +314,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   key: const ValueKey('register-next-button'),
                   onPressed: (_isSubmitting || !_canAdvance) ? null : _goNext,
                   style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    backgroundColor: AppColors.primary,
+                    disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.35),
+                    foregroundColor: Colors.white,
+                    disabledForegroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppShapes.rowRadius)),
                   ),
                   child: _isSubmitting
                       ? SkeletonPulse(
                           child: Text(_nextLabel, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                         )
-                      : Text(_nextLabel, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                      : (_isLastStep && widget.google == null)
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 24,
+                                  height: 24,
+                                  alignment: Alignment.center,
+                                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                                  child: const Text(
+                                    'G',
+                                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF4285F4)),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(_nextLabel, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                              ],
+                            )
+                          : Text(_nextLabel, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                 ),
               ),
             ),
@@ -342,6 +375,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
           selected: _translationLanguage,
           onSelect: (code) => setState(() => _translationLanguage = code),
         );
+      case 'name':
+        return _NameStep(
+          firstNameCtrl: _firstNameCtrl,
+          lastNameCtrl: _lastNameCtrl,
+          firstNameError: _firstNameError,
+          lastNameError: _lastNameError,
+          onChanged: () => setState(() {}),
+        );
       case 'account':
         if (widget.google != null) {
           return _GoogleLoginStep(
@@ -352,15 +393,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           );
         }
         return _AccountStep(
-          firstNameCtrl: _firstNameCtrl,
-          lastNameCtrl: _lastNameCtrl,
-          emailCtrl: _emailCtrl,
           loginCtrl: _loginCtrl,
           passwordCtrl: _passwordCtrl,
           confirmCtrl: _confirmCtrl,
-          firstNameError: _firstNameError,
-          lastNameError: _lastNameError,
-          emailError: _emailError,
           loginError: _loginError,
           passwordError: _passwordError,
           confirmError: _confirmError,
@@ -447,19 +482,19 @@ class _StepScaffold extends StatelessWidget {
     // empty right after a failed validation, even though _step hadn't
     // moved at all).
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.primaryDark, letterSpacing: -0.4),
           ),
           if (subtitle != null) ...[
             const SizedBox(height: 4),
-            Text(subtitle!, style: const TextStyle(fontSize: 13.5, color: AppColors.secondaryText)),
+            Text(subtitle!, style: const TextStyle(fontSize: 14.5, color: AppColors.secondaryText)),
           ],
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           child,
           if (footer != null) ...[const SizedBox(height: 16), footer!],
         ],
@@ -553,31 +588,68 @@ class _LanguageStep extends StatelessWidget {
   }
 }
 
-class _AccountStep extends StatelessWidget {
+class _NameStep extends StatelessWidget {
   final TextEditingController firstNameCtrl;
   final TextEditingController lastNameCtrl;
-  final TextEditingController emailCtrl;
+  final String? firstNameError;
+  final String? lastNameError;
+  final VoidCallback onChanged;
+
+  const _NameStep({
+    required this.firstNameCtrl,
+    required this.lastNameCtrl,
+    required this.firstNameError,
+    required this.lastNameError,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _StepScaffold(
+      title: tr('Как вас зовут?'),
+      subtitle: tr('Так вас увидят другие в рейтинге.'),
+      child: Column(
+        children: [
+          _FormField(
+            fieldKey: const ValueKey('register-field-first-name'),
+            label: tr('Имя'),
+            hint: tr('Например, Фирдавс'),
+            icon: Icons.person_outline_rounded,
+            controller: firstNameCtrl,
+            error: firstNameError,
+            onChanged: onChanged,
+            capitalize: true,
+          ),
+          const SizedBox(height: 14),
+          _FormField(
+            fieldKey: const ValueKey('register-field-last-name'),
+            label: tr('Фамилия'),
+            hint: tr('Например, Каримов'),
+            icon: Icons.badge_outlined,
+            controller: lastNameCtrl,
+            error: lastNameError,
+            onChanged: onChanged,
+            capitalize: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AccountStep extends StatelessWidget {
   final TextEditingController loginCtrl;
   final TextEditingController passwordCtrl;
   final TextEditingController confirmCtrl;
-  final String? firstNameError;
-  final String? lastNameError;
-  final String? emailError;
   final String? loginError;
   final String? passwordError;
   final String? confirmError;
   final VoidCallback onChanged;
 
   const _AccountStep({
-    required this.firstNameCtrl,
-    required this.lastNameCtrl,
-    required this.emailCtrl,
     required this.loginCtrl,
     required this.passwordCtrl,
     required this.confirmCtrl,
-    required this.firstNameError,
-    required this.lastNameError,
-    required this.emailError,
     required this.loginError,
     required this.passwordError,
     required this.confirmError,
@@ -587,55 +659,37 @@ class _AccountStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _StepScaffold(
-      title: tr('Данные аккаунта'),
+      title: tr('Логин и пароль'),
+      subtitle: tr('Почта подтянется из Google-аккаунта в конце.'),
       child: Column(
         children: [
           _FormField(
-            fieldKey: const ValueKey('register-field-first-name'),
-            label: tr('Имя'),
-            controller: firstNameCtrl,
-            error: firstNameError,
-            onChanged: onChanged,
-          ),
-          const SizedBox(height: 12),
-          _FormField(
-            fieldKey: const ValueKey('register-field-last-name'),
-            label: tr('Фамилия'),
-            controller: lastNameCtrl,
-            error: lastNameError,
-            onChanged: onChanged,
-          ),
-          const SizedBox(height: 12),
-          _FormField(
-            fieldKey: const ValueKey('register-field-email'),
-            label: 'Email',
-            controller: emailCtrl,
-            error: emailError,
-            onChanged: onChanged,
-            keyboardType: TextInputType.emailAddress,
-          ),
-          const SizedBox(height: 12),
-          _FormField(
             fieldKey: const ValueKey('register-field-login'),
             label: tr('Логин'),
+            hint: tr('Придумайте логин'),
+            icon: Icons.alternate_email_rounded,
             controller: loginCtrl,
             error: loginError,
             onChanged: onChanged,
             autocorrect: false,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           _FormField(
             fieldKey: const ValueKey('register-field-password'),
             label: tr('Пароль'),
+            hint: tr('Минимум 4 символа'),
+            icon: Icons.lock_outline_rounded,
             controller: passwordCtrl,
             error: passwordError,
             onChanged: onChanged,
             obscure: true,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           _FormField(
             fieldKey: const ValueKey('register-field-confirm'),
-            label: tr('Подтверждение пароля'),
+            label: tr('Повторите пароль'),
+            hint: tr('Ещё раз тот же пароль'),
+            icon: Icons.lock_outline_rounded,
             controller: confirmCtrl,
             error: confirmError,
             onChanged: onChanged,
@@ -683,63 +737,101 @@ class _GoogleLoginStep extends StatelessWidget {
 /// rowRadius corners already used elsewhere (see PromoScreen's own code
 /// field) -- error text sits directly under the field, small and plain,
 /// never a giant banner.
-class _FormField extends StatelessWidget {
+class _FormField extends StatefulWidget {
   final Key? fieldKey;
   final String label;
+  final String? hint;
+  final IconData? icon;
   final TextEditingController controller;
   final String? error;
   final VoidCallback onChanged;
   final bool obscure;
   final bool autocorrect;
-  final TextInputType? keyboardType;
+  final bool capitalize;
 
   const _FormField({
     this.fieldKey,
     required this.label,
+    this.hint,
+    this.icon,
     required this.controller,
     required this.error,
     required this.onChanged,
     this.obscure = false,
     this.autocorrect = true,
-    this.keyboardType,
+    this.capitalize = false,
   });
 
   @override
+  State<_FormField> createState() => _FormFieldState();
+}
+
+class _FormFieldState extends State<_FormField> {
+  // Passwords start hidden; the eye shows what was typed.
+  late bool _hidden = widget.obscure;
+
+  @override
   Widget build(BuildContext context) {
+    final hasError = widget.error != null;
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide(color: hasError ? AppColors.danger : Colors.transparent, width: 1.5),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 6),
+          child: Text(
+            widget.label,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondaryText),
+          ),
         ),
-        const SizedBox(height: 6),
         TextField(
-          key: fieldKey,
-          controller: controller,
-          obscureText: obscure,
-          autocorrect: autocorrect,
-          enableSuggestions: autocorrect,
-          keyboardType: keyboardType,
-          onChanged: (_) => onChanged(),
+          key: widget.fieldKey,
+          controller: widget.controller,
+          obscureText: _hidden,
+          autocorrect: widget.autocorrect && !widget.obscure,
+          enableSuggestions: widget.autocorrect && !widget.obscure,
+          textCapitalization: widget.capitalize ? TextCapitalization.words : TextCapitalization.none,
+          textInputAction: TextInputAction.next,
+          onChanged: (_) => widget.onChanged(),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
           decoration: InputDecoration(
+            hintText: widget.hint,
+            hintStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.muted),
             filled: true,
-            fillColor: AppColors.violetSurface,
+            fillColor: Colors.white,
             isDense: true,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-              borderSide: BorderSide.none,
+            prefixIcon: widget.icon == null ? null : Icon(widget.icon, size: 21, color: AppColors.secondaryText),
+            suffixIcon: widget.obscure
+                ? IconButton(
+                    key: ValueKey('${widget.fieldKey}-eye'),
+                    onPressed: () => setState(() => _hidden = !_hidden),
+                    icon: Icon(
+                      _hidden ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      size: 21,
+                      color: AppColors.secondaryText,
+                    ),
+                  )
+                : null,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+            enabledBorder: border,
+            border: border,
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: hasError ? AppColors.danger : AppColors.primary, width: 1.5),
             ),
           ),
         ),
-        if (error != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            error!,
-            style: const TextStyle(fontSize: 12, color: AppColors.danger, fontWeight: FontWeight.w600),
+        if (hasError)
+          Padding(
+            padding: const EdgeInsets.only(left: 4, top: 5),
+            child: Text(
+              widget.error!,
+              style: const TextStyle(fontSize: 12.5, color: AppColors.danger, fontWeight: FontWeight.w600),
+            ),
           ),
-        ],
       ],
     );
   }

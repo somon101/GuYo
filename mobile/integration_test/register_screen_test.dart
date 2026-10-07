@@ -121,110 +121,53 @@ void main() {
         await tester.pumpAndSettle();
         await tapNext();
 
-        // --- Step 2: account, first with deliberately bad data ---------
-        expect(find.text('Данные аккаунта'), findsOneWidget);
-        await tester.enterText(find.byKey(const ValueKey('register-field-first-name')), '');
-        await tester.enterText(find.byKey(const ValueKey('register-field-email')), 'not-an-email');
+        // --- Name step, first left empty --------------------------------
+        expect(find.text('Как вас зовут?'), findsOneWidget);
+        await tapNext();
+        expect(find.text('Введите имя'), findsOneWidget);
+        expect(find.text('Введите фамилию'), findsOneWidget);
+        await tester.enterText(find.byKey(const ValueKey('register-field-first-name')), 'Регтест');
+        await tester.enterText(find.byKey(const ValueKey('register-field-last-name')), 'Регтестов');
+        await tapNext();
+
+        // --- Login and password: no email field anywhere ----------------
+        expect(find.text('Логин и пароль'), findsOneWidget);
+        expect(find.byKey(const ValueKey('register-field-email')), findsNothing,
+            reason: 'the email comes from the Google account, never typed');
+        await tester.enterText(find.byKey(const ValueKey('register-field-login')), testLogin);
         await tester.enterText(find.byKey(const ValueKey('register-field-password')), '123');
         await tester.enterText(find.byKey(const ValueKey('register-field-confirm')), '456');
         await tapNext();
-
-        // Still on the account step -- inline errors, not a giant banner.
-        expect(find.text('Данные аккаунта'), findsOneWidget, reason: 'invalid data must not advance the wizard');
-        expect(find.text('Введите имя'), findsOneWidget);
-        expect(find.text('Некорректный email'), findsOneWidget);
+        expect(find.text('Логин и пароль'), findsOneWidget, reason: 'invalid data must not advance the wizard');
+        expect(find.text('Минимум 4 символа'), findsWidgets);
         expect(find.text('Пароли не совпадают'), findsOneWidget);
 
-        // Now fill it in for real, but with the ALREADY-TAKEN login first.
-        await tester.enterText(find.byKey(const ValueKey('register-field-first-name')), 'Регтест');
-        await tester.enterText(find.byKey(const ValueKey('register-field-last-name')), 'Регтестов');
-        await tester.enterText(find.byKey(const ValueKey('register-field-email')), 'reg_e2e_new@test.com');
-        await tester.enterText(find.byKey(const ValueKey('register-field-login')), otherLogin);
+        // The eye shows the password.
         await tester.enterText(find.byKey(const ValueKey('register-field-password')), '1234');
         await tester.enterText(find.byKey(const ValueKey('register-field-confirm')), '1234');
+        TextField pwd() => tester.widget<TextField>(find.byKey(const ValueKey('register-field-password')));
+        expect(pwd().obscureText, isTrue);
+        await tester.tap(find.byKey(ValueKey('${const ValueKey('register-field-password')}-eye')));
+        await tester.pump();
+        expect(pwd().obscureText, isFalse);
         await tapNext();
 
-        // --- Steps 3/4/5 ------------------------------------------------
+        // --- Remaining steps --------------------------------------------
         expect(find.text('Укажите ваш возраст'), findsOneWidget);
         await tester.tap(find.byKey(const ValueKey('register-age-18-24')));
         await tester.pumpAndSettle();
         await tapNext();
-
-        expect(find.text('Для чего вы изучаете язык?'), findsOneWidget);
         await tester.tap(find.byKey(const ValueKey('register-goal-study')));
         await tester.pumpAndSettle();
         await tapNext();
-
         expect(find.text('Как вы нас нашли?'), findsOneWidget);
         await tester.tap(find.byKey(const ValueKey('register-referral-youtube')));
         await tester.pumpAndSettle();
 
-        // Submit with the taken login -- expect the backend's own
-        // message, still on this same step, nothing lost.
-        await tester.tap(find.byKey(const ValueKey('register-next-button')));
-        await tester.pumpAndSettle(const Duration(seconds: 2));
-        expect(find.textContaining('Login already taken'), findsOneWidget);
-        expect(
-          find.text('Как вы нас нашли?'),
-          findsOneWidget,
-          reason: 'a failed submit must not lose the wizard state',
-        );
-
-        // Go back to fix the login -- every earlier field must still be
-        // exactly as typed.
-        await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
-        await tester.pumpAndSettle();
-        await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
-        await tester.pumpAndSettle();
-        await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
-        await tester.pumpAndSettle();
-        expect(find.text('Данные аккаунта'), findsOneWidget);
-        expect(find.text('Регтест'), findsOneWidget, reason: 'first name must have survived the round trip');
-        await tester.enterText(find.byKey(const ValueKey('register-field-login')), testLogin);
-        await tapNext();
-        await tester.tap(find.byKey(const ValueKey('register-age-18-24')));
-        await tester.pumpAndSettle();
-        await tapNext();
-        await tester.tap(find.byKey(const ValueKey('register-goal-study')));
-        await tester.pumpAndSettle();
-        await tapNext();
-        await tester.tap(find.byKey(const ValueKey('register-referral-youtube')));
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.byKey(const ValueKey('register-next-button')));
-        await tester.pumpAndSettle(const Duration(seconds: 3));
-
-        expect(find.text('Главная'), findsOneWidget, reason: 'should auto-login straight to Главная');
-
-        // --- Verify real backend persistence of every collected field ---
-        final usersRes = await http.get(
-          Uri.parse('$apiBaseUrl/users'),
-          headers: {'Authorization': 'Bearer $adminToken'},
-        );
-        final users = (jsonDecode(utf8.decode(usersRes.bodyBytes)) as List<dynamic>).cast<Map<String, dynamic>>();
-        final created = users.firstWhere((u) => u['login'] == testLogin);
-        expect(created['public_id'], greaterThanOrEqualTo(100000000));
-        expect(created['public_id'], lessThanOrEqualTo(999999999));
-        expect(created['first_name'], 'Регтест');
-        expect(created['last_name'], 'Регтестов');
-        expect(created['email'], 'reg_e2e_new@test.com');
-
-        final profileRes = await http.post(
-          Uri.parse('$apiBaseUrl/auth/login'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'login': testLogin, 'password': '1234'}),
-        );
-        final userToken = (jsonDecode(profileRes.body) as Map)['access_token'] as String;
-        final meRes = await http.get(
-          Uri.parse('$apiBaseUrl/users/me/profile'),
-          headers: {'Authorization': 'Bearer $userToken'},
-        );
-        final me = jsonDecode(utf8.decode(meRes.bodyBytes)) as Map<String, dynamic>;
-        expect(me['learning_language'], 'en');
-        expect(me['age_group'], '18-24');
-        expect(me['learning_goal'], 'study');
-        expect(me['referral_source'], 'youtube');
-        expect(me['translation_language'], 'uz', reason: 'the translation step is saved on the account');
+        // The last button links the Google account (its picker is the
+        // system's, so the account itself is created by hand on a phone;
+        // the backend side is covered on the server).
+        expect(find.text('Привязать Google-аккаунт'), findsOneWidget);
       } finally {
         await _deleteUserByLogin(adminToken, testLogin);
         await _deleteUserByLogin(adminToken, otherLogin);

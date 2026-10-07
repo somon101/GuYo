@@ -248,17 +248,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   icon: Icons.mail_outline_rounded,
                   label: tr('Почта'),
                   value: (_profile.email ?? '').isEmpty ? tr('Не указано') : _profile.email!,
-                  onTap: () => _editFields(
-                    title: tr('Электронная почта'),
-                    fields: [
-                      (
-                        key: 'email',
-                        label: tr('Электронная почта'),
-                        value: _profile.email ?? '',
-                        keyboard: TextInputType.emailAddress,
-                      ),
-                    ],
-                  ),
+                  onTap: null,
                 ),
               ],
             ),
@@ -360,7 +350,9 @@ class _Row extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  final VoidCallback onTap;
+  /// Null for a read-only row (no chevron): the email, which comes from
+  /// Google and can't be changed.
+  final VoidCallback? onTap;
 
   const _Row({super.key, required this.icon, required this.label, required this.value, required this.onTap});
 
@@ -391,7 +383,10 @@ class _Row extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+              if (onTap != null)
+                const Icon(Icons.chevron_right_rounded, color: AppColors.muted)
+              else
+                const Icon(Icons.lock_outline_rounded, size: 16, color: AppColors.muted),
             ],
           ),
         ),
