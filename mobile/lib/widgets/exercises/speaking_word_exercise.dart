@@ -379,12 +379,30 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
 /// Normalized similarity 0-100 between [recognized] and [target], based on
 /// Levenshtein edit distance -- tolerant of the small variations real
 /// speech recognition produces, but not of a genuinely different word.
+///
+/// People often say the word more than once in one try ("привет привет"),
+/// so the best-matching run of as many words as the target has counts --
+/// not the whole phrase.
 int _similarityPercent(String recognized, String target) {
-  String normalize(String s) =>
-      s.trim().toLowerCase().replaceAll(RegExp(r'^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$', unicode: true), '');
-  final a = normalize(recognized);
-  final b = normalize(target);
-  if (a.isEmpty || b.isEmpty) return 0;
+  final heard = _words(recognized);
+  final wanted = _words(target);
+  if (heard.isEmpty || wanted.isEmpty) return 0;
+  final b = wanted.join(' ');
+  var best = _percent(heard.join(' '), b);
+  for (var i = 0; i + wanted.length <= heard.length; i++) {
+    final p = _percent(heard.sublist(i, i + wanted.length).join(' '), b);
+    if (p > best) best = p;
+  }
+  return best;
+}
+
+List<String> _words(String s) => s
+    .toLowerCase()
+    .split(RegExp(r'[^\p{L}\p{N}]+', unicode: true))
+    .where((w) => w.isNotEmpty)
+    .toList();
+
+int _percent(String a, String b) {
   if (a == b) return 100;
   final distance = _levenshtein(a, b);
   final maxLen = a.length > b.length ? a.length : b.length;
