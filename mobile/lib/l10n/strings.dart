@@ -402,6 +402,8 @@ const Map<String, (String, String)> uiStrings = {
   'Изменить фото': ('Иваз кардани акс', 'Rasmni oʻzgartirish'),
   'Удалить фото': ('Нест кардани акс', 'Rasmni oʻchirish'),
   'Фото профиля': ('Акси профил', 'Profil rasmi'),
+  'Мой QR-код': ('QR-коди ман', 'Mening QR-kodim'),
+  'Покажите код другу, чтобы он нашёл вас в GuYo': ('Кодро ба дӯстатон нишон диҳед, то шуморо дар GuYo ёбад', 'Doʻstingiz sizni GuYoda topishi uchun kodni koʻrsating'),
   'Отмена': ('Бекор', 'Bekor qilish'),
   'Имя и фамилия': ('Ном ва насаб', 'Ism va familiya'),
   'Не указано': ('Нишон дода нашудааст', 'Koʻrsatilmagan'),

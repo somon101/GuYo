@@ -21,6 +21,7 @@ import '../widgets/user_name.dart';
 import 'achievements_screen.dart';
 import 'all_ranks_screen.dart';
 import 'learned_words_screen.dart';
+import 'profile_qr_sheet.dart';
 import 'profile_settings_screen.dart';
 import '../widgets/skeleton.dart';
 
@@ -598,18 +599,24 @@ class _ProfileHeader extends StatelessWidget {
             ],
           ),
         ),
-        // Decorative only for now, by design -- there is no QR feature in
-        // the app yet, so this deliberately isn't tappable rather than
-        // offering a button that does nothing.
-        Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFEDEFF7)),
+        // Opens the user's own QR card: their public ID, with the GuYo mark.
+        Semantics(
+          button: true,
+          label: tr('Мой QR-код'),
+          child: GestureDetector(
+            key: const ValueKey('profile-qr'),
+            onTap: () => showProfileQr(context, profile),
+            child: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFEDEFF7)),
+              ),
+              child: const Icon(Icons.qr_code_rounded, color: AppColors.primary, size: 22),
+            ),
           ),
-          child: const Icon(Icons.qr_code_rounded, color: AppColors.primary, size: 22),
         ),
       ],
     );
