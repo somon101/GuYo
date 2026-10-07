@@ -196,6 +196,7 @@ class ApiClient {
     required String learningGoal,
     List<String>? learningTopics,
     required String referralSource,
+    String translationLanguage = 'tg',
   }) async {
     final res = await http.post(
       _uri('/auth/register'),
@@ -213,6 +214,7 @@ class ApiClient {
         if (learningTopics != null) 'learning_topics': learningTopics,
         'referral_source': referralSource,
         'ui_language': appLanguage.value,
+        'translation_language': translationLanguage,
       }),
     );
     await _throwWithDetail(res);
@@ -758,6 +760,7 @@ class ApiClient {
     String? email,
     List<String>? learningTopics,
     String? uiLanguage,
+    String? translationLanguage,
   }) async {
     final body = <String, dynamic>{
       if (login != null) 'login': login,
@@ -766,6 +769,7 @@ class ApiClient {
       if (email != null) 'email': email,
       if (learningTopics != null) 'learning_topics': learningTopics,
       if (uiLanguage != null) 'ui_language': uiLanguage,
+      if (translationLanguage != null) 'translation_language': translationLanguage,
     };
     final res = await http.patch(
       _uri('/users/me/profile'),

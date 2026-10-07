@@ -1,173 +1,40 @@
-import '../widgets/language_picker.dart';
-import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
+
 import '../api/api_client.dart';
+import '../l10n/l10n.dart';
+import '../models/learning_topics.dart';
 import '../models/user_profile.dart';
 import '../theme/app_colors.dart';
-import '../widgets/user_avatar.dart';
-import '../models/learning_topics.dart';
 import 'topics_screen.dart';
-import '../widgets/skeleton.dart';
 
-/// "Настройки": everything about the account the user may change
-/// themselves -- login, photo, first name, last name and email.
+/// "Настройки": a compact grouped list of what the user may change --
+/// personal data, topics, interface language and (for a Russian interface)
+/// the language word translations are shown in. Each row opens a small
+/// editor and saves on its own through PATCH /users/me/profile; there is no
+/// form-wide "Сохранить".
 ///
-/// Saves through the backend (PATCH /users/me/profile for the fields, the
-/// existing avatar endpoints for the photo), never only on the device: the
-/// values come back from the server and are what the profile then shows.
-///
-/// The photo actions are deliberately NOT reimplemented here. Picking and
-/// uploading an avatar is a path with hard-won handling for real-device
-/// failures (a recreated Activity while the gallery is open, a revoked URI
-/// grant, a picker that reports nothing after a visible pick) -- it lives
-/// in ProfileScreenState and is passed in, so there is exactly one copy of
-/// it.
+/// The photo lives on the profile itself (tap the avatar).
 class ProfileSettingsScreen extends StatefulWidget {
   final UserProfile profile;
 
-  /// Opens the picker and uploads, returning the updated profile, or null
-  /// if nothing was picked or the upload failed (the caller reports that
-  /// itself).
-  final Future<UserProfile?> Function() onPickPhoto;
-
-  /// Clears the photo, returning the updated profile or null on failure.
-  final Future<UserProfile?> Function() onRemovePhoto;
-
-  const ProfileSettingsScreen({
-    super.key,
-    required this.profile,
-    required this.onPickPhoto,
-    required this.onRemovePhoto,
-  });
+  const ProfileSettingsScreen({super.key, required this.profile});
 
   @override
   State<ProfileSettingsScreen> createState() => _ProfileSettingsScreenState();
 }
 
+const List<({String code, String label})> _translationLanguages = [
+  (code: 'tg', label: 'Тоҷикӣ'),
+  (code: 'uz', label: 'Oʻzbekcha'),
+];
+
 class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   late UserProfile _profile;
-  late final TextEditingController _login;
-  late final TextEditingController _firstName;
-  late final TextEditingController _lastName;
-  late final TextEditingController _email;
-
-  bool _isSaving = false;
-  bool _isPhotoBusy = false;
-  String? _error;
-
-  /// Saved to the account first (it decides which translations the
-  /// server sends), then applied here -- the app restarts on its home tab.
-  Future<void> _changeLanguage(String code) async {
-    try {
-      await ApiClient.instance.updateMyProfile(uiLanguage: code);
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Не удалось сохранить. Проверьте интернет.'))));
-      return;
-    }
-    await setAppLanguage(code);
-  }
 
   @override
   void initState() {
     super.initState();
     _profile = widget.profile;
-    _login = TextEditingController(text: _profile.login);
-    _firstName = TextEditingController(text: _profile.firstName ?? '');
-    _lastName = TextEditingController(text: _profile.lastName ?? '');
-    _email = TextEditingController(text: _profile.email ?? '');
-  }
-
-  @override
-  void dispose() {
-    _login.dispose();
-    _firstName.dispose();
-    _lastName.dispose();
-    _email.dispose();
-    super.dispose();
-  }
-
-  /// What the user actually changed. Sending only that is what keeps
-  /// editing one field from blanking another, and leaves an account that
-  /// never had a name alone unless a name was typed.
-  Map<String, String> get _changes {
-    final changes = <String, String>{};
-    void add(String key, String typed, String? current) {
-      final value = typed.trim();
-      if (value != (current ?? '')) changes[key] = value;
-    }
-
-    add('login', _login.text, _profile.login);
-    add('first_name', _firstName.text, _profile.firstName);
-    add('last_name', _lastName.text, _profile.lastName);
-    add('email', _email.text, _profile.email);
-    return changes;
-  }
-
-  Future<void> _save() async {
-    final changes = _changes;
-    if (changes.isEmpty) {
-      Navigator.of(context).pop();
-      return;
-    }
-    if (changes.containsKey('login') && changes['login']!.length < 3) {
-      setState(() => _error = tr('Логин должен быть не короче 3 символов'));
-      return;
-    }
-
-    setState(() {
-      _isSaving = true;
-      _error = null;
-    });
-    try {
-      final saved = await ApiClient.instance.updateMyProfile(
-        login: changes['login'],
-        firstName: changes['first_name'],
-        lastName: changes['last_name'],
-        email: changes['email'],
-      );
-      if (!mounted) return;
-      setState(() {
-        _profile = saved;
-        _isSaving = false;
-      });
-      _showSnack(tr('Сохранено'));
-      Navigator.of(context).pop();
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isSaving = false;
-        // The backend's own message -- "этот логин уже занят" says far
-        // more than any generic failure text could.
-        _error = e.message;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _isSaving = false;
-        _error = tr('Не удалось сохранить изменения');
-      });
-    }
-  }
-
-  Future<void> _changePhoto() async {
-    setState(() => _isPhotoBusy = true);
-    final updated = await widget.onPickPhoto();
-    if (!mounted) return;
-    setState(() {
-      _isPhotoBusy = false;
-      if (updated != null) _profile = updated;
-    });
-  }
-
-  Future<void> _removePhoto() async {
-    setState(() => _isPhotoBusy = true);
-    final updated = await widget.onRemovePhoto();
-    if (!mounted) return;
-    setState(() {
-      _isPhotoBusy = false;
-      if (updated != null) _profile = updated;
-    });
   }
 
   void _showSnack(String text) {
@@ -176,9 +43,165 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     messenger.showSnackBar(SnackBar(content: Text(text)));
   }
 
+  /// One small dialog per row: the given fields, prefilled, and Save.
+  /// Returns only when saved or cancelled; a server error (a taken login,
+  /// for one) stays in the dialog so nothing typed is lost.
+  Future<void> _editFields({
+    required String title,
+    required List<({String key, String label, String value, TextInputType? keyboard})> fields,
+    String? Function(Map<String, String>)? validate,
+  }) async {
+    final controllers = {for (final f in fields) f.key: TextEditingController(text: f.value)};
+    final saved = await showDialog<UserProfile>(
+      context: context,
+      builder: (dialogContext) {
+        String? error;
+        var saving = false;
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            Future<void> save() async {
+              final values = {for (final e in controllers.entries) e.key: e.value.text.trim()};
+              final problem = validate?.call(values);
+              if (problem != null) {
+                setDialogState(() => error = problem);
+                return;
+              }
+              setDialogState(() {
+                saving = true;
+                error = null;
+              });
+              try {
+                final profile = await ApiClient.instance.updateMyProfile(
+                  login: values['login'],
+                  firstName: values['first_name'],
+                  lastName: values['last_name'],
+                  email: values['email'],
+                );
+                if (dialogContext.mounted) Navigator.of(dialogContext).pop(profile);
+              } on ApiException catch (e) {
+                setDialogState(() {
+                  saving = false;
+                  error = e.message;
+                });
+              } catch (_) {
+                setDialogState(() {
+                  saving = false;
+                  error = tr('Не удалось сохранить изменения');
+                });
+              }
+            }
+
+            return AlertDialog(
+              title: Text(title),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final f in fields) ...[
+                    TextField(
+                      controller: controllers[f.key],
+                      autofocus: f == fields.first,
+                      keyboardType: f.keyboard,
+                      textCapitalization:
+                          f.keyboard == null ? TextCapitalization.words : TextCapitalization.none,
+                      decoration: InputDecoration(labelText: f.label),
+                      onSubmitted: (_) => saving ? null : save(),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  if (error != null)
+                    Text(error!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+                ],
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: Text(tr('Отмена'))),
+                FilledButton(
+                  onPressed: saving ? null : save,
+                  child: Text(saving ? tr('Сохранение…') : tr('Сохранить')),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    for (final c in controllers.values) {
+      c.dispose();
+    }
+    if (saved != null && mounted) {
+      setState(() => _profile = saved);
+      _showSnack(tr('Сохранено'));
+    }
+  }
+
+  Future<String?> _pickOne(String title, List<({String code, String label})> options, String selected) {
+    return showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text(
+                title,
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+              ),
+            ),
+            for (final o in options)
+              ListTile(
+                title: Text(o.label),
+                trailing: o.code == selected ? const Icon(Icons.check_rounded, color: AppColors.primary) : null,
+                onTap: () => Navigator.of(sheetContext).pop(o.code),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Saved to the account first (it decides which translations the
+  /// server sends), then applied here -- the app restarts on its home tab.
+  Future<void> _changeLanguage() async {
+    final code = await _pickOne(tr('Язык интерфейса'), uiLanguages, appLanguage.value);
+    if (code == null || code == appLanguage.value) return;
+    try {
+      await ApiClient.instance.updateMyProfile(uiLanguage: code);
+    } catch (_) {
+      if (mounted) _showSnack(tr('Не удалось сохранить. Проверьте интернет.'));
+      return;
+    }
+    await setAppLanguage(code);
+  }
+
+  Future<void> _changeTranslationLanguage() async {
+    final code = await _pickOne(
+      tr('Язык перевода'),
+      _translationLanguages,
+      _profile.translationLanguage,
+    );
+    if (code == null || code == _profile.translationLanguage) return;
+    try {
+      final saved = await ApiClient.instance.updateMyProfile(translationLanguage: code);
+      if (!mounted) return;
+      setState(() => _profile = saved);
+      _showSnack(tr('Сохранено'));
+    } catch (_) {
+      if (mounted) _showSnack(tr('Не удалось сохранить. Проверьте интернет.'));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final hasPhoto = _profile.avatarUrl != null && _profile.avatarUrl!.isNotEmpty;
+    final fullName = [_profile.firstName, _profile.lastName].where((s) => s != null && s.isNotEmpty).join(' ');
+    final topics = [
+      for (final goal in learningGoals)
+        if ((_profile.learningTopics ?? const []).contains(goal.code)) goal.label,
+    ];
+    String labelOf(List<({String code, String label})> list, String code) =>
+        list.firstWhere((l) => l.code == code, orElse: () => list.first).label;
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -188,7 +211,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         elevation: 0,
         title: Text(
           tr('Настройки'),
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
         ),
         iconTheme: const IconThemeData(color: AppColors.primaryDark),
       ),
@@ -196,86 +219,88 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
-            _PhotoSection(
-              profile: _profile,
-              isBusy: _isPhotoBusy,
-              hasPhoto: hasPhoto,
-              onChange: _isPhotoBusy ? null : _changePhoto,
-              onRemove: _isPhotoBusy || !hasPhoto ? null : _removePhoto,
-            ),
-            const SizedBox(height: 18),
-            _Field(
-              label: tr('Логин'),
-              hint: tr('Как вы входите в приложение'),
-              controller: _login,
-              icon: Icons.alternate_email_rounded,
-            ),
-            const SizedBox(height: 12),
-            _Field(
-              label: tr('Имя'),
-              controller: _firstName,
-              icon: Icons.person_outline_rounded,
-              textCapitalization: TextCapitalization.words,
-            ),
-            const SizedBox(height: 12),
-            _Field(
-              label: tr('Фамилия'),
-              controller: _lastName,
-              icon: Icons.badge_outlined,
-              textCapitalization: TextCapitalization.words,
-            ),
-            const SizedBox(height: 12),
-            _Field(
-              label: tr('Электронная почта'),
-              controller: _email,
-              icon: Icons.mail_outline_rounded,
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 12),
-            _TopicsRow(
-              topics: _profile.learningTopics ?? const [],
-              onTap: () async {
-                final saved = await Navigator.of(context).push<UserProfile>(
-                  MaterialPageRoute(builder: (_) => TopicsScreen(initial: _profile.learningTopics ?? const [])),
-                );
-                if (saved != null && mounted) setState(() => _profile = saved);
-              },
-            ),
-            const SizedBox(height: 16),
-            Text(tr('Язык интерфейса'), style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
-            const SizedBox(height: 6),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: LanguagePicker(selected: appLanguage.value, onSelected: _changeLanguage),
-            ),
-            const SizedBox(height: 14),
-            // The account number is shown, never edited: it is permanent
-            // by definition.
-            Row(
-              children: [
-                const Icon(Icons.tag_rounded, size: 16, color: AppColors.secondaryText),
-                const SizedBox(width: 6),
-                Text(
-                  'ID: ${_profile.publicId}',
-                  style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
+            _Section(
+              title: tr('Личные данные'),
+              rows: [
+                _Row(
+                  icon: Icons.alternate_email_rounded,
+                  label: tr('Логин'),
+                  value: _profile.login,
+                  onTap: () => _editFields(
+                    title: tr('Логин'),
+                    fields: [(key: 'login', label: tr('Логин'), value: _profile.login, keyboard: TextInputType.text)],
+                    validate: (v) => v['login']!.length < 3 ? tr('Логин должен быть не короче 3 символов') : null,
+                  ),
+                ),
+                _Row(
+                  icon: Icons.person_outline_rounded,
+                  label: tr('Имя и фамилия'),
+                  value: fullName.isEmpty ? tr('Не указано') : fullName,
+                  onTap: () => _editFields(
+                    title: tr('Имя и фамилия'),
+                    fields: [
+                      (key: 'first_name', label: tr('Имя'), value: _profile.firstName ?? '', keyboard: null),
+                      (key: 'last_name', label: tr('Фамилия'), value: _profile.lastName ?? '', keyboard: null),
+                    ],
+                  ),
+                ),
+                _Row(
+                  icon: Icons.mail_outline_rounded,
+                  label: tr('Почта'),
+                  value: (_profile.email ?? '').isEmpty ? tr('Не указано') : _profile.email!,
+                  onTap: () => _editFields(
+                    title: tr('Электронная почта'),
+                    fields: [
+                      (
+                        key: 'email',
+                        label: tr('Электронная почта'),
+                        value: _profile.email ?? '',
+                        keyboard: TextInputType.emailAddress,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-            if (_error != null) ...[
-              const SizedBox(height: 14),
-              Text(_error!, style: const TextStyle(color: Color(0xFFD03A48), fontSize: 13)),
-            ],
             const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _isSaving ? null : _save,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppShapes.pillRadius)),
+            _Section(
+              title: tr('Обучение'),
+              rows: [
+                _Row(
+                  key: const ValueKey('settings-topics'),
+                  icon: Icons.flag_outlined,
+                  label: tr('Мои темы'),
+                  value: topics.isEmpty ? tr('Не выбраны') : topics.join(', '),
+                  onTap: () async {
+                    final saved = await Navigator.of(context).push<UserProfile>(
+                      MaterialPageRoute(builder: (_) => TopicsScreen(initial: _profile.learningTopics ?? const [])),
+                    );
+                    if (saved != null && mounted) setState(() => _profile = saved);
+                  },
                 ),
-                child: Text(_isSaving ? tr('Сохранение…') : tr('Сохранить')),
+                _Row(
+                  icon: Icons.language_rounded,
+                  label: tr('Язык интерфейса'),
+                  value: labelOf(uiLanguages, appLanguage.value),
+                  onTap: _changeLanguage,
+                ),
+                // A Tajik or Uzbek interface always reads its own language.
+                if (appLanguage.value == 'ru')
+                  _Row(
+                    icon: Icons.translate_rounded,
+                    label: tr('Язык перевода'),
+                    value: labelOf(_translationLanguages, _profile.translationLanguage),
+                    onTap: _changeTranslationLanguage,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // The account number is shown, never edited: it is permanent.
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'ID: ${_profile.publicId}',
+                style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
               ),
             ),
           ],
@@ -285,129 +310,44 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   }
 }
 
-class _PhotoSection extends StatelessWidget {
-  final UserProfile profile;
-  final bool isBusy;
-  final bool hasPhoto;
-  final VoidCallback? onChange;
-  final VoidCallback? onRemove;
+/// A titled white card of rows separated by hairlines.
+class _Section extends StatelessWidget {
+  final String title;
+  final List<Widget> rows;
 
-  const _PhotoSection({
-    required this.profile,
-    required this.isBusy,
-    required this.hasPhoto,
-    required this.onChange,
-    required this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppShapes.cardRadius),
-        border: Border.all(color: AppColors.cardBorder),
-        boxShadow: AppShapes.cardShadow,
-      ),
-      child: Row(
-        children: [
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              isBusy
-                  ? SkeletonPulse(child: UserAvatar(avatarUrl: profile.avatarUrl, login: profile.login, size: 72))
-                  : UserAvatar(avatarUrl: profile.avatarUrl, login: profile.login, size: 72),
-            ],
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  tr('Фотография'),
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  hasPhoto ? tr('Ваше фото') : tr('Пока используется стандартный аватар'),
-                  style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    TextButton(onPressed: onChange, child: Text(tr('Изменить'))),
-                    if (hasPhoto)
-                      TextButton(
-                        onPressed: onRemove,
-                        style: TextButton.styleFrom(foregroundColor: const Color(0xFFD03A48)),
-                        child: Text(tr('Удалить')),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Field extends StatelessWidget {
-  final String label;
-  final String? hint;
-  final TextEditingController controller;
-  final IconData icon;
-  final TextInputType? keyboardType;
-  final TextCapitalization textCapitalization;
-
-  const _Field({
-    required this.label,
-    required this.controller,
-    required this.icon,
-    this.hint,
-    this.keyboardType,
-    this.textCapitalization = TextCapitalization.none,
-  });
+  const _Section({required this.title, required this.rows});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.secondaryText),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
+          child: Text(
+            title.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.4,
+              color: AppColors.secondaryText,
+            ),
+          ),
         ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: controller,
-          keyboardType: keyboardType,
-          textCapitalization: textCapitalization,
-          style: const TextStyle(fontSize: 15, color: AppColors.primaryDark),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: const TextStyle(fontSize: 13, color: AppColors.muted),
-            prefixIcon: Icon(icon, size: 20, color: AppColors.primary),
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(vertical: 14),
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-              borderSide: const BorderSide(color: AppColors.cardBorder),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-              borderSide: const BorderSide(color: AppColors.cardBorder),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-              borderSide: const BorderSide(color: AppColors.primary),
-            ),
+        Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppShapes.cardRadius),
+            border: Border.all(color: AppColors.cardBorder),
+          ),
+          child: Column(
+            children: [
+              for (var i = 0; i < rows.length; i++) ...[
+                if (i > 0) const Divider(height: 1, indent: 50, color: AppColors.cardBorder),
+                rows[i],
+              ],
+            ],
           ),
         ),
       ],
@@ -415,48 +355,42 @@ class _Field extends StatelessWidget {
   }
 }
 
-class _TopicsRow extends StatelessWidget {
-  final List<String> topics;
+/// Icon, label, current value on the right, chevron.
+class _Row extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
   final VoidCallback onTap;
 
-  const _TopicsRow({required this.topics, required this.onTap});
+  const _Row({super.key, required this.icon, required this.label, required this.value, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final labels = [
-      for (final goal in learningGoals)
-        if (topics.contains(goal.code)) goal.label,
-    ];
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(AppShapes.rowRadius),
+      color: Colors.transparent,
       child: InkWell(
-        key: const ValueKey('settings-topics'),
-        borderRadius: BorderRadius.circular(AppShapes.rowRadius),
         onTap: onTap,
-        child: Container(
+        child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-            border: Border.all(color: AppColors.cardBorder),
-          ),
           child: Row(
             children: [
-              const Icon(Icons.flag_outlined, size: 20, color: AppColors.secondaryText),
-              const SizedBox(width: 10),
+              Icon(icon, size: 22, color: AppColors.primary),
+              const SizedBox(width: 14),
+              Text(
+                label,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
+              ),
+              const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(tr('Мои темы'), style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
-                    const SizedBox(height: 2),
-                    Text(
-                      labels.isEmpty ? tr('Не выбраны') : labels.join(', '),
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
-                    ),
-                  ],
+                child: Text(
+                  value,
+                  textAlign: TextAlign.right,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 14, color: AppColors.secondaryText),
                 ),
               ),
+              const SizedBox(width: 4),
               const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
             ],
           ),

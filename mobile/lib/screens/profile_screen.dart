@@ -313,11 +313,7 @@ class ProfileScreenState extends State<ProfileScreen> {
     Navigator.of(context)
         .push(
           MaterialPageRoute(
-            builder: (_) => ProfileSettingsScreen(
-              profile: profile,
-              onPickPhoto: _pickAndUploadAvatar,
-              onRemovePhoto: _removeAvatar,
-            ),
+            builder: (_) => ProfileSettingsScreen(profile: profile),
           ),
         )
         // Whatever was saved came back from the backend already; reloading
@@ -364,6 +360,8 @@ class ProfileScreenState extends State<ProfileScreen> {
           profile: profile,
           pendingAvatarBytes: _pendingAvatarBytes,
           isUpdatingAvatar: _isUpdatingAvatar,
+          onPickPhoto: _pickAndUploadAvatar,
+          onRemovePhoto: _removeAvatar,
         ),
         const SizedBox(height: 20),
         Row(
@@ -430,19 +428,65 @@ String _dayWord(int n) {
 }
 
 /// Avatar + name + permanent id, with the decorative QR badge on the right.
-/// The avatar itself is NOT tappable any more -- changing the photo goes
-/// through the gear's settings sheet only (see ProfileScreenState.
-/// openSettings), which is why the old camera overlay is gone too.
+/// Tapping the avatar opens a short menu: view the photo, change it,
+/// remove it -- the one place the photo is managed (the camera badge in
+/// its corner says it can be tapped).
 class _ProfileHeader extends StatelessWidget {
   final UserProfile profile;
   final Uint8List? pendingAvatarBytes;
   final bool isUpdatingAvatar;
+  final Future<UserProfile?> Function() onPickPhoto;
+  final Future<UserProfile?> Function() onRemovePhoto;
 
   const _ProfileHeader({
     required this.profile,
     required this.pendingAvatarBytes,
     required this.isUpdatingAvatar,
+    required this.onPickPhoto,
+    required this.onRemovePhoto,
   });
+
+  Future<void> _openPhotoMenu(BuildContext context) async {
+    if (isUpdatingAvatar) return;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_hasPhoto)
+              ListTile(
+                leading: const Icon(Icons.visibility_outlined),
+                title: Text(tr('Посмотреть')),
+                onTap: () => Navigator.of(sheetContext).pop('view'),
+              ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: Text(tr('Изменить фото')),
+              onTap: () => Navigator.of(sheetContext).pop('change'),
+            ),
+            if (_hasPhoto)
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded, color: AppColors.danger),
+                title: Text(tr('Удалить фото'), style: const TextStyle(color: AppColors.danger)),
+                onTap: () => Navigator.of(sheetContext).pop('remove'),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (!context.mounted) return;
+    switch (action) {
+      case 'view':
+        _openViewer(context);
+      case 'change':
+        await onPickPhoto();
+      case 'remove':
+        await onRemovePhoto();
+    }
+  }
 
   /// There is only something to enlarge when the user actually has a
   /// photo -- either one already stored, or one they just picked that is
@@ -522,21 +566,34 @@ class _ProfileHeader extends StatelessWidget {
 
     return Row(
       children: [
-        // Tapping shows the photo full size. Changing it still goes
-        // through the gear's settings sheet only -- this is a viewer, not
-        // a second way to upload.
-        if (_hasPhoto)
-          Semantics(
-            button: true,
-            label: tr('Открыть фото профиля'),
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => _openViewer(context),
-              child: avatar,
+        Semantics(
+          button: true,
+          label: tr('Фото профиля'),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _openPhotoMenu(context),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                avatar,
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.primary,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: const Icon(Icons.photo_camera_rounded, size: 15, color: Colors.white),
+                  ),
+                ),
+              ],
             ),
-          )
-        else
-          avatar,
+          ),
+        ),
         const SizedBox(width: 16),
         Expanded(
           child: Column(

@@ -22,7 +22,6 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-const int _totalSteps = 5;
 
 List<({String code, String label})> get _ageGroups => [
   (code: '12-17', label: tr('12–17 лет')),
@@ -42,6 +41,23 @@ List<({String code, String label})> get _referralSources => [
 
 class _RegisterScreenState extends State<RegisterScreen> {
   int _step = 0;
+
+  /// The wizard's steps in order. A Russian interface also asks which
+  /// language word translations are shown in; a Tajik or Uzbek one already
+  /// reads its own.
+  List<String> get _steps => [
+        'language',
+        if (appLanguage.value == 'ru') 'translation',
+        'account',
+        'age',
+        'goal',
+        'referral',
+      ];
+
+  String get _stepKey => _steps[_step];
+
+  // --- Translation language (Russian interface only) ----------------------
+  String _translationLanguage = 'tg';
 
   // --- Step 0: language ---------------------------------------------------
   bool _isLoadingLanguages = true;
@@ -119,16 +135,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   bool get _canAdvance {
-    switch (_step) {
-      case 0:
+    switch (_stepKey) {
+      case 'language':
         return _selectedLanguage != null;
-      case 1:
+      case 'translation':
+        return true;
+      case 'account':
         return true; // this step validates its own fields on Next
-      case 2:
+      case 'age':
         return _ageGroup != null;
-      case 3:
+      case 'goal':
         return _learningGoals.isNotEmpty;
-      case 4:
+      case 'referral':
         return _referralSource != null;
     }
     return false;
@@ -143,10 +161,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _goNext() {
-    if (_step == 1 && !_validateAccountStep()) {
+    if (_stepKey == 'account' && !_validateAccountStep()) {
       return;
     }
-    if (_step < _totalSteps - 1) {
+    if (_step < _steps.length - 1) {
       setState(() => _step += 1);
     } else {
       _submit();
@@ -206,6 +224,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         learningGoal: _learningGoals.first,
         learningTopics: _learningGoals,
         referralSource: _referralSource!,
+        translationLanguage: _translationLanguage,
       );
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
@@ -227,7 +246,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  String get _nextLabel => _step == _totalSteps - 1 ? tr('Создать аккаунт') : tr('Далее');
+  String get _nextLabel => _step == _steps.length - 1 ? tr('Создать аккаунт') : tr('Далее');
 
   @override
   Widget build(BuildContext context) {
@@ -244,7 +263,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     onPressed: _isSubmitting ? null : _goBack,
                     icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.primaryDark),
                   ),
-                  Expanded(child: _StepDots(total: _totalSteps, current: _step)),
+                  Expanded(child: _StepDots(total: _steps.length, current: _step)),
                   const SizedBox(width: 40), // balances the back button so the dots stay centered
                 ],
               ),
@@ -284,8 +303,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _buildStep() {
-    switch (_step) {
-      case 0:
+    switch (_stepKey) {
+      case 'language':
         return _LanguageStep(
           isLoading: _isLoadingLanguages,
           error: _languagesError,
@@ -296,7 +315,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
           onSelect: (code) => setState(() => _selectedLanguage = code),
           onShowAll: () => setState(() => _showAllLanguages = true),
         );
-      case 1:
+      case 'translation':
+        return _ChoiceStep(
+          title: tr('На каком языке показывать перевод слов?'),
+          subtitle: tr('Это можно изменить в настройках.'),
+          keyPrefix: 'translation',
+          options: const [(code: 'tg', label: 'Тоҷикӣ'), (code: 'uz', label: 'Oʻzbekcha')],
+          selected: _translationLanguage,
+          onSelect: (code) => setState(() => _translationLanguage = code),
+        );
+      case 'account':
         return _AccountStep(
           firstNameCtrl: _firstNameCtrl,
           lastNameCtrl: _lastNameCtrl,
@@ -312,7 +340,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           confirmError: _confirmError,
           onChanged: () => setState(() {}),
         );
-      case 2:
+      case 'age':
         return _ChoiceStep(
           title: tr('Укажите ваш возраст'),
           keyPrefix: 'age',
@@ -320,7 +348,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           selected: _ageGroup,
           onSelect: (code) => setState(() => _ageGroup = code),
         );
-      case 3:
+      case 'goal':
         return _ChoiceStep(
           title: tr('Для чего вы изучаете язык?'),
           subtitle: tr('Можно выбрать несколько'),
@@ -331,7 +359,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             () => _learningGoals.contains(code) ? _learningGoals.remove(code) : _learningGoals.add(code),
           ),
         );
-      case 4:
+      case 'referral':
         return _ChoiceStep(
           title: tr('Как вы нас нашли?'),
           keyPrefix: 'referral',

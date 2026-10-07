@@ -39,6 +39,8 @@ class UserProfile {
   final List<String>? learningTopics;
   /// Interface language: "ru", "tg" or "uz".
   final String uiLanguage;
+  /// Which translations a Russian interface shows: "tg" or "uz".
+  final String translationLanguage;
 
   UserProfile({
     required this.id,
@@ -54,6 +56,7 @@ class UserProfile {
     this.premiumUntil,
     this.learningTopics,
     this.uiLanguage = 'ru',
+    this.translationLanguage = 'tg',
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -71,6 +74,7 @@ class UserProfile {
       premiumUntil: json['premium_until'] == null ? null : DateTime.parse(json['premium_until'] as String).toLocal(),
       learningTopics: (json['learning_topics'] as List<dynamic>?)?.cast<String>(),
       uiLanguage: json['ui_language'] as String? ?? 'ru',
+      translationLanguage: json['translation_language'] as String? ?? 'tg',
     );
   }
 }
