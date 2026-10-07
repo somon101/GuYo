@@ -331,10 +331,13 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _Hearts(
-          // A heart goes out the moment a try is judged wrong.
-          left: _maxAttempts - (_attempt - 1) - (_isCorrect == false ? 1 : 0),
-          total: _maxAttempts,
+        Align(
+          alignment: Alignment.centerRight,
+          child: _Hearts(
+            // A heart goes out the moment a try is judged wrong.
+            left: _maxAttempts - (_attempt - 1) - (_isCorrect == false ? 1 : 0),
+            total: _maxAttempts,
+          ),
         ),
         const SizedBox(height: 12),
         _WordCard(item: widget.item),
@@ -642,7 +645,7 @@ class _Hearts extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
         for (var i = 0; i < total; i++)
           Padding(
