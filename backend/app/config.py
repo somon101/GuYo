@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     # push is off: notifications still land in the in-app inbox.
     firebase_service_account_json: str = ""
 
+    # Google Sign-In: the OAuth client IDs (comma-separated) an ID token may
+    # be issued for -- the Web client ID the app requests tokens with. Not a
+    # secret. Empty means "Войти через Google" is off.
+    google_client_ids: str = ""
+
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]

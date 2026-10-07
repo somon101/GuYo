@@ -94,6 +94,39 @@ class RegisterIn(BaseModel):
         return self
 
 
+class GoogleAuthIn(BaseModel):
+    id_token: str = Field(min_length=10)
+
+
+class GoogleRegisterIn(BaseModel):
+    """Sign-up through Google: everything RegisterIn asks except what the
+    Google account already gives (name, email) and the password it makes
+    unnecessary. The login is still the user's own choice."""
+
+    id_token: str = Field(min_length=10)
+    login: str = Field(min_length=3, max_length=64)
+    learning_language: str = Field(min_length=1, max_length=16)
+    age_group: AgeGroup
+    learning_goal: LearningGoal
+    learning_topics: list[LearningGoal] | None = None
+    referral_source: ReferralSource
+    ui_language: UiLanguage = "ru"
+    translation_language: TranslationLanguage = "tg"
+
+
+class GoogleAuthOut(BaseModel):
+    """Either a session (an existing Google account) or what the app needs
+    to start the short sign-up (a new one)."""
+
+    access_token: str | None = None
+    token_type: str = "bearer"
+    role: str = "user"
+    needs_registration: bool = False
+    email: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+
+
 class UserUpdateIn(BaseModel):
     """What a user may change about themselves. Every field optional --
     only what is sent is changed -- and the photo is NOT here: it is a
@@ -128,6 +161,8 @@ class UserOut(BaseModel):
     last_name: str | None
     email: str | None
     created_at: datetime
+    # True for accounts created with "Войти через Google".
+    google: bool = False
 
 
 class UserProfileOut(BaseModel):

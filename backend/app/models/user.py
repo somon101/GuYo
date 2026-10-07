@@ -61,6 +61,14 @@ class User(Base):
     public_id: Mapped[int] = mapped_column(Integer, unique=True, index=True, nullable=False)
     login: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Google account id ('sub') for accounts created with "Войти через Google";
+    # such accounts get a random password nobody knows.
+    google_sub: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
+
+    @property
+    def google(self) -> bool:
+        return self.google_sub is not None
+
     first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)

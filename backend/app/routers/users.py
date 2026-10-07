@@ -70,6 +70,7 @@ def new_user_row(
     learning_topics: list[str] | None = None,
     ui_language: str = "ru",
     translation_language: str = "tg",
+    google_sub: str | None = None,
 ) -> User:
     """The one place a User row is ever built -- admin_router's
     create_user below and auth.py's public register_user both call this,
@@ -96,6 +97,7 @@ def new_user_row(
         learning_topics=learning_topics,
         ui_language=ui_language,
         translation_language=reading_language(ui_language, translation_language),
+        google_sub=google_sub,
     )
     db.add(user)
     db.flush()

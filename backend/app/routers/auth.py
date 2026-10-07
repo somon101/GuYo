@@ -7,7 +7,10 @@ from app.database import get_db
 from app.models.admin import Admin
 from app.models.user import User
 from app.schemas.auth import LoginRequest, MeResponse, TokenResponse
-from app.schemas.user import RegisterIn
+import secrets
+
+from app.core.google_auth import GoogleTokenError, verify_google_id_token
+from app.schemas.user import GoogleAuthIn, GoogleAuthOut, GoogleRegisterIn, RegisterIn
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -71,3 +74,65 @@ def me(principal: Principal = Depends(get_current_principal), db: Session = Depe
         return MeResponse(id=admin.id, login=admin.login, role="admin")
     user = db.get(User, principal.id)
     return MeResponse(id=user.id, login=user.login, role="user")
+
+
+def _google_identity(id_token: str) -> dict:
+    try:
+        return verify_google_id_token(id_token)
+    except GoogleTokenError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+
+
+_EMAIL_TAKEN = "Аккаунт с этой почтой уже есть. Войдите по логину и паролю."
+
+
+@router.post("/google", response_model=GoogleAuthOut)
+def google_login(payload: GoogleAuthIn, db: Session = Depends(get_db)):
+    """"Войти через Google": logs in the account made with this Google
+    account, or tells the app to run the short sign-up. An email already
+    used by a password account is refused -- that account logs in with its
+    password (never silently linked)."""
+    identity = _google_identity(payload.id_token)
+    user = db.query(User).filter(User.google_sub == identity["sub"]).first()
+    if user is not None:
+        return GoogleAuthOut(access_token=create_access_token(subject=user.id, role="user"))
+    if db.query(User).filter(User.email == identity["email"]).first() is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_EMAIL_TAKEN)
+    return GoogleAuthOut(
+        needs_registration=True,
+        email=identity["email"],
+        first_name=identity["first_name"],
+        last_name=identity["last_name"],
+    )
+
+
+@router.post("/google/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+def google_register(payload: GoogleRegisterIn, db: Session = Depends(get_db)):
+    """Finishes the Google sign-up through the one user-creation path
+    (new_user_row). The password is random: this account signs in with
+    Google."""
+    from app.routers.users import new_user_row
+
+    identity = _google_identity(payload.id_token)
+    if db.query(User).filter(User.google_sub == identity["sub"]).first() is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Этот Google-аккаунт уже зарегистрирован")
+    if db.query(User).filter(User.email == identity["email"]).first() is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_EMAIL_TAKEN)
+    user = new_user_row(
+        db,
+        login=payload.login.strip(),
+        password=secrets.token_urlsafe(32),
+        first_name=identity["first_name"],
+        last_name=identity["last_name"],
+        email=identity["email"],
+        learning_language=payload.learning_language,
+        age_group=payload.age_group,
+        learning_goal=payload.learning_goal,
+        referral_source=payload.referral_source,
+        learning_topics=list(dict.fromkeys(payload.learning_topics or [payload.learning_goal])),
+        ui_language=payload.ui_language,
+        translation_language=payload.translation_language,
+        google_sub=identity["sub"],
+    )
+    db.commit()
+    return TokenResponse(access_token=create_access_token(subject=user.id, role="user"), role="user")
