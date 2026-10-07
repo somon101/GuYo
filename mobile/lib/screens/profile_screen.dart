@@ -24,6 +24,7 @@ import 'profile_qr_sheet.dart';
 import 'profile_settings_screen.dart';
 import '../widgets/achievement_celebration.dart';
 import 'streak_sheet.dart';
+import 'stats_screen.dart';
 import '../widgets/animated_fire.dart';
 import '../widgets/skeleton.dart';
 
@@ -567,6 +568,26 @@ class _ProfileHeader extends StatelessWidget {
             ],
           ),
         ),
+        // Opens "Статистика".
+        Semantics(
+          button: true,
+          label: tr('Статистика'),
+          child: GestureDetector(
+            key: const ValueKey('profile-stats'),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const StatsScreen())),
+            child: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFEDEFF7)),
+              ),
+              child: const Icon(Icons.insights_rounded, color: AppColors.primary, size: 22),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
         // Opens the user's own QR card: their public ID, with the GuYo mark.
         Semantics(
           button: true,

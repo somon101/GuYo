@@ -446,3 +446,133 @@ def get_my_rating(db: Session = Depends(get_db), user: User = Depends(get_curren
         rank_position=rank_position_for_user(db, rank, rating) if rank else None,
         position_change=position_changes(db, [user.id]).get(user.id) if rank else None,
     )
+
+
+@router.get("/me/stats")
+def get_my_stats(
+    days: int = 7,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """The "Статистика" screen in one round trip, all from what is already
+    recorded: answers (WordAttempt), active days (UserActivityDay), rating
+    points (UserWordPoints + quest rewards), lessons and word scores.
+    `days` is the chart's range: 7 or 30, compared with the period before."""
+    from collections import Counter, defaultdict
+
+    from sqlalchemy import func as sa_func
+
+    from app.achievements.conditions import words_learned_count
+    from app.core.dates import DUSHANBE_TZ
+    from app.models.quest import Quest, UserQuestWordDay
+    from app.models.rating import UserWordPoints
+    from app.models.word import Word
+    from app.models.word_attempt import WordAttempt
+
+    days = 30 if days >= 30 else 7
+    today = dushanbe_today()
+    period_start = today - timedelta(days=days - 1)
+    prev_start = period_start - timedelta(days=days)
+
+    def local_day(dt):
+        return dt.astimezone(DUSHANBE_TZ).date()
+
+    attempts = (
+        db.query(WordAttempt.exercise_key, WordAttempt.is_correct, WordAttempt.duration_ms, WordAttempt.created_at)
+        .filter(WordAttempt.user_id == user.id)
+        .all()
+    )
+    total = len(attempts)
+    correct = sum(1 for a in attempts if a.is_correct)
+    per_ex: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+    answers_by_day: Counter = Counter()
+    weekday: Counter = Counter()
+    durations = []
+    for a in attempts:
+        per_ex[a.exercise_key][1] += 1
+        if a.is_correct:
+            per_ex[a.exercise_key][0] += 1
+        d = local_day(a.created_at)
+        answers_by_day[d] += 1
+        weekday[d.weekday()] += 1
+        if a.duration_ms:
+            durations.append(min(a.duration_ms, 120_000))
+
+    # Points per day: learned words plus quest rewards.
+    points_by_day: Counter = Counter()
+    for pts, at in db.query(UserWordPoints.points_awarded, UserWordPoints.awarded_at).filter(
+        UserWordPoints.user_id == user.id
+    ):
+        points_by_day[local_day(at)] += pts
+    for reward, used in (
+        db.query(Quest.reward_points, UserQuestWordDay.used_date)
+        .join(Quest, Quest.id == UserQuestWordDay.quest_id)
+        .filter(UserQuestWordDay.user_id == user.id)
+    ):
+        points_by_day[used] += reward
+    chart = [
+        {"date": (period_start + timedelta(days=i)).isoformat(), "points": points_by_day.get(period_start + timedelta(days=i), 0)}
+        for i in range(days)
+    ]
+    period_total = sum(p["points"] for p in chart)
+    prev_total = sum(points_by_day.get(prev_start + timedelta(days=i), 0) for i in range(days))
+
+    # Active days: the last 5 weeks for the calendar, and the best streak ever.
+    active_days = sorted(
+        r[0] for r in db.query(UserActivityDay.activity_date).filter(UserActivityDay.user_id == user.id)
+    )
+    best = run = 0
+    prev = None
+    for d in active_days:
+        run = run + 1 if prev is not None and d - prev == timedelta(days=1) else 1
+        best = max(best, run)
+        prev = d
+    cal_start = today - timedelta(days=34)
+    active_set = set(active_days)
+    calendar = [
+        {
+            "date": (cal_start + timedelta(days=i)).isoformat(),
+            "active": (cal_start + timedelta(days=i)) in active_set,
+            "answers": answers_by_day.get(cal_start + timedelta(days=i), 0),
+        }
+        for i in range(35)
+    ]
+
+    # The words answered wrong most often (at least twice).
+    wrong_rows = (
+        db.query(WordAttempt.word_id, sa_func.count(WordAttempt.id))
+        .filter(WordAttempt.user_id == user.id, WordAttempt.is_correct.is_(False))
+        .group_by(WordAttempt.word_id)
+        .order_by(sa_func.count(WordAttempt.id).desc())
+        .limit(5)
+        .all()
+    )
+    words = {w.id: w.word for w in db.query(Word).filter(Word.id.in_([r[0] for r in wrong_rows]))} if wrong_rows else {}
+    hard_words = [{"word_id": wid, "word": words.get(wid, ""), "mistakes": n} for wid, n in wrong_rows if n >= 2]
+
+    learned_week = (
+        db.query(sa_func.count(UserWordPoints.id))
+        .filter(UserWordPoints.user_id == user.id, UserWordPoints.awarded_at >= utc_now() - timedelta(days=7))
+        .scalar()
+        or 0
+    )
+
+    return {
+        "accuracy": round(correct * 100 / total) if total else 0,
+        "total_answers": total,
+        "exercises": [{"exercise_key": k, "correct": c, "total": t} for k, (c, t) in per_ex.items()],
+        "range_days": days,
+        "points_chart": chart,
+        "points_total": period_total,
+        "points_prev_total": prev_total,
+        "calendar": calendar,
+        "current_streak": streak_days_count(db, user),
+        "best_streak": best,
+        "lessons_completed": lessons_completed_count(db, user),
+        "words_learned": words_learned_count(db, user),
+        "words_learned_week": learned_week,
+        "time_minutes": round(sum(durations) / 60000),
+        "avg_answer_seconds": round(sum(durations) / len(durations) / 1000, 1) if durations else None,
+        "best_weekday": weekday.most_common(1)[0][0] if weekday else None,
+        "hard_words": hard_words,
+    }

@@ -1,4 +1,5 @@
 import '../services/google_auth.dart';
+import '../screens/stats_screen.dart' show UserStats;
 import '../services/session_cache.dart';
 import '../l10n/l10n.dart';
 import 'dart:convert';
@@ -922,6 +923,17 @@ class ApiClient {
     await _throwIfUnauthorized(res);
     final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
     return list.map((e) => UserAchievement.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// The Статистика screen's data (GET /users/me/stats), for a 7 or 30 day chart.
+  Future<UserStats> fetchMyStats(int days) async {
+    final res = await http.get(
+      _uri('/users/me/stats').replace(queryParameters: {'days': '$days'}),
+      headers: await _authHeaders(),
+    );
+    await _throwIfUnauthorized(res);
+    if (res.statusCode != 200) throw ApiException('Не удалось загрузить статистику', statusCode: res.statusCode);
+    return UserStats.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
   /// Earned but not yet shown to this account (GET /users/me/achievements/new).
