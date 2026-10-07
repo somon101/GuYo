@@ -1,3 +1,4 @@
+import '../services/google_auth.dart';
 import '../l10n/l10n.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -161,6 +162,74 @@ class ApiClient {
         );
       } catch (_) {}
     }();
+  }
+
+  /// The server's own message from an error response, or [fallback].
+  String _detailOf(http.Response res, String fallback) {
+    try {
+      final detail = (jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>)['detail'];
+      if (detail is String && detail.isNotEmpty) return detail;
+    } catch (_) {}
+    return fallback;
+  }
+
+  /// "Войти через Google" (backend POST /auth/google): logs in and returns
+  /// null for a known Google account, or returns what the short sign-up
+  /// needs for a new one.
+  Future<GoogleSignup?> googleLogin(String idToken) async {
+    final res = await http.post(
+      _uri('/auth/google'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'id_token': idToken}),
+    );
+    if (res.statusCode != 200) {
+      throw ApiException(_detailOf(res, tr('Ошибка сервера ({0})', [res.statusCode])), statusCode: res.statusCode);
+    }
+    final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    if (data['needs_registration'] == true) {
+      return GoogleSignup(
+        idToken: idToken,
+        email: data['email'] as String,
+        firstName: data['first_name'] as String?,
+        lastName: data['last_name'] as String?,
+      );
+    }
+    await _saveToken(data['access_token'] as String);
+    await _syncUiLanguage();
+    return null;
+  }
+
+  /// Finishes the Google sign-up (backend POST /auth/google/register).
+  Future<void> googleRegister({
+    required String idToken,
+    required String login,
+    required String learningLanguage,
+    required String ageGroup,
+    required String learningGoal,
+    List<String>? learningTopics,
+    required String referralSource,
+    String translationLanguage = 'tg',
+  }) async {
+    final res = await http.post(
+      _uri('/auth/google/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'id_token': idToken,
+        'login': login,
+        'learning_language': learningLanguage,
+        'age_group': ageGroup,
+        'learning_goal': learningGoal,
+        if (learningTopics != null) 'learning_topics': learningTopics,
+        'referral_source': referralSource,
+        'ui_language': appLanguage.value,
+        'translation_language': translationLanguage,
+      }),
+    );
+    if (res.statusCode != 201) {
+      throw ApiException(_detailOf(res, tr('Ошибка сервера ({0})', [res.statusCode])), statusCode: res.statusCode);
+    }
+    final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    await _saveToken(data['access_token'] as String);
   }
 
   Future<void> logout() async {

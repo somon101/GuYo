@@ -1,6 +1,9 @@
+import '../services/google_auth.dart';
 import '../widgets/language_picker.dart';
 import '../l10n/l10n.dart';
+
 import 'package:flutter/material.dart';
+
 import '../api/api_client.dart';
 import '../theme/app_colors.dart';
 import '../widgets/guyo_ui.dart';
@@ -34,14 +37,9 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
     try {
-      await ApiClient.instance.login(
-        _loginController.text.trim(),
-        _passwordController.text,
-      );
+      await ApiClient.instance.login(_loginController.text.trim(), _passwordController.text);
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
@@ -51,11 +49,35 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _openRegister() async {
+  Future<void> _openRegister({GoogleSignup? google}) async {
     FocusManager.instance.primaryFocus?.unfocus();
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const RegisterScreen()),
-    );
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => RegisterScreen(google: google)));
+  }
+
+  /// Google account picker -> log in, or the short sign-up for a new one.
+  Future<void> _signInWithGoogle() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      _isSubmitting = true;
+      _error = null;
+    });
+    try {
+      final idToken = await pickGoogleIdToken();
+      if (idToken == null) return; // closed the picker
+      final signup = await ApiClient.instance.googleLogin(idToken);
+      if (!mounted) return;
+      if (signup != null) {
+        await _openRegister(google: signup);
+        return;
+      }
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } catch (_) {
+      if (mounted) setState(() => _error = tr('Не удалось войти через Google'));
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -70,11 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                LanguagePicker(
-                  selected: appLanguage.value,
-                  enabled: !_isSubmitting,
-                  onSelected: setAppLanguage,
-                ),
+                LanguagePicker(selected: appLanguage.value, enabled: !_isSubmitting, onSelected: setAppLanguage),
                 const SizedBox(height: 20),
                 const RoundIconChip(icon: Icons.auto_stories_rounded, size: 64),
                 const SizedBox(height: 16),
@@ -94,7 +112,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _LoginField(label: tr('Логин'), controller: _loginController, textInputAction: TextInputAction.next),
+                      _LoginField(
+                        label: tr('Логин'),
+                        controller: _loginController,
+                        textInputAction: TextInputAction.next,
+                      ),
                       const SizedBox(height: 14),
                       _LoginField(
                         label: tr('Пароль'),
@@ -126,6 +148,28 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                 ),
+                if (googleSignInEnabled) ...[
+                  const SizedBox(height: 14),
+                  OutlinedButton.icon(
+                    key: const ValueKey('login-google-button'),
+                    onPressed: _isSubmitting ? null : _signInWithGoogle,
+                    icon: const Text(
+                      'G',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF4285F4)),
+                    ),
+                    label: Text(
+                      tr('Войти через Google'),
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.primaryDark,
+                      side: const BorderSide(color: AppColors.cardBorder),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppShapes.rowRadius)),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -166,7 +210,10 @@ class _LoginField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: controller,

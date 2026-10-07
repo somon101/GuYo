@@ -1,5 +1,8 @@
+import '../services/google_auth.dart';
 import '../l10n/l10n.dart';
+
 import 'package:flutter/material.dart';
+
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../theme/app_colors.dart';
@@ -16,12 +19,15 @@ import '../widgets/skeleton.dart';
 /// Next/Back the whole time (see _RegisterScreenState's own fields --
 /// plain TextEditingControllers and selections, never rebuilt per step).
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  /// Set when signing up with Google: name and email come from the Google
+  /// account and no password is asked, so the account step is only the login.
+  final GoogleSignup? google;
+
+  const RegisterScreen({super.key, this.google});
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
-
 
 List<({String code, String label})> get _ageGroups => [
   (code: '12-17', label: tr('12–17 лет')),
@@ -46,13 +52,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   /// language word translations are shown in; a Tajik or Uzbek one already
   /// reads its own.
   List<String> get _steps => [
-        'language',
-        if (appLanguage.value == 'ru') 'translation',
-        'account',
-        'age',
-        'goal',
-        'referral',
-      ];
+    'language',
+    if (appLanguage.value == 'ru') 'translation',
+    'account',
+    'age',
+    'goal',
+    'referral',
+  ];
 
   String get _stepKey => _steps[_step];
 
@@ -161,7 +167,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _goNext() {
-    if (_stepKey == 'account' && !_validateAccountStep()) {
+    if (_stepKey == 'account' && !(widget.google != null ? _validateLoginOnly() : _validateAccountStep())) {
       return;
     }
     if (_step < _steps.length - 1) {
@@ -169,6 +175,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } else {
       _submit();
     }
+  }
+
+  bool _validateLoginOnly() {
+    final login = _loginCtrl.text.trim();
+    setState(() {
+      _loginError = login.isEmpty ? tr('Введите логин') : (login.length < 3 ? tr('Минимум 3 символа') : null);
+    });
+    return _loginError == null;
   }
 
   bool _validateAccountStep() {
@@ -184,15 +198,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() {
       _firstNameError = firstName.isEmpty ? tr('Введите имя') : null;
       _lastNameError = lastName.isEmpty ? tr('Введите фамилию') : null;
-      _emailError = email.isEmpty
-          ? tr('Введите email')
-          : (!emailLooksValid ? tr('Некорректный email') : null);
-      _loginError = login.isEmpty
-          ? tr('Введите логин')
-          : (login.length < 3 ? tr('Минимум 3 символа') : null);
-      _passwordError = password.isEmpty
-          ? tr('Введите пароль')
-          : (password.length < 4 ? tr('Минимум 4 символа') : null);
+      _emailError = email.isEmpty ? tr('Введите email') : (!emailLooksValid ? tr('Некорректный email') : null);
+      _loginError = login.isEmpty ? tr('Введите логин') : (login.length < 3 ? tr('Минимум 3 символа') : null);
+      _passwordError = password.isEmpty ? tr('Введите пароль') : (password.length < 4 ? tr('Минимум 4 символа') : null);
       _confirmError = confirm.isEmpty
           ? tr('Повторите пароль')
           : (confirm != password ? tr('Пароли не совпадают') : null);
@@ -212,25 +220,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _submitError = null;
     });
     try {
-      await ApiClient.instance.register(
-        login: _loginCtrl.text.trim(),
-        password: _passwordCtrl.text,
-        passwordConfirm: _confirmCtrl.text,
-        firstName: _firstNameCtrl.text.trim(),
-        lastName: _lastNameCtrl.text.trim(),
-        email: _emailCtrl.text.trim(),
-        learningLanguage: _selectedLanguage!,
-        ageGroup: _ageGroup!,
-        learningGoal: _learningGoals.first,
-        learningTopics: _learningGoals,
-        referralSource: _referralSource!,
-        translationLanguage: _translationLanguage,
-      );
+      final google = widget.google;
+      if (google != null) {
+        await ApiClient.instance.googleRegister(
+          idToken: google.idToken,
+          login: _loginCtrl.text.trim(),
+          learningLanguage: _selectedLanguage!,
+          ageGroup: _ageGroup!,
+          learningGoal: _learningGoals.first,
+          learningTopics: _learningGoals,
+          referralSource: _referralSource!,
+          translationLanguage: _translationLanguage,
+        );
+      } else {
+        await ApiClient.instance.register(
+          login: _loginCtrl.text.trim(),
+          password: _passwordCtrl.text,
+          passwordConfirm: _confirmCtrl.text,
+          firstName: _firstNameCtrl.text.trim(),
+          lastName: _lastNameCtrl.text.trim(),
+          email: _emailCtrl.text.trim(),
+          learningLanguage: _selectedLanguage!,
+          ageGroup: _ageGroup!,
+          learningGoal: _learningGoals.first,
+          learningTopics: _learningGoals,
+          referralSource: _referralSource!,
+          translationLanguage: _translationLanguage,
+        );
+      }
       if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-        (route) => false,
-      );
+      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const HomeScreen()), (route) => false);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -263,7 +282,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     onPressed: _isSubmitting ? null : _goBack,
                     icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.primaryDark),
                   ),
-                  Expanded(child: _StepDots(total: _steps.length, current: _step)),
+                  Expanded(
+                    child: _StepDots(total: _steps.length, current: _step),
+                  ),
                   const SizedBox(width: 40), // balances the back button so the dots stay centered
                 ],
               ),
@@ -271,10 +292,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             Expanded(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 220),
-                child: KeyedSubtree(
-                  key: ValueKey(_step),
-                  child: _buildStep(),
-                ),
+                child: KeyedSubtree(key: ValueKey(_step), child: _buildStep()),
               ),
             ),
             Padding(
@@ -325,6 +343,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
           onSelect: (code) => setState(() => _translationLanguage = code),
         );
       case 'account':
+        if (widget.google != null) {
+          return _GoogleLoginStep(
+            email: widget.google!.email,
+            loginCtrl: _loginCtrl,
+            loginError: _loginError,
+            onChanged: () => setState(() {}),
+          );
+        }
         return _AccountStep(
           firstNameCtrl: _firstNameCtrl,
           lastNameCtrl: _lastNameCtrl,
@@ -355,9 +381,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           keyPrefix: 'goal',
           options: learningGoals,
           selectedMany: _learningGoals,
-          onSelect: (code) => setState(
-            () => _learningGoals.contains(code) ? _learningGoals.remove(code) : _learningGoals.add(code),
-          ),
+          onSelect: (code) =>
+              setState(() => _learningGoals.contains(code) ? _learningGoals.remove(code) : _learningGoals.add(code)),
         );
       case 'referral':
         return _ChoiceStep(
@@ -366,9 +391,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           options: _referralSources,
           selected: _referralSource,
           onSelect: (code) => setState(() => _referralSource = code),
-          footer: _submitError == null
-              ? null
-              : _ErrorBanner(message: _submitError!),
+          footer: _submitError == null ? null : _ErrorBanner(message: _submitError!),
         );
     }
     return const SizedBox.shrink();
@@ -477,7 +500,11 @@ class _LanguageStep extends StatelessWidget {
         child: GuyoCard(
           child: Column(
             children: [
-              Text(error!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.secondaryText)),
+              Text(
+                error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.secondaryText),
+              ),
               const SizedBox(height: 12),
               FilledButton(onPressed: onRetry, child: Text(tr('Повторить'))),
             ],
@@ -620,6 +647,38 @@ class _AccountStep extends StatelessWidget {
   }
 }
 
+/// The account step of a Google sign-up: name and email already came from
+/// Google, so only the login (the name shown in the rating) is asked.
+class _GoogleLoginStep extends StatelessWidget {
+  final String email;
+  final TextEditingController loginCtrl;
+  final String? loginError;
+  final VoidCallback onChanged;
+
+  const _GoogleLoginStep({
+    required this.email,
+    required this.loginCtrl,
+    required this.loginError,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _StepScaffold(
+      title: tr('Придумайте логин'),
+      subtitle: tr('Его увидят другие в рейтинге. Google: {0}', [email]),
+      child: _FormField(
+        fieldKey: const ValueKey('register-field-login'),
+        label: tr('Логин'),
+        controller: loginCtrl,
+        error: loginError,
+        onChanged: onChanged,
+        autocorrect: false,
+      ),
+    );
+  }
+}
+
 /// One GuYo-styled input: the same violet fill + no visible outline +
 /// rowRadius corners already used elsewhere (see PromoScreen's own code
 /// field) -- error text sits directly under the field, small and plain,
@@ -650,7 +709,10 @@ class _FormField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+        ),
         const SizedBox(height: 6),
         TextField(
           key: fieldKey,
@@ -673,7 +735,10 @@ class _FormField extends StatelessWidget {
         ),
         if (error != null) ...[
           const SizedBox(height: 4),
-          Text(error!, style: const TextStyle(fontSize: 12, color: AppColors.danger, fontWeight: FontWeight.w600)),
+          Text(
+            error!,
+            style: const TextStyle(fontSize: 12, color: AppColors.danger, fontWeight: FontWeight.w600),
+          ),
         ],
       ],
     );
@@ -741,10 +806,7 @@ class _ErrorBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.dangerLight,
-        borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-      ),
+      decoration: BoxDecoration(color: AppColors.dangerLight, borderRadius: BorderRadius.circular(AppShapes.rowRadius)),
       child: Text(message, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
     );
   }
