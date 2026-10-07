@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../theme/app_colors.dart';
-import '../widgets/premium_ui.dart';
 import 'home_dashboard_screen.dart';
 import 'lessons_screen.dart';
 import 'login_screen.dart';
@@ -63,20 +62,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // the active tab) open that screen's settings sheet -- the sheet and
   // everything in it still belong entirely to ProfileScreen.
   final GlobalKey<ProfileScreenState> _profileKey = GlobalKey<ProfileScreenState>();
-  // Whether the admin's master Premium switch is on -- while it's off,
-  // "Промокод" is pointless (there is nothing to redeem into) and stays
-  // out of the "⋮" menu, same "as if Premium didn't exist" spirit as
-  // LessonQuotaCard hiding itself (see premium_ui.dart). Defaults to
-  // true so the menu item is never missing just because this hasn't
-  // loaded yet.
-  bool _premiumEnabled = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     ApiClient.instance.logEvent('app_opened');
-    _loadPremiumEnabled();
     _loadDictionaries();
     // Every way into the app (login, sign-up, an already-saved session)
     // lands here, so this is the one place the phone is registered.
@@ -134,17 +125,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _refreshDictionariesInBackground();
       _logReturn();
-    }
-  }
-
-  Future<void> _loadPremiumEnabled() async {
-    try {
-      final status = await ApiClient.instance.fetchPremiumStatus();
-      if (!mounted) return;
-      setState(() => _premiumEnabled = status.premiumEnabled);
-    } catch (_) {
-      // Keep the default (true) -- the menu item staying visible on a
-      // load failure is the safer failure mode than it vanishing.
     }
   }
 
@@ -391,17 +371,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             },
           ),
           const _NotificationsButton(),
-          PopupMenuButton<String>(
-            tooltip: tr('Ещё'),
-            onSelected: (value) {
-              if (value == 'promo') openPromoScreen(context);
-              if (value == 'logout') _logout();
-            },
-            itemBuilder: (context) => [
-              if (_premiumEnabled) PopupMenuItem(value: 'promo', child: Text(tr('Промокод'))),
-              PopupMenuItem(value: 'logout', child: Text(tr('Выйти'))),
-            ],
-          ),
           ],
         ],
       ),

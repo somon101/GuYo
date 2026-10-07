@@ -4,7 +4,9 @@ import '../api/api_client.dart';
 import '../l10n/l10n.dart';
 import '../models/learning_topics.dart';
 import '../models/user_profile.dart';
+import '../services/push_service.dart';
 import '../theme/app_colors.dart';
+import 'login_screen.dart';
 import 'topics_screen.dart';
 
 /// "Настройки": a compact grouped list of what the user may change --
@@ -22,6 +24,8 @@ class ProfileSettingsScreen extends StatefulWidget {
   @override
   State<ProfileSettingsScreen> createState() => _ProfileSettingsScreenState();
 }
+
+const Color _logoutRed = Color(0xFFE5484D);
 
 const List<({String code, String label})> _translationLanguages = [
   (code: 'tg', label: 'Тоҷикӣ'),
@@ -193,6 +197,30 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     }
   }
 
+  Future<void> _confirmLogout() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('Выйти из аккаунта?')),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(tr('Отмена'))),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(tr('Выйти'), style: const TextStyle(color: _logoutRed, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await PushService.instance.unregisterCurrentUser();
+    await ApiClient.instance.logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final fullName = [_profile.firstName, _profile.lastName].where((s) => s != null && s.isNotEmpty).join(' ');
@@ -291,6 +319,35 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               child: Text(
                 'ID: ${_profile.publicId}',
                 style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Sign-out lives here, at the very bottom, in red -- where other
+            // apps put it -- instead of a "⋮" menu on the home screen.
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: AppShapes.cardShadow,
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                key: const ValueKey('settings-logout'),
+                onTap: _confirmLogout,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.logout_rounded, color: _logoutRed, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        tr('Выйти'),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _logoutRed),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],

@@ -98,6 +98,7 @@ const Map<String, (String, String)> uiStrings = {
   'Ещё': ('Боз', 'Yana'),
   'Промокод': ('Промокод', 'Promokod'),
   'Выйти': ('Баромадан', 'Chiqish'),
+  'Выйти из аккаунта?': ('Аз аккаунт бароед?', 'Akkauntdan chiqasizmi?'),
   'Главная': ('Асосӣ', 'Bosh sahifa'),
   'Уроки': ('Дарсҳо', 'Darslar'),
   'Практика': ('Машқ', 'Mashq'),

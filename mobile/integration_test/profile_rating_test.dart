@@ -23,9 +23,15 @@ Future<void> _login(WidgetTester tester) async {
   await tester.pumpAndSettle(const Duration(seconds: 2));
 
   if (find.text('Главная').evaluate().isNotEmpty) {
-    await tester.tap(find.byIcon(Icons.more_vert));
+    // Sign-out lives at the bottom of Профиль -> Настройки.
+    await tester.tap(find.text('Профиль'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Выйти'));
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.byKey(const ValueKey('settings-logout')), 200);
+    await tester.tap(find.byKey(const ValueKey('settings-logout')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Выйти').last);
     await tester.pumpAndSettle();
   }
 
