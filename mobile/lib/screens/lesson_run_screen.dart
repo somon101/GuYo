@@ -31,6 +31,9 @@ abstract class LessonRunDriver {
   /// Freezes this pass's words (POST /lessons/{id}/pass).
   Future<void> startPass(int lessonId);
 
+  /// Makes a pass played to the end count (its answers were held back).
+  Future<void> finishPass(int lessonId);
+
   /// Every exercise's round for this pass, plus the media they use --
   /// fetched once, up front, so the pass then runs without a request or a
   /// loading screen between exercises.
@@ -55,6 +58,9 @@ class ApiLessonRunDriver implements LessonRunDriver {
 
   @override
   Future<void> startPass(int lessonId) => ApiClient.instance.startLessonPass(lessonId);
+
+  @override
+  Future<void> finishPass(int lessonId) => ApiClient.instance.finishLessonPass(lessonId);
 
   @override
   Future<LessonRounds> prepareRounds(int lessonId, List<String> exerciseKeys) =>
@@ -179,6 +185,8 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
 
   @override
   void dispose() {
+    // Left without finishing: nothing more is held for this pass.
+    if (ApiClient.instance.deferredLessonId == widget.lessonId) ApiClient.instance.deferredLessonId = null;
     // Left before the results screen: worth seeing where people give up.
     if (!_reachedResults) {
       ApiClient.instance.logEvent('lesson_left', lessonId: widget.lessonId, data: {
@@ -203,16 +211,22 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
     // A repeat pass always fetches fresh: it re-tests only what's left.
     final ahead = _pass == 1 ? SessionCache.take<LessonRounds>(lessonRoundsCacheKey(widget.lessonId)) : null;
 
+    // Answers only count once the pass is played to the end -- but only
+    // when the server really started this pass (it also drops whatever an
+    // earlier unfinished pass held). If starting failed, answers count one
+    // by one as before rather than risk being lost.
+    ApiClient.instance.deferredLessonId = null;
+    try {
+      await driver.startPass(widget.lessonId);
+      ApiClient.instance.deferredLessonId = widget.lessonId;
+    } catch (_) {
+      // Runs anyway, on the live set -- see the class comment.
+    }
+
     LessonRounds rounds;
     if (ahead != null) {
       rounds = ahead;
-      unawaited(driver.startPass(widget.lessonId).catchError((_) {}));
     } else {
-      try {
-        await driver.startPass(widget.lessonId);
-      } catch (_) {
-        // Runs anyway, on the live set -- see the class comment.
-      }
       try {
         rounds = await driver.prepareRounds(widget.lessonId, widget.exerciseKeys);
       } catch (_) {
@@ -244,6 +258,17 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
 
   Future<void> _showResults() async {
     _reachedResults = true;
+    // Played to the end: the pass's answers count now -- before the
+    // results are read, so they show the real new scores.
+    if (ApiClient.instance.deferredLessonId == widget.lessonId) {
+      try {
+        await widget.driver.finishPass(widget.lessonId);
+        ApiClient.instance.deferredLessonId = null;
+      } catch (_) {
+        if (mounted) setState(() => _failed = true);
+        return;
+      }
+    }
     // Both at once: the wait before the results is one round trip, not two.
     final statsFuture = widget.driver.fetchPassStats(widget.lessonId);
     final Lesson fresh;

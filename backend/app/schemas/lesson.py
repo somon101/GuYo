@@ -122,6 +122,10 @@ class SubmitAnswerIn(BaseModel):
     duration_ms: int | None = Field(default=None, ge=0, le=600_000)
     given_answer: str | None = Field(default=None, max_length=255)
     timed_out: bool = False
+    # Newer apps play a lesson pass as a whole: the answer only counts
+    # once the pass is finished (POST /lessons/{id}/pass/finish). Older
+    # apps leave it false and keep the old answer-by-answer scoring.
+    deferred: bool = False
 
 
 class SubmitAnswerOut(BaseModel):

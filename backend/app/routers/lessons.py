@@ -300,6 +300,8 @@ def start_lesson_pass(
     # The baseline the end-of-pass statistics are measured against.
     lesson.pass_started_at = utc_now()
     lesson.pass_start_scores = {str(word_id): score for word_id, score in _word_scores(db, user.id, lesson).items()}
+    # Any earlier pass left unfinished is dropped -- its answers never count.
+    lesson.pass_pending_scores = None
     db.commit()
     db.refresh(lesson)
     return _lesson_to_out(db, lesson, threshold)
@@ -575,6 +577,96 @@ def get_lesson_listen_word_round(
     return listen_word.build_round(db, lesson, get_threshold(db))
 
 
+def _hold_answer_for_pass(db: Session, user: User, lesson: Lesson, exercise_key: str, payload, delta: int):
+    """A deferred answer: moves the word's score only inside this pass
+    (Lesson.pass_pending_scores), never its real WordProgress -- so no
+    level, rating point, achievement or lesson completion can come from a
+    pass the user doesn't finish. The answer is still recorded for the
+    statistics."""
+    pending = dict(lesson.pass_pending_scores or {})
+    key = str(payload.word_id)
+    if key not in pending:
+        real = (
+            db.query(WordProgress.score)
+            .filter(WordProgress.user_id == user.id, WordProgress.word_id == payload.word_id)
+            .scalar()
+        )
+        pending[key] = real or 0
+    pending[key] = max(0, min(100, pending[key] + delta))
+    lesson.pass_pending_scores = pending  # reassigned so the JSON change is saved
+
+    record_word_attempt(
+        db,
+        user_id=user.id,
+        word_id=payload.word_id,
+        exercise_key=exercise_key,
+        is_correct=payload.is_correct,
+        score_after=pending[key],
+        lesson_id=lesson.id,
+        duration_ms=payload.duration_ms,
+        timed_out=payload.timed_out,
+        given_answer=payload.given_answer,
+    )
+    record_activity(db, user)
+    db.commit()
+    return SubmitAnswerOut(
+        word_id=payload.word_id,
+        score=pending[key],
+        is_learned=pending[key] >= get_threshold(db),
+        lesson_completed=False,
+        points_awarded=0,
+    )
+
+
+@router.post("/lessons/{lesson_id}/pass/finish", response_model=LessonOut)
+def finish_lesson_pass(
+    lesson_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """The pass was played to the end: its held-back scores become the
+    words' real scores now, and everything that follows from them happens
+    here -- word levels, rating points, achievements, lesson completion,
+    the adaptive lesson and personal quest. Finishing twice applies
+    nothing the second time."""
+    lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
+    threshold = get_threshold(db)
+    pending = lesson.pass_pending_scores or {}
+    if pending:
+        newly_learned = []
+        for key, score in pending.items():
+            word_id = int(key)
+            progress = (
+                db.query(WordProgress)
+                .filter(WordProgress.user_id == user.id, WordProgress.word_id == word_id)
+                .first()
+            )
+            if progress is None:
+                progress = WordProgress(user_id=user.id, word_id=word_id, score=0)
+                db.add(progress)
+            progress.score = score
+            if score >= threshold:
+                newly_learned.append(word_id)
+        lesson.pass_pending_scores = None
+        db.flush()  # autoflush is off -- the checks below must see the new scores
+
+        lesson_completed = _check_and_apply_lesson_completion(db, lesson, threshold)
+        if lesson_completed:
+            db.flush()
+        maybe_create_adaptive_lesson(db, user, lesson.dictionary_id)
+        maybe_create_personal_quest(db, user, lesson.dictionary_id)
+        if newly_learned:
+            check_and_grant_achievements(db, user, "phrases_opened")
+            check_and_grant_achievements(db, user, "words_learned")
+            for word_id in newly_learned:
+                award_word_points_if_new(db, user, word_id)
+        if lesson_completed:
+            check_and_grant_achievements(db, user, "lessons_completed")
+        db.commit()
+        db.refresh(lesson)
+    return _lesson_to_out(db, lesson, threshold)
+
+
 @router.post("/lessons/{lesson_id}/exercises/{exercise_key}/answers", response_model=SubmitAnswerOut)
 def submit_answer(
     lesson_id: int,
@@ -602,6 +694,9 @@ def submit_answer(
 
     correct_points, incorrect_points = get_points(db, exercise_key)
     delta = correct_points if payload.is_correct else -incorrect_points
+
+    if payload.deferred:
+        return _hold_answer_for_pass(db, user, lesson, exercise_key, payload, delta)
 
     progress = (
         db.query(WordProgress)

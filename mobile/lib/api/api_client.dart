@@ -566,6 +566,17 @@ class ApiClient {
   /// still short of their level as the set every exercise of this pass
   /// uses, so each of them goes through every exercise even if it reaches
   /// its level halfway. Called at the start of every pass.
+  /// The lesson whose pass is being played right now in LessonRunScreen.
+  /// Its answers are held back on the server and only count once the pass
+  /// is finished ([finishLessonPass]); leaving mid-pass counts nothing.
+  int? deferredLessonId;
+
+  /// The pass was played to the end: its answers count now.
+  Future<void> finishLessonPass(int lessonId) async {
+    final res = await http.post(_uri('/lessons/$lessonId/pass/finish'), headers: await _authHeaders());
+    await _throwWithDetail(res);
+  }
+
   Future<Lesson> startLessonPass(int lessonId) async {
     final res = await http.post(_uri('/lessons/$lessonId/pass'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
@@ -711,7 +722,12 @@ class ApiClient {
     final res = await http.post(
       _uri('/lessons/$lessonId/exercises/$exerciseKey/answers'),
       headers: await _authHeaders(),
-      body: jsonEncode({...AnswerSignals.take(), 'word_id': wordId, 'is_correct': isCorrect}),
+      body: jsonEncode({
+        ...AnswerSignals.take(),
+        'word_id': wordId,
+        'is_correct': isCorrect,
+        if (deferredLessonId == lessonId) 'deferred': true,
+      }),
     );
     await _throwWithDetail(res);
     return SubmitAnswerResult.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);

@@ -59,6 +59,11 @@ class Lesson(Base):
     # (GET /lessons/{id}/pass/stats) measure the pass against.
     pass_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     pass_start_scores: Mapped[dict[str, int] | None] = mapped_column(JSON, nullable=True)
+    # The scores the current pass has earned so far, held back until the
+    # pass is finished (POST /lessons/{id}/pass/finish). Leaving mid-pass
+    # applies nothing: points and levels only count for a pass played to
+    # the end. Null when no deferred pass is running.
+    pass_pending_scores: Mapped[dict[str, int] | None] = mapped_column(JSON, nullable=True)
 
     words: Mapped[list["LessonWord"]] = relationship(back_populates="lesson", cascade="all, delete-orphan")
     exercises: Mapped[list["LessonExercise"]] = relationship(back_populates="lesson", cascade="all, delete-orphan")
