@@ -331,6 +331,12 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        _Hearts(
+          // A heart goes out the moment a try is judged wrong.
+          left: _maxAttempts - (_attempt - 1) - (_isCorrect == false ? 1 : 0),
+          total: _maxAttempts,
+        ),
+        const SizedBox(height: 12),
         _WordCard(item: widget.item),
         const SizedBox(height: 28),
         _MicButton(state: _micState, onTap: _onMicTap),
@@ -605,5 +611,36 @@ class _StateLabel extends StatelessWidget {
           ],
         );
     }
+  }
+}
+
+
+/// The tries left, as hearts: full ones still to use, empty ones spent.
+class _Hearts extends StatelessWidget {
+  final int left;
+  final int total;
+  const _Hearts({required this.left, required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (var i = 0; i < total; i++)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+              child: Icon(
+                i < left ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                key: ValueKey(i < left),
+                size: 26,
+                color: i < left ? AppColors.danger : AppColors.muted,
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }
