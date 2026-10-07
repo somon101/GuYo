@@ -450,32 +450,9 @@ class _ProfileHeader extends StatelessWidget {
     if (isUpdatingAvatar) return;
     final action = await showModalBottomSheet<String>(
       context: context,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (_hasPhoto)
-              ListTile(
-                leading: const Icon(Icons.visibility_outlined),
-                title: Text(tr('Посмотреть')),
-                onTap: () => Navigator.of(sheetContext).pop('view'),
-              ),
-            ListTile(
-              leading: const Icon(Icons.photo_camera_outlined),
-              title: Text(tr('Изменить фото')),
-              onTap: () => Navigator.of(sheetContext).pop('change'),
-            ),
-            if (_hasPhoto)
-              ListTile(
-                leading: const Icon(Icons.delete_outline_rounded, color: AppColors.danger),
-                title: Text(tr('Удалить фото'), style: const TextStyle(color: AppColors.danger)),
-                onTap: () => Navigator.of(sheetContext).pop('remove'),
-              ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      builder: (sheetContext) => _PhotoActionSheet(hasPhoto: _hasPhoto),
     );
     if (!context.mounted) return;
     switch (action) {
@@ -1050,6 +1027,86 @@ class _AchievementUnlockedDialog extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+
+/// The avatar's action sheet: a floating, iOS-style card of compact rows
+/// plus a separate "Отмена" -- instead of a full-width Material list.
+class _PhotoActionSheet extends StatelessWidget {
+  final bool hasPhoto;
+  const _PhotoActionSheet({required this.hasPhoto});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget row(String value, IconData icon, String label, {bool danger = false}) {
+      final color = danger ? AppColors.danger : AppColors.primaryDark;
+      return InkWell(
+        key: ValueKey('photo-action-$value'),
+        onTap: () => Navigator.of(context).pop(value),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: (danger ? AppColors.danger : AppColors.primary).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 19, color: danger ? AppColors.danger : AppColors.primary),
+              ),
+              const SizedBox(width: 14),
+              Text(label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: color)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    const divider = Divider(height: 0.6, thickness: 0.6, indent: 64, color: Color(0xFFE6E8F2));
+    BoxDecoration card() => BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18));
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: card(),
+              child: Column(
+                children: [
+                  if (hasPhoto) ...[row('view', Icons.visibility_outlined, tr('Посмотреть')), divider],
+                  row('change', Icons.photo_camera_outlined, tr('Изменить фото')),
+                  if (hasPhoto) ...[divider, row('remove', Icons.delete_outline_rounded, tr('Удалить фото'), danger: true)],
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: card(),
+              child: InkWell(
+                onTap: () => Navigator.of(context).pop(),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: Center(
+                    child: Text(
+                      tr('Отмена'),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
