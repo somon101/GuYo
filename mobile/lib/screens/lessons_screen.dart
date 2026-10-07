@@ -1,6 +1,7 @@
 import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
+import '../services/session_cache.dart';
 import '../models/dictionary.dart';
 import '../models/lesson.dart';
 import '../theme/app_colors.dart';
@@ -39,20 +40,30 @@ class _LessonsScreenState extends State<LessonsScreen> {
   String? _loadError;
   List<LessonSummary> _lessons = [];
 
+  String get _cacheKey => 'lessons-${widget.dictionary.id}';
+
   @override
   void initState() {
     super.initState();
+    final cached = SessionCache.get<List<LessonSummary>>(_cacheKey);
+    if (cached != null) {
+      _lessons = cached;
+      _isLoading = false;
+    }
     _load();
   }
 
   Future<void> _load() async {
     if (!mounted) return;
+    final hasData = SessionCache.get<List<LessonSummary>>(_cacheKey) != null;
     setState(() {
-      _isLoading = true;
+      // Data already on screen stays there while it refreshes.
+      _isLoading = !hasData;
       _loadError = null;
     });
     try {
       final lessons = await ApiClient.instance.fetchLessons(widget.dictionary.id);
+      SessionCache.put(_cacheKey, lessons);
       if (!mounted) return;
       setState(() {
         _lessons = lessons;
@@ -62,7 +73,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = tr('Не удалось загрузить уроки');
+        if (!hasData) _loadError = tr('Не удалось загрузить уроки');
       });
     }
   }

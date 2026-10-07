@@ -1,6 +1,7 @@
 import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
+import '../services/session_cache.dart';
 import '../models/dictionary.dart';
 import '../models/quest.dart';
 import '../models/user_profile.dart';
@@ -68,16 +69,26 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   String? _slogan;
   final GlobalKey<LessonQuotaCardState> _quotaKey = GlobalKey<LessonQuotaCardState>();
 
+  String get _cacheKey => 'home-${widget.dictionary.id}';
+
   @override
   void initState() {
     super.initState();
+    final cached = SessionCache.get<(SeasonQuestOverview, UserProfile, String)>(_cacheKey);
+    if (cached != null) {
+      _overview = cached.$1;
+      _profile = cached.$2;
+      _slogan = cached.$3;
+      _isLoading = false;
+    }
     _load();
   }
 
   Future<void> _load() async {
     if (!mounted) return;
     setState(() {
-      _isLoading = true;
+      // Data already on screen stays there while it refreshes.
+      _isLoading = _overview == null;
       _loadError = null;
     });
     // The lesson counter loads itself; pull-to-refresh just asks it again.
@@ -95,11 +106,12 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         _slogan = results[2] as String;
         _isLoading = false;
       });
+      SessionCache.put(_cacheKey, (_overview!, _profile!, _slogan!));
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = tr('Не удалось загрузить данные');
+        if (_overview == null) _loadError = tr('Не удалось загрузить данные');
       });
     }
   }

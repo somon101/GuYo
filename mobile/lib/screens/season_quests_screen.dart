@@ -1,6 +1,7 @@
 import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
+import '../services/session_cache.dart';
 import '../models/dictionary.dart';
 import '../models/quest.dart';
 import '../theme/app_colors.dart';
@@ -46,20 +47,26 @@ class _SeasonQuestsScreenState extends State<SeasonQuestsScreen> {
   String? _loadError;
   SeasonQuestOverview? _overview;
 
+  String get _cacheKey => 'quests-overview-${widget.dictionary.id}';
+
   @override
   void initState() {
     super.initState();
+    _overview = SessionCache.get<SeasonQuestOverview>(_cacheKey);
+    _isLoading = _overview == null;
     _load();
   }
 
   Future<void> _load() async {
     if (!mounted) return;
     setState(() {
-      _isLoading = true;
+      // Data already on screen stays there while it refreshes.
+      _isLoading = _overview == null;
       _loadError = null;
     });
     try {
       final overview = await ApiClient.instance.fetchSeasonQuestOverview(widget.dictionary.id);
+      SessionCache.put(_cacheKey, overview);
       if (!mounted) return;
       setState(() {
         _overview = overview;
@@ -69,7 +76,7 @@ class _SeasonQuestsScreenState extends State<SeasonQuestsScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = tr('Не удалось загрузить квесты');
+        if (_overview == null) _loadError = tr('Не удалось загрузить квесты');
       });
     }
   }

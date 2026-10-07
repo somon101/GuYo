@@ -1,4 +1,5 @@
 import '../services/google_auth.dart';
+import '../services/session_cache.dart';
 import '../l10n/l10n.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -233,6 +234,7 @@ class ApiClient {
   }
 
   Future<void> logout() async {
+    SessionCache.clear();
     await clearToken();
   }
 

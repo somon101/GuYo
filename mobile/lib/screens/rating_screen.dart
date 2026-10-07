@@ -1,6 +1,7 @@
 import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
+import '../services/session_cache.dart';
 import '../models/user_rating.dart';
 import '../widgets/leaderboard_status.dart';
 import 'status_picker_sheet.dart';
@@ -49,6 +50,8 @@ class _RatingScreenState extends State<RatingScreen> {
   @override
   void initState() {
     super.initState();
+    _board = SessionCache.get<Leaderboard>('rating-my-rank');
+    _isLoading = _board == null;
     _load();
   }
 
@@ -61,11 +64,12 @@ class _RatingScreenState extends State<RatingScreen> {
   Future<void> _load() async {
     if (!mounted) return;
     setState(() {
-      _isLoading = true;
+      _isLoading = _board == null;
       _loadError = null;
     });
     try {
       final board = await ApiClient.instance.fetchMyRankLeaderboard();
+      SessionCache.put('rating-my-rank', board);
       if (!mounted) return;
       setState(() {
         _board = board;
@@ -75,7 +79,7 @@ class _RatingScreenState extends State<RatingScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = tr('Не удалось загрузить рейтинг');
+        if (_board == null) _loadError = tr('Не удалось загрузить рейтинг');
       });
     }
     _loadRating();
@@ -712,16 +716,19 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
   @override
   void initState() {
     super.initState();
+    _board = SessionCache.get<Leaderboard>('rating-global');
+    _isLoading = _board == null;
     _load();
   }
 
   Future<void> _load() async {
     setState(() {
-      _isLoading = true;
+      _isLoading = _board == null;
       _loadError = null;
     });
     try {
       final board = await ApiClient.instance.fetchGlobalLeaderboard();
+      SessionCache.put('rating-global', board);
       if (!mounted) return;
       setState(() {
         _board = board;
@@ -731,7 +738,7 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = tr('Не удалось загрузить рейтинг');
+        if (_board == null) _loadError = tr('Не удалось загрузить рейтинг');
       });
     }
   }

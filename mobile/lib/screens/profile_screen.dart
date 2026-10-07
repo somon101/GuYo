@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import '../api/api_client.dart';
+import '../services/session_cache.dart';
 import '../models/dictionary.dart';
 import '../models/user_profile.dart';
 import '../models/user_rating.dart';
@@ -81,16 +82,26 @@ class ProfileScreenState extends State<ProfileScreen> {
   // (reverts to whatever avatar was showing before this pick).
   Uint8List? _pendingAvatarBytes;
 
+  static const _cacheKey = 'profile';
+
   @override
   void initState() {
     super.initState();
+    final cached = SessionCache.get<(UserProfile, List<UserAchievement>, UserRating)>(_cacheKey);
+    if (cached != null) {
+      _profile = cached.$1;
+      _achievements = cached.$2;
+      _rating = cached.$3;
+      _isLoading = false;
+    }
     _load();
   }
 
   Future<void> _load() async {
     if (!mounted) return;
     setState(() {
-      _isLoading = true;
+      // Data already on screen stays there while it refreshes.
+      _isLoading = _profile == null;
       _loadError = null;
     });
     try {
@@ -106,6 +117,7 @@ class ProfileScreenState extends State<ProfileScreen> {
         _rating = results[2] as UserRating;
         _isLoading = false;
       });
+      SessionCache.put(_cacheKey, (_profile!, _achievements, _rating!));
       // Deliberately NOT awaited: this is called from RefreshIndicator's
       // onRefresh, which only finishes spinning once this Future
       // completes -- if the celebration dialog (which itself resolves
@@ -118,7 +130,7 @@ class ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = tr('Не удалось загрузить профиль');
+        if (_profile == null) _loadError = tr('Не удалось загрузить профиль');
       });
     }
   }
