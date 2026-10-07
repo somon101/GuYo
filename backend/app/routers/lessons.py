@@ -29,6 +29,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.exercises.verify import judge
 from app.analytics.history import log_event
 from app.core.content_language import primary_translation
 from app.core.dates import utc_now
@@ -691,6 +692,11 @@ def submit_answer(
     )
     if not in_lesson:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Word not in this lesson")
+
+    # The server's own verdict when the app says what was actually done.
+    verdict = judge(db, exercise_key, db.get(Word, payload.word_id), payload.answer, payload.timed_out)
+    if verdict is not None:
+        payload.is_correct = verdict
 
     correct_points, incorrect_points = get_points(db, exercise_key)
     delta = correct_points if payload.is_correct else -incorrect_points

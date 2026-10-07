@@ -261,6 +261,7 @@ class _MatchingQuestState extends State<_MatchingQuest> {
     if (_locked) return;
     final correct = option.id == _target.id;
     AnswerSignals.given(option.translation);
+    AnswerSignals.answer({'picked_word_id': option.id});
     setState(() {
       _selected = option;
       _locked = true;

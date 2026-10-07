@@ -27,6 +27,7 @@ import random
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.exercises.verify import judge
 from app.core.deps import get_current_user
 from app.database import get_db
 from app.exercises import build_word, listen_word, matching, speaking_word, true_or_false
@@ -147,6 +148,9 @@ class PracticeAnswerIn(BaseModel):
     duration_ms: int | None = Field(default=None, ge=0, le=600_000)
     given_answer: str | None = Field(default=None, max_length=255)
     timed_out: bool = False
+    # What the learner actually did, for the server's own verdict (see
+    # app/exercises/verify.py). Older apps don't send it.
+    answer: dict | None = None
 
 
 @router.post("/answers", status_code=status.HTTP_204_NO_CONTENT)
@@ -162,6 +166,9 @@ def record_practice_answer(
     word = db.get(Word, payload.word_id)
     if word is None or word.dictionary_id != dictionary_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Word not found")
+    verdict = judge(db, payload.exercise_key, word, payload.answer, payload.timed_out)
+    if verdict is not None:
+        payload.is_correct = verdict
     progress = (
         db.query(WordProgress).filter(WordProgress.user_id == user.id, WordProgress.word_id == word.id).first()
     )

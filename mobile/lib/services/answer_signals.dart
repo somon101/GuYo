@@ -15,6 +15,7 @@ class AnswerSignals {
   static bool _foreground = true;
   static bool _timedOut = false;
   static String? _given;
+  static Map<String, dynamic>? _answer;
   static AppLifecycleListener? _listener;
 
   /// Starts following the app going to the background and back.
@@ -44,6 +45,7 @@ class AnswerSignals {
     _runningSince = _foreground ? DateTime.now() : null;
     _timedOut = false;
     _given = null;
+    _answer = null;
   }
 
   static void timedOut() => _timedOut = true;
@@ -51,6 +53,11 @@ class AnswerSignals {
   /// What the learner actually gave (picked option, built letters, heard
   /// speech) -- shown in Admin Web's per-user history.
   static void given(String? answer) => _given = answer;
+
+  /// What the learner did, in a form the server can judge itself (see
+  /// backend app/exercises/verify.py) -- so the verdict isn't only the
+  /// app's word for it.
+  static void answer(Map<String, dynamic> answer) => _answer = answer;
 
   /// The fields to add to an answer request; resets the slot. Call it
   /// before any await, so the next question's stopwatch can't start first.
@@ -60,11 +67,13 @@ class AnswerSignals {
       if (_shown) 'duration_ms': _accumulatedMs.clamp(0, 600000),
       'timed_out': _timedOut,
       if (_given != null && _given!.isNotEmpty) 'given_answer': _given!.length > 255 ? _given!.substring(0, 255) : _given,
+      'answer': ?_answer,
     };
     _shown = false;
     _accumulatedMs = 0;
     _timedOut = false;
     _given = null;
+    _answer = null;
     return fields;
   }
 }

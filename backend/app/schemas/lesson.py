@@ -126,6 +126,9 @@ class SubmitAnswerIn(BaseModel):
     # once the pass is finished (POST /lessons/{id}/pass/finish). Older
     # apps leave it false and keep the old answer-by-answer scoring.
     deferred: bool = False
+    # What the learner actually did, for the server's own verdict (see
+    # app/exercises/verify.py). Older apps don't send it.
+    answer: dict | None = None
 
 
 class SubmitAnswerOut(BaseModel):

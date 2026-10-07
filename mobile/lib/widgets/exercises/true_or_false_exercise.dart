@@ -82,6 +82,7 @@ class _TrueOrFalseExerciseState extends State<TrueOrFalseExercise> {
 
   void _answer(bool userSaidTrue) {
     AnswerSignals.given(userSaidTrue ? 'Правда' : 'Ложь');
+    AnswerSignals.answer({'shown': widget.item.shownTranslation, 'choice': userSaidTrue});
     _resolve(userSaidTrue == widget.item.isCorrect);
   }
 

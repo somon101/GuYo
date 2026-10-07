@@ -90,6 +90,7 @@ class _MatchingBoardState extends State<MatchingBoard> {
     // underlying word_id? Never compare the displayed text.
     final isCorrect = leftId == rightId;
     AnswerSignals.given(_right.firstWhere((w) => w.id == rightId).translation);
+    AnswerSignals.answer({'picked_word_id': rightId});
     AnswerSound.play(isCorrect);
     widget.onAttempt?.call(leftId, isCorrect);
     AnswerSignals.itemShown();

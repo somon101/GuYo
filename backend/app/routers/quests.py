@@ -7,6 +7,7 @@ import math
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.exercises.verify import judge
 from app.analytics.history import log_event
 from app.achievements import check_and_grant_achievements, record_activity
 from app.core.dates import dushanbe_today, utc_now
@@ -284,6 +285,10 @@ def submit_quest_answer(
             status_code=status.HTTP_409_CONFLICT,
             detail="Это слово больше недоступно для этого квеста (уже использовано сегодня или сменило уровень)",
         )
+
+    verdict = judge(db, quest.exercise_key, word, payload.answer, payload.timed_out)
+    if verdict is not None:
+        payload.is_correct = verdict
 
     rating_before = get_or_create_user_rating(db, user.id).total_points
 
