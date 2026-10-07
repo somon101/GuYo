@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     # Google Sign-In: the OAuth client IDs (comma-separated) an ID token may
     # be issued for -- the Web client ID the app requests tokens with. Not a
     # secret. Empty means "Войти через Google" is off.
-    google_client_ids: str = ""
+    google_client_ids: str = "656681360823-dihp65s7tiq23v3gcbtpcfdhnfs95s77.apps.googleusercontent.com"
 
     @property
     def cors_origins(self) -> list[str]:

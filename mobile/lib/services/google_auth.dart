@@ -3,7 +3,10 @@ import 'package:google_sign_in/google_sign_in.dart';
 /// The Web OAuth client ID of GuYo's Google Cloud project (not a secret):
 /// Google issues the ID token for it, and the backend accepts only tokens
 /// issued for it (app/core/google_auth.py). Empty hides "Войти через Google".
-const String googleWebClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID', defaultValue: '');
+const String googleWebClientId = String.fromEnvironment(
+  'GOOGLE_WEB_CLIENT_ID',
+  defaultValue: '656681360823-dihp65s7tiq23v3gcbtpcfdhnfs95s77.apps.googleusercontent.com',
+);
 
 bool get googleSignInEnabled => googleWebClientId.isNotEmpty;
 
