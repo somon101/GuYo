@@ -75,6 +75,9 @@ class User(Base):
     learning_topics: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     # Interface language: "ru", "tg" or "uz" (app/core/content_language.py).
     ui_language: Mapped[str] = mapped_column(String(8), nullable=False, default="ru", server_default="ru")
+    # Which translations a Russian-interface user reads ("tg" or "uz"); a
+    # Tajik or Uzbek interface always reads its own language.
+    translation_language: Mapped[str] = mapped_column(String(8), nullable=False, default="tg", server_default="tg")
     # The leaderboard status the user picked (app/models/status.py); either
     # can be unset. Deleting an emoji or phrase just clears it here.
     status_emoji_id: Mapped[int | None] = mapped_column(

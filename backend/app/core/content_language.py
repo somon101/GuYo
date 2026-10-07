@@ -29,12 +29,20 @@ def begin_request() -> None:
     _language.set({"lang": "tg"})
 
 
-def set_content_language_for(ui_language: str | None) -> None:
+def reading_language(ui_language: str | None, translation_language: str | None) -> str:
+    """A Tajik or Uzbek interface reads its own language; a Russian one
+    reads the translation language the user picked."""
+    if ui_language in ("tg", "uz"):
+        return ui_language
+    return "uz" if translation_language == "uz" else "tg"
+
+
+def set_content_language_for(ui_language: str | None, translation_language: str | None = None) -> None:
     holder = _language.get()
     if holder is None:
         holder = {}
         _language.set(holder)
-    holder["lang"] = "uz" if ui_language == "uz" else "tg"
+    holder["lang"] = reading_language(ui_language, translation_language)
 
 
 def content_language() -> str:
