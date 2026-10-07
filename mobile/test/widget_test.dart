@@ -14,8 +14,10 @@ void main() {
 
     expect(find.text('GuYo'), findsOneWidget);
     expect(find.text('Вход'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Логин'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Пароль'), findsOneWidget);
+    // The field labels sit above the fields, not inside them.
+    expect(find.text('Логин'), findsOneWidget);
+    expect(find.text('Пароль'), findsOneWidget);
+    expect(find.byType(TextField), findsNWidgets(2));
     expect(find.widgetWithText(FilledButton, 'Войти'), findsOneWidget);
   });
 }

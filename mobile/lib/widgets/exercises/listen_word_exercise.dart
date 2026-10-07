@@ -3,7 +3,6 @@ import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-import '../../api/api_client.dart';
 import '../../models/lesson.dart';
 import '../../services/answer_sound.dart';
 import '../../theme/app_colors.dart';

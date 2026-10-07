@@ -25,7 +25,11 @@ class GuyoDictionary {
     'en': 'English',
     'ru': tr('Русский'),
     'zh': '中文',
+    'tg': 'Тоҷикӣ',
+    'uz': 'Oʻzbekcha',
   };
 
-  String get languageLabel => languageLabels[language] ?? language;
+  /// The language's own name; for a code without one, the dictionary's
+  /// name as the admin wrote it, rather than a bare code like "tg".
+  String get languageLabel => languageLabels[language] ?? (name.trim().isNotEmpty ? name : language);
 }
