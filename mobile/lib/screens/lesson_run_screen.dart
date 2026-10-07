@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
+import '../services/session_cache.dart';
 import '../models/lesson.dart';
 import '../models/lesson_rounds.dart';
 import '../theme/app_colors.dart';
@@ -117,6 +118,22 @@ class ApiLessonRunDriver implements LessonRunDriver {
 ///
 /// Scoring, progress and the exercises themselves are untouched: each
 /// exercise still submits its own answers exactly as before.
+/// Where rounds prepared ahead for a lesson wait for its first pass.
+String lessonRoundsCacheKey(int lessonId) => 'lesson-rounds-$lessonId';
+
+/// Prepares [lesson]'s rounds (and their pictures and sounds) in the
+/// background, so opening it starts instantly. Does nothing if they're
+/// already waiting.
+Future<void> prepareLessonAhead(Lesson lesson) async {
+  final key = lessonRoundsCacheKey(lesson.id);
+  if (SessionCache.get<LessonRounds>(key) != null) return;
+  try {
+    SessionCache.put(key, await LessonRounds.prepare(lesson.id, lesson.exerciseKeys));
+  } catch (_) {
+    // Best effort -- the lesson simply prepares itself when opened.
+  }
+}
+
 class LessonRunScreen extends StatefulWidget {
   final int lessonId;
   final int lessonNumber;
@@ -180,19 +197,29 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
       _showingExercise = false;
       _failed = false;
     });
-    try {
-      await driver.startPass(widget.lessonId);
-    } catch (_) {
-      // Runs anyway, on the live set -- see the class comment.
-    }
+    // Rounds prepared ahead of time (the Уроки list prepares the next
+    // lesson in the background) start the first pass with no wait at all;
+    // the pass is still started on the server, just without blocking.
+    // A repeat pass always fetches fresh: it re-tests only what's left.
+    final ahead = _pass == 1 ? SessionCache.take<LessonRounds>(lessonRoundsCacheKey(widget.lessonId)) : null;
 
     LessonRounds rounds;
-    try {
-      rounds = await driver.prepareRounds(widget.lessonId, widget.exerciseKeys);
-    } catch (_) {
-      // Preparing failed as a whole (a network blip) -- that shouldn't drop
-      // real rounds: every exercise runs and loads its own, as before.
-      rounds = LessonRounds({for (final key in widget.exerciseKeys) key: null});
+    if (ahead != null) {
+      rounds = ahead;
+      unawaited(driver.startPass(widget.lessonId).catchError((_) {}));
+    } else {
+      try {
+        await driver.startPass(widget.lessonId);
+      } catch (_) {
+        // Runs anyway, on the live set -- see the class comment.
+      }
+      try {
+        rounds = await driver.prepareRounds(widget.lessonId, widget.exerciseKeys);
+      } catch (_) {
+        // Preparing failed as a whole (a network blip) -- that shouldn't drop
+        // real rounds: every exercise runs and loads its own, as before.
+        rounds = LessonRounds({for (final key in widget.exerciseKeys) key: null});
+      }
     }
     _rounds = rounds;
 
@@ -217,6 +244,8 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
 
   Future<void> _showResults() async {
     _reachedResults = true;
+    // Both at once: the wait before the results is one round trip, not two.
+    final statsFuture = widget.driver.fetchPassStats(widget.lessonId);
     final Lesson fresh;
     try {
       fresh = await widget.driver.fetchLesson(widget.lessonId);
@@ -224,7 +253,7 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
       if (mounted) setState(() => _failed = true);
       return;
     }
-    final stats = await widget.driver.fetchPassStats(widget.lessonId);
+    final stats = await statsFuture;
     if (!mounted) return;
     final repeat = await widget.driver.showResults(context, fresh, stats);
     if (!mounted) return;

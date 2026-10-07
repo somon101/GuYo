@@ -331,8 +331,7 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Align(
-          alignment: Alignment.centerRight,
+        Center(
           child: _Hearts(
             // A heart goes out the moment a try is judged wrong.
             left: _maxAttempts - (_attempt - 1) - (_isCorrect == false ? 1 : 0),
@@ -644,24 +643,32 @@ class _Hearts extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < total; i++)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 3),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
-              child: Icon(
-                i < left ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                key: ValueKey(i < left),
-                size: 26,
-                color: i < left ? AppColors.danger : AppColors.muted,
+    // A small centred pill above the word, never pushed against the edge.
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.danger.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < total; i++)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+                child: Icon(
+                  i < left ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  key: ValueKey(i < left),
+                  size: 20,
+                  color: i < left ? AppColors.danger : AppColors.muted,
+                ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
@@ -64,6 +65,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
     try {
       final lessons = await ApiClient.instance.fetchLessons(widget.dictionary.id);
       SessionCache.put(_cacheKey, lessons);
+      unawaited(_prepareNext(lessons));
       if (!mounted) return;
       setState(() {
         _lessons = lessons;
@@ -92,12 +94,26 @@ class _LessonsScreenState extends State<LessonsScreen> {
     await _load();
   }
 
+  /// The lesson a user is about to continue, fetched and its exercises
+  /// prepared in the background -- "Продолжить" then starts at once.
+  Future<void> _prepareNext(List<LessonSummary> lessons) async {
+    final next = lessons.where((l) => !l.isCompleted).firstOrNull;
+    if (next == null) return;
+    try {
+      final lesson = await ApiClient.instance.fetchLesson(next.id);
+      SessionCache.put('lesson-${next.id}', lesson);
+      await prepareLessonAhead(lesson);
+    } catch (_) {
+      // Best effort only.
+    }
+  }
+
   /// "Продолжить" on the in-progress card: straight into the exercises,
   /// with no stop at the lesson's own screen.
   Future<void> _continueLesson(int lessonId) async {
     final Lesson lesson;
     try {
-      lesson = await ApiClient.instance.fetchLesson(lessonId);
+      lesson = SessionCache.take<Lesson>('lesson-$lessonId') ?? await ApiClient.instance.fetchLesson(lessonId);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Не удалось открыть урок'))));

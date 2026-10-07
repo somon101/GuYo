@@ -56,14 +56,15 @@ void main() {
     await http.runWithClient(() async {
       await _open(tester, _stats);
       expect(find.byKey(const ValueKey('lesson-pass-stats')), findsOneWidget);
-      expect(find.text('75%'), findsOneWidget);
-      expect(find.text('6'), findsOneWidget);
-      expect(find.text('2'), findsOneWidget);
-      expect(find.text('1 мин 35 с'), findsOneWidget);
+      expect(find.text('75'), findsOneWidget);
+      expect(find.textContaining('6 / 8', findRichText: true), findsOneWidget);
+      expect(find.textContaining('2 / 8', findRichText: true), findsOneWidget);
+      expect(find.text('1 мин 35 с', findRichText: true), findsOneWidget);
       expect(find.text('Правда или ложь'), findsOneWidget);
-      expect(find.text('2 из 4'), findsOneWidget);
+      expect(find.textContaining('2 / 4', findRichText: true), findsOneWidget);
       expect(find.text('+30 очков'), findsOneWidget);
-      expect(find.text('Выучено новых: 1'), findsOneWidget);
+      expect(find.text('Выучено новых'), findsOneWidget);
+      expect(find.textContaining('1 / 2', findRichText: true), findsOneWidget);
       expect(find.text('+20'), findsOneWidget);
       expect(find.text('+10'), findsOneWidget);
       expect(find.text('Повторить урок'), findsOneWidget);

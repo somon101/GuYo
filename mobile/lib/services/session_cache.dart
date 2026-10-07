@@ -17,5 +17,12 @@ class SessionCache {
 
   static void put(String key, Object value) => _values[key] = value;
 
+  /// Returns and forgets [key] -- for data meant to be used once.
+  static T? take<T>(String key) {
+    final value = get<T>(key);
+    _values.remove(key);
+    return value;
+  }
+
   static void clear() => _values.clear();
 }
