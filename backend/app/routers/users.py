@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.content_language import reading_language
 from app.achievements import CONDITION_TYPES, grant_all_due_achievements, lessons_completed_count, streak_days_count, words_learned_count
 from app.core.dates import dushanbe_today, utc_now
-from app.core.deps import get_current_admin, get_current_user
+from app.core.deps import get_current_admin, get_current_user, require_current_app
 from app.core.public_id import generate_public_id
 from app.core.security import hash_password
 from app.core.storage import delete_by_key, save_bytes, url_for_key
@@ -194,7 +194,8 @@ def get_my_streak(db: Session = Depends(get_db), user: User = Depends(get_curren
 
 
 @router.get("/me/profile", response_model=UserProfileOut)
-def get_my_profile(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def get_my_profile(db: Session = Depends(get_db), user: User = Depends(get_current_user),
+    _app: None = Depends(require_current_app)):
     return _profile_out(db, user)
 
 

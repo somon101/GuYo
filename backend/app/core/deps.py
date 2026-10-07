@@ -1,10 +1,11 @@
 """FastAPI auth dependencies. Frontend is never trusted for authorization --
 every admin-only or user-only route depends on one of these to check the
 JWT's role claim server-side."""
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.core.security import TokenPayload, decode_access_token
 from app.database import get_db
 from app.models.admin import Admin
@@ -81,3 +82,11 @@ def get_current_principal(
     else:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid role")
     return Principal(role=payload.role, id=payload.subject)
+
+
+def require_current_app(x_app_build: int | None = Header(default=None)) -> None:
+    """Rejects apps older than MIN_APP_BUILD with 426 "update the app".
+    Apps that predate the header send none and count as build 0."""
+    minimum = get_settings().min_app_build
+    if minimum and (x_app_build or 0) < minimum:
+        raise HTTPException(status_code=426, detail="Обновите приложение")

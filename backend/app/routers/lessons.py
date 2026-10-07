@@ -33,7 +33,7 @@ from app.exercises.verify import judge
 from app.analytics.history import log_event
 from app.core.content_language import primary_translation
 from app.core.dates import utc_now
-from app.core.deps import get_current_admin, get_current_user
+from app.core.deps import get_current_admin, get_current_user, require_current_app
 from app.core.storage import url_for_key
 from app.database import get_db
 from app.achievements import check_and_grant_achievements, record_activity
@@ -287,6 +287,7 @@ def start_lesson_pass(
     lesson_id: int,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    _app: None = Depends(require_current_app),
 ):
     """Starts one pass through this lesson's exercises: freezes the words
     still below their level RIGHT NOW as the set every exercise in this
@@ -624,6 +625,7 @@ def finish_lesson_pass(
     lesson_id: int,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    _app: None = Depends(require_current_app),
 ):
     """The pass was played to the end: its held-back scores become the
     words' real scores now, and everything that follows from them happens
@@ -675,6 +677,7 @@ def submit_answer(
     payload: SubmitAnswerIn,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    _app: None = Depends(require_current_app),
 ):
     """The one place a user's answer actually changes anything: moves
     `payload.word_id`'s WordProgress.score by this exercise's configured

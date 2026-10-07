@@ -1,4 +1,5 @@
 import '../services/google_auth.dart';
+import '../widgets/update_required.dart';
 import '../screens/stats_screen.dart' show UserStats;
 import '../services/session_cache.dart';
 import '../l10n/l10n.dart';
@@ -117,6 +118,7 @@ class ApiClient {
     final t = await token;
     return {
       'Content-Type': 'application/json',
+      'X-App-Build': '$appBuild',
       if (t != null) 'Authorization': 'Bearer $t',
     };
   }
@@ -328,6 +330,10 @@ class ApiClient {
   /// -- or the explicit "Войти заново" this throws towards -- lands back
   /// on a real login instead of a dead retry loop.
   Future<void> _throwIfUnauthorized(http.Response res) async {
+    if (res.statusCode == 426) {
+      showUpdateRequired();
+      throw ApiException(tr('Обновите приложение'), statusCode: res.statusCode);
+    }
     if (res.statusCode == 401) {
       await clearToken();
       throw ApiException(tr('Сессия истекла, войдите снова'), statusCode: res.statusCode);
@@ -345,6 +351,10 @@ class ApiClient {
   /// доступные слова уже изучены") -- the backend is the source of truth
   /// for that wording, not a client-side copy of it.
   Future<void> _throwWithDetail(http.Response res) async {
+    if (res.statusCode == 426) {
+      showUpdateRequired();
+      throw ApiException(tr('Обновите приложение'), statusCode: res.statusCode);
+    }
     if (res.statusCode == 401) {
       await clearToken();
       throw ApiException(tr('Сессия истекла, войдите снова'), statusCode: res.statusCode);

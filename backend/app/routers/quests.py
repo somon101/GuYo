@@ -11,7 +11,7 @@ from app.exercises.verify import judge
 from app.analytics.history import log_event
 from app.achievements import check_and_grant_achievements, record_activity
 from app.core.dates import dushanbe_today, utc_now
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_current_app
 from app.core.storage import url_for_key
 from app.database import get_db
 from app.exercises.common import get_threshold
@@ -272,6 +272,7 @@ def submit_quest_answer(
     dictionary_id: int = Query(...),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    _app: None = Depends(require_current_app),
 ):
     quest = _get_enabled_quest_or_404(db, quest_id)
 

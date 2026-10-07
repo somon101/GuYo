@@ -28,7 +28,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.exercises.verify import judge
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_current_app
 from app.database import get_db
 from app.exercises import build_word, listen_word, matching, speaking_word, true_or_false
 from app.exercises.common import get_learned_pool, get_threshold
@@ -159,6 +159,7 @@ def record_practice_answer(
     payload: PracticeAnswerIn,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    _app: None = Depends(require_current_app),
 ):
     """Records one Practice answer as memory evidence. Changes no score:
     the attempt carries the word's current score unchanged."""

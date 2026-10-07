@@ -453,6 +453,8 @@ const Map<String, (String, String)> uiStrings = {
   'Время учёбы': ('Вақти таҳсил', 'Oʻqish vaqti'),
   'за всё время, во всех уроках': ('дар тамоми вақт, дар ҳамаи дарсҳо', 'butun vaqt, barcha darslarda'),
   'за неделю': ('дар ҳафта', 'hafta davomida'),
+  'Обновите приложение': ('Барномаро навсозӣ кунед', 'Ilovani yangilang'),
+  'Вышла новая версия GuYo. Чтобы продолжить заниматься, установите её.': ('Версияи нави GuYo баромад. Барои идомаи машқ онро насб кунед.', 'GuYo ning yangi versiyasi chiqdi. Mashgʻulotni davom ettirish uchun uni oʻrnating.'),
   'Мой QR-код': ('QR-коди ман', 'Mening QR-kodim'),
   'История хранится только за сегодня': ('Таърих танҳо барои имрӯз нигоҳ дошта мешавад', 'Tarix faqat bugun uchun saqlanadi'),
   'Новое слово': ('Калимаи нав', 'Yangi soʻz'),

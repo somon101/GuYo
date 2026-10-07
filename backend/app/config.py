@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 1440
 
     allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    # The oldest app build (the "+N" of the app's version) still allowed to
+    # answer exercises. 0 = no check. Raise it once a release everyone
+    # should have is out: older apps are then told to update.
+    min_app_build: int = 0
 
     media_root: str = "./storage"
     media_url_prefix: str = "/media"
