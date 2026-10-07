@@ -1,0 +1,3 @@
+fire.json -- "Fire" from Noto Animated Emoji by Google,
+https://googlefonts.github.io/noto-emoji-animation/
+Licensed under CC BY 4.0: https://creativecommons.org/licenses/by/4.0/

@@ -24,6 +24,8 @@ import 'all_ranks_screen.dart';
 import 'learned_words_screen.dart';
 import 'profile_qr_sheet.dart';
 import 'profile_settings_screen.dart';
+import 'streak_sheet.dart';
+import '../widgets/animated_fire.dart';
 import '../widgets/skeleton.dart';
 
 /// "Профиль": the user's own identity (avatar, login, their permanent
@@ -381,11 +383,14 @@ class ProfileScreenState extends State<ProfileScreen> {
           children: [
             Expanded(
               child: _StatCard(
+                key: const ValueKey('profile-streak'),
                 icon: Icons.local_fire_department_rounded,
                 iconColor: const Color(0xFFFF7A29),
                 iconBackground: const Color(0xFFFFF0E6),
-                label: tr('Серий'),
+                leading: const AnimatedFire(size: 30),
+                label: tr('Серия'),
                 value: '${profile.currentStreakDays} ${_dayWord(profile.currentStreakDays)}',
+                onTap: () => showStreakSheet(context, streakDays: profile.currentStreakDays),
               ),
             ),
             const SizedBox(width: 10),
@@ -711,7 +716,12 @@ class _StatCard extends StatelessWidget {
   /// plain counters.
   final VoidCallback? onTap;
 
+  /// Drawn instead of the round icon, e.g. the burning 🔥.
+  final Widget? leading;
+
   const _StatCard({
+    super.key,
+    this.leading,
     required this.icon,
     required this.iconColor,
     required this.iconBackground,
@@ -746,12 +756,13 @@ class _StatCard extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(color: iconBackground, shape: BoxShape.circle),
-            child: Icon(icon, color: iconColor, size: 17),
-          ),
+          leading ??
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(color: iconBackground, shape: BoxShape.circle),
+                child: Icon(icon, color: iconColor, size: 17),
+              ),
           const SizedBox(width: 8),
           Flexible(
             child: Column(

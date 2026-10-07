@@ -46,6 +46,7 @@ dependencies:
   flutter_cache_manager: ^3.4.5
   google_sign_in: ^7.2.0
   qr_flutter: ^4.1.0
+  lottie: ^3.6.1
 
 dev_dependencies:
   flutter_test:
@@ -90,6 +91,7 @@ flutter:
     - assets/sounds/
     - assets/icon/guyo_icon_foreground.png
     - assets/icon/guyo_icon.png
+    - assets/animations/fire.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

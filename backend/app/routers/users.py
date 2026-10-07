@@ -1,14 +1,17 @@
+from datetime import timedelta
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.content_language import reading_language
 from app.achievements import CONDITION_TYPES, lessons_completed_count, streak_days_count, words_learned_count
+from app.core.dates import dushanbe_today
 from app.core.deps import get_current_admin, get_current_user
 from app.core.public_id import generate_public_id
 from app.core.security import hash_password
 from app.core.storage import delete_by_key, save_bytes, url_for_key
 from app.database import get_db
-from app.models.achievement import VISIBILITY_HIDDEN, Achievement, UserAchievement
+from app.models.achievement import VISIBILITY_HIDDEN, Achievement, UserAchievement, UserActivityDay
 from app.models.admin import Admin
 from app.models.rating import SeasonHistory
 from app.models.user import User
@@ -167,6 +170,26 @@ def _profile_out(db: Session, user: User) -> UserProfileOut:
         ui_language=user.ui_language,
         translation_language=user.translation_language,
     )
+
+
+@router.get("/me/streak")
+def get_my_streak(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """The streak sheet: the current streak and which days of the last two
+    weeks had activity, on the same Asia/Dushanbe day boundary the streak
+    itself counts by."""
+    today = dushanbe_today()
+    since = today - timedelta(days=13)
+    active = sorted(
+        row[0]
+        for row in db.query(UserActivityDay.activity_date)
+        .filter(UserActivityDay.user_id == user.id, UserActivityDay.activity_date >= since)
+        .all()
+    )
+    return {
+        "current_streak_days": streak_days_count(db, user),
+        "today": today.isoformat(),
+        "active_dates": [d.isoformat() for d in active],
+    }
 
 
 @router.get("/me/profile", response_model=UserProfileOut)

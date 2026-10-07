@@ -61,6 +61,14 @@ MediaType _imageMediaType(String filename, {String? hint}) {
   return fromMime(hint) ?? fromExtension ?? MediaType('image', 'jpeg');
 }
 
+/// GET /users/me/streak: the streak and the recent days with activity.
+class StreakInfo {
+  final int currentStreakDays;
+  final DateTime today;
+  final List<DateTime> activeDates;
+  const StreakInfo({required this.currentStreakDays, required this.today, required this.activeDates});
+}
+
 class ApiException implements Exception {
   final int? statusCode;
   final String message;
@@ -1002,6 +1010,24 @@ class ApiClient {
     return (jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>)
         .map((e) => PointsTodayItem.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// The streak sheet's data (GET /users/me/streak).
+  Future<StreakInfo> fetchMyStreak() async {
+    final res = await http.get(_uri('/users/me/streak'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    if (res.statusCode != 200) throw ApiException('Не удалось загрузить серию', statusCode: res.statusCode);
+    final json = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    DateTime day(String s) {
+      final d = DateTime.parse(s);
+      return DateTime(d.year, d.month, d.day);
+    }
+
+    return StreakInfo(
+      currentStreakDays: json['current_streak_days'] as int,
+      today: day(json['today'] as String),
+      activeDates: [for (final s in json['active_dates'] as List<dynamic>) day(s as String)],
+    );
   }
 
   Future<QuestRound> fetchQuestRound(int questId, int dictionaryId) async {
