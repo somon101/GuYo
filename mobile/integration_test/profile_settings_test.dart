@@ -84,24 +84,25 @@ void main() {
     await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pumpAndSettle(const Duration(seconds: 2));
     expect(find.byType(ProfileSettingsScreen), findsOneWidget);
-    expect(find.text('Фотография'), findsOneWidget, reason: 'the photo is edited here too');
-    for (final label in ['Логин', 'Имя', 'Фамилия', 'Электронная почта']) {
-      expect(find.text(label), findsOneWidget, reason: '$label is editable in Настройки');
+    for (final label in ['Логин', 'Имя и фамилия', 'Почта', 'Мои темы', 'Язык интерфейса']) {
+      expect(find.text(label), findsOneWidget, reason: '$label is a row in Настройки');
     }
 
-    // --- Edit and save ---
-    await tester.enterText(_fieldUnder(tester, 'Имя'), newFirst);
+    // --- Each row opens its own small editor and saves on its own ---
+    await tester.tap(find.text('Имя и фамилия'));
     await tester.pumpAndSettle();
-    await tester.enterText(_fieldUnder(tester, 'Фамилия'), newLast);
-    await tester.pumpAndSettle();
-    await tester.enterText(_fieldUnder(tester, 'Электронная почта'), newEmail);
-    await tester.pumpAndSettle();
-
+    await tester.enterText(find.widgetWithText(TextField, 'Имя'), newFirst);
+    await tester.enterText(find.widgetWithText(TextField, 'Фамилия'), newLast);
     await tester.tap(find.widgetWithText(FilledButton, 'Сохранить'));
     await tester.pumpAndSettle(const Duration(seconds: 3));
+    expect(find.text('$newFirst $newLast'), findsOneWidget, reason: 'the row shows the saved name');
 
-    // Back on the profile, and the backend really holds the new values.
-    expect(find.byType(ProfileSettingsScreen), findsNothing, reason: 'saving returns to the profile');
+    await tester.tap(find.text('Почта'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Электронная почта'), newEmail);
+    await tester.tap(find.widgetWithText(FilledButton, 'Сохранить'));
+    await tester.pumpAndSettle(const Duration(seconds: 3));
+    expect(find.text(newEmail), findsOneWidget, reason: 'the row shows the saved email');
 
     final after = await _profile(token);
     expect(after['first_name'], newFirst);
@@ -122,12 +123,4 @@ void main() {
       }),
     );
   });
-}
-
-/// The text field belonging to one labelled row of the settings form.
-Finder _fieldUnder(WidgetTester tester, String label) {
-  return find.descendant(
-    of: find.ancestor(of: find.text(label), matching: find.byType(Column)).first,
-    matching: find.byType(TextField),
-  );
 }

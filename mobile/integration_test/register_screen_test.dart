@@ -115,6 +115,12 @@ void main() {
 
         await tapNext();
 
+        // --- A Russian interface also asks the translation language ----
+        expect(find.text('На каком языке показывать перевод слов?'), findsOneWidget);
+        await tester.tap(find.byKey(const ValueKey('register-translation-uz')));
+        await tester.pumpAndSettle();
+        await tapNext();
+
         // --- Step 2: account, first with deliberately bad data ---------
         expect(find.text('Данные аккаунта'), findsOneWidget);
         await tester.enterText(find.byKey(const ValueKey('register-field-first-name')), '');
@@ -218,6 +224,7 @@ void main() {
         expect(me['age_group'], '18-24');
         expect(me['learning_goal'], 'study');
         expect(me['referral_source'], 'youtube');
+        expect(me['translation_language'], 'uz', reason: 'the translation step is saved on the account');
       } finally {
         await _deleteUserByLogin(adminToken, testLogin);
         await _deleteUserByLogin(adminToken, otherLogin);
