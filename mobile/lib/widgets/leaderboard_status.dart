@@ -53,164 +53,76 @@ class AvatarWithStatus extends StatelessWidget {
   }
 }
 
-/// Tapping [child] shows the person's status in a small bubble above it
-/// (the emoji and the phrase) for a few seconds. Without a status it's
-/// just [child].
-class StatusBubble extends StatefulWidget {
-  final String? emojiUrl;
-  final String? text;
-  final Widget child;
 
-  const StatusBubble({super.key, required this.emojiUrl, required this.text, required this.child});
+/// A status phrase shown the way Instagram shows notes: a small rounded
+/// bubble that is simply always there above the avatar -- nothing to tap.
+/// Two little dots under it point at the avatar. Compact: small type, at
+/// most two lines, a fixed maximum width.
+class StatusNote extends StatelessWidget {
+  final String text;
+  final double maxWidth;
+  final String? emojiUrl;
+  final VoidCallback? onTap;
+
+  const StatusNote({super.key, required this.text, this.maxWidth = 120, this.emojiUrl, this.onTap});
 
   @override
-  State<StatusBubble> createState() => _StatusBubbleState();
-}
-
-class _StatusBubbleState extends State<StatusBubble> with SingleTickerProviderStateMixin {
-  OverlayEntry? _entry;
-  late final AnimationController _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 180));
-  int _shown = 0;
-
-  bool get _hasStatus => widget.emojiUrl != null || widget.text != null;
-
-  void _show() {
-    _hide();
-    final box = context.findRenderObject() as RenderBox?;
-    final overlay = Overlay.of(context);
-    final overlayBox = overlay.context.findRenderObject() as RenderBox?;
-    if (box == null || overlayBox == null) return;
-    // Where the row/place is, in the overlay's coordinates.
-    final topLeft = box.localToGlobal(Offset.zero, ancestor: overlayBox);
-    final screen = overlayBox.size;
-    const margin = 12.0;
-    final centerX = topLeft.dx + box.size.width / 2;
-    final bottom = screen.height - topLeft.dy + 2;
-    // Align maps -1..1 across the free width, so the bubble sits over the
-    // person but never past the screen edge.
-    final usable = screen.width - margin * 2;
-    final ax = ((centerX - margin) / usable * 2 - 1).clamp(-1.0, 1.0);
-    _entry = OverlayEntry(
-      builder: (_) => IgnorePointer(
-        child: FadeTransition(
-          opacity: _anim,
-          child: Stack(
+  Widget build(BuildContext context) {
+    final bubbleColor = AppColors.surface;
+    final shadow = [
+      BoxShadow(color: AppColors.primaryDark.withValues(alpha: AppColors.dark ? 0.35 : 0.12), blurRadius: 10, offset: const Offset(0, 3)),
+    ];
+    Widget dot(double size) => Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(color: bubbleColor, shape: BoxShape.circle, boxShadow: shadow),
+        );
+    final note = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: bubbleColor,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.cardBorder),
+            boxShadow: shadow,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Positioned(
-                left: margin,
-                right: margin,
-                bottom: bottom + 7,
-                child: Align(
-                  alignment: Alignment(ax, 1),
-                  child: ScaleTransition(
-                    scale: Tween(begin: .92, end: 1.0).animate(CurvedAnimation(parent: _anim, curve: Curves.easeOutBack)),
-                    child: _Bubble(emojiUrl: widget.emojiUrl, text: widget.text),
-                  ),
+              if (emojiUrl != null) ...[
+                RemoteImage(key: ValueKey(emojiUrl), url: emojiUrl!, width: 14, height: 14, fallbackBuilder: () => const SizedBox.shrink()),
+                const SizedBox(width: 4),
+              ],
+              Flexible(
+                child: Text(
+                  text,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 11, height: 1.25, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
                 ),
-              ),
-              Positioned(
-                left: centerX - 8,
-                bottom: bottom,
-                child: CustomPaint(size: const Size(16, 8), painter: _TailPainter()),
               ),
             ],
           ),
         ),
-      ),
-    );
-    overlay.insert(_entry!);
-    _anim.forward(from: 0);
-    final token = ++_shown;
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted && token == _shown) _anim.reverse().then((_) => _hide());
-    });
-  }
-
-  void _hide() {
-    _entry?.remove();
-    _entry = null;
-  }
-
-  @override
-  void dispose() {
-    _hide();
-    _anim.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_hasStatus) return widget.child;
-    return GestureDetector(behavior: HitTestBehavior.opaque, onTap: _show, child: widget.child);
-  }
-}
-
-class _Bubble extends StatelessWidget {
-  final String? emojiUrl;
-  final String? text;
-  const _Bubble({required this.emojiUrl, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    final url = emojiUrl;
-    final phrase = text;
-    return Material(
-      color: AppColors.surface,
-      elevation: 0,
-      borderRadius: BorderRadius.circular(18),
-      shadowColor: Colors.transparent,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 300),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [BoxShadow(color: AppColors.primaryDark.withValues(alpha: 0.16), blurRadius: 18, offset: const Offset(0, 6))],
-          color: AppColors.surface,
+        Transform.translate(
+          offset: const Offset(-6, -1),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              dot(7),
+              const SizedBox(height: 1),
+              Padding(padding: const EdgeInsets.only(right: 6), child: dot(4)),
+            ],
+          ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (url != null) RemoteImage(key: ValueKey(url), url: url, width: 28, height: 28, fallbackBuilder: () => const SizedBox(width: 28)),
-            if (url != null && phrase != null) const SizedBox(width: 8),
-            if (phrase != null)
-              Flexible(
-                child: Text(
-                  phrase,
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark, decoration: TextDecoration.none),
-                ),
-              ),
-          ],
-        ),
-      ),
+      ],
     );
+    if (onTap == null) return note;
+    return GestureDetector(behavior: HitTestBehavior.opaque, onTap: onTap, child: note);
   }
 }
 
-class _TailPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width / 2, size.height)
-      ..lineTo(size.width, 0)
-      ..close();
-    canvas.drawPath(path, Paint()..color = Colors.white);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-/// The small hint next to a name that this person wrote something: tap
-/// the row to read it.
-class StatusPhraseHint extends StatelessWidget {
-  const StatusPhraseHint({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(left: 6),
-      child: Icon(Icons.chat_bubble_rounded, size: 13, color: AppColors.muted),
-    );
-  }
-}

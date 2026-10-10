@@ -8,9 +8,11 @@ import '../api/api_client.dart';
 import '../services/session_cache.dart';
 import '../models/dictionary.dart';
 import '../models/user_profile.dart';
+import '../models/status.dart';
 import '../models/user_rating.dart';
 import '../theme/app_colors.dart';
 import '../widgets/achievement_icon.dart';
+import '../widgets/leaderboard_status.dart';
 import '../widgets/position_change.dart';
 import '../widgets/premium_ui.dart';
 import '../widgets/rank_icon.dart';
@@ -25,6 +27,7 @@ import 'profile_settings_screen.dart';
 import '../widgets/achievement_celebration.dart';
 import 'streak_sheet.dart';
 import 'stats_screen.dart';
+import 'status_picker_sheet.dart';
 import '../widgets/animated_fire.dart';
 import '../widgets/skeleton.dart';
 
@@ -69,6 +72,22 @@ class ProfileScreenState extends State<ProfileScreen> {
   UserProfile? _profile;
   List<UserAchievement> _achievements = [];
   UserRating? _rating;
+  // My leaderboard status, shown as a note above the photo.
+  MyStatus? _myStatus;
+
+  Future<void> _loadMyStatus() async {
+    try {
+      final options = await ApiClient.instance.fetchStatusOptions();
+      if (mounted) setState(() => _myStatus = options.mine);
+    } catch (_) {
+      // No note is fine; the profile itself already loaded.
+    }
+  }
+
+  Future<void> _editMyStatus() async {
+    final saved = await showStatusPicker(context);
+    if (saved != null && mounted) setState(() => _myStatus = saved);
+  }
   bool _isUpdatingAvatar = false;
   // The just-picked photo's raw bytes, shown immediately via Image.memory
   // while the upload is still in flight -- the user sees THEIR photo the
@@ -123,6 +142,7 @@ class ProfileScreenState extends State<ProfileScreen> {
         _isLoading = false;
       });
       SessionCache.put(_cacheKey, (_profile!, _achievements, _rating!));
+      unawaited(_loadMyStatus());
       // Deliberately NOT awaited: this is called from RefreshIndicator's
       // onRefresh, which only finishes spinning once this Future
       // completes -- if the celebration dialog (which itself resolves
@@ -338,6 +358,9 @@ class ProfileScreenState extends State<ProfileScreen> {
           isUpdatingAvatar: _isUpdatingAvatar,
           onPickPhoto: _pickAndUploadAvatar,
           onRemovePhoto: _removeAvatar,
+          statusText: _myStatus?.text,
+          statusEmojiUrl: _myStatus?.emojiUrl,
+          onEditStatus: _editMyStatus,
         ),
         const SizedBox(height: 20),
         Row(
@@ -416,6 +439,9 @@ class _ProfileHeader extends StatelessWidget {
   final bool isUpdatingAvatar;
   final Future<UserProfile?> Function() onPickPhoto;
   final Future<UserProfile?> Function() onRemovePhoto;
+  final String? statusText;
+  final String? statusEmojiUrl;
+  final VoidCallback onEditStatus;
 
   const _ProfileHeader({
     required this.profile,
@@ -423,6 +449,9 @@ class _ProfileHeader extends StatelessWidget {
     required this.isUpdatingAvatar,
     required this.onPickPhoto,
     required this.onRemovePhoto,
+    required this.statusText,
+    required this.statusEmojiUrl,
+    required this.onEditStatus,
   });
 
   Future<void> _openPhotoMenu(BuildContext context) async {
@@ -520,7 +549,7 @@ class _ProfileHeader extends StatelessWidget {
       ),
     );
 
-    return Row(
+    final header = Row(
       children: [
         Semantics(
           button: true,
@@ -616,6 +645,17 @@ class _ProfileHeader extends StatelessWidget {
             ),
           ),
         ),
+      ],
+    );
+    final text = statusText;
+    if (text == null) return header;
+    // My status as an Instagram-style note over the photo; tap to change it.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        StatusNote(text: text, emojiUrl: statusEmojiUrl, maxWidth: 150, onTap: onEditStatus),
+        const SizedBox(height: 2),
+        header,
       ],
     );
   }

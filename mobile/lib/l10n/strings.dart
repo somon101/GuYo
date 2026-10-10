@@ -532,4 +532,10 @@ const Map<String, (String, String)> uiStrings = {
   'Скоро здесь появятся языки для изучения.': ('Ба наздикӣ дар ин ҷо забонҳо барои омӯзиш пайдо мешаванд.', 'Tez orada bu yerda oʻrganish uchun tillar paydo boʻladi.'),
   'Пока нет ранга': ('Ҳоло рутба нест', 'Hozircha unvon yoʻq'),
   'Начните учить слова, чтобы попасть в рейтинг.': ('Барои ворид шудан ба рейтинг калимаҳо омӯзед.', 'Reytingga kirish uchun soʻz oʻrganishni boshlang.'),
+  'Идеально!': ('Беҳтарин!', 'Ajoyib!'),
+  'Хорошо!': ('Хуб!', 'Yaxshi!'),
+  'Можно лучше': ('Беҳтар шуда метавонад', 'Yanada yaxshiroq boʻlishi mumkin'),
+  'правильно': ('дуруст', 'toʻgʻri'),
+  '{0} из {1} правильно': ('{0} аз {1} дуруст', '{1} tadan {0} tasi toʻgʻri'),
+  'Ещё раунд': ('Боз як давр', 'Yana bir raund'),
 };
