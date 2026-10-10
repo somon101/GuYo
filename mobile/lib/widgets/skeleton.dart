@@ -15,8 +15,8 @@ class Skeleton extends StatefulWidget {
   final Widget child;
   const Skeleton({super.key, required this.child});
 
-  static final Color bone = AppColors.separator;
-  static const Color highlight = Color(0xFFF6F7FC);
+  static Color get bone => AppColors.dark ? const Color(0xFF232739) : AppColors.separator;
+  static Color get highlight => AppColors.dark ? const Color(0xFF2F3450) : const Color(0xFFF6F7FC);
 
   @override
   State<Skeleton> createState() => _SkeletonState();

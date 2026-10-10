@@ -11,7 +11,7 @@ import '../theme/app_colors.dart';
 /// Cupertino widgets Flutter already ships -- no extra package.
 
 /// Hairline between rows inside an [IosSection].
-final Color _separator = AppColors.separator;
+Color get _separator => AppColors.separator;
 
 /// `CupertinoSlidingSegmentedControl` in the app's colors.
 class IosSegmented<T extends Object> extends StatelessWidget {

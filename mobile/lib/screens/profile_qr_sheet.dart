@@ -97,10 +97,10 @@ class _ProfileQrSheet extends StatelessWidget {
                           padding: EdgeInsets.zero,
                           // High correction keeps it scannable under the logo.
                           errorCorrectionLevel: QrErrorCorrectLevel.H,
-                          eyeStyle: QrEyeStyle(eyeShape: QrEyeShape.square, color: AppColors.primaryDark),
+                          eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Color(0xFF101B63)),
                           dataModuleStyle: QrDataModuleStyle(
                             dataModuleShape: QrDataModuleShape.square,
-                            color: AppColors.primaryDark,
+                            color: Color(0xFF101B63), // always dark on the white box: scannable in both themes
                           ),
                         ),
                         Container(

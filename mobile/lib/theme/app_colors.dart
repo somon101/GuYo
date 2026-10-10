@@ -78,7 +78,19 @@ class AppColors {
 
   /// A pastel accent colour as a tile fill: as is in the light theme, a
   /// tint of it over [surface] in the dark one.
-  static Color tile(Color pastel) => dark ? Color.alphaBlend(pastel.withValues(alpha: 0.16), surface) : pastel;
+  static Color tile(Color pastel) {
+    if (!dark) return pastel;
+    // A deep, saturated version of each pastel, so tiles stay colourful.
+    const deep = {
+      0xFFFFE3B8: Color(0xFF6B4416), // orange
+      0xFFC9EFD3: Color(0xFF1E5537), // green
+      0xFFD5E4FF: Color(0xFF233F75), // blue
+      0xFFF6D6F4: Color(0xFF5C2A5A), // pink
+      0xFFFFF6DD: Color(0xFF4A4017), // yellow tip
+      0xFFFFF3EA: Color(0xFF4D2F1D), // warm pill
+    };
+    return deep[pastel.toARGB32()] ?? Color.alphaBlend(pastel.withValues(alpha: 0.28), surface);
+  }
 
   /// A quest's reward badge ("⭐ +10"): a bright green the [gold] star
   /// stands out on, with the number in white.

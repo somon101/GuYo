@@ -648,7 +648,7 @@ class _TotalsGrid extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.tile(const Color(0xFFFFF6DD)),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFFFE7A6)),
+              border: Border.all(color: AppColors.dark ? const Color(0xFF6B5A1E) : const Color(0xFFFFE7A6)),
             ),
             child: Row(
               children: [
@@ -688,7 +688,7 @@ class _Tile extends StatelessWidget {
           Container(
             width: 36,
             height: 36,
-            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.7), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: AppColors.dark ? 0.14 : 0.7), shape: BoxShape.circle),
             child: Icon(icon, size: 19, color: AppColors.primaryDark),
           ),
           const SizedBox(height: 16),

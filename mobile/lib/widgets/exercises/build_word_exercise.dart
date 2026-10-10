@@ -289,7 +289,12 @@ class _UsedKey extends StatelessWidget {
     return Container(
       width: 46,
       height: 52,
-      decoration: BoxDecoration(color: AppColors.progressTrack.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(10)),
+      // Just a faint dashed-looking outline: the place is kept, but it
+      // reads as "already used", not as a blank key.
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.muted.withValues(alpha: 0.35), width: 1.2),
+      ),
     );
   }
 }
