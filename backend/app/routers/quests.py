@@ -16,7 +16,7 @@ from app.core.storage import url_for_key
 from app.database import get_db
 from app.exercises.common import get_threshold
 from app.models.quest import Quest, QuestWord, UserQuestWordDay
-from app.models.rating import Season, UserWordPoints
+from app.models.rating import Season, UserReviewPoints, UserWordPoints
 from app.models.word import Word
 from app.models.word_level import WordLevel
 from app.models.user import User
@@ -194,6 +194,18 @@ def get_season_quest_overview(
         }
         points_today += sum(rewards.get(quest_id, 0) * count for quest_id, count in done_today.items())
 
+    # ...and "Повторить сегодня" right answers.
+    points_today += sum(
+        row[0]
+        for row in db.query(UserReviewPoints.points_awarded)
+        .filter(
+            UserReviewPoints.user_id == user.id,
+            UserReviewPoints.awarded_at >= day_start,
+            UserReviewPoints.awarded_at <= day_end,
+        )
+        .all()
+    )
+
     quests = _available_quests(db, user, dictionary_id)
 
     return SeasonQuestOverviewOut(
@@ -238,6 +250,17 @@ def get_points_today(db: Session = Depends(get_db), user: User = Depends(get_cur
         .all()
     ):
         items.append(PointsTodayItemOut(kind="quest", title=name, word=text, points=reward, at=at))
+    for points, at, text in (
+        db.query(UserReviewPoints.points_awarded, UserReviewPoints.awarded_at, Word.word)
+        .join(Word, Word.id == UserReviewPoints.word_id)
+        .filter(
+            UserReviewPoints.user_id == user.id,
+            UserReviewPoints.awarded_at >= day_start,
+            UserReviewPoints.awarded_at <= day_end,
+        )
+        .all()
+    ):
+        items.append(PointsTodayItemOut(kind="review", word=text, points=points, at=at))
     items.sort(key=lambda i: i.at, reverse=True)
     return items
 

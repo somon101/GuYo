@@ -317,6 +317,9 @@ export interface RatingSettings {
   season_reset_value: number;
   /** Moving this many places within one's rank sends a notification; 0 = off. */
   rank_move_notify_threshold: number;
+  /** «Повторить сегодня»: rating points for each right answer on a word being forgotten. */
+  review_points_enabled: boolean;
+  review_points_per_correct: number;
 }
 
 export interface Rank {

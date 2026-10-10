@@ -31,6 +31,7 @@ import { RetentionPage } from "./pages/RetentionPage";
 import { WordDiagnosticsPage } from "./pages/WordDiagnosticsPage";
 import { AchievementsPage } from "./pages/AchievementsPage";
 import { RatingPage } from "./pages/RatingPage";
+import { ReviewPage } from "./pages/ReviewPage";
 import { TranslationPage } from "./pages/TranslationPage";
 
 // HashRouter is used deliberately: GitHub Pages serves static files with no
@@ -354,6 +355,16 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <RatingPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/review"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ReviewPage />
                 </Layout>
               </ProtectedRoute>
             }

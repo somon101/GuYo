@@ -538,4 +538,5 @@ const Map<String, (String, String)> uiStrings = {
   'правильно': ('дуруст', 'toʻgʻri'),
   '{0} из {1} правильно': ('{0} аз {1} дуруст', '{1} tadan {0} tasi toʻgʻri'),
   'Ещё раунд': ('Боз як давр', 'Yana bir raund'),
+  'Повторение': ('Такрор', 'Takrorlash'),
 };

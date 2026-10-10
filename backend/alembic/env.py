@@ -40,6 +40,7 @@ from app.models import (  # noqa: F401
     UserQuestWordDay,
     UserRankPosition,
     UserRating,
+    UserReviewPoints,
     UserWordPoints,
     Word,
     WordForm,

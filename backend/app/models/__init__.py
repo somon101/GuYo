@@ -15,6 +15,7 @@ from app.models.rating import (
     SeasonHistory,
     UserRankPosition,
     UserRating,
+    UserReviewPoints,
     UserWordPoints,
 )
 from app.models.user import User
@@ -69,6 +70,7 @@ __all__ = [
     "SeasonHistory",
     "UserRankPosition",
     "UserRating",
+    "UserReviewPoints",
     "UserWordPoints",
     "WordLevel",
     "Notification",
