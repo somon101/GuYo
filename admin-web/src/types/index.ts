@@ -630,7 +630,7 @@ export interface Retention extends RetentionGroup {
   sources: RetentionSource[];
 }
 
-export type ReminderKind = "inactivity" | "streak_risk" | "streak_milestone";
+export type ReminderKind = "inactivity" | "streak_risk" | "streak_milestone" | "study_time" | "study_followup";
 
 export interface ReminderRuleInput {
   kind: ReminderKind;
@@ -647,6 +647,8 @@ export interface ReminderRule extends ReminderRuleInput {
 export interface ReminderSettings {
   streak_risk_hour: number;
   default_hour: number;
+  /** How long after the user's last study time of the day the follow-up goes out. */
+  study_followup_minutes: number;
 }
 
 export interface Reminders {

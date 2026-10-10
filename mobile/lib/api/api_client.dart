@@ -1,5 +1,6 @@
 import '../services/google_auth.dart';
 import '../services/disk_cache.dart';
+import '../widgets/study_times_editor.dart' show StudyTime;
 import '../widgets/update_required.dart';
 import '../screens/stats_screen.dart' show UserStats;
 import '../services/session_cache.dart';
@@ -977,6 +978,26 @@ class ApiClient {
       body: jsonEncode({'token': pushToken}),
     );
     await _throwIfUnauthorized(res);
+  }
+
+  /// The times of day the user picked to study (reminders go out at each).
+  Future<List<StudyTime>> fetchStudyTimes() async {
+    final res = await http.get(_uri('/notifications/study-times'), headers: await _authHeaders());
+    await _throwWithDetail(res);
+    final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    return [for (final t in data['times'] as List<dynamic>) StudyTime.fromJson(t as Map<String, dynamic>)];
+  }
+
+  /// Replaces the whole list; returns what the server stored.
+  Future<List<StudyTime>> saveStudyTimes(List<StudyTime> times) async {
+    final res = await http.put(
+      _uri('/notifications/study-times'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'times': [for (final t in times) t.toJson()]}),
+    );
+    await _throwWithDetail(res);
+    final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    return [for (final t in data['times'] as List<dynamic>) StudyTime.fromJson(t as Map<String, dynamic>)];
   }
 
   Future<void> unregisterPushToken(String pushToken) async {

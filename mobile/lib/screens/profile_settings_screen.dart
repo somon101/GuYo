@@ -7,7 +7,9 @@ import '../models/learning_topics.dart';
 import '../models/user_profile.dart';
 import '../services/push_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/study_times_editor.dart';
 import 'login_screen.dart';
+import 'study_times_screen.dart';
 import 'topics_screen.dart';
 
 /// "Настройки": a compact grouped list of what the user may change --
@@ -36,10 +38,23 @@ const List<({String code, String label})> _translationLanguages = [
 class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   late UserProfile _profile;
 
+  /// Null until loaded; the row then shows no value rather than a guess.
+  List<StudyTime>? _studyTimes;
+
   @override
   void initState() {
     super.initState();
     _profile = widget.profile;
+    ApiClient.instance.fetchStudyTimes().then((t) {
+      if (mounted) setState(() => _studyTimes = t);
+    }, onError: (_) {});
+  }
+
+  Future<void> _openStudyTimes() async {
+    final saved = await Navigator.of(context).push<List<StudyTime>>(
+      MaterialPageRoute(builder: (_) => StudyTimesScreen(initial: _studyTimes ?? const [])),
+    );
+    if (saved != null && mounted) setState(() => _studyTimes = saved);
   }
 
   void _showSnack(String text) {
@@ -302,6 +317,13 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     );
                     if (saved != null && mounted) setState(() => _profile = saved);
                   },
+                ),
+                _Row(
+                  key: const ValueKey('settings-study-times'),
+                  icon: Icons.alarm_rounded,
+                  label: tr('Время занятий'),
+                  value: _studyTimes == null ? '' : studyTimesSummary(_studyTimes!),
+                  onTap: _openStudyTimes,
                 ),
                 _Row(
                   icon: Icons.language_rounded,

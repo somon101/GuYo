@@ -10,11 +10,14 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_admin, get_current_user
 from app.database import get_db
-from app.models.notification import SOURCE_MANUAL, Notification, PushToken, ReminderRule
+from app.models.notification import SOURCE_MANUAL, Notification, PushToken, ReminderRule, UserStudyTime
 from app.models.user import User
 from app.notifications import mark_all_read, send_notification, unread_count
 from app.notifications.reminders import get_reminder_settings
 from app.schemas.notification import (
+    StudyTimeItem,
+    StudyTimesIn,
+    StudyTimesOut,
     AdminNotificationOut,
     NotificationListOut,
     NotificationOut,
@@ -122,6 +125,30 @@ def unregister_push_token(payload: PushTokenIn, db: Session = Depends(get_db), u
 
 # --- Admin: write to one user ------------------------------------------------
 
+def _study_times_out(db: Session, user: User) -> StudyTimesOut:
+    rows = db.query(UserStudyTime).filter(UserStudyTime.user_id == user.id).order_by(UserStudyTime.minute_of_day).all()
+    return StudyTimesOut(times=[StudyTimeItem(minute_of_day=r.minute_of_day, enabled=r.enabled) for r in rows])
+
+
+@router.get("/notifications/study-times", response_model=StudyTimesOut)
+def get_study_times(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _study_times_out(db, user)
+
+
+@router.put("/notifications/study-times", response_model=StudyTimesOut)
+def put_study_times(payload: StudyTimesIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Replaces the whole list (the app always sends what it shows)."""
+    db.query(UserStudyTime).filter(UserStudyTime.user_id == user.id).delete()
+    seen: set[int] = set()
+    for item in payload.times:
+        if item.minute_of_day in seen:
+            continue
+        seen.add(item.minute_of_day)
+        db.add(UserStudyTime(user_id=user.id, minute_of_day=item.minute_of_day, enabled=item.enabled))
+    db.commit()
+    return _study_times_out(db, user)
+
+
 admin_router = APIRouter(prefix="/admin/notifications", tags=["admin-notifications"])
 
 
@@ -188,7 +215,11 @@ def list_reminders(db: Session = Depends(get_db), _admin=Depends(get_current_adm
     db.commit()
     rules = db.query(ReminderRule).order_by(ReminderRule.kind, ReminderRule.days, ReminderRule.id).all()
     return RemindersOut(
-        settings=ReminderSettingsIn(streak_risk_hour=settings.streak_risk_hour, default_hour=settings.default_hour),
+        settings=ReminderSettingsIn(
+            streak_risk_hour=settings.streak_risk_hour,
+            default_hour=settings.default_hour,
+            study_followup_minutes=settings.study_followup_minutes,
+        ),
         rules=[_rule_out(r) for r in rules],
     )
 
@@ -198,6 +229,7 @@ def update_reminder_settings(payload: ReminderSettingsIn, db: Session = Depends(
     settings = get_reminder_settings(db)
     settings.streak_risk_hour = payload.streak_risk_hour
     settings.default_hour = payload.default_hour
+    settings.study_followup_minutes = payload.study_followup_minutes
     db.commit()
     return payload
 
