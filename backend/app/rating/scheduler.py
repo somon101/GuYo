@@ -23,7 +23,9 @@ import asyncio
 import logging
 import time
 
-from app.database import SessionLocal
+from sqlalchemy import text
+
+from app.database import SessionLocal, engine
 from app.notifications.reminders import run_reminders_once
 from app.memory.service import rebuild_pending_memories
 from app.rating import refresh_rank_positions, sync_season_states
@@ -69,10 +71,46 @@ def sync_once() -> bool:
         db.close()
 
 
+# Any fixed number: the Postgres advisory lock that makes one process the
+# scheduler when the server runs several worker processes.
+LEADER_LOCK_KEY = 74_210_031
+
+
+def _try_become_leader():
+    """A connection holding the leader lock, or None if another process
+    already holds it. The lock lives as long as the connection: if the
+    leader process dies, Postgres releases it and another takes over."""
+    conn = engine.connect()
+    try:
+        if conn.execute(text("SELECT pg_try_advisory_lock(:k)"), {"k": LEADER_LOCK_KEY}).scalar():
+            conn.commit()
+            return conn
+    except Exception:
+        logger.exception("scheduler leader lock failed")
+    conn.close()
+    return None
+
+
 async def run_season_scheduler() -> None:
     """Sweeps once immediately (catching up on everything missed while the
     process was down), then every SEASON_SYNC_INTERVAL_SECONDS until
-    cancelled at shutdown."""
+    cancelled at shutdown. With several worker processes only one -- the
+    holder of the leader lock -- sweeps; the others check every interval
+    whether they need to take over."""
+    leader = None
+    try:
+        while leader is None:
+            leader = await asyncio.to_thread(_try_become_leader)
+            if leader is None:
+                await asyncio.sleep(SEASON_SYNC_INTERVAL_SECONDS)
+        logger.info("this process runs the scheduler")
+        await _sweep_forever()
+    finally:
+        if leader is not None:
+            leader.close()
+
+
+async def _sweep_forever() -> None:
     last_reminders = 0.0
     while True:
         if await asyncio.to_thread(sync_once):
