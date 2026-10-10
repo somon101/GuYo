@@ -57,7 +57,7 @@ jobs:
 
       - name: Build
         env:
-          API_BASE_URL: ${{ vars.API_BASE_URL }}
+          API_BASE_URL: ${{ vars.API_BASE_URL || 'https://backend-production-cda3.up.railway.app' }}
         run: |
           if [ -z "$API_BASE_URL" ]; then echo "::error::Set the repository variable API_BASE_URL"; exit 1; fi
           flutter build apk --release --dart-define=API_BASE_URL="$API_BASE_URL"
