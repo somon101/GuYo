@@ -342,7 +342,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           if (isProfileTab)
             IconButton(
               tooltip: tr('Настройки'),
-              icon: const Icon(Icons.settings_outlined, color: AppColors.primary),
+              icon: Icon(Icons.settings_outlined, color: AppColors.primary),
               onPressed: () => _profileKey.currentState?.openSettings(),
             )
           else ...[
@@ -477,7 +477,7 @@ class _NotificationsButtonState extends State<_NotificationsButton> with Widgets
       icon: Stack(
         clipBehavior: Clip.none,
         children: [
-          const Icon(Icons.notifications_none_rounded, color: AppColors.primaryDark),
+          Icon(Icons.notifications_none_rounded, color: AppColors.primaryDark),
           if (_unread > 0)
             Positioned(
               right: -2,
@@ -511,7 +511,7 @@ class _GuyoWordmark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ShaderMask(
-      shaderCallback: (bounds) => const LinearGradient(
+      shaderCallback: (bounds) => LinearGradient(
         colors: [AppColors.primary, Color(0xFF8B5CF6)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
@@ -581,11 +581,11 @@ class _LanguageSwitcher extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             current.languageLabel,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
           ),
           if (canSwitch) ...[
             const SizedBox(width: 2),
-            const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: AppColors.secondaryText),
+            Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: AppColors.secondaryText),
           ],
         ],
       ),
@@ -620,7 +620,7 @@ class _LanguageSwitcher extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (option.id == current.id) const Icon(Icons.check_rounded, size: 18, color: AppColors.primary),
+                if (option.id == current.id) Icon(Icons.check_rounded, size: 18, color: AppColors.primary),
               ],
             ),
           ),

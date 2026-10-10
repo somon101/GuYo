@@ -41,7 +41,7 @@ class PracticeRoundComplete extends StatelessWidget {
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
             ),
             const SizedBox(height: 6),
-            Text(tr('Правильно: {0} из {1}', [correctCount, total]), style: const TextStyle(color: AppColors.secondaryText)),
+            Text(tr('Правильно: {0} из {1}', [correctCount, total]), style: TextStyle(color: AppColors.secondaryText)),
             const SizedBox(height: 22),
             Row(
               mainAxisSize: MainAxisSize.min,

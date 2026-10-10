@@ -463,13 +463,13 @@ class _WordCard extends StatelessWidget {
           ],
           Text(
             item.word,
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
             textAlign: TextAlign.center,
           ),
           if (hasTranscription)
             Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: Text(item.transcription!, style: const TextStyle(fontSize: 15, color: AppColors.secondaryText)),
+              child: Text(item.transcription!, style: TextStyle(fontSize: 15, color: AppColors.secondaryText)),
             ),
         ],
       ),
@@ -588,7 +588,7 @@ class _StateLabel extends StatelessWidget {
       case _MicState.idle:
         return Text(
           attempt > 1 ? tr('Попытка {0} из {1} · нажмите и скажите ещё раз', [attempt, maxAttempts]) : tr('Нажмите и произнесите слово'),
-          style: const TextStyle(color: AppColors.secondaryText, fontSize: 14),
+          style: TextStyle(color: AppColors.secondaryText, fontSize: 14),
           textAlign: TextAlign.center,
         );
       case _MicState.recording:
@@ -596,7 +596,7 @@ class _StateLabel extends StatelessWidget {
           children: [
             Text(
               recognizedText.isEmpty ? tr('Слушаю…') : recognizedText,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
@@ -625,7 +625,7 @@ class _StateLabel extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 tr('Услышано: «{0}», нужно: «{1}»', [recognizedText, target]),
-                style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
                 textAlign: TextAlign.center,
               ),
             ],

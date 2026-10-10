@@ -40,12 +40,12 @@ class ChoiceTile extends StatelessWidget {
         background = AppColors.successLight;
         border = AppColors.success;
         textColor = AppColors.success;
-        trailing = const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 22);
+        trailing = Icon(Icons.check_circle_rounded, color: AppColors.success, size: 22);
       } else if (isSelected) {
         background = AppColors.dangerLight;
         border = AppColors.danger;
         textColor = AppColors.danger;
-        trailing = const Icon(Icons.cancel_rounded, color: AppColors.danger, size: 22);
+        trailing = Icon(Icons.cancel_rounded, color: AppColors.danger, size: 22);
       } else {
         textColor = AppColors.muted;
       }

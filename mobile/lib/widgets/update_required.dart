@@ -16,7 +16,7 @@ void showUpdateRequired() {
     context: context,
     barrierDismissible: false,
     builder: (ctx) => AlertDialog(
-      icon: const Icon(Icons.system_update_rounded, color: AppColors.primary, size: 36),
+      icon: Icon(Icons.system_update_rounded, color: AppColors.primary, size: 36),
       title: Text(tr('Обновите приложение')),
       content: Text(tr('Вышла новая версия GuYo. Чтобы продолжить заниматься, установите её.')),
       actions: [

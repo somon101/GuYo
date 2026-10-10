@@ -176,7 +176,7 @@ class _Bubble extends StatelessWidget {
               Flexible(
                 child: Text(
                   phrase,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark, decoration: TextDecoration.none),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark, decoration: TextDecoration.none),
                 ),
               ),
           ],
@@ -208,7 +208,7 @@ class StatusPhraseHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.only(left: 6),
       child: Icon(Icons.chat_bubble_rounded, size: 13, color: AppColors.muted),
     );

@@ -193,10 +193,10 @@ class _QuestResultView extends StatelessWidget {
           const SizedBox(height: 18),
           Text(
             correct ? tr('Квест выполнен!') : tr('Не в этот раз'),
-            style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+            style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
           ),
           const SizedBox(height: 6),
-          Text(tr('Очки закрепления слова: {0}', [result.score]), style: const TextStyle(color: AppColors.secondaryText)),
+          Text(tr('Очки закрепления слова: {0}', [result.score]), style: TextStyle(color: AppColors.secondaryText)),
           if (result.rewardGranted > 0) ...[
             const SizedBox(height: 10),
             Container(
@@ -291,13 +291,13 @@ class _MatchingQuestState extends State<_MatchingQuest> {
             children: [
               Text(
                 _target.word,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                 textAlign: TextAlign.center,
               ),
               if (_target.transcription != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Text(_target.transcription!, style: const TextStyle(color: AppColors.secondaryText)),
+                  child: Text(_target.transcription!, style: TextStyle(color: AppColors.secondaryText)),
                 ),
               const SizedBox(height: 6),
               Text(tr('Выберите перевод'), style: TextStyle(color: AppColors.secondaryText, fontSize: 13)),

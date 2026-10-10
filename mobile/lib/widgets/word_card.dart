@@ -123,7 +123,7 @@ class WordCard extends StatelessWidget {
                                     children: [
                                       Text(
                                         word,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 15,
                                           fontWeight: FontWeight.w800,
                                           color: AppColors.primaryDark,
@@ -134,7 +134,7 @@ class WordCard extends StatelessWidget {
                                       if (transcription != null && transcription!.isNotEmpty)
                                         Text(
                                           transcription!,
-                                          style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                                          style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -153,7 +153,7 @@ class WordCard extends StatelessWidget {
                                   flex: 4,
                                   child: Text(
                                     translation ?? '',
-                                    style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                                    style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),

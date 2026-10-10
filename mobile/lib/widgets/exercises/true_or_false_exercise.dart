@@ -177,7 +177,7 @@ class _TrueOrFalseCard extends StatelessWidget {
               Flexible(
                 child: Text(
                   item.original,
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -190,7 +190,7 @@ class _TrueOrFalseCard extends StatelessWidget {
           if (hasTranscription)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text(item.transcription!, style: const TextStyle(fontSize: 15, color: AppColors.secondaryText)),
+              child: Text(item.transcription!, style: TextStyle(fontSize: 15, color: AppColors.secondaryText)),
             ),
           const SizedBox(height: 18),
           Container(
@@ -202,7 +202,7 @@ class _TrueOrFalseCard extends StatelessWidget {
                 Flexible(
                   child: Text(
                     item.shownTranslation,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primary),
                     textAlign: TextAlign.center,
                   ),
                 ),

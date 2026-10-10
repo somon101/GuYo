@@ -123,7 +123,7 @@ class _PromoScreenState extends State<PromoScreen> {
                     errorMaxLines: 3,
                     suffixIcon: IconButton(
                       tooltip: tr('Вставить'),
-                      icon: const Icon(Icons.content_paste_rounded, color: AppColors.primary),
+                      icon: Icon(Icons.content_paste_rounded, color: AppColors.primary),
                       onPressed: _isSubmitting ? null : _paste,
                     ),
                   ),
@@ -204,7 +204,7 @@ class _SuccessCard extends StatelessWidget {
               children: [
                 Text(
                   tr('+{0} дн. Premium', [result.days]),
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                 ),
                 const SizedBox(height: 3),
                 Text(
@@ -242,7 +242,7 @@ class _Hint extends StatelessWidget {
           Icon(icon, size: 20, color: AppColors.primary),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(text, style: const TextStyle(fontSize: 13, height: 1.35, color: AppColors.secondaryText)),
+            child: Text(text, style: TextStyle(fontSize: 13, height: 1.35, color: AppColors.secondaryText)),
           ),
         ],
       ),

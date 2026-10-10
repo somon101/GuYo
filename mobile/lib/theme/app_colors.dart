@@ -15,36 +15,43 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  static const Color primary = Color(0xFF5862DD);
-  static const Color primaryDark = Color(0xFF101B63);
-  static const Color secondaryText = Color(0xFF7180B0);
-  static const Color success = Color(0xFF0A9C5D);
-  static const Color successLight = Color(0xFFE8F8F1);
+  /// The dark theme is on (see theme/app_theme.dart). Every colour below
+  /// has a light and a dark value; the app rebuilds when this changes.
+  static bool dark = false;
+
+  /// Cards, sheets and tiles: white in the light theme.
+  static Color get surface => dark ? const Color(0xFF1C1F2E) : Colors.white;
+
+  static Color get primary => dark ? const Color(0xFF7C84F0) : const Color(0xFF5862DD);
+  static Color get primaryDark => dark ? const Color(0xFFE9EBFA) : const Color(0xFF101B63);
+  static Color get secondaryText => dark ? const Color(0xFF9AA3CC) : const Color(0xFF7180B0);
+  static Color get success => dark ? const Color(0xFF2FCB86) : const Color(0xFF0A9C5D);
+  static Color get successLight => dark ? const Color(0xFF143327) : const Color(0xFFE8F8F1);
 
   /// The one red in the palette -- a wrong answer, a destructive action.
   /// Kept as sparingly used as [success]: most of the app has no reason
   /// to ever need it.
-  static const Color danger = Color(0xFFE0454B);
-  static const Color dangerLight = Color(0xFFFCEAEA);
+  static Color get danger => dark ? const Color(0xFFFF6B70) : const Color(0xFFE0454B);
+  static Color get dangerLight => dark ? const Color(0xFF3A1D22) : const Color(0xFFFCEAEA);
 
   // --- Surfaces -------------------------------------------------------------
 
   /// The app background behind every card: barely-there lavender, so white
   /// cards read as raised without needing heavy shadows.
-  static const Color canvas = Color(0xFFF8F8FD);
+  static Color get canvas => dark ? const Color(0xFF11131C) : const Color(0xFFF8F8FD);
 
   /// The soft violet fill used for icon chips, section pills and any
   /// "quiet" panel that still needs to stand apart from the canvas.
-  static const Color violetSurface = Color(0xFFEEF0FF);
+  static Color get violetSurface => dark ? const Color(0xFF262A46) : const Color(0xFFEEF0FF);
 
   /// Hairline border on white cards.
-  static const Color cardBorder = Color(0xFFEDEFF7);
+  static Color get cardBorder => dark ? const Color(0xFF2A2E45) : const Color(0xFFEDEFF7);
 
   /// Track behind every progress bar.
-  static const Color progressTrack = Color(0xFFE4E7F5);
+  static Color get progressTrack => dark ? const Color(0xFF2C3150) : const Color(0xFFE4E7F5);
 
   /// Chevrons and other low-emphasis glyphs.
-  static const Color muted = Color(0xFFB9BEDA);
+  static Color get muted => dark ? const Color(0xFF5A6188) : const Color(0xFFB9BEDA);
 
   // --- Accents --------------------------------------------------------------
 
@@ -72,11 +79,13 @@ class AppColors {
   static const List<Color> dailyQuestGradient = [Color(0xFFF74D8F), Color(0xFFB434C8)];
 
   /// The big season banner's fill.
-  static const List<Color> bannerGradient = [Color(0xFFE6E9FC), Color(0xFFDCE0FA)];
+  static List<Color> get bannerGradient =>
+      dark ? const [Color(0xFF242845), Color(0xFF1F2340)] : const [Color(0xFFE6E9FC), Color(0xFFDCE0FA)];
 
   /// The home screen's season block -- the same family as the banner, a
   /// touch lighter so it sits calmly under the greeting.
-  static const List<Color> seasonCardGradient = [Color(0xFFE9EBFD), Color(0xFFDFE3FB)];
+  static List<Color> get seasonCardGradient =>
+      dark ? const [Color(0xFF22263F), Color(0xFF1D2138)] : const [Color(0xFFE9EBFD), Color(0xFFDFE3FB)];
 }
 
 /// Shape and elevation tokens that go with [AppColors]. Kept together so a

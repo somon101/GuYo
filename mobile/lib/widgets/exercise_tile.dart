@@ -56,7 +56,7 @@ class ExerciseTile extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w800,
               color: AppColors.primaryDark,
@@ -73,7 +73,7 @@ class ExerciseTile extends StatelessWidget {
             Expanded(
               child: Text(
                 description!,
-                style: const TextStyle(fontSize: 11.5, color: AppColors.secondaryText, height: 1.3),
+                style: TextStyle(fontSize: 11.5, color: AppColors.secondaryText, height: 1.3),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
               ),

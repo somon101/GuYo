@@ -157,7 +157,7 @@ class _ReplayPrompt extends StatelessWidget {
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
                 ),
               ),
-              const Icon(Icons.replay_rounded, color: AppColors.primary, size: 20),
+              Icon(Icons.replay_rounded, color: AppColors.primary, size: 20),
             ],
           ),
         ),

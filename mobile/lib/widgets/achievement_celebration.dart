@@ -87,9 +87,9 @@ class _AchievementUnlockedDialog extends StatelessWidget {
               const SizedBox(height: 18),
               Text(tr('Достижение получено!'), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondaryText, letterSpacing: 0.5)),
               const SizedBox(height: 6),
-              Text(achievement.title!, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark), textAlign: TextAlign.center),
+              Text(achievement.title!, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark), textAlign: TextAlign.center),
               const SizedBox(height: 8),
-              Text(achievement.description!, style: const TextStyle(fontSize: 14, color: AppColors.secondaryText), textAlign: TextAlign.center),
+              Text(achievement.description!, style: TextStyle(fontSize: 14, color: AppColors.secondaryText), textAlign: TextAlign.center),
               const SizedBox(height: 22),
               SizedBox(
                 width: double.infinity,

@@ -28,7 +28,7 @@ class ExerciseProgressHeader extends StatelessWidget {
         children: [
           const Icon(Icons.star_rounded, size: 18, color: AppColors.gold),
           const SizedBox(width: 6),
-          Text('$points', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+          Text('$points', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
           const SizedBox(width: 14),
           Container(width: 1, height: 20, color: AppColors.cardBorder),
           const Spacer(),
@@ -39,7 +39,7 @@ class ExerciseProgressHeader extends StatelessWidget {
             // phrase with a single textContaining match.
             child: Text(
               tr('Слова {0} из {1}', [position, total]),
-              style: const TextStyle(fontSize: 13, color: AppColors.primaryDark, fontWeight: FontWeight.w700),
+              style: TextStyle(fontSize: 13, color: AppColors.primaryDark, fontWeight: FontWeight.w700),
             ),
           ),
         ],

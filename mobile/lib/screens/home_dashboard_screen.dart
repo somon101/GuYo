@@ -245,7 +245,7 @@ class _Greeting extends StatelessWidget {
                     child: UserNameText(
                       login.isEmpty ? tr('Привет!') : tr('Привет, {0}', [login]),
                       isPremium: profile?.isPremium ?? false,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: AppColors.primaryDark,
@@ -261,7 +261,7 @@ class _Greeting extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 slogan ?? '',
-                style: const TextStyle(fontSize: 13.5, color: AppColors.secondaryText),
+                style: TextStyle(fontSize: 13.5, color: AppColors.secondaryText),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -288,7 +288,7 @@ class _SeasonBlock extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: AppColors.seasonCardGradient,
@@ -359,14 +359,14 @@ class _SeasonHeaderRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     seasonSubtitle(overview),
-                    style: const TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
+                    style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppColors.primary),
+            Icon(Icons.chevron_right, color: AppColors.primary),
           ],
         ),
       ),
@@ -521,7 +521,7 @@ class DailyQuestCard extends StatelessWidget {
                   wordsLearnedToday == 0
                       ? tr('Сегодня пока ни одного')
                       : tr('Сегодня изучено: {0}', [wordsLearnedToday]),
-                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.primary),
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.primary),
                 ),
               ],
             ),

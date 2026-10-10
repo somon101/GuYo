@@ -158,7 +158,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.check_circle, color: AppColors.success),
+                Icon(Icons.check_circle, color: AppColors.success),
                 const SizedBox(width: 10),
                 Text(tr('Урок пройден'), style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
               ],
@@ -176,7 +176,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
             children: [
               Text(
                 tr('Изучено {0} из {1} слов', [learnedCount, lesson.words.length]),
-                style: const TextStyle(color: AppColors.secondaryText, fontSize: 13, fontWeight: FontWeight.w600),
+                style: TextStyle(color: AppColors.secondaryText, fontSize: 13, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
               ClipRRect(
@@ -203,7 +203,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
             level: WordLevelView.resolve(word.wordLevelId, word.wordLevelName, _levels),
             onTap: () => _openWord(word),
             trailing: word.isLearned
-                ? const Icon(Icons.check_circle, color: AppColors.success, size: 18)
+                ? Icon(Icons.check_circle, color: AppColors.success, size: 18)
                 : const Icon(Icons.chevron_right, size: 18, color: Color(0xFFB9BEDA)),
           ),
         if (!lesson.isCompleted) ...[

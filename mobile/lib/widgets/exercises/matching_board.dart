@@ -178,9 +178,9 @@ class _MatchingProgressHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          const Icon(Icons.link_rounded, size: 18, color: AppColors.primary),
+          Icon(Icons.link_rounded, size: 18, color: AppColors.primary),
           const SizedBox(width: 6),
-          Text('$matched/$total', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+          Text('$matched/$total', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
           const Spacer(),
           if (mistakes > 0)
             Container(
@@ -188,7 +188,7 @@ class _MatchingProgressHeader extends StatelessWidget {
               decoration: BoxDecoration(color: AppColors.dangerLight, borderRadius: BorderRadius.circular(AppShapes.pillRadius)),
               child: Text(
                 tr('Ошибок: {0}', [mistakes]),
-                style: const TextStyle(fontSize: 13, color: AppColors.danger, fontWeight: FontWeight.w700),
+                style: TextStyle(fontSize: 13, color: AppColors.danger, fontWeight: FontWeight.w700),
               ),
             ),
         ],
@@ -309,7 +309,7 @@ class _MatchCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (isMatched) ...[
-                const Icon(Icons.check_rounded, size: 16, color: AppColors.success),
+                Icon(Icons.check_rounded, size: 16, color: AppColors.success),
                 const SizedBox(width: 4),
               ],
               Flexible(

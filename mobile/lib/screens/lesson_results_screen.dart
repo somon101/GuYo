@@ -95,7 +95,7 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTi
                   Center(
                     child: Text(
                       tr('Урок {0}', [lesson.number]),
-                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -202,7 +202,7 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTi
                   if (!allLearned)
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(false),
-                      child: Text(tr('Закончить'), style: const TextStyle(color: AppColors.secondaryText)),
+                      child: Text(tr('Закончить'), style: TextStyle(color: AppColors.secondaryText)),
                     ),
                 ],
               );
@@ -243,7 +243,7 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(left: 4),
-        child: Text(text, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+        child: Text(text, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
       );
 }
 
@@ -359,7 +359,7 @@ class _ScoreOrbit extends StatelessWidget {
                         child: Center(
                           child: Text(
                             '${(satellites[i].percent * _fill(slot(i).$1 + 0.05, slot(i).$2 + 0.2)).round()}',
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                           ),
                         ),
                       ),
@@ -379,7 +379,7 @@ class _ScoreOrbit extends StatelessWidget {
                         children: [
                           Text(
                             '${(value * centreFill).round()}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 40,
                               height: 1,
                               fontWeight: FontWeight.w800,
@@ -387,8 +387,8 @@ class _ScoreOrbit extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 3),
-                          Text('/ 100', style: const TextStyle(fontSize: 12, color: AppColors.secondaryText)),
-                          Text(caption, style: const TextStyle(fontSize: 10.5, color: AppColors.secondaryText)),
+                          Text('/ 100', style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+                          Text(caption, style: TextStyle(fontSize: 10.5, color: AppColors.secondaryText)),
                         ],
                       ),
                     ),
@@ -600,7 +600,7 @@ class _OutcomeCard extends StatelessWidget {
               ),
               child: Text(
                 tr('+{0} очков', [scoreGained!]),
-                style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.success),
+                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.success),
               ),
             ),
           const Spacer(),
@@ -609,12 +609,12 @@ class _OutcomeCard extends StatelessWidget {
             children: [
               Text(
                 allLearned ? tr('Урок пройден') : tr('Почти готово'),
-                style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
               ),
               const SizedBox(height: 2),
               Text(
                 tr('Закреплено {0} из {1}', [learnedCount, total]),
-                style: const TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
+                style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
               ),
             ],
           ),
@@ -695,7 +695,7 @@ class _MetricTile extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
+                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
                 ),
               ),
             ],
@@ -709,10 +709,10 @@ class _MetricTile extends StatelessWidget {
                 children: [
                   TextSpan(
                     text: value,
-                    style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                   ),
                   if (suffix != null)
-                    TextSpan(text: ' $suffix', style: const TextStyle(fontSize: 13, color: AppColors.secondaryText)),
+                    TextSpan(text: ' $suffix', style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
                 ],
               ),
             ),
@@ -774,7 +774,7 @@ class _ExerciseTile extends StatelessWidget {
             lessonExerciseLabels[stat.exerciseKey] ?? stat.exerciseKey,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
           ),
           const SizedBox(height: 6),
           Text.rich(
@@ -782,9 +782,9 @@ class _ExerciseTile extends StatelessWidget {
               children: [
                 TextSpan(
                   text: '${stat.correct}',
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                 ),
-                TextSpan(text: ' / ${stat.total}', style: const TextStyle(fontSize: 13, color: AppColors.secondaryText)),
+                TextSpan(text: ' / ${stat.total}', style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
               ],
             ),
           ),
@@ -802,7 +802,7 @@ class _ExerciseTile extends StatelessWidget {
 /// (see the class docstring); only the bar is drawn here.
 class _WordProgressRow extends StatelessWidget {
   Widget? _trailing() {
-    final check = word.isLearned ? const Icon(Icons.check_circle, color: AppColors.success, size: 18) : null;
+    final check = word.isLearned ? Icon(Icons.check_circle, color: AppColors.success, size: 18) : null;
     final g = gained;
     if (g == null || g == 0) return check;
     return Row(

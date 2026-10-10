@@ -78,7 +78,7 @@ class IosSection extends StatelessWidget {
                 Expanded(
                   child: Text(
                     header!.toUpperCase(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12.5,
                       letterSpacing: 0.4,
                       fontWeight: FontWeight.w600,
@@ -93,7 +93,7 @@ class IosSection extends StatelessWidget {
                     onPressed: onAction,
                     child: Text(
                       actionLabel!,
-                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.primary),
+                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.primary),
                     ),
                   ),
               ],
@@ -162,12 +162,12 @@ class IosCheckRow extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
                     ),
                     if (subtitle != null && subtitle!.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
-                        child: Text(subtitle!, style: const TextStyle(fontSize: 13.5, color: AppColors.secondaryText)),
+                        child: Text(subtitle!, style: TextStyle(fontSize: 13.5, color: AppColors.secondaryText)),
                       ),
                   ],
                 ),
@@ -219,8 +219,8 @@ class IosSearchField extends StatelessWidget {
       placeholder: placeholder,
       backgroundColor: Colors.white,
       borderRadius: BorderRadius.circular(12),
-      style: const TextStyle(fontSize: 16, color: AppColors.primaryDark),
-      placeholderStyle: const TextStyle(fontSize: 16, color: AppColors.muted),
+      style: TextStyle(fontSize: 16, color: AppColors.primaryDark),
+      placeholderStyle: TextStyle(fontSize: 16, color: AppColors.muted),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
     );
   }

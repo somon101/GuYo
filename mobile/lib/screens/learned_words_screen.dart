@@ -251,11 +251,11 @@ class _SearchField extends StatelessWidget {
     return TextField(
       controller: controller,
       onChanged: onChanged,
-      style: const TextStyle(fontSize: 14, color: AppColors.primaryDark),
+      style: TextStyle(fontSize: 14, color: AppColors.primaryDark),
       decoration: InputDecoration(
         hintText: tr('Поиск слов...'),
-        hintStyle: const TextStyle(fontSize: 14, color: AppColors.secondaryText),
-        prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.secondaryText),
+        hintStyle: TextStyle(fontSize: 14, color: AppColors.secondaryText),
+        prefixIcon: Icon(Icons.search, size: 20, color: AppColors.secondaryText),
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(vertical: 12),
         filled: true,
@@ -331,18 +331,18 @@ class _FilterRow extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.folder_outlined, size: 16, color: AppColors.primary),
+                  Icon(Icons.folder_outlined, size: 16, color: AppColors.primary),
                   const SizedBox(width: 6),
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 150),
                     child: Text(
                       _currentCategoryLabel(),
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Icon(Icons.keyboard_arrow_down, size: 18, color: AppColors.secondaryText),
+                  Icon(Icons.keyboard_arrow_down, size: 18, color: AppColors.secondaryText),
                 ],
               ),
             ),
@@ -470,9 +470,9 @@ class _CategoryHeader extends StatelessWidget {
                         height: 40,
                         fit: BoxFit.contain,
                         fallbackBuilder: () =>
-                            const Icon(Icons.folder_outlined, color: AppColors.primary, size: 20),
+                            Icon(Icons.folder_outlined, color: AppColors.primary, size: 20),
                       )
-                    : const Icon(Icons.folder_outlined, color: AppColors.primary, size: 20),
+                    : Icon(Icons.folder_outlined, color: AppColors.primary, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -481,13 +481,13 @@ class _CategoryHeader extends StatelessWidget {
                   children: [
                     Text(
                       category.categoryName,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       '$shownCount ${_wordWord(shownCount)}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                      style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
                     ),
                   ],
                 ),
@@ -539,7 +539,7 @@ class _PhrasesLink extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             children: [
-              const Icon(Icons.chat_bubble_outline, size: 20, color: AppColors.primary),
+              Icon(Icons.chat_bubble_outline, size: 20, color: AppColors.primary),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -547,7 +547,7 @@ class _PhrasesLink extends StatelessWidget {
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
                 ),
               ),
-              const Icon(Icons.chevron_right, size: 18, color: AppColors.primary),
+              Icon(Icons.chevron_right, size: 18, color: AppColors.primary),
             ],
           ),
         ),

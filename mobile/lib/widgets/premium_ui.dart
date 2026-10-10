@@ -123,7 +123,7 @@ class LessonQuotaCardState extends State<LessonQuotaCard> {
           const SizedBox(width: 12),
           Expanded(child: status.isPremium && quota.isUnlimited ? _premiumText(status) : _counterText(quota)),
           const SizedBox(width: 8),
-          if (!status.isPremium) const PremiumBadge() else const Icon(Icons.chevron_right, color: AppColors.muted),
+          if (!status.isPremium) const PremiumBadge() else Icon(Icons.chevron_right, color: AppColors.muted),
         ],
       ),
     );
@@ -142,7 +142,7 @@ class LessonQuotaCardState extends State<LessonQuotaCard> {
         const SizedBox(height: 2),
         Text(
           until == null ? 'GuYo Premium' : tr('GuYo Premium до {0}', [formatPremiumDate(until)]),
-          style: const TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
+          style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
         ),
       ],
     );
@@ -187,7 +187,7 @@ class LessonQuotaCardState extends State<LessonQuotaCard> {
       children: [
         Text(
           title,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
         ),
         const SizedBox(height: 6),
         ClipRRect(
@@ -220,7 +220,7 @@ Future<void> showLessonLimitDialog(BuildContext context, String message) {
   return showDialog<void>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      icon: const Icon(Icons.hourglass_bottom_rounded, color: AppColors.primary),
+      icon: Icon(Icons.hourglass_bottom_rounded, color: AppColors.primary),
       title: Text(tr('Лимит уроков')),
       content: Text(message),
       actions: [

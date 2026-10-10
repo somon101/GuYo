@@ -113,7 +113,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     const SizedBox(height: 8),
                   ],
                   if (error != null)
-                    Text(error!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+                    Text(error!, style: TextStyle(color: AppColors.danger, fontSize: 13)),
                 ],
               ),
               actions: [
@@ -150,13 +150,13 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Text(
                 title,
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
               ),
             ),
             for (final o in options)
               ListTile(
                 title: Text(o.label),
-                trailing: o.code == selected ? const Icon(Icons.check_rounded, color: AppColors.primary) : null,
+                trailing: o.code == selected ? Icon(Icons.check_rounded, color: AppColors.primary) : null,
                 onTap: () => Navigator.of(sheetContext).pop(o.code),
               ),
             const SizedBox(height: 8),
@@ -239,9 +239,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         elevation: 0,
         title: Text(
           tr('Настройки'),
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
         ),
-        iconTheme: const IconThemeData(color: AppColors.primaryDark),
+        iconTheme: IconThemeData(color: AppColors.primaryDark),
       ),
       body: SafeArea(
         child: ListView(
@@ -318,7 +318,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
                 'ID: ${_profile.publicId}',
-                style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
               ),
             ),
             const SizedBox(height: 24),
@@ -373,7 +373,7 @@ class _Section extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
           child: Text(
             title.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.4,
@@ -391,7 +391,7 @@ class _Section extends StatelessWidget {
           child: Column(
             children: [
               for (var i = 0; i < rows.length; i++) ...[
-                if (i > 0) const Divider(height: 1, indent: 50, color: AppColors.cardBorder),
+                if (i > 0) Divider(height: 1, indent: 50, color: AppColors.cardBorder),
                 rows[i],
               ],
             ],
@@ -427,7 +427,7 @@ class _Row extends StatelessWidget {
               const SizedBox(width: 14),
               Text(
                 label,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -436,14 +436,14 @@ class _Row extends StatelessWidget {
                   textAlign: TextAlign.right,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 14, color: AppColors.secondaryText),
+                  style: TextStyle(fontSize: 14, color: AppColors.secondaryText),
                 ),
               ),
               const SizedBox(width: 4),
               if (onTap != null)
-                const Icon(Icons.chevron_right_rounded, color: AppColors.muted)
+                Icon(Icons.chevron_right_rounded, color: AppColors.muted)
               else
-                const Icon(Icons.lock_outline_rounded, size: 16, color: AppColors.muted),
+                Icon(Icons.lock_outline_rounded, size: 16, color: AppColors.muted),
             ],
           ),
         ),

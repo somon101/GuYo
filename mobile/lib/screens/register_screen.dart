@@ -286,7 +286,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 children: [
                   IconButton(
                     onPressed: _isSubmitting ? null : _goBack,
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.primaryDark),
+                    icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppColors.primaryDark),
                   ),
                   Expanded(
                     child: _StepDots(total: _steps.length, current: _step),
@@ -488,11 +488,11 @@ class _StepScaffold extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.primaryDark, letterSpacing: -0.4),
+            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.primaryDark, letterSpacing: -0.4),
           ),
           if (subtitle != null) ...[
             const SizedBox(height: 4),
-            Text(subtitle!, style: const TextStyle(fontSize: 14.5, color: AppColors.secondaryText)),
+            Text(subtitle!, style: TextStyle(fontSize: 14.5, color: AppColors.secondaryText)),
           ],
           const SizedBox(height: 24),
           child,
@@ -538,7 +538,7 @@ class _LanguageStep extends StatelessWidget {
               Text(
                 error!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.secondaryText),
+                style: TextStyle(color: AppColors.secondaryText),
               ),
               const SizedBox(height: 12),
               FilledButton(onPressed: onRetry, child: Text(tr('Повторить'))),
@@ -784,7 +784,7 @@ class _FormFieldState extends State<_FormField> {
           padding: const EdgeInsets.only(left: 4, bottom: 6),
           child: Text(
             widget.label,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondaryText),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondaryText),
           ),
         ),
         TextField(
@@ -796,10 +796,10 @@ class _FormFieldState extends State<_FormField> {
           textCapitalization: widget.capitalize ? TextCapitalization.words : TextCapitalization.none,
           textInputAction: TextInputAction.next,
           onChanged: (_) => widget.onChanged(),
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
           decoration: InputDecoration(
             hintText: widget.hint,
-            hintStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.muted),
+            hintStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.muted),
             filled: true,
             fillColor: Colors.white,
             isDense: true,
@@ -829,7 +829,7 @@ class _FormFieldState extends State<_FormField> {
             padding: const EdgeInsets.only(left: 4, top: 5),
             child: Text(
               widget.error!,
-              style: const TextStyle(fontSize: 12.5, color: AppColors.danger, fontWeight: FontWeight.w600),
+              style: TextStyle(fontSize: 12.5, color: AppColors.danger, fontWeight: FontWeight.w600),
             ),
           ),
       ],
@@ -871,7 +871,7 @@ class _ChoiceStep extends StatelessWidget {
           if (subtitle != null) ...[
             Align(
               alignment: Alignment.centerLeft,
-              child: Text(subtitle!, style: const TextStyle(fontSize: 14, color: AppColors.secondaryText)),
+              child: Text(subtitle!, style: TextStyle(fontSize: 14, color: AppColors.secondaryText)),
             ),
             const SizedBox(height: 12),
           ],
@@ -899,7 +899,7 @@ class _ErrorBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(color: AppColors.dangerLight, borderRadius: BorderRadius.circular(AppShapes.rowRadius)),
-      child: Text(message, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+      child: Text(message, style: TextStyle(color: AppColors.danger, fontSize: 13)),
     );
   }
 }

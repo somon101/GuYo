@@ -113,7 +113,7 @@ class _SeasonQuestsScreenState extends State<SeasonQuestsScreen> {
           tr('Квесты'),
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
         ),
-        iconTheme: const IconThemeData(color: AppColors.primaryDark),
+        iconTheme: IconThemeData(color: AppColors.primaryDark),
       ),
       body: SafeArea(
         child: RefreshIndicator(onRefresh: _load, child: _buildBody()),
@@ -201,7 +201,7 @@ class _SeasonBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: AppColors.bannerGradient,
@@ -230,7 +230,7 @@ class _SeasonBanner extends StatelessWidget {
                         ),
                         child: Text(
                           season.name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                             color: AppColors.primaryDark,
@@ -360,14 +360,14 @@ class _QuestRow extends StatelessWidget {
               children: [
                 Text(
                   quest.name,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: const TextStyle(fontSize: 11.5, color: AppColors.secondaryText),
+                  style: TextStyle(fontSize: 11.5, color: AppColors.secondaryText),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -389,9 +389,9 @@ class _QuestRow extends StatelessWidget {
               RewardBadge(points: quest.rewardPoints),
               const SizedBox(height: 6),
               if (done)
-                const Icon(Icons.check_circle_rounded, size: 20, color: AppColors.success)
+                Icon(Icons.check_circle_rounded, size: 20, color: AppColors.success)
               else if (canAttempt)
-                const Icon(Icons.chevron_right, size: 20, color: AppColors.muted)
+                Icon(Icons.chevron_right, size: 20, color: AppColors.muted)
               else
                 const SizedBox(height: 20),
             ],

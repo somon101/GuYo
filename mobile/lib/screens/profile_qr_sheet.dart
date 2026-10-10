@@ -61,11 +61,11 @@ class _ProfileQrSheet extends StatelessWidget {
                               name.isEmpty ? profile.login : name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                              style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                             ),
                             Text(
                               '@${profile.login}',
-                              style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                              style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
                             ),
                           ],
                         ),
@@ -73,7 +73,7 @@ class _ProfileQrSheet extends StatelessWidget {
                       IconButton(
                         tooltip: tr('Закрыть'),
                         onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close_rounded, color: AppColors.secondaryText),
+                        icon: Icon(Icons.close_rounded, color: AppColors.secondaryText),
                       ),
                     ],
                   ),
@@ -97,8 +97,8 @@ class _ProfileQrSheet extends StatelessWidget {
                           padding: EdgeInsets.zero,
                           // High correction keeps it scannable under the logo.
                           errorCorrectionLevel: QrErrorCorrectLevel.H,
-                          eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: AppColors.primaryDark),
-                          dataModuleStyle: const QrDataModuleStyle(
+                          eyeStyle: QrEyeStyle(eyeShape: QrEyeShape.square, color: AppColors.primaryDark),
+                          dataModuleStyle: QrDataModuleStyle(
                             dataModuleShape: QrDataModuleShape.square,
                             color: AppColors.primaryDark,
                           ),
@@ -137,7 +137,7 @@ class _ProfileQrSheet extends StatelessWidget {
                           children: [
                             Text(
                               'ID: $id',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: 0.6,
@@ -145,7 +145,7 @@ class _ProfileQrSheet extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 6),
-                            const Icon(Icons.copy_rounded, size: 16, color: AppColors.secondaryText),
+                            Icon(Icons.copy_rounded, size: 16, color: AppColors.secondaryText),
                           ],
                         ),
                       ),
@@ -155,7 +155,7 @@ class _ProfileQrSheet extends StatelessWidget {
                   Text(
                     tr('Покажите код другу, чтобы он нашёл вас в GuYo'),
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 12.5, color: AppColors.muted),
+                    style: TextStyle(fontSize: 12.5, color: AppColors.muted),
                   ),
                 ],
               ),

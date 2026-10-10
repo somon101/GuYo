@@ -201,7 +201,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
         const SizedBox(height: 6),
         Text(
           lessons.isEmpty ? tr('Создайте первый урок, чтобы начать') : tr('Пройдено {0} из {1}', [completedCount, lessons.length]),
-          style: const TextStyle(color: AppColors.secondaryText, fontSize: 14),
+          style: TextStyle(color: AppColors.secondaryText, fontSize: 14),
         ),
         const SizedBox(height: 22),
         if (canCreateNext)
@@ -308,14 +308,14 @@ class _LessonCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               title,
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                             ),
                           ),
                           if (state == _LessonCardState.completed)
                             Container(
                               width: 24,
                               height: 24,
-                              decoration: const BoxDecoration(color: AppColors.successLight, shape: BoxShape.circle),
+                              decoration: BoxDecoration(color: AppColors.successLight, shape: BoxShape.circle),
                               child: Icon(Icons.check_rounded, color: AppColors.success, size: 15),
                             )
                           else if (state == _LessonCardState.unlocked)
@@ -342,12 +342,12 @@ class _LessonCard extends StatelessWidget {
                             const SizedBox(width: 8),
                             Text(
                               '${((progress ?? 1) * 100).round()}%',
-                              style: const TextStyle(fontSize: 13, color: AppColors.secondaryText, fontWeight: FontWeight.w600),
+                              style: TextStyle(fontSize: 13, color: AppColors.secondaryText, fontWeight: FontWeight.w600),
                             ),
                           ],
                         )
                       else
-                        Text(subtitle, style: const TextStyle(fontSize: 13, color: AppColors.secondaryText)),
+                        Text(subtitle, style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
                       if (isActive) ...[
                         const SizedBox(height: 10),
                         Row(
@@ -359,14 +359,14 @@ class _LessonCard extends StatelessWidget {
                                   value: progress ?? 0,
                                   minHeight: 6,
                                   backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                                  valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+                                  valueColor: AlwaysStoppedAnimation(AppColors.primary),
                                 ),
                               ),
                             ),
                             const SizedBox(width: 8),
                             Text(
                               '${(((progress ?? 0) * 100).round())}%',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
                             ),
                             if (onContinue != null) ...[
                               const SizedBox(width: 10),
@@ -439,7 +439,7 @@ class _LessonBadge extends StatelessWidget {
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
                 ),
-                child: const Icon(Icons.check_rounded, color: AppColors.success, size: 12),
+                child: Icon(Icons.check_rounded, color: AppColors.success, size: 12),
               ),
             ),
         ],

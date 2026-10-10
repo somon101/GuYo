@@ -220,7 +220,7 @@ class LeaderboardHeader extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
           ),
         ),
         if (onOpenFriends != null) ...[
@@ -241,7 +241,7 @@ class LeaderboardHeader extends StatelessWidget {
                 ),
                 child: Tooltip(
                   message: tr('Друзья'),
-                  child: const Icon(Icons.group_rounded, size: 20, color: AppColors.primary),
+                  child: Icon(Icons.group_rounded, size: 20, color: AppColors.primary),
                 ),
               ),
             ),
@@ -577,7 +577,7 @@ class _RankCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       tr('Топ-100 «{0}»', [rank.name]),
-                      style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                      style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -640,7 +640,7 @@ class LeaderboardRow extends StatelessWidget {
               child: Text(
                 '${entry.position}',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondaryText),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondaryText),
               ),
             ),
             const SizedBox(width: 6),
@@ -719,8 +719,8 @@ class _StatusChip extends StatelessWidget {
                 : Container(
                     width: 24,
                     height: 24,
-                    decoration: const BoxDecoration(color: AppColors.violetSurface, shape: BoxShape.circle),
-                    child: const Icon(Icons.add_rounded, size: 18, color: AppColors.primary),
+                    decoration: BoxDecoration(color: AppColors.violetSurface, shape: BoxShape.circle),
+                    child: Icon(Icons.add_rounded, size: 18, color: AppColors.primary),
                   ),
             const SizedBox(width: 6),
             Text(tr('Статус'), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
@@ -812,11 +812,11 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
           children: [
             for (final f in friends)
               ListTile(
-                leading: const Icon(Icons.person_rounded, color: AppColors.primary),
+                leading: Icon(Icons.person_rounded, color: AppColors.primary),
                 title: Text(f.login, style: const TextStyle(fontWeight: FontWeight.w700)),
                 subtitle: Text(tr('{0} очков', [f.totalPoints])),
                 trailing: IconButton(
-                  icon: const Icon(Icons.person_remove_rounded, color: AppColors.danger),
+                  icon: Icon(Icons.person_remove_rounded, color: AppColors.danger),
                   onPressed: () {
                     Navigator.of(ctx).pop();
                     _removeFriend(f);
@@ -897,13 +897,13 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
           widget.friends ? tr('Друзья') : tr('Глобальный рейтинг'),
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
         ),
-        iconTheme: const IconThemeData(color: AppColors.primaryDark),
+        iconTheme: IconThemeData(color: AppColors.primaryDark),
         actions: [
           if (widget.friends && (_board?.entries.length ?? 0) > 1)
             IconButton(
               key: const ValueKey('manage-friends'),
               tooltip: tr('Управлять друзьями'),
-              icon: const Icon(Icons.manage_accounts_rounded, color: AppColors.primary),
+              icon: Icon(Icons.manage_accounts_rounded, color: AppColors.primary),
               onPressed: _manageFriends,
             ),
         ],
@@ -948,12 +948,12 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
       return ListView(
         padding: const EdgeInsets.fromLTRB(32, 80, 32, 24),
         children: [
-          const Icon(Icons.group_add_rounded, size: 56, color: AppColors.muted),
+          Icon(Icons.group_add_rounded, size: 56, color: AppColors.muted),
           const SizedBox(height: 12),
           Text(
             tr('Добавьте друзей по их ID или QR-коду из профиля и соревнуйтесь вместе'),
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 15, color: AppColors.secondaryText),
+            style: TextStyle(fontSize: 15, color: AppColors.secondaryText),
           ),
         ],
       );

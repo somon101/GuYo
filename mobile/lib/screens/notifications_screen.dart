@@ -79,7 +79,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           tr('Уведомления'),
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
         ),
-        iconTheme: const IconThemeData(color: AppColors.primaryDark),
+        iconTheme: IconThemeData(color: AppColors.primaryDark),
       ),
       body: SafeArea(child: RefreshIndicator(onRefresh: _load, child: _buildBody())),
     );
@@ -174,20 +174,20 @@ class _NotificationCard extends StatelessWidget {
                 if (title != null && title.isNotEmpty) ...[
                   Text(
                     title,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                   ),
                   const SizedBox(height: 4),
                 ],
                 Text(
                   notification.body,
-                  style: const TextStyle(fontSize: 14, color: AppColors.primaryDark, height: 1.35),
+                  style: TextStyle(fontSize: 14, color: AppColors.primaryDark, height: 1.35),
                 ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
                     Text(
                       formatNotificationMoment(notification.createdAt),
-                      style: const TextStyle(fontSize: 11.5, color: AppColors.secondaryText),
+                      style: TextStyle(fontSize: 11.5, color: AppColors.secondaryText),
                     ),
                     if (isNew) ...[
                       const SizedBox(width: 8),

@@ -96,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 20),
                 const RoundIconChip(icon: Icons.auto_stories_rounded, size: 64),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'GuYo',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
@@ -129,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 12),
                         Text(
                           _error!,
-                          style: const TextStyle(color: AppColors.danger, fontSize: 13, fontWeight: FontWeight.w600),
+                          style: TextStyle(color: AppColors.danger, fontSize: 13, fontWeight: FontWeight.w600),
                         ),
                       ],
                       const SizedBox(height: 18),
@@ -165,7 +165,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 13),
                       backgroundColor: Colors.white,
                       foregroundColor: AppColors.primaryDark,
-                      side: const BorderSide(color: AppColors.cardBorder),
+                      side: BorderSide(color: AppColors.cardBorder),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppShapes.rowRadius)),
                     ),
                   ),
@@ -212,7 +212,7 @@ class _LoginField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
         ),
         const SizedBox(height: 6),
         TextField(

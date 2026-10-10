@@ -64,16 +64,16 @@ class _PointsTodaySheetState extends State<_PointsTodaySheet> {
                         children: [
                           Text(
                             '+${widget.total}',
-                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                           ),
-                          Text(tr('очков сегодня'), style: const TextStyle(fontSize: 13, color: AppColors.secondaryText)),
+                          Text(tr('очков сегодня'), style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
                         ],
                       ),
                     ),
                     IconButton(
                       tooltip: tr('Закрыть'),
                       onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close_rounded, color: AppColors.secondaryText),
+                      icon: Icon(Icons.close_rounded, color: AppColors.secondaryText),
                     ),
                   ],
                 ),
@@ -108,7 +108,7 @@ class _PointsTodaySheetState extends State<_PointsTodaySheet> {
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 14),
                 child: Text(
                   tr('История хранится только за сегодня'),
-                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                  style: TextStyle(fontSize: 12, color: AppColors.muted),
                 ),
               ),
             ],
@@ -141,14 +141,14 @@ class _PointsTodaySheetState extends State<_PointsTodaySheet> {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
                 ),
                 const SizedBox(height: 1),
                 Text(
                   [if (item.word != null) item.word!, _time(item.at)].join(' · '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                  style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
                 ),
               ],
             ),
@@ -176,7 +176,7 @@ class _PointsTodaySheetState extends State<_PointsTodaySheet> {
           children: [
             Icon(icon, color: AppColors.muted, size: 30),
             const SizedBox(height: 10),
-            Text(text, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: AppColors.secondaryText)),
+            Text(text, textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: AppColors.secondaryText)),
           ],
         ),
       );

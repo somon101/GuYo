@@ -192,7 +192,7 @@ class _RankNode extends StatelessWidget {
                           child: Container(
                             padding: const EdgeInsets.all(2),
                             decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
-                            child: const Icon(Icons.check_circle, color: AppColors.success, size: 18),
+                            child: Icon(Icons.check_circle, color: AppColors.success, size: 18),
                           ),
                         ),
                       if (status == _RankStatus.future)
@@ -275,13 +275,13 @@ class _RankCard extends StatelessWidget {
                   ),
                 )
               else if (status == _RankStatus.passed)
-                const Icon(Icons.check_circle, color: AppColors.success, size: 18)
+                Icon(Icons.check_circle, color: AppColors.success, size: 18)
               else
                 const Icon(Icons.lock_outline, color: Color(0xFFB9BEDA), size: 16),
             ],
           ),
           const SizedBox(height: 3),
-          Text(_pointsRangeLabel(), style: const TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+          Text(_pointsRangeLabel(), style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
           if (isCurrent && rank.maxPoints != null) ...[
             const SizedBox(height: 10),
             ClipRRect(
@@ -296,13 +296,13 @@ class _RankCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               tr('Осталось {0} очков до следующего уровня', [rank.maxPoints! + 1 - totalPoints]),
-              style: const TextStyle(fontSize: 11, color: AppColors.secondaryText),
+              style: TextStyle(fontSize: 11, color: AppColors.secondaryText),
             ),
           ] else if (isFuture) ...[
             const SizedBox(height: 4),
             Text(
               tr('Нужно ещё {0} очков', [rank.minPoints - totalPoints]),
-              style: const TextStyle(fontSize: 11, color: AppColors.secondaryText, fontWeight: FontWeight.w600),
+              style: TextStyle(fontSize: 11, color: AppColors.secondaryText, fontWeight: FontWeight.w600),
             ),
           ],
         ],
@@ -336,7 +336,7 @@ class _SeasonHistoryRow extends StatelessWidget {
           Expanded(
             child: Text(
               entry.seasonName,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -348,7 +348,7 @@ class _SeasonHistoryRow extends StatelessWidget {
           ],
           Text(
             '${entry.points}',
-            style: const TextStyle(fontSize: 13, color: AppColors.secondaryText, fontWeight: FontWeight.w700),
+            style: TextStyle(fontSize: 13, color: AppColors.secondaryText, fontWeight: FontWeight.w700),
           ),
         ],
       ),

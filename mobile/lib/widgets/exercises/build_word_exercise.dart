@@ -166,7 +166,7 @@ class _BuildWordExerciseState extends State<BuildWordExercise> {
                     Flexible(
                       child: Text(
                         item.translation,
-                        style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                        style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -317,7 +317,7 @@ class _LetterButton extends StatelessWidget {
             BoxShadow(color: Color(0x14101B63), offset: Offset(0, 3), blurRadius: 8),
           ],
         ),
-        child: Text(letter, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w600, color: AppColors.primaryDark)),
+        child: Text(letter, style: TextStyle(fontSize: 21, fontWeight: FontWeight.w600, color: AppColors.primaryDark)),
       ),
     );
   }

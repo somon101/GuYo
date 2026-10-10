@@ -150,7 +150,7 @@ class _StatusHeader extends StatelessWidget {
               children: [
                 Text(
                   status.isPremium ? tr('Premium активен') : tr('Учитесь без ограничений'),
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                 ),
                 const SizedBox(height: 3),
                 Text(
@@ -237,9 +237,9 @@ class _BenefitRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
+                Text(title, style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
                 const SizedBox(height: 2),
-                Text(subtitle, style: const TextStyle(fontSize: 13, color: AppColors.secondaryText)),
+                Text(subtitle, style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
               ],
             ),
           ),
@@ -262,7 +262,7 @@ class _HowToPay extends StatelessWidget {
         children: [
           Text(
             status.isPremium ? tr('Продлить Premium') : tr('Как подключить'),
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
           ),
           if (status.priceText.isNotEmpty) ...[
             const SizedBox(height: 10),
@@ -276,7 +276,7 @@ class _HowToPay extends StatelessWidget {
             status.paymentInstructions.isNotEmpty
                 ? status.paymentInstructions
                 : tr('Способ оплаты скоро появится здесь.'),
-            style: const TextStyle(fontSize: 14, height: 1.4, color: AppColors.primaryDark),
+            style: TextStyle(fontSize: 14, height: 1.4, color: AppColors.primaryDark),
           ),
           const SizedBox(height: 14),
           Container(
@@ -294,7 +294,7 @@ class _HowToPay extends StatelessWidget {
                       Text(tr('Ваш ID'), style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
                       Text(
                         id,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.5,
@@ -321,7 +321,7 @@ class _HowToPay extends StatelessWidget {
           Text(
             tr('Укажите ID в комментарии к переводу. После проверки оплаты Premium ') +
                 tr('{0}, и вам придёт уведомление.', [status.isPremium ? tr('продлится') : tr('включится')]),
-            style: const TextStyle(fontSize: 12.5, height: 1.35, color: AppColors.secondaryText),
+            style: TextStyle(fontSize: 12.5, height: 1.35, color: AppColors.secondaryText),
           ),
         ],
       ),

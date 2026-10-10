@@ -122,9 +122,9 @@ class _StatsScreenState extends State<StatsScreen> {
         surfaceTintColor: Colors.transparent,
         title: Text(
           tr('Статистика'),
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
         ),
-        iconTheme: const IconThemeData(color: AppColors.primaryDark),
+        iconTheme: IconThemeData(color: AppColors.primaryDark),
       ),
       body: _failed
           ? Center(
@@ -191,7 +191,7 @@ BoxDecoration _card() => BoxDecoration(
 Widget _title(String text, {Widget? trailing}) => Row(
       children: [
         Expanded(
-          child: Text(text, style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+          child: Text(text, style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
         ),
         ?trailing,
       ],
@@ -305,12 +305,12 @@ class _AccuracyCard extends StatelessWidget {
                     children: [
                       Text(
                         '${(stats.accuracy * t).round()}%',
-                        style: const TextStyle(fontSize: 34, height: 1, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                        style: TextStyle(fontSize: 34, height: 1, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         tr('{0} ответов', [stats.totalAnswers]),
-                        style: const TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
+                        style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
                       ),
                     ],
                   ),
@@ -401,7 +401,7 @@ class _ExerciseChip extends StatelessWidget {
                   ),
                   Text(
                     '${(percent * t).round()}%',
-                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                   ),
                 ],
               ),
@@ -412,14 +412,14 @@ class _ExerciseChip extends StatelessWidget {
           if (!label.contains(' '))
             FittedBox(
               fit: BoxFit.scaleDown,
-              child: Text(label, style: const TextStyle(fontSize: 10.5, color: AppColors.secondaryText)),
+              child: Text(label, style: TextStyle(fontSize: 10.5, color: AppColors.secondaryText)),
             )
           else
             Text(
               label,
               textAlign: TextAlign.center,
               maxLines: 2,
-              style: const TextStyle(fontSize: 10.5, height: 1.2, color: AppColors.secondaryText),
+              style: TextStyle(fontSize: 10.5, height: 1.2, color: AppColors.secondaryText),
             ),
         ],
       ),
@@ -487,12 +487,12 @@ class _PointsCard extends StatelessWidget {
             children: [
               Text(
                 '${stats.pointsTotal}',
-                style: const TextStyle(fontSize: 30, height: 1, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                style: TextStyle(fontSize: 30, height: 1, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
               ),
               const SizedBox(width: 6),
               Padding(
                 padding: const EdgeInsets.only(bottom: 3),
-                child: Text(tr('очков'), style: const TextStyle(fontSize: 13, color: AppColors.secondaryText)),
+                child: Text(tr('очков'), style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
               ),
               const Spacer(),
               if (diff != null)
@@ -550,7 +550,7 @@ class _PointsCard extends StatelessWidget {
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(days == 7 ? 10 : 4),
                                       gradient: i == stats.chart.length - 1
-                                          ? const LinearGradient(
+                                          ? LinearGradient(
                                               begin: Alignment.topCenter,
                                               end: Alignment.bottomCenter,
                                               colors: [Color(0xFF8C93F0), AppColors.primary],
@@ -657,7 +657,7 @@ class _TotalsGrid extends StatelessWidget {
                 Expanded(
                   child: Text(
                     tr('Чаще всего вы занимаетесь: {0}', [weekdays[stats.bestWeekday!]]),
-                    style: const TextStyle(fontSize: 13.5, color: AppColors.primaryDark, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 13.5, color: AppColors.primaryDark, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -697,13 +697,13 @@ class _Tile extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               value,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
             ),
           ),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primaryDark)),
+          Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primaryDark)),
           if (note != null)
-            Text(note!, style: const TextStyle(fontSize: 12, color: AppColors.success, fontWeight: FontWeight.w700)),
+            Text(note!, style: TextStyle(fontSize: 12, color: AppColors.success, fontWeight: FontWeight.w700)),
         ],
       ),
     );
@@ -746,7 +746,7 @@ class _ActivityCard extends StatelessWidget {
                       child: Center(
                         child: Text(
                           letters[d],
-                          style: const TextStyle(fontSize: 10.5, color: AppColors.secondaryText),
+                          style: TextStyle(fontSize: 10.5, color: AppColors.secondaryText),
                         ),
                       ),
                     ),
@@ -838,8 +838,8 @@ class _StreakPill extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
-                Text(label, style: const TextStyle(fontSize: 11.5, color: AppColors.secondaryText)),
+                Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+                Text(label, style: TextStyle(fontSize: 11.5, color: AppColors.secondaryText)),
               ],
             ),
           ),
@@ -905,7 +905,7 @@ class _HardWordsCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             tr('В них вы ошибаетесь чаще всего'),
-            style: const TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
+            style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
           ),
           const SizedBox(height: 10),
           for (final w in stats.hardWords)
@@ -919,7 +919,7 @@ class _HardWordsCard extends StatelessWidget {
                       w.word,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
                     ),
                   ),
                   Expanded(
@@ -938,7 +938,7 @@ class _HardWordsCard extends StatelessWidget {
                   const SizedBox(width: 10),
                   Text(
                     tr('{0} ош.', [w.mistakes]),
-                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.danger),
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.danger),
                   ),
                 ],
               ),

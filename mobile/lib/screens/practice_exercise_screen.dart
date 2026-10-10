@@ -207,9 +207,9 @@ class _PracticeProgressHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          const Icon(Icons.check_circle_rounded, size: 18, color: AppColors.success),
+          Icon(Icons.check_circle_rounded, size: 18, color: AppColors.success),
           const SizedBox(width: 6),
-          Text('$correctCount', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+          Text('$correctCount', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
           const SizedBox(width: 14),
           Container(width: 1, height: 20, color: AppColors.cardBorder),
           const Spacer(),
@@ -218,7 +218,7 @@ class _PracticeProgressHeader extends StatelessWidget {
             decoration: BoxDecoration(color: AppColors.violetSurface, borderRadius: BorderRadius.circular(AppShapes.pillRadius)),
             child: Text(
               tr('Слово {0} из {1}', [position, total]),
-              style: const TextStyle(fontSize: 13, color: AppColors.primaryDark, fontWeight: FontWeight.w700),
+              style: TextStyle(fontSize: 13, color: AppColors.primaryDark, fontWeight: FontWeight.w700),
             ),
           ),
         ],

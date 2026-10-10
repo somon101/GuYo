@@ -71,7 +71,7 @@ class _StartupGateState extends State<_StartupGate> {
       future: _isLoggedInFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(
+          return Scaffold(
             backgroundColor: AppColors.canvas,
             body: SafeArea(child: SkeletonDashboard()),
           );

@@ -104,7 +104,7 @@ class ReviewDueCardState extends State<ReviewDueCard> {
                   decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
                   child: Text(
                     tr('Начать'),
-                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                   ),
                 ),
               ],

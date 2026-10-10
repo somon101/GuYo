@@ -107,7 +107,7 @@ class _StatusPickerSheetState extends State<_StatusPickerSheet> {
                     child: _error == null
                         ? const CircularProgressIndicator()
                         : Column(mainAxisSize: MainAxisSize.min, children: [
-                            Text(_error!, style: const TextStyle(color: AppColors.secondaryText)),
+                            Text(_error!, style: TextStyle(color: AppColors.secondaryText)),
                             const SizedBox(height: 10),
                             FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
                           ]),
@@ -130,7 +130,7 @@ class _StatusPickerSheetState extends State<_StatusPickerSheet> {
                                   key: const ValueKey('status-emoji-none'),
                                   selected: _emojiId == null,
                                   onTap: () => setState(() => _emojiId = null),
-                                  child: const Icon(Icons.block_rounded, color: AppColors.muted, size: 26),
+                                  child: Icon(Icons.block_rounded, color: AppColors.muted, size: 26),
                                 ),
                                 for (final e in options.emojis)
                                   _EmojiTile(
@@ -217,7 +217,7 @@ class _Preview extends StatelessWidget {
           ],
           if (text != null)
             Flexible(
-              child: Text(text!, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
+              child: Text(text!, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
             ),
           if (empty) Text(tr('Статус не выбран'), style: TextStyle(fontSize: 15, color: AppColors.secondaryText)),
         ],

@@ -331,7 +331,7 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
               if (keys.isNotEmpty)
                 Text(
                   tr('Урок {0} · упражнение {1} из {2}', [widget.lessonNumber, _index + 1, keys.length]),
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
+                  style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
                 ),
             ],
           ),

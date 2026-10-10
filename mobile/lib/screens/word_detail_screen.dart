@@ -74,7 +74,7 @@ class WordDetailScreen extends StatelessWidget {
                       Expanded(
                         child: Text(
                           word,
-                          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                          style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                         ),
                       ),
                       if (wordAudioUrl != null && wordAudioUrl!.isNotEmpty)
@@ -86,7 +86,7 @@ class WordDetailScreen extends StatelessWidget {
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(
                         transcription!,
-                        style: const TextStyle(fontSize: 15, color: AppColors.secondaryText),
+                        style: TextStyle(fontSize: 15, color: AppColors.secondaryText),
                       ),
                     ),
                   const SizedBox(height: 14),
@@ -97,7 +97,7 @@ class WordDetailScreen extends StatelessWidget {
                       Expanded(
                         child: Text(
                           translation ?? '—',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
                         ),
                       ),
                       if (translationAudioUrl != null && translationAudioUrl!.isNotEmpty)
@@ -128,7 +128,7 @@ class WordDetailScreen extends StatelessWidget {
                   if (score != null)
                     Text(
                       '$score / 100',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondaryText),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondaryText),
                     ),
                 ],
               ),

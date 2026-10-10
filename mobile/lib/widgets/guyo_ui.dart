@@ -130,17 +130,20 @@ class QuestProgressBar extends StatelessWidget {
   final int value;
   final int target;
   final String? label;
-  final Color color;
+  final Color? _color;
   final double height;
 
-  const QuestProgressBar({
+  /// The fill; the primary colour unless given.
+  Color get color => _color ?? AppColors.primary;
+
+  QuestProgressBar({
     super.key,
     required this.value,
     required this.target,
     this.label,
-    this.color = AppColors.primary,
+    Color? color,
     this.height = 8,
-  });
+  }) : _color = color;
 
   @override
   Widget build(BuildContext context) {
@@ -164,7 +167,7 @@ class QuestProgressBar extends StatelessWidget {
           const SizedBox(width: 10),
           Text(
             label!,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.secondaryText),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.secondaryText),
           ),
         ],
       ],
@@ -178,15 +181,18 @@ class StatColumn extends StatelessWidget {
   final IconData icon;
   final String value;
   final String label;
-  final Color iconColor;
+  final Color? _iconColor;
 
-  const StatColumn({
+  /// The icon's colour; the primary colour unless given.
+  Color get iconColor => _iconColor ?? AppColors.primary;
+
+  StatColumn({
     super.key,
     required this.icon,
     required this.value,
     required this.label,
-    this.iconColor = AppColors.primary,
-  });
+    Color? iconColor,
+  }) : _iconColor = iconColor;
 
   @override
   Widget build(BuildContext context) {
@@ -197,7 +203,7 @@ class StatColumn extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           value,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -205,7 +211,7 @@ class StatColumn extends StatelessWidget {
         Text(
           label,
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 11, color: AppColors.secondaryText),
+          style: TextStyle(fontSize: 11, color: AppColors.secondaryText),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
@@ -239,7 +245,7 @@ class SectionHeader extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
           ),
         ),
         if (trailing != null)
@@ -251,7 +257,7 @@ class SectionHeader extends StatelessWidget {
             ),
             child: Text(
               trailing!,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
             ),
           ),
       ],

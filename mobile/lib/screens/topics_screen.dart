@@ -69,7 +69,7 @@ class _TopicsScreenState extends State<TopicsScreen> {
           tr('Мои темы'),
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
         ),
-        iconTheme: const IconThemeData(color: AppColors.primaryDark),
+        iconTheme: IconThemeData(color: AppColors.primaryDark),
         actions: [
           if (widget.firstTime)
             TextButton(
@@ -100,7 +100,7 @@ class _TopicsScreenState extends State<TopicsScreen> {
             ],
             if (_error != null) ...[
               const SizedBox(height: 4),
-              Text(_error!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+              Text(_error!, style: TextStyle(color: AppColors.danger, fontSize: 13)),
             ],
             const SizedBox(height: 14),
             SizedBox(

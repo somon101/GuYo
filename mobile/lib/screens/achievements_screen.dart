@@ -65,7 +65,7 @@ class AchievementsScreen extends StatelessWidget {
           tr('Достижения'),
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
         ),
-        iconTheme: const IconThemeData(color: AppColors.primaryDark),
+        iconTheme: IconThemeData(color: AppColors.primaryDark),
       ),
       body: SafeArea(
         child: achievements.isEmpty
@@ -122,7 +122,7 @@ class _Summary extends StatelessWidget {
         children: [
           Text(
             tr('Получено {0} из {1}', [earned, total]),
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
           ),
           const SizedBox(height: 10),
           ClipRRect(
@@ -131,7 +131,7 @@ class _Summary extends StatelessWidget {
               value: total == 0 ? 0 : earned / total,
               minHeight: 8,
               backgroundColor: AppColors.progressTrack,
-              valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+              valueColor: AlwaysStoppedAnimation(AppColors.primary),
             ),
           ),
         ],
@@ -181,7 +181,7 @@ class _Badge extends StatelessWidget {
               textAlign: TextAlign.center,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11.5, height: 1.25, color: AppColors.secondaryText),
+              style: TextStyle(fontSize: 11.5, height: 1.25, color: AppColors.secondaryText),
             ),
           ],
         ),
@@ -274,13 +274,13 @@ void _showDetails(BuildContext context, UserAchievement achievement) {
             Text(
               locked ? tr('Скрытое достижение') : achievement.title!,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
             ),
             const SizedBox(height: 6),
             Text(
               locked ? tr('Условие откроется, когда вы получите это достижение') : achievement.description!,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, color: AppColors.secondaryText),
+              style: TextStyle(fontSize: 14, color: AppColors.secondaryText),
             ),
             const SizedBox(height: 18),
             if (earned && achievement.earnedAt != null)
@@ -292,7 +292,7 @@ void _showDetails(BuildContext context, UserAchievement achievement) {
                 ),
                 child: Text(
                   tr('Получено {0}', [_formatEarnedDate(achievement.earnedAt!)]),
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
                 ),
               )
             else if (!earned && !locked) ...[
@@ -304,13 +304,13 @@ void _showDetails(BuildContext context, UserAchievement achievement) {
                       : ((achievement.currentValue ?? 0) / achievement.conditionValue!).clamp(0.0, 1.0),
                   minHeight: 8,
                   backgroundColor: AppColors.progressTrack,
-                  valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+                  valueColor: AlwaysStoppedAnimation(AppColors.primary),
                 ),
               ),
               const SizedBox(height: 6),
               Text(
                 tr('{0} из {1}', [achievement.currentValue ?? 0, achievement.conditionValue]),
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondaryText),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondaryText),
               ),
             ],
           ],

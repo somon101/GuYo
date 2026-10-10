@@ -558,14 +558,14 @@ class _ProfileHeader extends StatelessWidget {
               UserNameText(
                 profile.login,
                 isPremium: profile.isPremium,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
               ),
               const SizedBox(height: 2),
               // The 9-digit account number -- `id` is internal and never
               // shown.
               Text(
                 'ID: ${profile.publicId}',
-                style: const TextStyle(fontSize: 14, color: AppColors.secondaryText),
+                style: TextStyle(fontSize: 14, color: AppColors.secondaryText),
               ),
               if (profile.isPremium) ...[
                 const SizedBox(height: 6),
@@ -592,7 +592,7 @@ class _ProfileHeader extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: const Color(0xFFEDEFF7)),
               ),
-              child: const Icon(Icons.insights_rounded, color: AppColors.primary, size: 22),
+              child: Icon(Icons.insights_rounded, color: AppColors.primary, size: 22),
             ),
           ),
         ),
@@ -612,7 +612,7 @@ class _ProfileHeader extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: const Color(0xFFEDEFF7)),
               ),
-              child: const Icon(Icons.qr_code_rounded, color: AppColors.primary, size: 22),
+              child: Icon(Icons.qr_code_rounded, color: AppColors.primary, size: 22),
             ),
           ),
         ),
@@ -758,7 +758,7 @@ class _StatCard extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     label,
-                    style: const TextStyle(fontSize: 11, color: AppColors.secondaryText, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 11, color: AppColors.secondaryText, fontWeight: FontWeight.w600),
                     maxLines: 1,
                   ),
                 ),
@@ -767,7 +767,7 @@ class _StatCard extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     value,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                     maxLines: 1,
                   ),
                 ),
@@ -830,7 +830,7 @@ class _RankCard extends StatelessWidget {
                       children: [
                         Text(
                           rank?.name ?? tr('Без ранга'),
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
@@ -839,7 +839,7 @@ class _RankCard extends StatelessWidget {
                             Flexible(
                               child: Text(
                                 _positionLabel(rating),
-                                style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                                style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -856,7 +856,7 @@ class _RankCard extends StatelessWidget {
                             const SizedBox(width: 5),
                             Text(
                               tr('{0} очков', [rating.totalPoints]),
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
                             ),
                           ],
                         ),
@@ -874,7 +874,7 @@ class _RankCard extends StatelessWidget {
                     value: progress,
                     minHeight: 7,
                     backgroundColor: const Color(0xFFEDEFF7),
-                    valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+                    valueColor: AlwaysStoppedAnimation(AppColors.primary),
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -887,7 +887,7 @@ class _RankCard extends StatelessWidget {
                     const Spacer(),
                     Text(
                       '${rating.totalPoints} / ${nextRank.minPoints}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.secondaryText, fontWeight: FontWeight.w700),
+                      style: TextStyle(fontSize: 12, color: AppColors.secondaryText, fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
@@ -956,7 +956,7 @@ class _AchievementsCard extends StatelessWidget {
                   if (achievements.isNotEmpty)
                     Text(
                       '$earnedCount / ${achievements.length}',
-                      style: const TextStyle(fontSize: 13, color: AppColors.secondaryText, fontWeight: FontWeight.w700),
+                      style: TextStyle(fontSize: 13, color: AppColors.secondaryText, fontWeight: FontWeight.w700),
                     ),
                   const SizedBox(width: 2),
                   const Icon(Icons.chevron_right, color: Color(0xFFB9BEDA), size: 22),
@@ -1054,7 +1054,7 @@ class _PhotoActionSheet extends StatelessWidget {
                   child: Center(
                     child: Text(
                       tr('Отмена'),
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary),
                     ),
                   ),
                 ),

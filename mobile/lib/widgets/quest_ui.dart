@@ -100,12 +100,12 @@ class SeasonTimeline extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.schedule_rounded, size: 15, color: AppColors.primary),
+              Icon(Icons.schedule_rounded, size: 15, color: AppColors.primary),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   daysLeftLabel(left),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
                     color: AppColors.primaryDark,
@@ -131,7 +131,7 @@ class SeasonTimeline extends StatelessWidget {
     );
   }
 
-  static const TextStyle _rangeStyle = TextStyle(
+  static TextStyle _rangeStyle = TextStyle(
     fontSize: 11,
     fontWeight: FontWeight.w600,
     color: AppColors.secondaryText,
@@ -152,7 +152,7 @@ class _OpenEndedNote extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.schedule_rounded, size: 15, color: AppColors.secondaryText),
+          Icon(Icons.schedule_rounded, size: 15, color: AppColors.secondaryText),
           const SizedBox(width: 6),
           Expanded(
             child: Text(

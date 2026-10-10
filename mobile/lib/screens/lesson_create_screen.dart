@@ -218,7 +218,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
         if (_submitError != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Text(_submitError!, style: const TextStyle(color: AppColors.danger), textAlign: TextAlign.center),
+            child: Text(_submitError!, style: TextStyle(color: AppColors.danger), textAlign: TextAlign.center),
           ),
       ],
     );
@@ -250,7 +250,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
                           '$_randomCount',
                           key: const ValueKey('lesson-random-count'),
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 48,
                             fontWeight: FontWeight.w700,
                             color: AppColors.primaryDark,
@@ -267,7 +267,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
                   const SizedBox(height: 6),
                   Text(
                     tr('слов в уроке · доступно {0}', [_candidates.length]),
-                    style: const TextStyle(fontSize: 13.5, color: AppColors.secondaryText),
+                    style: TextStyle(fontSize: 13.5, color: AppColors.secondaryText),
                   ),
                   if (presets.isNotEmpty) ...[
                     const SizedBox(height: 16),
@@ -372,7 +372,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
   Widget _buildSubmitBar() {
     final canSubmit = !_isSubmitting && (_mode == _Mode.random ? _randomCount >= 1 : _selectedIds.isNotEmpty);
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.canvas,
         border: Border(top: BorderSide(color: AppColors.cardBorder)),
       ),

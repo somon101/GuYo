@@ -130,7 +130,7 @@ class _BannerCardState extends State<_BannerCard> with SingleTickerProviderState
                                 title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 15,
                                   color: AppColors.primaryDark,
