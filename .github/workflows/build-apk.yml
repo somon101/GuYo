@@ -61,6 +61,7 @@ jobs:
         run: |
           if [ -z "$API_BASE_URL" ]; then echo "::error::Set the repository variable API_BASE_URL"; exit 1; fi
           flutter build apk --release --dart-define=API_BASE_URL="$API_BASE_URL"
+          flutter build apk --release --split-per-abi --dart-define=API_BASE_URL="$API_BASE_URL"
           keytool -printcert -jarfile build/app/outputs/flutter-apk/app-release.apk | grep -E "SHA1|SHA-1" || true
 
       - uses: actions/upload-artifact@v4
@@ -73,8 +74,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp build/app/outputs/flutter-apk/app-release.apk GuYo.apk
+          cp build/app/outputs/flutter-apk/app-release.apk GuYo-all.apk
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk GuYo.apk
           gh release delete apk-latest --yes --cleanup-tag 2>/dev/null || true
-          gh release create apk-latest GuYo.apk --title "GuYo APK" --prerelease \
+          gh release create apk-latest GuYo.apk GuYo-all.apk --title "GuYo APK" --prerelease \
             --notes "Latest build from ${GITHUB_REF_NAME} (${GITHUB_SHA::7}). Download GuYo.apk and install it." \
             --target "${GITHUB_SHA}"
