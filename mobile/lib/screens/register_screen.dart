@@ -383,7 +383,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           title: tr('На каком языке показывать перевод слов?'),
           subtitle: tr('Это можно изменить в настройках.'),
           keyPrefix: 'translation',
-          options: const [(code: 'tg', label: 'Тоҷикӣ'), (code: 'uz', label: 'Oʻzbekcha')],
+          options: const [(code: 'tg', label: 'Тоҷикӣ'), (code: 'uz', label: 'Oʻzbekcha'), (code: 'en', label: 'English')],
           selected: _translationLanguage,
           onSelect: (code) => setState(() => _translationLanguage = code),
         );

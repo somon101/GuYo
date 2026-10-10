@@ -7,7 +7,7 @@ translations it always had). Set once per request from the logged-in user
 (app/core/deps.py); admin and anonymous requests keep the Tajik default,
 so Admin Web sees exactly what it always did.
 
-With Uzbek there is no fallback: a word or phrase without an Uzbek
+With Uzbek or English (English: a Russian-interface choice only) there is no fallback: a word or phrase without an Uzbek
 translation is hidden from the pools new content is drawn from. Words
 already frozen into a lesson keep a Tajik fallback, so an older lesson
 never breaks mid-way.
@@ -29,12 +29,17 @@ def begin_request() -> None:
     _language.set({"lang": "tg"})
 
 
+# What a Russian-interface user may read translations in. Tajik is the
+# full set; every other language hides what has no translation in it.
+READING_LANGUAGES = ("tg", "uz", "en")
+
+
 def reading_language(ui_language: str | None, translation_language: str | None) -> str:
     """A Tajik or Uzbek interface reads its own language; a Russian one
     reads the translation language the user picked."""
     if ui_language in ("tg", "uz"):
         return ui_language
-    return "uz" if translation_language == "uz" else "tg"
+    return translation_language if translation_language in READING_LANGUAGES else "tg"
 
 
 def set_content_language_for(ui_language: str | None, translation_language: str | None = None) -> None:
@@ -68,18 +73,21 @@ def has_translation(word) -> bool:
 def only_translated(words: list) -> list:
     """Words readable in the current language; everything under Tajik, as
     before, as long as the word has any translation at all."""
-    if content_language() != "uz":
+    if content_language() == "tg":
         return words
     return [w for w in words if has_translation(w)]
 
 
 def phrase_translation(phrase) -> str | None:
-    if content_language() == "uz":
+    lang = content_language()
+    if lang == "uz":
         return phrase.translation_uz
+    if lang == "en":
+        return phrase.translation_en
     return phrase.translation_tg
 
 
 def only_translated_phrases(phrases: list) -> list:
-    if content_language() != "uz":
+    if content_language() == "tg":
         return phrases
-    return [p for p in phrases if p.translation_uz]
+    return [p for p in phrases if phrase_translation(p)]

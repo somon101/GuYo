@@ -28,7 +28,8 @@ class PhraseOut(BaseModel):
     transcription: str | None
     translation_tg: str
     translation_uz: str | None = None
-    # The translation in the reader's language (Uzbek or Tajik).
+    translation_en: str | None = None
+    # The translation in the reader's language (Tajik, Uzbek or English).
     translation: str | None = None
     original_audio_url: str | None
     translation_audio_url: str | None

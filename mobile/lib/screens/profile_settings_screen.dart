@@ -33,6 +33,7 @@ const Color _logoutRed = Color(0xFFE5484D);
 const List<({String code, String label})> _translationLanguages = [
   (code: 'tg', label: 'Тоҷикӣ'),
   (code: 'uz', label: 'Oʻzbekcha'),
+  (code: 'en', label: 'English'),
 ];
 
 class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {

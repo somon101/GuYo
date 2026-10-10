@@ -89,10 +89,13 @@ export function WordEditPage() {
       audio: freshStage(t.audio_url),
       isNew: false,
     }));
-    // Uzbek is always offered: an empty field until someone (or the AI
-    // translator) fills it. Uzbek-interface learners only see translated words.
-    if (!rows.some((r) => r.language === "uz")) {
-      rows.push({ language: "uz", originalText: "", text: "", audio: freshStage(null), isNew: true });
+    // Uzbek and English are always offered: an empty field until someone
+    // (or the AI translator) fills it. Learners reading either only see
+    // words translated into it.
+    for (const lang of ["uz", "en"] as const) {
+      if (!rows.some((r) => r.language === lang)) {
+        rows.push({ language: lang, originalText: "", text: "", audio: freshStage(null), isNew: true });
+      }
     }
     setTranslations(rows);
   }

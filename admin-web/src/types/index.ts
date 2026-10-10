@@ -117,6 +117,7 @@ export interface Phrase {
   transcription: string | null;
   translation_tg: string;
   translation_uz: string | null;
+  translation_en: string | null;
   original_audio_url: string | null;
   translation_audio_url: string | null;
   created_at: string;

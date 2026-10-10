@@ -331,7 +331,7 @@ def list_learned_words(
     elif category_id is not None:
         query = query.filter(Word.category_id == category_id)
 
-    rows = [(w, score) for w, score in query.order_by(Word.id).all() if content_language() != "uz" or has_translation(w)]
+    rows = [(w, score) for w, score in query.order_by(Word.id).all() if content_language() == "tg" or has_translation(w)]
 
     if not include_in_progress:
         return [word_to_out(w) for w, _score in rows]

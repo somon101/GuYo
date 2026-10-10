@@ -368,6 +368,7 @@ export interface UpdatePhraseInput {
   removeTranscription?: boolean;
   translationTg?: string;
   translationUz?: string;
+  translationEn?: string;
   categoryId?: number;
   removeCategory?: boolean;
   originalAudio?: File | null;
@@ -383,6 +384,7 @@ export async function updatePhrase(phraseId: number, input: UpdatePhraseInput): 
   if (input.removeTranscription) form.append("remove_transcription", "true");
   if (input.translationTg !== undefined) form.append("translation_tg", input.translationTg);
   if (input.translationUz !== undefined) form.append("translation_uz", input.translationUz);
+  if (input.translationEn !== undefined) form.append("translation_en", input.translationEn);
   if (input.categoryId !== undefined) form.append("category_id", String(input.categoryId));
   if (input.removeCategory) form.append("remove_category", "true");
   if (input.originalAudio) form.append("original_audio", input.originalAudio);
@@ -1282,9 +1284,12 @@ export interface TranslationState {
   done: number;
   failed: number;
   error: string | null;
-  missing_words: number;
-  missing_phrases: number;
+  /** The language of the last (or current) run. */
+  language: TranslatorLanguage;
+  missing: Record<TranslatorLanguage, { words: number; phrases: number }>;
 }
+
+export type TranslatorLanguage = "uz" | "en";
 
 export async function getTranslationState(): Promise<TranslationState> {
   const { data } = await api.get("/admin/translation");
@@ -1296,8 +1301,8 @@ export async function setTranslationKey(apiKey: string): Promise<TranslationStat
   return data;
 }
 
-export async function startTranslation(): Promise<TranslationState> {
-  const { data } = await api.post("/admin/translation/start");
+export async function startTranslation(language: TranslatorLanguage): Promise<TranslationState> {
+  const { data } = await api.post("/admin/translation/start", { language });
   return data;
 }
 

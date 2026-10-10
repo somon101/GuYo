@@ -47,6 +47,7 @@ export function PhraseEditPage() {
   const [transcription, setTranscription] = useState("");
   const [translationTg, setTranslationTg] = useState("");
   const [translationUz, setTranslationUz] = useState("");
+  const [translationEn, setTranslationEn] = useState("");
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [originalAudio, setOriginalAudio] = useState<FileStage>(freshStage(null));
   const [translationAudio, setTranslationAudio] = useState<FileStage>(freshStage(null));
@@ -60,6 +61,7 @@ export function PhraseEditPage() {
     setTranscription(p.transcription ?? "");
     setTranslationTg(p.translation_tg);
     setTranslationUz(p.translation_uz ?? "");
+    setTranslationEn(p.translation_en ?? "");
     setCategoryId(p.category_id);
     setOriginalAudio(freshStage(p.original_audio_url));
     setTranslationAudio(freshStage(p.translation_audio_url));
@@ -96,9 +98,10 @@ export function PhraseEditPage() {
     if (transcription.trim() !== (phrase.transcription ?? "")) return true;
     if (translationTg.trim() !== phrase.translation_tg) return true;
     if (translationUz.trim() !== (phrase.translation_uz ?? "")) return true;
+    if (translationEn.trim() !== (phrase.translation_en ?? "")) return true;
     if (categoryId !== phrase.category_id) return true;
     return stageChanged(originalAudio) || stageChanged(translationAudio);
-  }, [phrase, original, transcription, translationTg, translationUz, categoryId, originalAudio, translationAudio]);
+  }, [phrase, original, transcription, translationTg, translationUz, translationEn, categoryId, originalAudio, translationAudio]);
 
   async function handleSave() {
     if (!phrase) return;
@@ -110,6 +113,7 @@ export function PhraseEditPage() {
       if (original.trim() !== phrase.original) patch.original = original.trim();
       if (translationTg.trim() !== phrase.translation_tg) patch.translationTg = translationTg.trim();
       if (translationUz.trim() !== (phrase.translation_uz ?? "")) patch.translationUz = translationUz.trim();
+      if (translationEn.trim() !== (phrase.translation_en ?? "")) patch.translationEn = translationEn.trim();
 
       const trimmedTranscription = transcription.trim();
       if (trimmedTranscription !== (phrase.transcription ?? "")) {
@@ -210,6 +214,14 @@ export function PhraseEditPage() {
             value={translationUz}
             placeholder="Пока нет перевода"
             onChange={(e) => setTranslationUz(e.target.value)}
+          />
+        </Field>
+        <Field label="Перевод (English)" hint="необязательно; без него фразу не видят те, кто выбрал английский перевод">
+          <input
+            className="w-full field px-3 py-2 text-sm"
+            value={translationEn}
+            placeholder="Пока нет перевода"
+            onChange={(e) => setTranslationEn(e.target.value)}
           />
         </Field>
         <Field label="Транскрипция" hint="необязательно">

@@ -59,6 +59,8 @@ class Phrase(Base):
     # Empty until an admin or the AI translator fills it; Uzbek-interface
     # users only see phrases that have it.
     translation_uz: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    # Same for English (a Russian-interface translation language).
+    translation_en: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
     # Storage keys (relative paths), not raw bytes -- see app/core/storage.py.
     original_audio_key: Mapped[str | None] = mapped_column(Text, nullable=True)
