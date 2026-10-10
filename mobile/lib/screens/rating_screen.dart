@@ -1,4 +1,5 @@
 import '../l10n/l10n.dart';
+import 'scan_friend_screen.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../services/session_cache.dart';
@@ -768,6 +769,12 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
           ),
         ),
         actions: [
+          TextButton.icon(
+            key: const ValueKey('scan-friend'),
+            onPressed: () => Navigator.of(ctx).pop(-1),
+            icon: const Icon(Icons.qr_code_scanner_rounded),
+            label: Text(tr('Сканировать')),
+          ),
           TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text(tr('Отмена'))),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(int.tryParse(controller.text.replaceAll(RegExp(r'\D'), ''))),
@@ -777,6 +784,11 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
       ),
     );
     if (id == null || !mounted) return;
+    if (id == -1) {
+      final added = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => const ScanFriendScreen()));
+      if (added == true) _load();
+      return;
+    }
     try {
       await ApiClient.instance.addFriend(id);
       if (!mounted) return;
