@@ -1,0 +1,46 @@
+name: Database backup
+
+# Every night a compressed dump of the production database is kept as a
+# workflow artifact for 14 days (Actions -> this workflow -> a run ->
+# Artifacts). Needs the repository secret DATABASE_URL (the same
+# postgresql://... address the backend uses). Restore with:
+#   gunzip -c guyo-YYYY-MM-DD.sql.gz | psql "$DATABASE_URL"
+on:
+  schedule:
+    - cron: "17 21 * * *" # 02:17 in Dushanbe (UTC+5)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Dump the database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # pg_dump must be at least the server's major version.
+          PG_MAJOR: ${{ vars.PG_MAJOR || '17' }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Add the repository secret DATABASE_URL first"; exit 1
+          fi
+          # The backend's SQLAlchemy form is postgresql+psycopg://; pg_dump wants plain postgresql://.
+          URL="${DATABASE_URL/postgresql+psycopg:/postgresql:}"
+          URL="${URL/postgres:\/\//postgresql://}"
+          FILE="guyo-$(date -u +%F).sql.gz"
+          docker run --rm -e URL="$URL" "postgres:${PG_MAJOR}" \
+            sh -c 'pg_dump --no-owner --no-privileges "$URL"' | gzip -9 > "$FILE"
+          # A dump this small means it failed (pg_dump's error went to the log above).
+          test "$(stat -c %s "$FILE")" -gt 1000
+          echo "FILE=$FILE" >> "$GITHUB_ENV"
+          ls -lh "$FILE"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.FILE }}
+          path: ${{ env.FILE }}
+          retention-days: 14
+          compression-level: 0
