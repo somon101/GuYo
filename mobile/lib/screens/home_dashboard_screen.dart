@@ -7,6 +7,7 @@ import '../models/quest.dart';
 import '../models/user_profile.dart';
 import '../theme/app_colors.dart';
 import 'points_today_sheet.dart';
+import '../widgets/review_due_card.dart';
 import '../theme/slogans.dart';
 import '../theme/time_of_day.dart';
 import '../widgets/premium_ui.dart';
@@ -68,6 +69,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   // by the source, never decided here.
   String? _slogan;
   final GlobalKey<LessonQuotaCardState> _quotaKey = GlobalKey<LessonQuotaCardState>();
+  final GlobalKey<ReviewDueCardState> _reviewKey = GlobalKey<ReviewDueCardState>();
 
   String get _cacheKey => 'home-${widget.dictionary.id}';
 
@@ -93,6 +95,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     });
     // The lesson counter loads itself; pull-to-refresh just asks it again.
     _quotaKey.currentState?.reload();
+    _reviewKey.currentState?.reload();
     try {
       final results = await Future.wait([
         ApiClient.instance.fetchSeasonQuestOverview(widget.dictionary.id),
@@ -152,6 +155,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         // own card, so a failure to load it never blocks the season block.
         LessonQuotaCard(key: _quotaKey),
         const SizedBox(height: 14),
+        // Words being forgotten right now; hides itself when none are.
+        ReviewDueCard(key: _reviewKey, dictionary: widget.dictionary),
         if (_isLoading)
           const Skeleton(
             child: Column(

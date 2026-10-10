@@ -701,6 +701,15 @@ class ApiClient {
     return list.map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  /// "Повторить сегодня": how many learned words are being forgotten, and
+  /// the most forgotten ones (GET .../practice/review-due).
+  Future<(int, List<int>)> fetchReviewDue(int dictionaryId) async {
+    final res = await http.get(_uri('/dictionaries/$dictionaryId/practice/review-due'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    final json = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    return (json['count'] as int, [for (final id in json['word_ids'] as List<dynamic>) id as int]);
+  }
+
   Future<BuildWordRound> fetchPracticeBuildWordRound(int dictionaryId, {List<int>? wordIds}) async {
     final uri = _uri('/dictionaries/$dictionaryId/practice/build-word');
     final res = await http.get(
