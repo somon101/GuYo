@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -68,3 +68,13 @@ jobs:
           name: guyo-apk
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
           retention-days: 14
+
+      - name: Publish as a plain APK (Releases -> GuYo APK)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk GuYo.apk
+          gh release delete apk-latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create apk-latest GuYo.apk --title "GuYo APK" --prerelease \
+            --notes "Latest build from ${GITHUB_REF_NAME} (${GITHUB_SHA::7}). Download GuYo.apk and install it." \
+            --target "${GITHUB_SHA}"
