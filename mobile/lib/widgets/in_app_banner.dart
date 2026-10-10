@@ -140,7 +140,7 @@ class _BannerCardState extends State<_BannerCard> with SingleTickerProviderState
                               widget.body,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 14, color: Color(0xFF3C3C43)),
+                              style: TextStyle(fontSize: 14, color: AppColors.secondaryText),
                             ),
                           ],
                         ),

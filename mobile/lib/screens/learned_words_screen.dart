@@ -1,4 +1,5 @@
 import '../l10n/l10n.dart';
+import '../widgets/guyo_ui.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
@@ -49,6 +50,18 @@ class _LearnedWordsScreenState extends State<LearnedWordsScreen> {
   @override
   void initState() {
     super.initState();
+    // Opens straight onto the last list kept on the device; _load() then
+    // refreshes it quietly.
+    final api = ApiClient.instance;
+    final words = api.cachedLearnedWords(widget.dictionary.id, includeInProgress: true);
+    final categories = api.cachedLearnedCategories(widget.dictionary.id, includeInProgress: true);
+    final levels = api.cachedWordLevels();
+    if (words != null && categories != null && levels != null) {
+      _words = words;
+      _categories = categories;
+      _levels = levels;
+      _isLoading = false;
+    }
     _load();
   }
 
@@ -60,10 +73,14 @@ class _LearnedWordsScreenState extends State<LearnedWordsScreen> {
 
   Future<void> _load() async {
     if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-      _loadError = null;
-    });
+    // With data already on screen the refresh stays invisible.
+    final quiet = !_isLoading && _loadError == null;
+    if (!quiet) {
+      setState(() {
+        _isLoading = true;
+        _loadError = null;
+      });
+    }
     try {
       final results = await Future.wait([
         ApiClient.instance.fetchLearnedWords(widget.dictionary.id, includeInProgress: true),
@@ -78,7 +95,7 @@ class _LearnedWordsScreenState extends State<LearnedWordsScreen> {
         _isLoading = false;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || quiet) return;
       setState(() {
         _isLoading = false;
         _loadError = tr('Не удалось загрузить слова');
@@ -124,7 +141,7 @@ class _LearnedWordsScreenState extends State<LearnedWordsScreen> {
     return Scaffold(
       // Near-white with the faintest blue cast, so the white cards and the
       // light-violet accents both read against it.
-      backgroundColor: const Color(0xFFFBFCFE),
+      backgroundColor: AppColors.canvas,
       appBar: AppBar(title: Text(tr('Мои слова'))),
       body: SafeArea(
         child: RefreshIndicator(onRefresh: _load, child: _buildBody()),
@@ -187,10 +204,17 @@ class _LearnedWordsScreenState extends State<LearnedWordsScreen> {
         _PhrasesLink(dictionary: widget.dictionary),
         const SizedBox(height: 12),
         if (groups.isEmpty)
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Text(tr('Пока нет слов'), textAlign: TextAlign.center, style: TextStyle(color: AppColors.secondaryText)),
-          )
+          _words.isEmpty
+              ? GuyoEmptyState(
+                  icon: Icons.menu_book_rounded,
+                  title: tr('Пока нет слов'),
+                  message: tr('Слова появятся здесь после первых уроков.'),
+                )
+              : GuyoEmptyState(
+                  icon: Icons.search_off_rounded,
+                  title: tr('Ничего не найдено'),
+                  message: tr('Попробуйте другой поиск или фильтр.'),
+                )
         else
           for (final category in groups) ...[
             Builder(
@@ -259,7 +283,7 @@ class _SearchField extends StatelessWidget {
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(vertical: 12),
         filled: true,
-        fillColor: const Color(0xFFF2F3FA),
+        fillColor: AppColors.violetSurface,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
       ),
     );

@@ -347,7 +347,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                 key: const ValueKey('profile-streak'),
                 icon: Icons.local_fire_department_rounded,
                 iconColor: const Color(0xFFFF7A29),
-                iconBackground: const Color(0xFFFFF0E6),
+                iconBackground: AppColors.tile(const Color(0xFFFFF0E6)),
                 leading: const AnimatedFire(size: 30),
                 label: tr('Серия'),
                 value: '${profile.currentStreakDays} ${_dayWord(profile.currentStreakDays)}',

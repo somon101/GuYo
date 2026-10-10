@@ -10,7 +10,8 @@ import '../models/dictionary.dart';
 import '../models/phrase.dart';
 import '../services/answer_sound.dart';
 import '../theme/app_colors.dart';
-import '../widgets/glass_backdrop.dart';
+import '../widgets/exercises/practice_round_complete.dart';
+import '../widgets/guyo_ui.dart';
 import '../widgets/skeleton.dart';
 
 const int _roundSize = 10;
@@ -207,13 +208,9 @@ class _BuildPhraseByEarScreenState extends State<BuildPhraseByEarScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: Text(tr('Собери фразу на слух')),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: GlassBackdrop(child: SafeArea(child: _buildBody())),
+      backgroundColor: AppColors.canvas,
+      appBar: AppBar(title: Text(tr('Собери фразу на слух')), backgroundColor: AppColors.canvas),
+      body: SafeArea(child: _buildBody()),
     );
   }
 
@@ -237,37 +234,24 @@ class _BuildPhraseByEarScreenState extends State<BuildPhraseByEarScreen> {
       );
     }
     if (_tasks.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.headphones_outlined, size: 48, color: Colors.indigo.shade300),
-              const SizedBox(height: 16),
-              Text(
-                tr('Пока недостаточно данных для практики'),
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                tr('Нужны доступные фразы из 2+ слов с озвучкой. Изучите больше слов, чтобы открыть их.'),
-                style: TextStyle(color: Colors.black54),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
+      return GuyoEmptyState(
+        icon: Icons.headphones_rounded,
+        title: tr('Пока недостаточно данных для практики'),
+        message: tr('Нужны фразы из 2+ слов с озвучкой. Изучите больше слов, чтобы открыть их.'),
       );
     }
 
     if (_index >= _tasks.length) {
-      return _RoundCompleteView(correctCount: _correctCount, total: _tasks.length, onPlayAgain: _load);
+      return PracticeRoundComplete(
+        correctCount: _correctCount,
+        total: _tasks.length,
+        onPlayAgain: _load,
+        onBack: () => Navigator.of(context).pop(),
+      );
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 90, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Column(
         children: [
           _ProgressHeader(current: _index + 1, total: _tasks.length, correctCount: _correctCount),
@@ -332,11 +316,11 @@ class _ProgressHeader extends StatelessWidget {
           children: [
             Text(
               tr('Фраза {0} из {1}', [current, total]),
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black54),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
             ),
             Row(
               children: [
-                const Icon(Icons.check_circle, size: 15, color: Colors.green),
+                Icon(Icons.check_circle, size: 15, color: AppColors.success),
                 const SizedBox(width: 4),
                 Text('$correctCount', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               ],
@@ -346,7 +330,7 @@ class _ProgressHeader extends StatelessWidget {
         const SizedBox(height: 8),
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: LinearProgressIndicator(value: current / total, minHeight: 6, backgroundColor: Colors.indigo.shade50),
+          child: LinearProgressIndicator(value: current / total, minHeight: 6, backgroundColor: AppColors.progressTrack),
         ),
       ],
     );
@@ -364,7 +348,7 @@ class _ListenCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withValues(alpha: 0.72),
+      color: AppColors.surface,
       borderRadius: BorderRadius.circular(20),
       elevation: 0,
       child: InkWell(
@@ -374,9 +358,9 @@ class _ListenCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.9), width: 1.2),
+            border: Border.all(color: AppColors.cardBorder, width: 1.2),
             boxShadow: [
-              BoxShadow(color: Colors.indigo.withValues(alpha: 0.08), blurRadius: 18, offset: const Offset(0, 8)),
+              BoxShadow(color: AppColors.primary.withValues(alpha: 0.08), blurRadius: 18, offset: const Offset(0, 8)),
             ],
           ),
           child: Row(
@@ -389,8 +373,8 @@ class _ListenCard extends StatelessWidget {
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
                     colors: isPlaying
-                        ? [Colors.indigo.shade300, Colors.indigo.shade500]
-                        : [Colors.indigo.shade400, Colors.indigo.shade700],
+                        ? [AppColors.primary.withValues(alpha: 0.75), AppColors.primary]
+                        : [AppColors.primary, AppColors.primary.withValues(alpha: 0.85)],
                   ),
                 ),
                 child: Icon(isPlaying ? Icons.graphic_eq : Icons.volume_up_rounded, color: Colors.white, size: 22),
@@ -399,10 +383,10 @@ class _ListenCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   tr('Прослушать ещё раз'),
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.black87),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
                 ),
               ),
-              Icon(Icons.replay_rounded, color: Colors.indigo.shade400, size: 20),
+              Icon(Icons.replay_rounded, color: AppColors.primary, size: 20),
             ],
           ),
         ),
@@ -434,16 +418,16 @@ class _AssembledArea extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 64),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.5),
+        color: AppColors.violetSurface.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.indigo.withValues(alpha: 0.15),
+          color: AppColors.primary.withValues(alpha: 0.15),
           width: 1.2,
         ),
       ),
       child: tiles.isEmpty
           ? Center(
-              child: Text(tr('Соберите фразу из слов ниже'), style: TextStyle(color: Colors.black38, fontSize: 13)),
+              child: Text(tr('Соберите фразу из слов ниже'), style: TextStyle(color: AppColors.muted, fontSize: 13)),
             )
           : Wrap(
               alignment: WrapAlignment.center,
@@ -478,22 +462,22 @@ class _WordChip extends StatelessWidget {
   Widget build(BuildContext context) {
     Color background;
     Color border;
-    Color textColor = Colors.black87;
+    Color textColor = AppColors.primaryDark;
     switch (state) {
       case _ChipState.normal:
-        background = Colors.white.withValues(alpha: 0.85);
-        border = Colors.indigo.withValues(alpha: 0.18);
+        background = AppColors.surface;
+        border = AppColors.primary.withValues(alpha: 0.18);
       case _ChipState.placed:
-        background = Colors.indigo.withValues(alpha: 0.1);
-        border = Colors.indigo.shade300;
+        background = AppColors.primary.withValues(alpha: 0.1);
+        border = AppColors.primary;
       case _ChipState.correct:
-        background = Colors.green.shade50;
-        border = Colors.green.shade400;
-        textColor = Colors.green.shade800;
+        background = AppColors.successLight;
+        border = AppColors.success;
+        textColor = AppColors.success;
       case _ChipState.incorrect:
-        background = Colors.red.shade50;
-        border = Colors.red.shade300;
-        textColor = Colors.red.shade800;
+        background = AppColors.dangerLight;
+        border = AppColors.danger;
+        textColor = AppColors.danger;
     }
 
     return AnimatedContainer(
@@ -527,70 +511,33 @@ class _ResultBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isCorrect ? Colors.green : Colors.red;
+    final color = isCorrect ? AppColors.success : AppColors.danger;
+    final tint = isCorrect ? AppColors.successLight : AppColors.dangerLight;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: color.shade50,
+        color: tint,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.shade200),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(isCorrect ? Icons.check_circle : Icons.cancel, color: color.shade600, size: 18),
+              Icon(isCorrect ? Icons.check_circle : Icons.cancel, color: color, size: 18),
               const SizedBox(width: 6),
               Text(
                 isCorrect ? tr('Правильно') : tr('Неправильный порядок'),
-                style: TextStyle(fontWeight: FontWeight.w700, color: color.shade800, fontSize: 14),
+                style: TextStyle(fontWeight: FontWeight.w700, color: color, fontSize: 14),
               ),
             ],
           ),
           const SizedBox(height: 4),
-          Text(translation, style: const TextStyle(fontSize: 13, color: Colors.black54), textAlign: TextAlign.center),
+          Text(translation, style: TextStyle(fontSize: 13, color: AppColors.secondaryText), textAlign: TextAlign.center),
         ],
       ),
     );
   }
 }
 
-class _RoundCompleteView extends StatelessWidget {
-  final int correctCount;
-  final int total;
-  final VoidCallback onPlayAgain;
-  const _RoundCompleteView({required this.correctCount, required this.total, required this.onPlayAgain});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Container(
-          padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.75),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.8)),
-            boxShadow: [
-              BoxShadow(color: Colors.indigo.withValues(alpha: 0.1), blurRadius: 24, offset: const Offset(0, 10)),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.emoji_events_outlined, color: AppColors.gold, size: 48),
-              const SizedBox(height: 12),
-              Text(tr('Практика завершена!'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              Text(tr('Правильно: {0} из {1}', [correctCount, total]), style: const TextStyle(color: Colors.black54)),
-              const SizedBox(height: 22),
-              FilledButton.icon(onPressed: onPlayAgain, icon: const Icon(Icons.refresh), label: Text(tr('Играть ещё раз'))),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

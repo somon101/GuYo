@@ -523,4 +523,13 @@ const Map<String, (String, String)> uiStrings = {
   'Нет доступа к камере': ('Ба камера дастрасӣ нест', 'Kameraga ruxsat yoʻq'),
   'Разрешите доступ к камере в настройках телефона или введите ID друга вручную.': ('Дар танзимоти телефон ба камера иҷозат диҳед ё ID-и дӯстро дастӣ ворид кунед.', 'Telefon sozlamalarida kameraga ruxsat bering yoki doʻst ID raqamini qoʻlda kiriting.'),
   'Пользователь с таким ID не найден': ('Корбар бо чунин ID ёфт нашуд', 'Bunday ID li foydalanuvchi topilmadi'),
+  'Нужны фразы из 2+ слов с озвучкой. Изучите больше слов, чтобы открыть их.': ('Ибораҳои 2+ калимагӣ бо овоз лозиманд. Барои кушодани онҳо калимаҳои бештар омӯзед.', 'Ovozli, 2+ soʻzli iboralar kerak. Ularni ochish uchun koʻproq soʻz oʻrganing.'),
+  'Пока нет доступных фраз': ('Ҳоло иборае дастрас нест', 'Hozircha mavjud iboralar yoʻq'),
+  'Фраза появится здесь, как только вы изучите все слова в ней.': ('Ибора ҳамин ки ҳамаи калимаҳояшро омӯхтед, дар ин ҷо пайдо мешавад.', 'Iboradagi barcha soʻzlarni oʻrganganingizdan soʻng u shu yerda paydo boʻladi.'),
+  'Слова появятся здесь после первых уроков.': ('Калимаҳо пас аз дарсҳои аввал дар ин ҷо пайдо мешаванд.', 'Soʻzlar birinchi darslardan keyin shu yerda paydo boʻladi.'),
+  'Попробуйте другой поиск или фильтр.': ('Ҷустуҷӯ ё филтри дигарро санҷед.', 'Boshqa qidiruv yoki filtrni sinab koʻring.'),
+  'Скоро здесь появятся награды за ваши успехи.': ('Ба наздикӣ дар ин ҷо мукофотҳо барои муваффақиятҳоятон пайдо мешаванд.', 'Tez orada bu yerda yutuqlaringiz uchun mukofotlar paydo boʻladi.'),
+  'Скоро здесь появятся языки для изучения.': ('Ба наздикӣ дар ин ҷо забонҳо барои омӯзиш пайдо мешаванд.', 'Tez orada bu yerda oʻrganish uchun tillar paydo boʻladi.'),
+  'Пока нет ранга': ('Ҳоло рутба нест', 'Hozircha unvon yoʻq'),
+  'Начните учить слова, чтобы попасть в рейтинг.': ('Барои ворид шудан ба рейтинг калимаҳо омӯзед.', 'Reytingga kirish uchun soʻz oʻrganishni boshlang.'),
 };

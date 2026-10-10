@@ -66,28 +66,10 @@ class PracticeEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const RoundIconChip(icon: Icons.auto_awesome_rounded, size: 56),
-            const SizedBox(height: 16),
-            Text(
-              tr('Пока недостаточно слов для практики'),
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              tr('Изучите больше слов в Уроках, чтобы открыть это упражнение здесь.'),
-              style: TextStyle(color: AppColors.secondaryText),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
+    return GuyoEmptyState(
+      icon: Icons.auto_awesome_rounded,
+      title: tr('Пока недостаточно слов для практики'),
+      message: tr('Изучите больше слов в Уроках, чтобы открыть это упражнение здесь.'),
     );
   }
 }

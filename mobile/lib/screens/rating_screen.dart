@@ -1,5 +1,6 @@
 import '../l10n/l10n.dart';
 import 'add_friend_sheet.dart';
+import '../widgets/guyo_ui.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../services/session_cache.dart';
@@ -154,19 +155,11 @@ class _RatingScreenState extends State<RatingScreen> {
         ),
         if (rank == null)
           Padding(
-            padding: const EdgeInsets.only(top: 24),
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(AppShapes.cardRadius),
-                border: Border.all(color: AppColors.cardBorder),
-              ),
-              child: Text(
-                tr('Пока нет ранга — начните учить слова, чтобы попасть в рейтинг'),
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.secondaryText),
-              ),
+            padding: const EdgeInsets.only(top: 12),
+            child: GuyoEmptyState(
+              icon: Icons.leaderboard_rounded,
+              title: tr('Пока нет ранга'),
+              message: tr('Начните учить слова, чтобы попасть в рейтинг.'),
             ),
           )
         else ...[

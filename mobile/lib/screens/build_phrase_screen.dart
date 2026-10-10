@@ -9,7 +9,8 @@ import '../models/phrase.dart';
 import '../models/word.dart';
 import '../services/answer_sound.dart';
 import '../theme/app_colors.dart';
-import '../widgets/glass_backdrop.dart';
+import '../widgets/exercises/practice_round_complete.dart';
+import '../widgets/guyo_ui.dart';
 import '../widgets/skeleton.dart';
 
 /// Max phrases per practice round -- a bite-sized session, not "grind
@@ -204,13 +205,9 @@ class _BuildPhraseScreenState extends State<BuildPhraseScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: Text(tr('Собери фразу')),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: GlassBackdrop(child: SafeArea(child: _buildBody())),
+      backgroundColor: AppColors.canvas,
+      appBar: AppBar(title: Text(tr('Собери фразу')), backgroundColor: AppColors.canvas),
+      body: SafeArea(child: _buildBody()),
     );
   }
 
@@ -234,37 +231,24 @@ class _BuildPhraseScreenState extends State<BuildPhraseScreen> {
       );
     }
     if (_tasks.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.auto_awesome_outlined, size: 48, color: Colors.indigo.shade300),
-              const SizedBox(height: 16),
-              Text(
-                tr('Пока недостаточно данных для практики'),
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                tr('Изучите больше слов, чтобы открыть фразы для тренировки.'),
-                style: TextStyle(color: Colors.black54),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
+      return GuyoEmptyState(
+        icon: Icons.auto_awesome_rounded,
+        title: tr('Пока недостаточно данных для практики'),
+        message: tr('Изучите больше слов, чтобы открыть фразы для тренировки.'),
       );
     }
 
     if (_index >= _tasks.length) {
-      return _RoundCompleteView(correctCount: _correctCount, total: _tasks.length, onPlayAgain: _load);
+      return PracticeRoundComplete(
+        correctCount: _correctCount,
+        total: _tasks.length,
+        onPlayAgain: _load,
+        onBack: () => Navigator.of(context).pop(),
+      );
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 90, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Column(
         children: [
           _ProgressHeader(current: _index + 1, total: _tasks.length, correctCount: _correctCount),
@@ -312,11 +296,11 @@ class _ProgressHeader extends StatelessWidget {
           children: [
             Text(
               tr('Фраза {0} из {1}', [current, total]),
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black54),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
             ),
             Row(
               children: [
-                const Icon(Icons.check_circle, size: 15, color: Colors.green),
+                Icon(Icons.check_circle, size: 15, color: AppColors.success),
                 const SizedBox(width: 4),
                 Text('$correctCount', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               ],
@@ -329,7 +313,7 @@ class _ProgressHeader extends StatelessWidget {
           child: LinearProgressIndicator(
             value: current / total,
             minHeight: 6,
-            backgroundColor: Colors.indigo.shade50,
+            backgroundColor: AppColors.progressTrack,
           ),
         ),
       ],
@@ -355,11 +339,11 @@ class _PhraseTaskCard extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.72),
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 1.2),
+            border: Border.all(color: AppColors.cardBorder, width: 1.2),
             boxShadow: [
-              BoxShadow(color: Colors.indigo.withValues(alpha: 0.08), blurRadius: 24, offset: const Offset(0, 10)),
+              BoxShadow(color: AppColors.primary.withValues(alpha: 0.08), blurRadius: 24, offset: const Offset(0, 10)),
             ],
           ),
           child: Column(
@@ -376,19 +360,19 @@ class _PhraseTaskCard extends StatelessWidget {
                     else
                       Text(
                         task.displayTokens[i],
-                        style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w600, color: Colors.black87),
+                        style: TextStyle(fontSize: 19, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
                       ),
                 ],
               ),
               const SizedBox(height: 16),
-              Container(height: 1, color: Colors.indigo.withValues(alpha: 0.08)),
+              Container(height: 1, color: AppColors.primary.withValues(alpha: 0.08)),
               const SizedBox(height: 14),
               // Deliberately no audio button here: the phrase's own
               // recording is of the FULL sentence, blanked word included --
               // playing it would just hand the player the answer.
               Text(
                 task.phrase.shownTranslation,
-                style: const TextStyle(fontSize: 15, color: Colors.black54),
+                style: TextStyle(fontSize: 15, color: AppColors.secondaryText),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -409,12 +393,12 @@ class _BlankToken extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.indigo.shade300, width: 1.5),
-        color: Colors.indigo.withValues(alpha: 0.06),
+        border: Border.all(color: AppColors.primary, width: 1.5),
+        color: AppColors.primary.withValues(alpha: 0.06),
       ),
-      child: const Text(
+      child: Text(
         '   ',
-        style: TextStyle(fontSize: 19, decoration: TextDecoration.underline, decorationColor: Colors.indigo),
+        style: TextStyle(fontSize: 19, decoration: TextDecoration.underline, decorationColor: AppColors.primary),
       ),
     );
   }
@@ -463,29 +447,29 @@ class _OptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color background = Colors.white.withValues(alpha: 0.65);
-    Color border = Colors.indigo.withValues(alpha: 0.12);
+    Color background = AppColors.surface;
+    Color border = AppColors.primary.withValues(alpha: 0.12);
     Widget? trailing;
-    Color textColor = Colors.black87;
+    Color textColor = AppColors.primaryDark;
 
     if (isRevealed) {
       if (isCorrectOption) {
-        background = Colors.green.shade50;
-        border = Colors.green.shade400;
-        textColor = Colors.green.shade800;
-        trailing = Icon(Icons.check_circle, color: Colors.green.shade600, size: 20);
+        background = AppColors.successLight;
+        border = AppColors.success;
+        textColor = AppColors.success;
+        trailing = Icon(Icons.check_circle, color: AppColors.success, size: 20);
       } else if (isSelected) {
-        background = Colors.red.shade50;
-        border = Colors.red.shade300;
-        textColor = Colors.red.shade800;
-        trailing = Icon(Icons.cancel, color: Colors.red.shade400, size: 20);
+        background = AppColors.dangerLight;
+        border = AppColors.danger;
+        textColor = AppColors.danger;
+        trailing = Icon(Icons.cancel, color: AppColors.danger, size: 20);
       } else {
-        background = Colors.white.withValues(alpha: 0.4);
-        textColor = Colors.black38;
+        background = AppColors.surface.withValues(alpha: 0.5);
+        textColor = AppColors.muted;
       }
     } else if (isSelected) {
-      background = Colors.indigo.withValues(alpha: 0.1);
-      border = Colors.indigo.shade300;
+      background = AppColors.primary.withValues(alpha: 0.1);
+      border = AppColors.primary;
     }
 
     return AnimatedContainer(
@@ -522,51 +506,3 @@ class _OptionTile extends StatelessWidget {
   }
 }
 
-class _RoundCompleteView extends StatelessWidget {
-  final int correctCount;
-  final int total;
-  final VoidCallback onPlayAgain;
-  const _RoundCompleteView({required this.correctCount, required this.total, required this.onPlayAgain});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(
-              padding: const EdgeInsets.all(28),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.75),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.8)),
-                boxShadow: [
-                  BoxShadow(color: Colors.indigo.withValues(alpha: 0.1), blurRadius: 24, offset: const Offset(0, 10)),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.emoji_events_outlined, color: AppColors.gold, size: 48),
-                  const SizedBox(height: 12),
-                  Text(tr('Практика завершена!'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 6),
-                  Text(tr('Правильно: {0} из {1}', [correctCount, total]), style: const TextStyle(color: Colors.black54)),
-                  const SizedBox(height: 22),
-                  FilledButton.icon(
-                    onPressed: onPlayAgain,
-                    icon: const Icon(Icons.refresh),
-                    label: Text(tr('Играть ещё раз')),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

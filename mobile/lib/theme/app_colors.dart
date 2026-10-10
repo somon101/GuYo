@@ -51,6 +51,10 @@ class AppColors {
   static Color get progressTrack => dark ? const Color(0xFF2C3150) : const Color(0xFFE4E7F5);
 
   /// Chevrons and other low-emphasis glyphs.
+  /// The chosen segment's pill in a segmented control: white on light,
+  /// a raised grey-violet on dark (white there would hide the light label).
+  static Color get segmentThumb => dark ? const Color(0xFF3B4166) : Colors.white;
+
   static Color get muted => dark ? const Color(0xFF5A6188) : const Color(0xFFB9BEDA);
 
   // --- Accents --------------------------------------------------------------
