@@ -138,6 +138,7 @@ class _AddFriendSheetState extends State<_AddFriendSheet> {
                   onPressed: _scan,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                   icon: const Icon(Icons.qr_code_scanner_rounded, size: 22),
@@ -191,6 +192,7 @@ class _AddFriendSheetState extends State<_AddFriendSheet> {
                       onPressed: ready ? _lookUp : null,
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
                         disabledBackgroundColor: AppColors.progressTrack,
                         padding: const EdgeInsets.symmetric(horizontal: 18),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -353,6 +355,7 @@ class _FriendConfirmCardState extends State<_FriendConfirmCard> {
                       onPressed: _busy ? null : _add,
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
                       icon: _busy
