@@ -1,4 +1,5 @@
 import '../services/google_auth.dart';
+import '../widgets/google_logo.dart';
 import '../l10n/l10n.dart';
 
 import 'package:flutter/material.dart';
@@ -333,11 +334,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   width: 24,
                                   height: 24,
                                   alignment: Alignment.center,
-                                  decoration: BoxDecoration(color: AppColors.surface, shape: BoxShape.circle),
-                                  child: const Text(
-                                    'G',
-                                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF4285F4)),
-                                  ),
+                                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                                  child: const GoogleLogo(size: 15),
                                 ),
                                 const SizedBox(width: 10),
                                 Text(_nextLabel, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),

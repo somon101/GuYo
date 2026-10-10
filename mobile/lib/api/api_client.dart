@@ -80,6 +80,28 @@ class StreakInfo {
   });
 }
 
+/// Someone found by their 9-digit ID.
+class FoundUser {
+  final int userId;
+  final int publicId;
+  final String login;
+  final String name;
+  final String? avatarUrl;
+  final int totalPoints;
+  final bool isMe;
+  final bool isFriend;
+
+  FoundUser.fromJson(Map<String, dynamic> j)
+      : userId = j['user_id'] as int,
+        publicId = j['public_id'] as int,
+        login = j['login'] as String,
+        name = j['name'] as String,
+        avatarUrl = j['avatar_url'] as String?,
+        totalPoints = j['total_points'] as int,
+        isMe = j['is_me'] as bool,
+        isFriend = j['is_friend'] as bool;
+}
+
 class ApiException implements Exception {
   final int? statusCode;
   final String message;
@@ -1116,6 +1138,14 @@ class ApiClient {
     final res = await http.get(_uri('/rating/leaderboard/friends'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
     return Leaderboard.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  /// Who a 9-digit ID belongs to (GET /rating/users/{id}) -- shown before
+  /// adding a friend.
+  Future<FoundUser> findUserByPublicId(int publicId) async {
+    final res = await http.get(_uri('/rating/users/$publicId'), headers: await _authHeaders());
+    await _throwWithDetail(res);
+    return FoundUser.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
   /// Adds the account with this 9-digit ID as a friend (both ways).

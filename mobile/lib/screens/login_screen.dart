@@ -1,4 +1,5 @@
 import '../services/google_auth.dart';
+import '../widgets/google_logo.dart';
 import '../widgets/language_picker.dart';
 import '../l10n/l10n.dart';
 
@@ -153,10 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   OutlinedButton.icon(
                     key: const ValueKey('login-google-button'),
                     onPressed: _isSubmitting ? null : _signInWithGoogle,
-                    icon: const Text(
-                      'G',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF4285F4)),
-                    ),
+                    icon: const GoogleLogo(size: 20),
                     label: Text(
                       tr('Войти через Google'),
                       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),

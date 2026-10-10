@@ -1,5 +1,5 @@
 import '../l10n/l10n.dart';
-import 'scan_friend_screen.dart';
+import 'add_friend_sheet.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../services/session_cache.dart';
@@ -752,51 +752,9 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
   String get _cacheKey => widget.friends ? 'rating-friends' : 'rating-global';
 
   Future<void> _addFriend() async {
-    final controller = TextEditingController();
-    final id = await showDialog<int>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(tr('Добавить друга')),
-        content: TextField(
-          key: const ValueKey('friend-id-field'),
-          controller: controller,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: tr('ID друга'),
-            hintText: tr('9 цифр из его профиля'),
-            prefixIcon: const Icon(Icons.badge_outlined),
-          ),
-        ),
-        actions: [
-          TextButton.icon(
-            key: const ValueKey('scan-friend'),
-            onPressed: () => Navigator.of(ctx).pop(-1),
-            icon: const Icon(Icons.qr_code_scanner_rounded),
-            label: Text(tr('Сканировать')),
-          ),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text(tr('Отмена'))),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(int.tryParse(controller.text.replaceAll(RegExp(r'\D'), ''))),
-            child: Text(tr('Добавить')),
-          ),
-        ],
-      ),
-    );
-    if (id == null || !mounted) return;
-    if (id == -1) {
-      final added = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => const ScanFriendScreen()));
-      if (added == true) _load();
-      return;
-    }
-    try {
-      await ApiClient.instance.addFriend(id);
-      if (!mounted) return;
+    if (await showAddFriendSheet(context) && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Друг добавлен'))));
       _load();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     }
   }
 
