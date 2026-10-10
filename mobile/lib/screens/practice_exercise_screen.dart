@@ -28,7 +28,11 @@ import '../widgets/skeleton.dart';
 class PracticeExerciseScreen extends StatefulWidget {
   final GuyoDictionary dictionary;
   final ExerciseTypeInfo type;
-  const PracticeExerciseScreen({super.key, required this.dictionary, required this.type});
+
+  /// Practise exactly these words (Статистика's hard words) instead of a
+  /// random sample of the learned ones. Build-word only.
+  final List<int>? wordIds;
+  const PracticeExerciseScreen({super.key, required this.dictionary, required this.type, this.wordIds});
 
   @override
   State<PracticeExerciseScreen> createState() => _PracticeExerciseScreenState();
@@ -71,7 +75,7 @@ class _PracticeExerciseScreenState extends State<PracticeExerciseScreen> {
         case 'true_or_false':
           _trueOrFalse = await ApiClient.instance.fetchPracticeTrueOrFalseRound(dictionaryId);
         case 'build_word':
-          _buildWord = await ApiClient.instance.fetchPracticeBuildWordRound(dictionaryId);
+          _buildWord = await ApiClient.instance.fetchPracticeBuildWordRound(dictionaryId, wordIds: widget.wordIds);
         case 'speaking_word':
           _speakingWord = await ApiClient.instance.fetchPracticeSpeakingWordRound(dictionaryId);
         case 'listen_word':

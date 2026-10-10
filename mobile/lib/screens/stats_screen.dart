@@ -8,7 +8,10 @@ import '../services/session_cache.dart';
 import '../theme/app_colors.dart';
 import '../widgets/animated_fire.dart';
 import '../widgets/skeleton.dart';
+import '../exercises/exercise_type.dart';
+import '../models/dictionary.dart';
 import 'lesson_run_screen.dart' show lessonExerciseLabels;
+import 'practice_exercise_screen.dart';
 import 'streak_sheet.dart' show streakDaysLabel;
 
 const _blue = Color(0xFF3B7BF6);
@@ -33,7 +36,7 @@ class UserStats {
   final int timeWeekMinutes;
   final double? avgAnswerSeconds;
   final int? bestWeekday;
-  final List<({String word, int mistakes})> hardWords;
+  final List<({int wordId, String word, int? dictionaryId, int mistakes})> hardWords;
 
   UserStats.fromJson(Map<String, dynamic> j)
       : accuracy = j['accuracy'] as int,
@@ -62,7 +65,13 @@ class UserStats {
         avgAnswerSeconds = (j['avg_answer_seconds'] as num?)?.toDouble(),
         bestWeekday = j['best_weekday'] as int?,
         hardWords = [
-          for (final w in j['hard_words'] as List<dynamic>) (word: w['word'] as String, mistakes: w['mistakes'] as int),
+          for (final w in j['hard_words'] as List<dynamic>)
+            (
+              wordId: w['word_id'] as int,
+              word: w['word'] as String,
+              dictionaryId: w['dictionary_id'] as int?,
+              mistakes: w['mistakes'] as int,
+            ),
         ];
 }
 
@@ -845,6 +854,17 @@ class _HardWordsCard extends StatelessWidget {
   final UserStats stats;
   const _HardWordsCard({required this.stats});
 
+  /// The dictionary most of the hard words come from -- the practice runs
+  /// in one dictionary, so the button repeats that one's words.
+  int? get _practiceDictionary {
+    final counts = <int, int>{};
+    for (final w in stats.hardWords) {
+      if (w.dictionaryId != null) counts[w.dictionaryId!] = (counts[w.dictionaryId!] ?? 0) + 1;
+    }
+    if (counts.isEmpty) return null;
+    return (counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value))).first.key;
+  }
+
   @override
   Widget build(BuildContext context) {
     final worst = stats.hardWords.first.mistakes;
@@ -854,7 +874,34 @@ class _HardWordsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _title(tr('Трудные слова')),
+          _title(
+            tr('Трудные слова'),
+            trailing: _practiceDictionary == null
+                ? null
+                : FilledButton.icon(
+                    key: const ValueKey('stats-practice-hard'),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PracticeExerciseScreen(
+                          dictionary: GuyoDictionary(id: _practiceDictionary!, name: '', language: '', wordCount: 0),
+                          type: buildWordExerciseType,
+                          wordIds: [
+                            for (final w in stats.hardWords)
+                              if (w.dictionaryId == _practiceDictionary) w.wordId,
+                          ],
+                        ),
+                      ),
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF6B6B),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      minimumSize: const Size(0, 36),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                    ),
+                    icon: const Icon(Icons.replay_rounded, size: 18),
+                    label: Text(tr('Повторить'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+          ),
           const SizedBox(height: 2),
           Text(
             tr('В них вы ошибаетесь чаще всего'),

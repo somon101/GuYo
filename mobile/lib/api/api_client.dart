@@ -701,9 +701,12 @@ class ApiClient {
     return list.map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<BuildWordRound> fetchPracticeBuildWordRound(int dictionaryId) async {
+  Future<BuildWordRound> fetchPracticeBuildWordRound(int dictionaryId, {List<int>? wordIds}) async {
+    final uri = _uri('/dictionaries/$dictionaryId/practice/build-word');
     final res = await http.get(
-      _uri('/dictionaries/$dictionaryId/practice/build-word'),
+      wordIds == null || wordIds.isEmpty
+          ? uri
+          : uri.replace(queryParameters: {'word_ids': [for (final id in wordIds) '$id']}),
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);

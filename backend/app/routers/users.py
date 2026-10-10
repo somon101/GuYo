@@ -559,8 +559,12 @@ def get_my_stats(
         .limit(5)
         .all()
     )
-    words = {w.id: w.word for w in db.query(Word).filter(Word.id.in_([r[0] for r in wrong_rows]))} if wrong_rows else {}
-    hard_words = [{"word_id": wid, "word": words.get(wid, ""), "mistakes": n} for wid, n in wrong_rows if n >= 2]
+    words = {w.id: w for w in db.query(Word).filter(Word.id.in_([r[0] for r in wrong_rows]))} if wrong_rows else {}
+    hard_words = [
+        {"word_id": wid, "word": words[wid].word, "dictionary_id": words[wid].dictionary_id, "mistakes": n}
+        for wid, n in wrong_rows
+        if n >= 2 and wid in words
+    ]
 
     learned_week = (
         db.query(sa_func.count(UserWordPoints.id))

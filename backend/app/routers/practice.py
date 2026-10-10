@@ -24,7 +24,7 @@ which the memory model (app/memory/) uses.
 
 import random
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.exercises.verify import judge
@@ -108,10 +108,25 @@ def get_practice_matching_words(dictionary_id: int, db: Session = Depends(get_db
 
 
 @router.get("/build-word", response_model=BuildWordRoundOut)
-def get_practice_build_word_round(dictionary_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def get_practice_build_word_round(
+    dictionary_id: int,
+    word_ids: list[int] | None = Query(default=None),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """`word_ids` practises exactly those words (Статистика's "трудные
+    слова") -- any word of this dictionary with a translation, learned or
+    not -- instead of a random sample of the learned ones."""
     _get_dictionary_or_404(db, dictionary_id)
     threshold = get_threshold(db)
-    pool = get_learned_pool(db, user.id, dictionary_id, threshold)
+    if word_ids:
+        pool = [
+            w
+            for w in db.query(Word).filter(Word.dictionary_id == dictionary_id, Word.id.in_(word_ids[:ROUND_SIZE])).all()
+            if w.translations
+        ]
+    else:
+        pool = get_learned_pool(db, user.id, dictionary_id, threshold)
     selected, available_count = _sample_feasible_words(db, user, dictionary_id, threshold, build_word.KEY, pool)
     rounds = [build_build_word_round(db, dictionary_id, w) for w in selected]
     case_sensitive = rounds[0].case_sensitive if rounds else False
