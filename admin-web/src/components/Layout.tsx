@@ -20,6 +20,7 @@ const navItems = [
   { to: "/retention", label: "Удержание" },
   { to: "/analytics", label: "Аналитика" },
   { to: "/translation", label: "ИИ-перевод" },
+  { to: "/client-errors", label: "Ошибки приложения" },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {

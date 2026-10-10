@@ -6,6 +6,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { UsersPage } from "./pages/UsersPage";
 import { StatusesPage } from "./pages/StatusesPage";
 import { SlogansPage } from "./pages/SlogansPage";
+import { ClientErrorsPage } from "./pages/ClientErrorsPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { PremiumPage } from "./pages/PremiumPage";
 import { PromoPage } from "./pages/PromoPage";
@@ -253,6 +254,16 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <SlogansPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/client-errors"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ClientErrorsPage />
                 </Layout>
               </ProtectedRoute>
             }

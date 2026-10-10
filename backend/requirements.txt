@@ -13,3 +13,4 @@ tzdata==2024.2
 google-auth==2.59.0
 requests==2.34.2
 fsrs==6.3.2
+sentry-sdk[fastapi]==2.19.2

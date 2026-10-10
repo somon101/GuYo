@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     # answer exercises. 0 = no check. Raise it once a release everyone
     # should have is out: older apps are then told to update.
     min_app_build: int = 0
+    # Server error reporting (Sentry). Empty = off.
+    sentry_dsn: str = ""
 
     media_root: str = "./storage"
     media_url_prefix: str = "/media"

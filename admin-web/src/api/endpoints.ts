@@ -1348,3 +1348,18 @@ export async function getUserHistory(userId: number, days: number): Promise<User
   const { data } = await api.get(`/admin/analytics/users/${userId}/history`, { params: { days } });
   return data;
 }
+
+export interface ClientErrorRow {
+  id: number;
+  user_id: number | null;
+  app_build: number | null;
+  platform: string | null;
+  message: string;
+  stack: string | null;
+  created_at: string;
+}
+
+export async function listClientErrors(): Promise<ClientErrorRow[]> {
+  const { data } = await api.get("/admin/client-errors", { params: { limit: 200 } });
+  return data;
+}

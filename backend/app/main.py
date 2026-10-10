@@ -33,6 +33,7 @@ from app.routers import (
     practice,
     premium,
     promo,
+    client_errors,
     quests,
     rating,
     slogans,
@@ -43,6 +44,12 @@ from app.routers import (
 from app.routers import status as status_router
 
 settings = get_settings()
+
+if settings.sentry_dsn:
+    # Unhandled server errors go to Sentry with their request context.
+    import sentry_sdk
+
+    sentry_sdk.init(dsn=settings.sentry_dsn, traces_sample_rate=0.0, send_default_pii=False)
 
 Path(settings.media_root).mkdir(parents=True, exist_ok=True)
 
@@ -117,6 +124,7 @@ app.include_router(premium.router)
 app.include_router(premium.admin_router)
 app.include_router(promo.router)
 app.include_router(promo.admin_router)
+app.include_router(client_errors.router)
 
 
 @app.get("/health")

@@ -84,3 +84,4 @@ __all__ = [
     "UserQuestWordDay",
 ]
 from app.models.user_event import UserEvent
+from app.models.client_error import ClientError
