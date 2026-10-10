@@ -116,12 +116,23 @@ class _LessonsScreenState extends State<LessonsScreen> {
   /// "Продолжить" on the in-progress card: straight into the exercises,
   /// with no stop at the lesson's own screen.
   Future<void> _continueLesson(int lessonId) async {
-    final Lesson lesson;
-    try {
-      lesson = SessionCache.take<Lesson>('lesson-$lessonId') ?? await ApiClient.instance.fetchLesson(lessonId);
-    } catch (_) {
+    Lesson? lesson = SessionCache.take<Lesson>('lesson-$lessonId');
+    // A network blip shouldn't stop the lesson: one quiet second try.
+    for (var attempt = 0; lesson == null && attempt < 2; attempt++) {
+      try {
+        lesson = await ApiClient.instance.fetchLesson(lessonId);
+      } catch (_) {
+        if (attempt == 0) await Future<void>.delayed(const Duration(milliseconds: 800));
+      }
+    }
+    if (lesson == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Не удалось открыть урок'))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(tr('Не удалось открыть урок. Проверьте интернет.')),
+          action: SnackBarAction(label: tr('Повторить'), onPressed: () => _continueLesson(lessonId)),
+        ),
+      );
       return;
     }
     if (!mounted) return;

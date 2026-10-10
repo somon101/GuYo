@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../api/api_client.dart';
 import '../services/media_cache.dart';
 import 'exercise.dart';
@@ -100,7 +101,10 @@ class LessonRounds {
 
     final results = await Future.wait(exerciseKeys.map(fetch));
     final rounds = LessonRounds({for (var i = 0; i < exerciseKeys.length; i++) exerciseKeys[i]: results[i]});
-    await MediaCache.instance.prefetch(rounds.mediaUrls);
+    // Pictures and sounds keep downloading in the background; the lesson
+    // doesn't wait for them (a picture still loading just appears a moment
+    // later).
+    unawaited(MediaCache.instance.prefetch(rounds.mediaUrls));
     return rounds;
   }
 }

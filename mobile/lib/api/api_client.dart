@@ -636,6 +636,8 @@ class ApiClient {
 
   /// The pass was played to the end: its answers count now.
   Future<void> finishLessonPass(int lessonId) async {
+    // Every answer of the pass must be on the server before it counts.
+    await flushLessonAnswers();
     final res = await http.post(_uri('/lessons/$lessonId/pass/finish'), headers: await _authHeaders());
     await _throwWithDetail(res);
   }
@@ -808,6 +810,35 @@ class ApiClient {
     await _throwWithDetail(res);
     return SubmitAnswerResult.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
+
+  final Set<Future<void>> _pendingLessonAnswers = {};
+
+  /// Sends a lesson answer in the background: the exercise moves on at
+  /// once (it already judged the answer itself) and the server gets it a
+  /// moment later -- tried twice, then given up on. [flushLessonAnswers]
+  /// waits for whatever is still on its way.
+  void queueLessonAnswer(int lessonId, String exerciseKey, {required int wordId, required bool isCorrect}) {
+    // Taken now, before the next question resets them.
+    final signals = AnswerSignals.take();
+    final deferred = deferredLessonId == lessonId;
+    Future<void> send() async {
+      final res = await http.post(
+        _uri('/lessons/$lessonId/exercises/$exerciseKey/answers'),
+        headers: await _authHeaders(),
+        body: jsonEncode({...signals, 'word_id': wordId, 'is_correct': isCorrect, if (deferred) 'deferred': true}),
+      );
+      await _throwWithDetail(res);
+    }
+
+    late final Future<void> job;
+    job = send()
+        .catchError((_) => Future<void>.delayed(const Duration(seconds: 1), send))
+        .catchError((_) {})
+        .whenComplete(() => _pendingLessonAnswers.remove(job));
+    _pendingLessonAnswers.add(job);
+  }
+
+  Future<void> flushLessonAnswers() => Future.wait(List<Future<void>>.of(_pendingLessonAnswers));
 
   // --- Профиль и Достижения ------------------------------------------------
   // Avatar storage and achievement earning/eligibility are entirely

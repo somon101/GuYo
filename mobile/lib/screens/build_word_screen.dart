@@ -75,20 +75,11 @@ class _BuildWordScreenState extends State<BuildWordScreen> with LessonExerciseFl
     }
   }
 
-  Future<void> _onAnswer(bool correct) async {
+  void _onAnswer(bool correct) {
     final item = _round!.items[_index];
-    try {
-      final result = await ApiClient.instance.submitLessonAnswer(
-        widget.lessonId,
-        'build_word',
-        wordId: item.wordId,
-        isCorrect: correct,
-      );
-      if (!mounted) return;
-      setState(() => _pointsEarned += result.pointsAwarded);
-    } catch (_) {
-      // A failed score update must never interrupt the flow word by word.
-    }
+    // Judged right here; the server gets it in the background, so the next
+    // item shows at once.
+    ApiClient.instance.queueLessonAnswer(widget.lessonId, 'build_word', wordId: item.wordId, isCorrect: correct);
     if (!mounted) return;
     setState(() => _index++);
     // Last word built -- the lesson runner takes over straight away.

@@ -77,20 +77,11 @@ class _TrueOrFalseScreenState extends State<TrueOrFalseScreen> with LessonExerci
 
   /// Called by [TrueOrFalseExercise] once per item, already after its own
   /// reveal flash -- this only needs to save the answer and move on.
-  Future<void> _onAnswer(bool correct) async {
+  void _onAnswer(bool correct) {
     final item = _items[_index];
-    try {
-      final result = await ApiClient.instance.submitLessonAnswer(
-        widget.lessonId,
-        'true_or_false',
-        wordId: item.wordId,
-        isCorrect: correct,
-      );
-      if (!mounted) return;
-      setState(() => _pointsEarned += result.pointsAwarded);
-    } catch (_) {
-      // A failed score update must never interrupt the flow card by card.
-    }
+    // Judged right here; the server gets it in the background, so the next
+    // item shows at once.
+    ApiClient.instance.queueLessonAnswer(widget.lessonId, 'true_or_false', wordId: item.wordId, isCorrect: correct);
     if (!mounted) return;
     setState(() => _index++);
     // Last card answered -- the lesson runner takes over straight away.

@@ -478,6 +478,7 @@ const Map<String, (String, String)> uiStrings = {
   'Как в системе': ('Мисли система', 'Tizimdagidek'),
   'Светлая': ('Равшан', 'Yorugʻ'),
   'Тёмная': ('Торик', 'Qorongʻi'),
+  'Не удалось открыть урок. Проверьте интернет.': ('Дарс кушода нашуд. Интернетро санҷед.', 'Darsni ochib boʻlmadi. Internetni tekshiring.'),
   'Мой QR-код': ('QR-коди ман', 'Mening QR-kodim'),
   'История хранится только за сегодня': ('Таърих танҳо барои имрӯз нигоҳ дошта мешавад', 'Tarix faqat bugun uchun saqlanadi'),
   'Новое слово': ('Калимаи нав', 'Yangi soʻz'),

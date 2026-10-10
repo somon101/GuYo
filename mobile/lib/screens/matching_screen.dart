@@ -41,7 +41,6 @@ class _MatchingScreenState extends State<MatchingScreen> with LessonExerciseFlow
   // on to the next exercise once the board is done, and that exercise's own
   // round is built from these very scores -- so onComplete waits for every
   // submission to actually land before handing control back.
-  final List<Future<void>> _pendingSubmits = [];
 
   @override
   void initState() {
@@ -68,7 +67,6 @@ class _MatchingScreenState extends State<MatchingScreen> with LessonExerciseFlow
         setState(() {
           _words = usable;
           _isLoading = false;
-          _pendingSubmits.clear();
         });
       } else {
         setState(() => _isLoading = false);
@@ -86,26 +84,13 @@ class _MatchingScreenState extends State<MatchingScreen> with LessonExerciseFlow
   }
 
   void _onAttempt(int wordId, bool isCorrect) {
-    late final Future<void> future;
-    future = ApiClient.instance
-        .submitLessonAnswer(widget.lessonId, 'matching', wordId: wordId, isCorrect: isCorrect)
-        .then<void>((_) {})
-        .catchError((_) {
-      // The score update failed to save -- the round itself still plays
-      // out locally; there's nothing actionable to show mid-round for a
-      // single failed save.
-    }).whenComplete(() => _pendingSubmits.remove(future));
-    _pendingSubmits.add(future);
+    // Sent in the background; the board never waits for the server.
+    ApiClient.instance.queueLessonAnswer(widget.lessonId, 'matching', wordId: wordId, isCorrect: isCorrect);
   }
 
   void _onComplete() {
-    // Wait for every submission (the board's last match included) to
-    // actually land, then hand control straight back to the lesson runner
-    // so the next exercise starts by itself.
-    Future.wait(List<Future<void>>.from(_pendingSubmits)).then((_) {
-      if (!mounted) return;
-      finishExercise();
-    });
+    // Straight on to the next exercise.
+    finishExercise();
   }
 
   @override
