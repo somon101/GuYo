@@ -1,4 +1,5 @@
 import '../services/google_auth.dart';
+import '../services/disk_cache.dart';
 import '../widgets/update_required.dart';
 import '../screens/stats_screen.dart' show UserStats;
 import '../services/session_cache.dart';
@@ -109,12 +110,18 @@ class ApiClient {
   }
 
   Future<void> _saveToken(String token) async {
+    // A fresh login may be a different account: start with nothing kept.
+    SessionCache.clear();
+    await DiskCache.clear();
     _cachedToken = token;
     await _storage.write(key: _tokenKey, value: token);
   }
 
   Future<void> clearToken() async {
     _cachedToken = null;
+    // Whatever was kept belongs to the account that just left.
+    SessionCache.clear();
+    await DiskCache.clear();
     await _storage.delete(key: _tokenKey);
   }
 
@@ -254,6 +261,7 @@ class ApiClient {
 
   Future<void> logout() async {
     SessionCache.clear();
+    await DiskCache.clear();
     await clearToken();
   }
 
@@ -315,9 +323,45 @@ class ApiClient {
   Future<List<GuyoDictionary>> fetchDictionaries() async {
     final res = await http.get(_uri('/dictionaries'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
-    final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
-    return list.map((e) => GuyoDictionary.fromJson(e as Map<String, dynamic>)).toList();
+    return _parseDictionaries(_remember('dictionaries', res));
   }
+
+  List<GuyoDictionary> _parseDictionaries(dynamic json) =>
+      (json as List<dynamic>).map((e) => GuyoDictionary.fromJson(e as Map<String, dynamic>)).toList();
+
+  // --- Last answers kept on the device (DiskCache) ---------------------
+  // Each main screen opens on these and refreshes in the background.
+
+  dynamic _remember(String key, http.Response res) {
+    final body = utf8.decode(res.bodyBytes);
+    DiskCache.put(key, body);
+    return jsonDecode(body);
+  }
+
+  T? _cached<T>(String key, T Function(dynamic json) parse) {
+    final body = DiskCache.get(key);
+    if (body == null) return null;
+    try {
+      return parse(jsonDecode(body));
+    } catch (_) {
+      return null; // an older shape after an update -- just load fresh
+    }
+  }
+
+  List<GuyoDictionary>? cachedDictionaries() => _cached('dictionaries', _parseDictionaries);
+  SeasonQuestOverview? cachedSeasonQuestOverview(int dictionaryId) =>
+      _cached('overview-$dictionaryId', (j) => SeasonQuestOverview.fromJson(j as Map<String, dynamic>));
+  UserProfile? cachedMyProfile() => _cached('profile', (j) => UserProfile.fromJson(j as Map<String, dynamic>));
+  List<UserAchievement>? cachedMyAchievements() => _cached(
+      'achievements', (j) => (j as List<dynamic>).map((e) => UserAchievement.fromJson(e as Map<String, dynamic>)).toList());
+  UserRating? cachedMyRating() => _cached('rating', (j) => UserRating.fromJson(j as Map<String, dynamic>));
+  List<LessonSummary>? cachedLessons(int dictionaryId) => _cached(
+      'lessons-$dictionaryId',
+      (j) => ((j as Map<String, dynamic>)['lessons'] as List<dynamic>)
+          .map((e) => LessonSummary.fromJson(e as Map<String, dynamic>))
+          .toList());
+  Leaderboard? cachedMyRankLeaderboard() =>
+      _cached('leaderboard', (j) => Leaderboard.fromJson(j as Map<String, dynamic>));
 
   Future<List<GuyoWord>> fetchWords(int dictionaryId) async {
     final res = await http.get(
@@ -539,7 +583,7 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    final body = _remember('lessons-$dictionaryId', res) as Map<String, dynamic>;
     final list = body['lessons'] as List<dynamic>;
     return list.map((e) => LessonSummary.fromJson(e as Map<String, dynamic>)).toList();
   }
@@ -773,7 +817,7 @@ class ApiClient {
   Future<UserProfile> fetchMyProfile() async {
     final res = await http.get(_uri('/users/me/profile'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
-    return UserProfile.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return UserProfile.fromJson(_remember('profile', res) as Map<String, dynamic>);
   }
 
   // --- Слоганы и уведомления ------------------------------------------
@@ -953,7 +997,7 @@ class ApiClient {
   Future<List<UserAchievement>> fetchMyAchievements() async {
     final res = await http.get(_uri('/users/me/achievements'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
-    final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
+    final list = _remember('achievements', res) as List<dynamic>;
     return list.map((e) => UserAchievement.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -994,7 +1038,7 @@ class ApiClient {
   Future<UserRating> fetchMyRating() async {
     final res = await http.get(_uri('/users/me/rating'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
-    return UserRating.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return UserRating.fromJson(_remember('rating', res) as Map<String, dynamic>);
   }
 
   /// Top 100 users sharing the CALLER's own current rank -- the backend
@@ -1003,7 +1047,7 @@ class ApiClient {
   Future<Leaderboard> fetchMyRankLeaderboard() async {
     final res = await http.get(_uri('/rating/leaderboard'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
-    return Leaderboard.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return Leaderboard.fromJson(_remember('leaderboard', res) as Map<String, dynamic>);
   }
 
   /// The word-reinforcement ladder, enabled levels only, lowest
@@ -1101,7 +1145,7 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return SeasonQuestOverview.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return SeasonQuestOverview.fromJson(_remember('overview-$dictionaryId', res) as Map<String, dynamic>);
   }
 
   /// Today's points, grant by grant, newest first (GET /quests/points-today).

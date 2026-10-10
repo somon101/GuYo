@@ -1,4 +1,5 @@
 import '../l10n/l10n.dart';
+import '../services/disk_cache.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../services/session_cache.dart';
@@ -76,7 +77,16 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    final cached = SessionCache.get<(SeasonQuestOverview, UserProfile, String)>(_cacheKey);
+    var cached = SessionCache.get<(SeasonQuestOverview, UserProfile, String)>(_cacheKey);
+    if (cached == null) {
+      // Last launch's data, kept on the device.
+      final overview = ApiClient.instance.cachedSeasonQuestOverview(widget.dictionary.id);
+      final profile = ApiClient.instance.cachedMyProfile();
+      if (overview != null && profile != null) {
+        cached = (overview, profile, DiskCache.get('slogan') ?? '');
+        SessionCache.put(_cacheKey, cached);
+      }
+    }
     if (cached != null) {
       _overview = cached.$1;
       _profile = cached.$2;
@@ -110,6 +120,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         _isLoading = false;
       });
       SessionCache.put(_cacheKey, (_overview!, _profile!, _slogan!));
+      DiskCache.put('slogan', _slogan!);
     } catch (_) {
       if (!mounted) return;
       setState(() {

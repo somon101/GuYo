@@ -1,5 +1,6 @@
 import 'l10n/l10n.dart';
 
+import 'services/disk_cache.dart';
 import 'services/error_reporter.dart';
 import 'services/answer_signals.dart';
 import 'package:flutter/material.dart';
@@ -21,6 +22,7 @@ Future<void> main() async {
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await PushService.instance.init();
   await loadAppLanguage();
+  await DiskCache.load();
   runApp(const GuyoApp());
 }
 

@@ -51,7 +51,7 @@ class _RatingScreenState extends State<RatingScreen> {
   @override
   void initState() {
     super.initState();
-    _board = SessionCache.get<Leaderboard>('rating-my-rank');
+    _board = SessionCache.get<Leaderboard>('rating-my-rank') ?? ApiClient.instance.cachedMyRankLeaderboard();
     _isLoading = _board == null;
     _load();
   }

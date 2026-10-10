@@ -83,7 +83,16 @@ class ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    final cached = SessionCache.get<(UserProfile, List<UserAchievement>, UserRating)>(_cacheKey);
+    var cached = SessionCache.get<(UserProfile, List<UserAchievement>, UserRating)>(_cacheKey);
+    if (cached == null) {
+      // Last launch's data, kept on the device.
+      final api = ApiClient.instance;
+      final profile = api.cachedMyProfile(), achievements = api.cachedMyAchievements(), rating = api.cachedMyRating();
+      if (profile != null && achievements != null && rating != null) {
+        cached = (profile, achievements, rating);
+        SessionCache.put(_cacheKey, cached);
+      }
+    }
     if (cached != null) {
       _profile = cached.$1;
       _achievements = cached.$2;

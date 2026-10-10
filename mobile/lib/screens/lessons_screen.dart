@@ -46,7 +46,12 @@ class _LessonsScreenState extends State<LessonsScreen> {
   @override
   void initState() {
     super.initState();
-    final cached = SessionCache.get<List<LessonSummary>>(_cacheKey);
+    var cached = SessionCache.get<List<LessonSummary>>(_cacheKey);
+    if (cached == null) {
+      // Last launch's list, kept on the device.
+      cached = ApiClient.instance.cachedLessons(widget.dictionary.id);
+      if (cached != null) SessionCache.put(_cacheKey, cached);
+    }
     if (cached != null) {
       _lessons = cached;
       _isLoading = false;

@@ -139,6 +139,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// снова" retry buttons, both cases where there is no tab content mounted
   /// yet to lose anyway.
   Future<void> _loadDictionaries() async {
+    // Last launch's list: open on it at once and refresh quietly.
+    final kept = _dictionaries.isEmpty ? ApiClient.instance.cachedDictionaries() : null;
+    if (kept != null && kept.isNotEmpty) {
+      setState(() {
+        _dictionaries = kept;
+        _isLoading = false;
+        _loadError = null;
+      });
+      _refreshDictionariesInBackground();
+      return;
+    }
     setState(() {
       _isLoading = true;
       _loadError = null;
