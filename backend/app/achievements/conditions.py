@@ -68,37 +68,47 @@ def lessons_completed_count(db: Session, user: User) -> int:
     )
 
 
-def streak_days_count(db: Session, user: User) -> int:
-    """The user's CURRENT consecutive-day activity streak, counted
-    backward from today (or from yesterday if today has no activity yet,
-    so the streak isn't considered broken before the user has even had a
-    chance to act today) -- computed entirely from UserActivityDay, the
-    one place activity is actually recorded (see app/achievements/
-    streak.py's record_activity, called from a handful of existing
-    endpoints). A gap of more than one day anywhere before that point
-    stops the count."""
-    activity_dates = sorted(
-        (
-            row[0]
-            for row in db.query(UserActivityDay.activity_date).filter(UserActivityDay.user_id == user.id).all()
-        ),
-        reverse=True,
-    )
-    if not activity_dates:
-        return 0
+def streak_with_freezes(db: Session, user: User) -> tuple[int, list]:
+    """The user's CURRENT streak and the days a "freeze" covered.
 
+    Counted backward from today (or from yesterday while today has no
+    activity yet -- the day isn't over). A day without activity doesn't
+    break the streak if it is the only such day in its Monday-Sunday week:
+    one missed day a week is forgiven automatically, two in a row or two
+    in the same week end it. Forgiven days keep the streak alive but don't
+    add to it. Computed from UserActivityDay alone, so every screen and
+    rule that shows the streak agrees."""
+    active = {
+        row[0] for row in db.query(UserActivityDay.activity_date).filter(UserActivityDay.user_id == user.id).all()
+    }
+    if not active:
+        return 0, []
     today = dushanbe_today()
-    most_recent = activity_dates[0]
-    if most_recent not in (today, today - timedelta(days=1)):
-        return 0  # most recent activity was more than a day ago -- streak is broken
-
-    streak = 1
-    for previous, current in zip(activity_dates, activity_dates[1:]):
-        if previous - current == timedelta(days=1):
+    day = today if today in active else today - timedelta(days=1)
+    earliest = min(active)
+    streak = 0
+    frozen: list = []
+    used_weeks: set = set()
+    pending = None  # a missed day, forgiven only if activity lies before it
+    while day >= earliest:
+        if day in active:
+            if pending is not None:
+                frozen.append(pending)
+                pending = None
             streak += 1
         else:
-            break
-    return streak
+            week = day.isocalendar()[:2]
+            if pending is not None or week in used_weeks:
+                break  # two missed days in a row, or a second in one week
+            used_weeks.add(week)
+            pending = day
+        day -= timedelta(days=1)
+    return streak, frozen
+
+
+def streak_days_count(db: Session, user: User) -> int:
+    """The current streak in days -- see streak_with_freezes."""
+    return streak_with_freezes(db, user)[0]
 
 
 # condition_type -> (db, user) -> current value. The one place a new

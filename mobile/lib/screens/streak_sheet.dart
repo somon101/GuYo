@@ -8,6 +8,7 @@ const _fire = Color(0xFFFF7A29);
 const _fireLight = Color(0xFFFFB347);
 const _bg = Color(0xFF1C1412);
 const _panel = Color(0xFF2A1E1A);
+const _ice = Color(0xFF7FD3FF);
 
 /// The streak sheet behind the profile's "Серия" card: a burning 🔥, the
 /// streak in big numbers, this week's days with the active ones checked
@@ -34,6 +35,7 @@ class _StreakSheetState extends State<_StreakSheet> {
   late int _streak = widget.initialStreak;
   DateTime? _today;
   Set<DateTime> _active = {};
+  Set<DateTime> _frozen = {};
 
   @override
   void initState() {
@@ -49,6 +51,7 @@ class _StreakSheetState extends State<_StreakSheet> {
         _streak = data.currentStreakDays;
         _today = data.today;
         _active = data.activeDates.toSet();
+        _frozen = data.frozenDates.toSet();
       });
     } catch (_) {
       // The number on the card is already right; the week just stays empty.
@@ -120,15 +123,29 @@ class _StreakSheetState extends State<_StreakSheet> {
                 ),
                 child: Column(
                   children: [
-                    if (_today != null) _Week(today: _today!, active: _active) else const SizedBox(height: 52),
+                    if (_today != null) _Week(today: _today!, active: _active, frozen: _frozen) else const SizedBox(height: 52),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       child: Divider(height: 1, color: Colors.white.withValues(alpha: 0.08)),
                     ),
+                    if (_frozen.isNotEmpty) ...[
+                      Text(
+                        tr('Пропущенный день заморожен — серия сохранена'),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _ice),
+                      ),
+                      const SizedBox(height: 6),
+                    ],
                     Text(
                       message,
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 14.5, height: 1.35, color: Colors.white.withValues(alpha: 0.9)),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      tr('Один пропущенный день в неделю прощается автоматически'),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
                     ),
                   ],
                 ),
@@ -161,14 +178,15 @@ String streakDaysLabel(int n) {
 class _Week extends StatelessWidget {
   final DateTime today;
   final Set<DateTime> active;
-  const _Week({required this.today, required this.active});
+  final Set<DateTime> frozen;
+  const _Week({required this.today, required this.active, this.frozen = const {}});
 
   @override
   Widget build(BuildContext context) {
     final monday = today.subtract(Duration(days: today.weekday - 1));
     final days = [for (var i = 0; i < 7; i++) DateTime(monday.year, monday.month, monday.day + i)];
     final letters = [tr('Пн'), tr('Вт'), tr('Ср'), tr('Чт'), tr('Пт'), tr('Сб'), tr('Вс')];
-    bool on(DateTime d) => active.contains(d);
+    bool on(DateTime d) => active.contains(d) || frozen.contains(d);
 
     return Row(
       children: [
@@ -213,6 +231,18 @@ class _Week extends StatelessWidget {
 
   Widget _dot(DateTime d) {
     final isToday = d == today;
+    if (frozen.contains(d)) {
+      return Container(
+        width: 30,
+        height: 30,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: _ice.withValues(alpha: 0.18),
+          border: Border.all(color: _ice, width: 1.6),
+        ),
+        child: const Icon(Icons.ac_unit_rounded, size: 17, color: _ice),
+      );
+    }
     if (active.contains(d)) {
       return Container(
         width: 30,

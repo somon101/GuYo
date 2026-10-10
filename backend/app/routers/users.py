@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.content_language import reading_language
+from app.achievements.conditions import streak_with_freezes
 from app.achievements import CONDITION_TYPES, grant_all_due_achievements, lessons_completed_count, streak_days_count, words_learned_count
 from app.core.dates import dushanbe_today, utc_now
 from app.core.deps import get_current_admin, get_current_user, require_current_app
@@ -186,10 +187,13 @@ def get_my_streak(db: Session = Depends(get_db), user: User = Depends(get_curren
         .filter(UserActivityDay.user_id == user.id, UserActivityDay.activity_date >= since)
         .all()
     )
+    streak, frozen = streak_with_freezes(db, user)
     return {
-        "current_streak_days": streak_days_count(db, user),
+        "current_streak_days": streak,
         "today": today.isoformat(),
         "active_dates": [d.isoformat() for d in active],
+        # Missed days a weekly freeze covered (see streak_with_freezes).
+        "frozen_dates": [d.isoformat() for d in frozen if d >= since],
     }
 
 
@@ -575,7 +579,8 @@ def get_my_stats(
         "points_prev_total": prev_total,
         "calendar": calendar,
         "current_streak": streak_days_count(db, user),
-        "best_streak": best,
+        # Freezes can make the current streak longer than any plain run.
+        "best_streak": max(best, streak_days_count(db, user)),
         "lessons_completed": lessons_completed_count(db, user),
         "words_learned": words_learned_count(db, user),
         "words_learned_week": learned_week,

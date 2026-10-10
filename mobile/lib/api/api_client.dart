@@ -68,7 +68,15 @@ class StreakInfo {
   final int currentStreakDays;
   final DateTime today;
   final List<DateTime> activeDates;
-  const StreakInfo({required this.currentStreakDays, required this.today, required this.activeDates});
+
+  /// Missed days a weekly freeze covered: the streak survived them.
+  final List<DateTime> frozenDates;
+  const StreakInfo({
+    required this.currentStreakDays,
+    required this.today,
+    required this.activeDates,
+    this.frozenDates = const [],
+  });
 }
 
 class ApiException implements Exception {
@@ -1087,6 +1095,7 @@ class ApiClient {
       currentStreakDays: json['current_streak_days'] as int,
       today: day(json['today'] as String),
       activeDates: [for (final s in json['active_dates'] as List<dynamic>) day(s as String)],
+      frozenDates: [for (final s in (json['frozen_dates'] as List<dynamic>? ?? const [])) day(s as String)],
     );
   }
 
