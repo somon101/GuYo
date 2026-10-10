@@ -85,3 +85,4 @@ __all__ = [
 ]
 from app.models.user_event import UserEvent
 from app.models.client_error import ClientError
+from app.models.friendship import Friendship

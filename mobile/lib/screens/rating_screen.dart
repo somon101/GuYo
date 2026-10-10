@@ -144,7 +144,13 @@ class _RatingScreenState extends State<RatingScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
       children: [
-        LeaderboardHeader(title: tr('Рейтинг'), onOpenGlobal: _openGlobal),
+        LeaderboardHeader(
+          title: tr('Рейтинг'),
+          onOpenGlobal: _openGlobal,
+          onOpenFriends: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const GlobalLeaderboardScreen(friends: true)),
+          ),
+        ),
         if (rank == null)
           Padding(
             padding: const EdgeInsets.only(top: 24),
@@ -202,8 +208,9 @@ class _RatingScreenState extends State<RatingScreen> {
 class LeaderboardHeader extends StatelessWidget {
   final String title;
   final VoidCallback? onOpenGlobal;
+  final VoidCallback? onOpenFriends;
 
-  const LeaderboardHeader({super.key, required this.title, this.onOpenGlobal});
+  const LeaderboardHeader({super.key, required this.title, this.onOpenGlobal, this.onOpenFriends});
 
   @override
   Widget build(BuildContext context) {
@@ -215,6 +222,31 @@ class LeaderboardHeader extends StatelessWidget {
             style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
           ),
         ),
+        if (onOpenFriends != null) ...[
+          Material(
+            color: Colors.white,
+            shape: const CircleBorder(),
+            child: InkWell(
+              key: const ValueKey('rating-friends'),
+              customBorder: const CircleBorder(),
+              onTap: onOpenFriends,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.cardBorder),
+                  boxShadow: AppShapes.cardShadow,
+                ),
+                child: Tooltip(
+                  message: tr('Друзья'),
+                  child: const Icon(Icons.group_rounded, size: 20, color: AppColors.primary),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
         if (onOpenGlobal != null)
           Material(
             color: Colors.white,
@@ -702,7 +734,10 @@ class _StatusChip extends StatelessWidget {
 /// default view. Same podium and same rows as the own-rank board, so the
 /// two never look like different products.
 class GlobalLeaderboardScreen extends StatefulWidget {
-  const GlobalLeaderboardScreen({super.key});
+  /// The caller and their friends instead of everyone: an "add a friend"
+  /// button, and a long press removes one.
+  final bool friends;
+  const GlobalLeaderboardScreen({super.key, this.friends = false});
 
   @override
   State<GlobalLeaderboardScreen> createState() => _GlobalLeaderboardScreenState();
@@ -713,10 +748,98 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
   String? _loadError;
   Leaderboard? _board;
 
+  String get _cacheKey => widget.friends ? 'rating-friends' : 'rating-global';
+
+  Future<void> _addFriend() async {
+    final controller = TextEditingController();
+    final id = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('Добавить друга')),
+        content: TextField(
+          key: const ValueKey('friend-id-field'),
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            labelText: tr('ID друга'),
+            hintText: tr('9 цифр из его профиля'),
+            prefixIcon: const Icon(Icons.badge_outlined),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text(tr('Отмена'))),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(int.tryParse(controller.text.replaceAll(RegExp(r'\D'), ''))),
+            child: Text(tr('Добавить')),
+          ),
+        ],
+      ),
+    );
+    if (id == null || !mounted) return;
+    try {
+      await ApiClient.instance.addFriend(id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Друг добавлен'))));
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
+  }
+
+  /// Every friend in a list, each with a remove button.
+  Future<void> _manageFriends() async {
+    final friends = [for (final e in _board?.entries ?? const <LeaderboardEntry>[]) if (!e.isMe) e];
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final f in friends)
+              ListTile(
+                leading: const Icon(Icons.person_rounded, color: AppColors.primary),
+                title: Text(f.login, style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text(tr('{0} очков', [f.totalPoints])),
+                trailing: IconButton(
+                  icon: const Icon(Icons.person_remove_rounded, color: AppColors.danger),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _removeFriend(f);
+                  },
+                ),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _removeFriend(LeaderboardEntry entry) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('Удалить {0} из друзей?', [entry.login])),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(tr('Отмена'))),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text(tr('Удалить'))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ApiClient.instance.removeFriend(entry.userId);
+      _load();
+    } catch (_) {}
+  }
+
   @override
   void initState() {
     super.initState();
-    _board = SessionCache.get<Leaderboard>('rating-global');
+    _board = SessionCache.get<Leaderboard>(_cacheKey);
     _isLoading = _board == null;
     _load();
   }
@@ -727,8 +850,10 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
       _loadError = null;
     });
     try {
-      final board = await ApiClient.instance.fetchGlobalLeaderboard();
-      SessionCache.put('rating-global', board);
+      final board = widget.friends
+          ? await ApiClient.instance.fetchFriendsLeaderboard()
+          : await ApiClient.instance.fetchGlobalLeaderboard();
+      SessionCache.put(_cacheKey, board);
       if (!mounted) return;
       setState(() {
         _board = board;
@@ -757,12 +882,31 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          tr('Глобальный рейтинг'),
+          widget.friends ? tr('Друзья') : tr('Глобальный рейтинг'),
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
         ),
         iconTheme: const IconThemeData(color: AppColors.primaryDark),
+        actions: [
+          if (widget.friends && (_board?.entries.length ?? 0) > 1)
+            IconButton(
+              key: const ValueKey('manage-friends'),
+              tooltip: tr('Управлять друзьями'),
+              icon: const Icon(Icons.manage_accounts_rounded, color: AppColors.primary),
+              onPressed: _manageFriends,
+            ),
+        ],
       ),
       body: SafeArea(child: RefreshIndicator(onRefresh: _load, child: _buildBody())),
+      floatingActionButton: widget.friends
+          ? FloatingActionButton.extended(
+              key: const ValueKey('add-friend'),
+              onPressed: _addFriend,
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.person_add_alt_1_rounded),
+              label: Text(tr('Добавить друга')),
+            )
+          : null,
     );
   }
 
@@ -788,6 +932,20 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
       );
     }
     final entries = _board!.entries;
+    if (widget.friends && entries.length <= 1) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(32, 80, 32, 24),
+        children: [
+          const Icon(Icons.group_add_rounded, size: 56, color: AppColors.muted),
+          const SizedBox(height: 12),
+          Text(
+            tr('Добавьте друзей по их ID или QR-коду из профиля и соревнуйтесь вместе'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 15, color: AppColors.secondaryText),
+          ),
+        ],
+      );
+    }
     if (entries.isEmpty) {
       return Center(
         child: Text(tr('Рейтинг пока пуст'), style: TextStyle(color: AppColors.secondaryText)),
@@ -800,6 +958,7 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
         const SizedBox(height: 16),
         for (final entry in entries.skip(LeaderboardPodium.placeCount))
           LeaderboardRow(entry: entry, accentColor: AppColors.primary, showRank: true, onEditMyStatus: _editStatus),
+        if (widget.friends) const SizedBox(height: 72),
       ],
     );
   }

@@ -1036,6 +1036,28 @@ class ApiClient {
   }
 
   /// Top 100 users across every rank combined.
+  /// The caller and their friends, by points (GET /rating/leaderboard/friends).
+  Future<Leaderboard> fetchFriendsLeaderboard() async {
+    final res = await http.get(_uri('/rating/leaderboard/friends'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    return Leaderboard.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  /// Adds the account with this 9-digit ID as a friend (both ways).
+  Future<void> addFriend(int publicId) async {
+    final res = await http.post(
+      _uri('/rating/friends'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'public_id': publicId}),
+    );
+    await _throwWithDetail(res);
+  }
+
+  Future<void> removeFriend(int userId) async {
+    final res = await http.delete(_uri('/rating/friends/$userId'), headers: await _authHeaders());
+    await _throwWithDetail(res);
+  }
+
   Future<Leaderboard> fetchGlobalLeaderboard() async {
     final res = await http.get(_uri('/rating/leaderboard/global'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);

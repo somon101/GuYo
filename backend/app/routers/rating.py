@@ -4,12 +4,14 @@ they see (see /rating/leaderboard below): it's always exactly their own
 CURRENT rank, recomputed live from their own points on every call, same
 as everywhere else this project determines a rank."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
 from app.core.storage import url_for_key
 from app.database import get_db
+from app.models.friendship import Friendship
 from app.models.rating import UserRating
 from app.models.user import User
 from app.premium import effective_premium_user_ids
@@ -96,6 +98,57 @@ def get_global_leaderboard(db: Session = Depends(get_db), user: User = Depends(g
     """Top 100 users across every rank combined, sorted purely by points."""
     ratings = leaderboard_global(db)
     return LeaderboardOut(rank=None, entries=_entries_out(db, ratings, user, with_rank=True))
+
+
+class AddFriendIn(BaseModel):
+    public_id: int
+
+
+def _friend_ids(db: Session, user: User) -> list[int]:
+    return [r[0] for r in db.query(Friendship.friend_id).filter(Friendship.user_id == user.id).all()]
+
+
+@router.get("/leaderboard/friends", response_model=LeaderboardOut)
+def get_friends_leaderboard(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """The caller and their friends, sorted by points -- the same rows the
+    global board shows, just for these people."""
+    ids = [user.id, *_friend_ids(db, user)]
+    for uid in ids:
+        get_or_create_user_rating(db, uid)
+    db.flush()
+    ratings = (
+        db.query(UserRating)
+        .filter(UserRating.user_id.in_(ids))
+        .order_by(UserRating.total_points.desc(), UserRating.user_id)
+        .all()
+    )
+    out = LeaderboardOut(rank=None, entries=_entries_out(db, ratings, user, with_rank=True))
+    db.commit()
+    return out
+
+
+@router.post("/friends", status_code=status.HTTP_204_NO_CONTENT)
+def add_friend(payload: AddFriendIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Adds the account with this 9-digit ID as a friend, both ways."""
+    friend = db.query(User).filter(User.public_id == payload.public_id).first()
+    if friend is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь с таким ID не найден")
+    if friend.id == user.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Это ваш собственный ID")
+    for a, b in ((user.id, friend.id), (friend.id, user.id)):
+        if db.query(Friendship).filter(Friendship.user_id == a, Friendship.friend_id == b).first() is None:
+            db.add(Friendship(user_id=a, friend_id=b))
+    db.commit()
+
+
+@router.delete("/friends/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_friend(user_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Removes a friend (by their user id, as the board lists it), both ways."""
+    db.query(Friendship).filter(
+        ((Friendship.user_id == user.id) & (Friendship.friend_id == user_id))
+        | ((Friendship.user_id == user_id) & (Friendship.friend_id == user.id))
+    ).delete(synchronize_session=False)
+    db.commit()
 
 
 @router.get("/ranks", response_model=list[RankPublicOut])
