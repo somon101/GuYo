@@ -121,7 +121,7 @@ class _ReplayPrompt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: AppColors.surface,
       borderRadius: BorderRadius.circular(AppShapes.cardRadius),
       child: InkWell(
         onTap: onReplay,

@@ -434,9 +434,9 @@ class _OrbitDecorPainter extends CustomPainter {
       // Grey dots halfway to the next satellite.
       final mid = a + math.pi / n;
       canvas.drawCircle(c + Offset(math.cos(mid), math.sin(mid)) * orbit, 9 * t,
-          Paint()..color = const Color(0xFFDCDDE3).withValues(alpha: t));
+          Paint()..color = (AppColors.dark ? const Color(0xFF3A3F5C) : const Color(0xFFDCDDE3)).withValues(alpha: t));
       canvas.drawCircle(c + Offset(math.cos(mid), math.sin(mid)) * (orbit + 24), 4 * t,
-          Paint()..color = const Color(0xFFE6E7EC).withValues(alpha: t));
+          Paint()..color = (AppColors.dark ? const Color(0xFF2E3350) : const Color(0xFFE6E7EC)).withValues(alpha: t));
       _drawArcText(canvas, c, a, satellites[i].label.toUpperCase(), t);
     }
   }
@@ -522,7 +522,7 @@ class _RingPainter extends CustomPainter {
       rect.center,
       arcRect.width / 2,
       Paint()
-        ..color = Colors.white
+        ..color = AppColors.surface
         ..style = PaintingStyle.fill,
     );
     canvas.drawArc(
@@ -573,7 +573,7 @@ class _OutcomeCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         boxShadow: AppShapes.cardShadow,
       ),
@@ -730,8 +730,9 @@ class _MetricTile extends StatelessWidget {
 class _Bar extends StatelessWidget {
   final double ratio;
   final Color color;
-  final Color track;
-  const _Bar({required this.ratio, required this.color, this.track = Colors.white});
+  final Color? _track;
+  Color get track => _track ?? AppColors.surface;
+  const _Bar({required this.ratio, required this.color, Color? track}) : _track = track;
 
   @override
   Widget build(BuildContext context) {
@@ -763,7 +764,7 @@ class _ExerciseTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
         boxShadow: AppShapes.cardShadow,
       ),
@@ -855,7 +856,7 @@ class _WordProgressRow extends StatelessWidget {
             child: LinearProgressIndicator(
               value: (word.score / 100).clamp(0.0, 1.0),
               minHeight: 5,
-              backgroundColor: const Color(0xFFEDEFF7),
+              backgroundColor: AppColors.cardBorder,
               valueColor: AlwaysStoppedAnimation(color),
             ),
           ),

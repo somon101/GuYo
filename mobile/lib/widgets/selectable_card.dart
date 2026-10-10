@@ -14,7 +14,7 @@ class SelectableCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? AppColors.violetSurface : Colors.white,
+      color: selected ? AppColors.violetSurface : AppColors.surface,
       borderRadius: BorderRadius.circular(AppShapes.rowRadius),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppShapes.rowRadius),

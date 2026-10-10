@@ -19,7 +19,7 @@ class StatusEmojiBadge extends StatelessWidget {
       height: size,
       padding: EdgeInsets.all(size * 0.08),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         shape: BoxShape.circle,
         boxShadow: [BoxShadow(color: AppColors.primaryDark.withValues(alpha: 0.18), blurRadius: 4, offset: const Offset(0, 1))],
       ),
@@ -155,7 +155,7 @@ class _Bubble extends StatelessWidget {
     final url = emojiUrl;
     final phrase = text;
     return Material(
-      color: Colors.white,
+      color: AppColors.surface,
       elevation: 0,
       borderRadius: BorderRadius.circular(18),
       shadowColor: Colors.transparent,
@@ -165,7 +165,7 @@ class _Bubble extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
           boxShadow: [BoxShadow(color: AppColors.primaryDark.withValues(alpha: 0.16), blurRadius: 18, offset: const Offset(0, 6))],
-          color: Colors.white,
+          color: AppColors.surface,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

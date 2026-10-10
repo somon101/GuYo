@@ -207,7 +207,7 @@ class _Preview extends StatelessWidget {
     final empty = emojiUrl == null && text == null;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: AppShapes.cardShadow),
+      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), boxShadow: AppShapes.cardShadow),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [

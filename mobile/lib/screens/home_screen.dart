@@ -372,7 +372,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       bottomNavigationBar: NavigationBarTheme(
         data: NavigationBarThemeData(
           height: 64,
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.surface,
           indicatorColor: AppColors.primary.withValues(alpha: 0.12),
           indicatorShape: const StadiumBorder(),
           labelTextStyle: WidgetStateProperty.resolveWith(
@@ -570,9 +570,9 @@ class _LanguageSwitcher extends StatelessWidget {
       height: 36,
       padding: EdgeInsets.fromLTRB(6, 0, canSwitch ? 6 : 12, 0),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE6E8F2)),
+        border: Border.all(color: AppColors.separator),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -597,7 +597,7 @@ class _LanguageSwitcher extends StatelessWidget {
       tooltip: tr('Выбрать язык'),
       onSelected: onSelected,
       offset: const Offset(0, 44),
-      color: Colors.white,
+      color: AppColors.surface,
       surfaceTintColor: Colors.transparent,
       elevation: 6,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

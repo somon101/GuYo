@@ -31,7 +31,7 @@ class PositionChangeBadge extends StatelessWidget {
         decoration: BoxDecoration(
           color: outlined ? color : (up ? AppColors.successLight : AppColors.dangerLight),
           borderRadius: BorderRadius.circular(AppShapes.pillRadius),
-          border: outlined ? Border.all(color: Colors.white, width: 2) : null,
+          border: outlined ? Border.all(color: AppColors.surface, width: 2) : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

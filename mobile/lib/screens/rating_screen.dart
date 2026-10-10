@@ -158,7 +158,7 @@ class _RatingScreenState extends State<RatingScreen> {
             child: Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(AppShapes.cardRadius),
                 border: Border.all(color: AppColors.cardBorder),
               ),
@@ -225,7 +225,7 @@ class LeaderboardHeader extends StatelessWidget {
         ),
         if (onOpenFriends != null) ...[
           Material(
-            color: Colors.white,
+            color: AppColors.surface,
             shape: const CircleBorder(),
             child: InkWell(
               key: const ValueKey('rating-friends'),
@@ -250,7 +250,7 @@ class LeaderboardHeader extends StatelessWidget {
         ],
         if (onOpenGlobal != null)
           Material(
-            color: Colors.white,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(AppShapes.pillRadius),
             child: InkWell(
               borderRadius: BorderRadius.circular(AppShapes.pillRadius),
@@ -422,7 +422,7 @@ class _PodiumPlace extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: color,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2.5),
+                      border: Border.all(color: AppColors.surface, width: 2.5),
                     ),
                     child: Text(
                       '$place',
@@ -626,7 +626,7 @@ class LeaderboardRow extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: entry.isMe ? AppColors.primary.withValues(alpha: 0.07) : Colors.white,
+          color: entry.isMe ? AppColors.primary.withValues(alpha: 0.07) : AppColors.surface,
           borderRadius: BorderRadius.circular(AppShapes.rowRadius),
           border: Border.all(
             color: entry.isMe ? AppColors.primary.withValues(alpha: 0.35) : AppColors.cardBorder,
@@ -682,7 +682,7 @@ class LeaderboardRow extends StatelessWidget {
             ],
             Text(
               '${entry.totalPoints}',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.rewardText),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.pointsOnSurface),
             ),
           ],
         ),
@@ -710,7 +710,7 @@ class _StatusChip extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(left: 8),
         padding: const EdgeInsets.fromLTRB(6, 5, 12, 5),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: AppShapes.cardShadow),
+        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20), boxShadow: AppShapes.cardShadow),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

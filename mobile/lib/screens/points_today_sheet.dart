@@ -39,7 +39,7 @@ class _PointsTodaySheetState extends State<_PointsTodaySheet> {
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
         child: Container(
           constraints: BoxConstraints(maxHeight: maxHeight),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(24)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -78,7 +78,7 @@ class _PointsTodaySheetState extends State<_PointsTodaySheet> {
                   ],
                 ),
               ),
-              const Divider(height: 1, thickness: 0.6, color: Color(0xFFE6E8F2)),
+              Divider(height: 1, thickness: 0.6, color: AppColors.separator),
               Flexible(
                 child: FutureBuilder<List<PointsTodayItem>>(
                   future: _items,
@@ -98,7 +98,7 @@ class _PointsTodaySheetState extends State<_PointsTodaySheet> {
                       shrinkWrap: true,
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       itemCount: items.length,
-                      separatorBuilder: (_, _) => const Divider(height: 0.6, thickness: 0.6, indent: 68, color: Color(0xFFEFF1F7)),
+                      separatorBuilder: (_, _) => Divider(height: 0.6, thickness: 0.6, indent: 68, color: AppColors.separator),
                       itemBuilder: (_, i) => _row(items[i]),
                     );
                   },

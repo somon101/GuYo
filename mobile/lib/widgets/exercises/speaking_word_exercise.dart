@@ -440,7 +440,7 @@ class _WordCard extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 340),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppShapes.cardRadius),
         border: Border.all(color: AppColors.cardBorder),
         boxShadow: AppShapes.cardShadow,

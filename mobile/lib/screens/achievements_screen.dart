@@ -113,7 +113,7 @@ class _Summary extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppShapes.cardRadius),
         border: Border.all(color: AppColors.cardBorder),
       ),
@@ -234,7 +234,7 @@ class _BadgeArt extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: earned ? AppColors.gold : const Color(0xFFE4E7F0),
                   borderRadius: BorderRadius.circular(coin),
-                  border: Border.all(color: Colors.white, width: 2),
+                  border: Border.all(color: AppColors.surface, width: 2),
                   boxShadow: [
                     BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 4, offset: const Offset(0, 1)),
                   ],
@@ -244,7 +244,7 @@ class _BadgeArt extends StatelessWidget {
                   style: TextStyle(
                     fontSize: coin * 0.45,
                     fontWeight: FontWeight.w800,
-                    color: earned ? AppColors.rewardText : AppColors.secondaryText,
+                    color: earned ? AppColors.pointsOnSurface : AppColors.secondaryText,
                   ),
                 ),
               ),
@@ -261,7 +261,7 @@ void _showDetails(BuildContext context, UserAchievement achievement) {
   final color = parseHexColor(achievement.color);
   showModalBottomSheet<void>(
     context: context,
-    backgroundColor: Colors.white,
+    backgroundColor: AppColors.surface,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppShapes.bannerRadius))),
     builder: (context) => SafeArea(
       child: Padding(

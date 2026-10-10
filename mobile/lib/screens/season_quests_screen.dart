@@ -225,7 +225,7 @@ class _SeasonBanner extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppColors.surface,
                           borderRadius: BorderRadius.circular(AppShapes.pillRadius),
                         ),
                         child: Text(

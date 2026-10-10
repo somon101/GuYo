@@ -270,7 +270,7 @@ class _MatchCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color background = Colors.white;
+    Color background = AppColors.surface;
     Color border = Colors.transparent;
     Color textColor = AppColors.primaryDark;
     List<BoxShadow>? shadow = AppShapes.cardShadow;

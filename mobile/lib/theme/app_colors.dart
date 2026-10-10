@@ -67,6 +67,19 @@ class AppColors {
   /// on white -- a dark gold, readable on both.
   static const Color rewardText = Color(0xFF7A5600);
 
+  /// Point numbers straight on a card (not on a [gold] fill).
+  static Color get pointsOnSurface => dark ? const Color(0xFFFFD54F) : rewardText;
+
+  /// Hairline separators inside lists.
+  static Color get separator => dark ? const Color(0xFF2A2E45) : const Color(0xFFE6E8F2);
+
+  /// A barely tinted fill (empty calendar cells, quiet dividers).
+  static Color get softFill => dark ? const Color(0xFF23273A) : const Color(0xFFF0F1F7);
+
+  /// A pastel accent colour as a tile fill: as is in the light theme, a
+  /// tint of it over [surface] in the dark one.
+  static Color tile(Color pastel) => dark ? Color.alphaBlend(pastel.withValues(alpha: 0.16), surface) : pastel;
+
   /// A quest's reward badge ("⭐ +10"): a bright green the [gold] star
   /// stands out on, with the number in white.
   static const List<Color> questRewardGradient = [Color(0xFF34D17F), Color(0xFF14A85C)];

@@ -140,7 +140,7 @@ class _StatusHeader extends StatelessWidget {
           Container(
             width: 56,
             height: 56,
-            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: AppColors.surface, shape: BoxShape.circle),
             child: const Icon(Icons.workspace_premium_rounded, size: 34, color: AppColors.rewardText),
           ),
           const SizedBox(width: 14),

@@ -333,7 +333,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   width: 24,
                                   height: 24,
                                   alignment: Alignment.center,
-                                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                                  decoration: BoxDecoration(color: AppColors.surface, shape: BoxShape.circle),
                                   child: const Text(
                                     'G',
                                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF4285F4)),
@@ -801,7 +801,7 @@ class _FormFieldState extends State<_FormField> {
             hintText: widget.hint,
             hintStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.muted),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: AppColors.surface,
             isDense: true,
             prefixIcon: widget.icon == null ? null : Icon(widget.icon, size: 21, color: AppColors.secondaryText),
             suffixIcon: widget.obscure

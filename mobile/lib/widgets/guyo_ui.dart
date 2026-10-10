@@ -21,7 +21,10 @@ class GuyoCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final double radius;
   final VoidCallback? onTap;
-  final Color color;
+  final Color? _color;
+
+  /// The card's fill; the theme's surface unless given.
+  Color get color => _color ?? AppColors.surface;
 
   const GuyoCard({
     super.key,
@@ -29,8 +32,8 @@ class GuyoCard extends StatelessWidget {
     this.padding = const EdgeInsets.all(16),
     this.radius = AppShapes.cardRadius,
     this.onTap,
-    this.color = Colors.white,
-  });
+    Color? color,
+  }) : _color = color;
 
   @override
   Widget build(BuildContext context) {

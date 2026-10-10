@@ -227,7 +227,7 @@ class _LearnedWordsScreenState extends State<LearnedWordsScreen> {
                           audioUrl: word.wordAudioUrl,
                           level: WordLevelView.resolve(word.wordLevelId, word.wordLevelName, _levels),
                           onTap: () => _openWord(word),
-                          trailing: const Icon(Icons.chevron_right, size: 18, color: Color(0xFFB9BEDA)),
+                          trailing: Icon(Icons.chevron_right, size: 18, color: AppColors.muted),
                         ),
                     ],
                     const SizedBox(height: 12),
@@ -324,9 +324,9 @@ class _FilterRow extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: const Color(0xFFE3E6F5)),
+                border: Border.all(color: AppColors.progressTrack),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -389,7 +389,7 @@ class _LevelChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? AppColors.primary : Colors.white,
+      color: selected ? AppColors.primary : AppColors.surface,
       borderRadius: BorderRadius.circular(30),
       child: InkWell(
         borderRadius: BorderRadius.circular(30),
@@ -398,7 +398,7 @@ class _LevelChip extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: selected ? AppColors.primary : const Color(0xFFE3E6F5)),
+            border: Border.all(color: selected ? AppColors.primary : AppColors.progressTrack),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -442,7 +442,7 @@ class _CategoryHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final iconUrl = category.iconUrl;
     return Material(
-      color: Colors.white,
+      color: AppColors.surface,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -451,7 +451,7 @@ class _CategoryHeader extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFEDEFF7)),
+            border: Border.all(color: AppColors.cardBorder),
           ),
           child: Row(
             children: [
@@ -459,7 +459,7 @@ class _CategoryHeader extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEEF0FF),
+                  color: AppColors.violetSurface,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 clipBehavior: Clip.antiAlias,
@@ -494,7 +494,7 @@ class _CategoryHeader extends StatelessWidget {
               ),
               Icon(
                 isCollapsed ? Icons.chevron_right : Icons.keyboard_arrow_down,
-                color: const Color(0xFFB9BEDA),
+                color: AppColors.muted,
               ),
             ],
           ),
@@ -528,7 +528,7 @@ class _PhrasesLink extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFFEEF0FF),
+      color: AppColors.violetSurface,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),

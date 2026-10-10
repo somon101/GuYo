@@ -150,7 +150,7 @@ class _TrueOrFalseCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppShapes.cardRadius),
         border: Border.all(color: borderColor, width: reveal == null ? 1 : 2),
         boxShadow: AppShapes.cardShadow,

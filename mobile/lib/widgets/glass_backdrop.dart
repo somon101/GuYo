@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import '../theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 /// A soft, mostly-solid backdrop with a couple of large, blurred colour
@@ -22,7 +23,9 @@ class GlassBackdrop extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Colors.indigo.shade50, Colors.white, Colors.white],
+                colors: AppColors.dark
+                    ? [const Color(0xFF1A1D2C), AppColors.canvas, AppColors.canvas]
+                    : [Colors.indigo.shade50, Colors.white, Colors.white],
               ),
             ),
           ),

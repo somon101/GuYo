@@ -1,5 +1,6 @@
 import 'l10n/l10n.dart';
 
+import 'theme/app_theme.dart';
 import 'services/disk_cache.dart';
 import 'services/error_reporter.dart';
 import 'services/answer_signals.dart';
@@ -22,25 +23,52 @@ Future<void> main() async {
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await PushService.instance.init();
   await loadAppLanguage();
+  await loadAppTheme();
   await DiskCache.load();
   runApp(const GuyoApp());
 }
 
-class GuyoApp extends StatelessWidget {
+class GuyoApp extends StatefulWidget {
   const GuyoApp({super.key});
 
   @override
+  State<GuyoApp> createState() => _GuyoAppState();
+}
+
+class _GuyoAppState extends State<GuyoApp> with WidgetsBindingObserver {
+  /// Bumped when the phone switches light/dark while the choice is "system".
+  final ValueNotifier<int> _systemTheme = ValueNotifier(0);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    if (applyAppTheme()) _systemTheme.value++;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // A language change rebuilds the whole app from scratch, so every
-    // screen picks up the new strings (see l10n/l10n.dart).
-    return ValueListenableBuilder<String>(
-      valueListenable: appLanguage,
-      builder: (context, lang, _) => MaterialApp(
-        key: ValueKey(lang),
+    // A language or theme change rebuilds the whole app from scratch, so
+    // every screen picks up the new strings and colours (see
+    // l10n/l10n.dart, theme/app_theme.dart).
+    return ListenableBuilder(
+      listenable: Listenable.merge([appLanguage, appThemeChoice, _systemTheme]),
+      builder: (context, _) => MaterialApp(
+        key: ValueKey('${appLanguage.value}-${AppColors.dark}'),
         title: 'GuYo',
         navigatorKey: appNavigatorKey,
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(colorSchemeSeed: Colors.indigo, useMaterial3: true),
+        theme: buildAppTheme(),
         home: const _StartupGate(),
       ),
     );

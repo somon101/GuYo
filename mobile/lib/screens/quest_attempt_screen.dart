@@ -281,7 +281,7 @@ class _MatchingQuestState extends State<_MatchingQuest> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(AppShapes.cardRadius),
             border: Border.all(color: AppColors.cardBorder),
             boxShadow: AppShapes.cardShadow,

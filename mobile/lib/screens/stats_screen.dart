@@ -183,7 +183,7 @@ class _StatsScreenState extends State<StatsScreen> {
 }
 
 BoxDecoration _card() => BoxDecoration(
-      color: Colors.white,
+      color: AppColors.surface,
       borderRadius: BorderRadius.circular(24),
       boxShadow: AppShapes.cardShadow,
     );
@@ -556,7 +556,7 @@ class _PointsCard extends StatelessWidget {
                                               colors: [Color(0xFF8C93F0), AppColors.primary],
                                             )
                                           : null,
-                                      color: i == stats.chart.length - 1 ? null : const Color(0xFFE6E8F6),
+                                      color: i == stats.chart.length - 1 ? null : AppColors.progressTrack,
                                     ),
                                   ),
                                 ),
@@ -646,7 +646,7 @@ class _TotalsGrid extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF6DD),
+              color: AppColors.tile(const Color(0xFFFFF6DD)),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(color: const Color(0xFFFFE7A6)),
             ),
@@ -681,7 +681,7 @@ class _Tile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(22)),
+      decoration: BoxDecoration(color: AppColors.tile(color), borderRadius: BorderRadius.circular(22)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -777,7 +777,7 @@ class _ActivityCard extends StatelessWidget {
                                   color: cell == null
                                       ? Colors.transparent
                                       : level == 0
-                                          ? const Color(0xFFF0F1F7)
+                                          ? AppColors.softFill
                                           : _fire.withValues(alpha: level),
                                   borderRadius: BorderRadius.circular(6),
                                   border: cell != null && cell.date == today
@@ -829,7 +829,7 @@ class _StreakPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(color: const Color(0xFFFFF3EA), borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(color: AppColors.tile(const Color(0xFFFFF3EA)), borderRadius: BorderRadius.circular(16)),
       child: Row(
         children: [
           leading,

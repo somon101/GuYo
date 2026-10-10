@@ -194,7 +194,7 @@ class _SuccessCard extends StatelessWidget {
           Container(
             width: 52,
             height: 52,
-            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: AppColors.surface, shape: BoxShape.circle),
             child: const Icon(Icons.celebration_rounded, size: 30, color: AppColors.rewardText),
           ),
           const SizedBox(width: 14),

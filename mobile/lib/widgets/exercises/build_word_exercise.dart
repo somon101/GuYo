@@ -155,7 +155,7 @@ class _BuildWordExerciseState extends State<BuildWordExercise> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.surface,
                   borderRadius: BorderRadius.circular(AppShapes.cardRadius),
                   border: Border.all(color: AppColors.cardBorder),
                   boxShadow: AppShapes.cardShadow,
@@ -253,7 +253,7 @@ class _LetterSlot extends StatelessWidget {
       background = color!.withValues(alpha: 0.12);
       border = color!;
     } else if (filled) {
-      background = Colors.white;
+      background = AppColors.surface;
       border = AppColors.primary.withValues(alpha: 0.35);
     } else {
       background = AppColors.violetSurface;
@@ -310,7 +310,7 @@ class _LetterButton extends StatelessWidget {
         height: 52,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(10),
           boxShadow: const [
             BoxShadow(color: Color(0x33101B63), offset: Offset(0, 1.5), blurRadius: 0),

@@ -155,7 +155,7 @@ class _NotificationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final title = notification.title;
     return GuyoCard(
-      color: isNew ? AppColors.violetSurface : Colors.white,
+      color: isNew ? AppColors.violetSurface : AppColors.surface,
       padding: const EdgeInsets.all(14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -163,7 +163,7 @@ class _NotificationCard extends StatelessWidget {
           RoundIconChip(
             icon: Icons.notifications_rounded,
             size: 40,
-            background: isNew ? Colors.white : AppColors.violetSurface,
+            background: isNew ? AppColors.surface : AppColors.violetSurface,
           ),
           const SizedBox(width: 12),
           Expanded(

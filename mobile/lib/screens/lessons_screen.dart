@@ -280,7 +280,7 @@ class _LessonCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Material(
-        color: isActive ? AppColors.primary.withValues(alpha: 0.05) : Colors.white,
+        color: isActive ? AppColors.primary.withValues(alpha: 0.05) : AppColors.surface,
         borderRadius: BorderRadius.circular(22),
         child: InkWell(
           borderRadius: BorderRadius.circular(22),
@@ -289,7 +289,7 @@ class _LessonCard extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: isActive ? AppColors.primary.withValues(alpha: 0.22) : const Color(0xFFEDEFF7)),
+              border: Border.all(color: isActive ? AppColors.primary.withValues(alpha: 0.22) : AppColors.cardBorder),
               boxShadow: [
                 BoxShadow(color: Colors.black.withValues(alpha: 0.035), blurRadius: 14, offset: const Offset(0, 5)),
               ],
@@ -321,7 +321,7 @@ class _LessonCard extends StatelessWidget {
                           else if (state == _LessonCardState.unlocked)
                             Icon(Icons.add_circle_outline, color: tint, size: 20)
                           else
-                            const Icon(Icons.chevron_right, color: Color(0xFFB9BEDA), size: 20),
+                            Icon(Icons.chevron_right, color: AppColors.muted, size: 20),
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -437,7 +437,7 @@ class _LessonBadge extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.successLight,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
+                  border: Border.all(color: AppColors.surface, width: 2),
                 ),
                 child: Icon(Icons.check_rounded, color: AppColors.success, size: 12),
               ),

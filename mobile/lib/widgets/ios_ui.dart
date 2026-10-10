@@ -11,7 +11,7 @@ import '../theme/app_colors.dart';
 /// Cupertino widgets Flutter already ships -- no extra package.
 
 /// Hairline between rows inside an [IosSection].
-const Color _separator = Color(0xFFE6E8F2);
+final Color _separator = AppColors.separator;
 
 /// `CupertinoSlidingSegmentedControl` in the app's colors.
 class IosSegmented<T extends Object> extends StatelessWidget {
@@ -102,14 +102,14 @@ class IosSection extends StatelessWidget {
         Container(
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(14),
             boxShadow: AppShapes.cardShadow,
           ),
           child: Column(
             children: [
               for (var i = 0; i < children.length; i++) ...[
-                if (i > 0) const Divider(height: 0.6, thickness: 0.6, indent: 16, color: _separator),
+                if (i > 0) Divider(height: 0.6, thickness: 0.6, indent: 16, color: _separator),
                 children[i],
               ],
             ],
@@ -217,7 +217,7 @@ class IosSearchField extends StatelessWidget {
       controller: controller,
       onChanged: onChanged,
       placeholder: placeholder,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       borderRadius: BorderRadius.circular(12),
       style: TextStyle(fontSize: 16, color: AppColors.primaryDark),
       placeholderStyle: TextStyle(fontSize: 16, color: AppColors.muted),

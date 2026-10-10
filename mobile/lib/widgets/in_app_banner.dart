@@ -107,7 +107,7 @@ class _BannerCardState extends State<_BannerCard> with SingleTickerProviderState
                 if (details.delta.dy < -2) _hide();
               },
               child: Material(
-                color: Colors.white,
+                color: AppColors.surface,
                 elevation: 10,
                 shadowColor: Colors.black38,
                 borderRadius: BorderRadius.circular(18),

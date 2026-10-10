@@ -359,7 +359,7 @@ class ProfileScreenState extends State<ProfileScreen> {
               child: _StatCard(
                 icon: Icons.menu_book_rounded,
                 iconColor: AppColors.primary,
-                iconBackground: const Color(0xFFEDEEFC),
+                iconBackground: AppColors.violetSurface,
                 label: tr('Уроки'),
                 // Still the backend's own completed-lessons count -- the
                 // card just leads to the lesson chain now.
@@ -372,7 +372,7 @@ class ProfileScreenState extends State<ProfileScreen> {
               child: _StatCard(
                 icon: Icons.star_rounded,
                 iconColor: AppColors.primary,
-                iconBackground: const Color(0xFFEDEEFC),
+                iconBackground: AppColors.violetSurface,
                 label: tr('Мои слова'),
                 value: '${profile.wordsLearned}',
                 // Still the same counter it always was -- it just leads
@@ -478,7 +478,7 @@ class _ProfileHeader extends StatelessWidget {
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.white,
+        color: AppColors.surface,
         boxShadow: [
           BoxShadow(color: AppColors.primary.withValues(alpha: 0.12), blurRadius: 16, offset: const Offset(0, 4)),
         ],
@@ -541,7 +541,7 @@ class _ProfileHeader extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: AppColors.primary,
-                      border: Border.all(color: Colors.white, width: 2),
+                      border: Border.all(color: AppColors.surface, width: 2),
                     ),
                     child: const Icon(Icons.photo_camera_rounded, size: 15, color: Colors.white),
                   ),
@@ -588,9 +588,9 @@ class _ProfileHeader extends StatelessWidget {
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFEDEFF7)),
+                border: Border.all(color: AppColors.cardBorder),
               ),
               child: Icon(Icons.insights_rounded, color: AppColors.primary, size: 22),
             ),
@@ -608,9 +608,9 @@ class _ProfileHeader extends StatelessWidget {
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFEDEFF7)),
+                border: Border.all(color: AppColors.cardBorder),
               ),
               child: Icon(Icons.qr_code_rounded, color: AppColors.primary, size: 22),
             ),
@@ -714,7 +714,7 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: AppColors.surface,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -729,7 +729,7 @@ class _StatCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFEDEFF7)),
+        border: Border.all(color: AppColors.cardBorder),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 12, offset: const Offset(0, 4)),
         ],
@@ -804,7 +804,7 @@ class _RankCard extends StatelessWidget {
     }
 
     return Material(
-      color: Colors.white,
+      color: AppColors.surface,
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
@@ -813,7 +813,7 @@ class _RankCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFEDEFF7)),
+            border: Border.all(color: AppColors.cardBorder),
             boxShadow: [
               BoxShadow(color: Colors.black.withValues(alpha: 0.035), blurRadius: 14, offset: const Offset(0, 5)),
             ],
@@ -863,7 +863,7 @@ class _RankCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right, color: Color(0xFFB9BEDA), size: 22),
+                  Icon(Icons.chevron_right, color: AppColors.muted, size: 22),
                 ],
               ),
               if (progress != null && nextRank != null) ...[
@@ -873,7 +873,7 @@ class _RankCard extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: progress,
                     minHeight: 7,
-                    backgroundColor: const Color(0xFFEDEFF7),
+                    backgroundColor: AppColors.cardBorder,
                     valueColor: AlwaysStoppedAnimation(AppColors.primary),
                   ),
                 ),
@@ -929,7 +929,7 @@ class _AchievementsCard extends StatelessWidget {
     final shown = ordered.take(6).toList();
 
     return Material(
-      color: Colors.white,
+      color: AppColors.surface,
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
@@ -938,7 +938,7 @@ class _AchievementsCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFEDEFF7)),
+            border: Border.all(color: AppColors.cardBorder),
             boxShadow: [
               BoxShadow(color: Colors.black.withValues(alpha: 0.035), blurRadius: 14, offset: const Offset(0, 5)),
             ],
@@ -959,7 +959,7 @@ class _AchievementsCard extends StatelessWidget {
                       style: TextStyle(fontSize: 13, color: AppColors.secondaryText, fontWeight: FontWeight.w700),
                     ),
                   const SizedBox(width: 2),
-                  const Icon(Icons.chevron_right, color: Color(0xFFB9BEDA), size: 22),
+                  Icon(Icons.chevron_right, color: AppColors.muted, size: 22),
                 ],
               ),
               if (achievements.isEmpty)
@@ -1022,8 +1022,8 @@ class _PhotoActionSheet extends StatelessWidget {
       );
     }
 
-    const divider = Divider(height: 0.6, thickness: 0.6, indent: 64, color: Color(0xFFE6E8F2));
-    BoxDecoration card() => BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18));
+    final divider = Divider(height: 0.6, thickness: 0.6, indent: 64, color: AppColors.separator);
+    BoxDecoration card() => BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(18));
 
     return SafeArea(
       child: Padding(

@@ -41,10 +41,10 @@ class _ProfileQrSheet extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(24),
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Colors.white, Color(0xFFEEF0FC)],
+                  colors: AppColors.dark ? [AppColors.surface, AppColors.violetSurface] : const [Colors.white, Color(0xFFEEF0FC)],
                 ),
               ),
               child: Column(

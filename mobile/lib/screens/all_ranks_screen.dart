@@ -158,7 +158,7 @@ class _RankNode extends StatelessWidget {
     final isCurrent = status == _RankStatus.current;
     final isPassed = status == _RankStatus.passed;
     final iconSize = isCurrent ? 72.0 : 56.0;
-    final connectorColor = isPassed ? color : const Color(0xFFEDEFF7);
+    final connectorColor = isPassed ? color : AppColors.cardBorder;
 
     return IntrinsicHeight(
       child: Row(
@@ -191,7 +191,7 @@ class _RankNode extends StatelessWidget {
                           right: -2,
                           child: Container(
                             padding: const EdgeInsets.all(2),
-                            decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
+                            decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.surface),
                             child: Icon(Icons.check_circle, color: AppColors.success, size: 18),
                           ),
                         ),
@@ -201,7 +201,7 @@ class _RankNode extends StatelessWidget {
                           right: -2,
                           child: Container(
                             padding: const EdgeInsets.all(3),
-                            decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFB9BEDA)),
+                            decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.muted),
                             child: const Icon(Icons.lock, color: Colors.white, size: 12),
                           ),
                         ),
@@ -246,9 +246,9 @@ class _RankCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: isCurrent ? color.withValues(alpha: 0.08) : Colors.white,
+        color: isCurrent ? color.withValues(alpha: 0.08) : AppColors.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: isCurrent ? color.withValues(alpha: 0.5) : const Color(0xFFEDEFF7), width: isCurrent ? 1.5 : 1),
+        border: Border.all(color: isCurrent ? color.withValues(alpha: 0.5) : AppColors.cardBorder, width: isCurrent ? 1.5 : 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -277,7 +277,7 @@ class _RankCard extends StatelessWidget {
               else if (status == _RankStatus.passed)
                 Icon(Icons.check_circle, color: AppColors.success, size: 18)
               else
-                const Icon(Icons.lock_outline, color: Color(0xFFB9BEDA), size: 16),
+                Icon(Icons.lock_outline, color: AppColors.muted, size: 16),
             ],
           ),
           const SizedBox(height: 3),
@@ -289,7 +289,7 @@ class _RankCard extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: ((totalPoints - rank.minPoints) / (rank.maxPoints! + 1 - rank.minPoints)).clamp(0.0, 1.0),
                 minHeight: 6,
-                backgroundColor: const Color(0xFFEDEFF7),
+                backgroundColor: AppColors.cardBorder,
                 valueColor: AlwaysStoppedAnimation(color),
               ),
             ),
@@ -327,9 +327,9 @@ class _SeasonHistoryRow extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEDEFF7)),
+        border: Border.all(color: AppColors.cardBorder),
       ),
       child: Row(
         children: [

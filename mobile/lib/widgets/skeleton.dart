@@ -15,7 +15,7 @@ class Skeleton extends StatefulWidget {
   final Widget child;
   const Skeleton({super.key, required this.child});
 
-  static const Color bone = Color(0xFFE6E8F2);
+  static final Color bone = AppColors.separator;
   static const Color highlight = Color(0xFFF6F7FC);
 
   @override
@@ -47,7 +47,7 @@ class _SkeletonState extends State<Skeleton> with SingleTickerProviderStateMixin
               return LinearGradient(
                 begin: Alignment(t - 1, -0.3),
                 end: Alignment(t + 1, 0.3),
-                colors: const [Skeleton.bone, Skeleton.highlight, Skeleton.bone],
+                colors: [Skeleton.bone, Skeleton.highlight, Skeleton.bone],
                 stops: const [0.35, 0.5, 0.65],
               ).createShader(bounds);
             },
@@ -84,7 +84,7 @@ class SkeletonCircle extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: const BoxDecoration(color: Skeleton.bone, shape: BoxShape.circle),
+      decoration: BoxDecoration(color: Skeleton.bone, shape: BoxShape.circle),
     );
   }
 }

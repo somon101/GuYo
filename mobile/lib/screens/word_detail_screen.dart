@@ -46,9 +46,9 @@ class WordDetailScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFEDEFF7)),
+                border: Border.all(color: AppColors.cardBorder),
                 boxShadow: [
                   BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 12, offset: const Offset(0, 4)),
                 ],
@@ -90,7 +90,7 @@ class WordDetailScreen extends StatelessWidget {
                       ),
                     ),
                   const SizedBox(height: 14),
-                  Container(height: 1, color: const Color(0xFFEDEFF7)),
+                  Container(height: 1, color: AppColors.cardBorder),
                   const SizedBox(height: 14),
                   Row(
                     children: [

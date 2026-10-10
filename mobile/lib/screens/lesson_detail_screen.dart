@@ -204,7 +204,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
             onTap: () => _openWord(word),
             trailing: word.isLearned
                 ? Icon(Icons.check_circle, color: AppColors.success, size: 18)
-                : const Icon(Icons.chevron_right, size: 18, color: Color(0xFFB9BEDA)),
+                : Icon(Icons.chevron_right, size: 18, color: AppColors.muted),
           ),
         if (!lesson.isCompleted) ...[
           const SizedBox(height: 12),

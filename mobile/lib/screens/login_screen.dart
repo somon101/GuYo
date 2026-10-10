@@ -163,7 +163,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 13),
-                      backgroundColor: Colors.white,
+                      backgroundColor: AppColors.surface,
                       foregroundColor: AppColors.primaryDark,
                       side: BorderSide(color: AppColors.cardBorder),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppShapes.rowRadius)),

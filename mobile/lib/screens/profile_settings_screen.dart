@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
 import '../models/learning_topics.dart';
@@ -180,6 +181,12 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     await setAppLanguage(code);
   }
 
+  Future<void> _changeTheme() async {
+    final code = await _pickOne(tr('Тема'), themeChoices, appThemeChoice.value);
+    if (code == null || code == appThemeChoice.value) return;
+    await setAppTheme(code);
+  }
+
   Future<void> _changeTranslationLanguage() async {
     final code = await _pickOne(
       tr('Язык перевода'),
@@ -302,6 +309,13 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   value: labelOf(uiLanguages, appLanguage.value),
                   onTap: _changeLanguage,
                 ),
+                _Row(
+                  key: const ValueKey('settings-theme'),
+                  icon: Icons.dark_mode_outlined,
+                  label: tr('Тема'),
+                  value: labelOf(themeChoices, appThemeChoice.value),
+                  onTap: _changeTheme,
+                ),
                 // A Tajik or Uzbek interface always reads its own language.
                 if (appLanguage.value == 'ru')
                   _Row(
@@ -326,7 +340,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             // apps put it -- instead of a "⋮" menu on the home screen.
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: AppShapes.cardShadow,
               ),
@@ -384,7 +398,7 @@ class _Section extends StatelessWidget {
         Container(
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(AppShapes.cardRadius),
             border: Border.all(color: AppColors.cardBorder),
           ),

@@ -85,7 +85,7 @@ class WordCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: selected ? AppColors.primary.withValues(alpha: 0.06) : Colors.white,
+        color: selected ? AppColors.primary.withValues(alpha: 0.06) : AppColors.surface,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
@@ -93,7 +93,7 @@ class WordCard extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: selected ? AppColors.primary.withValues(alpha: 0.35) : const Color(0xFFEDEFF7)),
+              border: Border.all(color: selected ? AppColors.primary.withValues(alpha: 0.35) : AppColors.cardBorder),
               boxShadow: [
                 BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 3)),
               ],

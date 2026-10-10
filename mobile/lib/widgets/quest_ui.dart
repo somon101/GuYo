@@ -91,7 +91,7 @@ class SeasonTimeline extends StatelessWidget {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 14, vertical: compact ? 10 : 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppShapes.rowRadius),
       ),
       child: Column(
@@ -147,7 +147,7 @@ class _OpenEndedNote extends StatelessWidget {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 14, vertical: compact ? 9 : 11),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppShapes.rowRadius),
       ),
       child: Row(
@@ -191,7 +191,7 @@ class SeasonIconPlate extends StatelessWidget {
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppShapes.cardRadius),
         boxShadow: [
           BoxShadow(color: AppColors.primary.withValues(alpha: 0.08), blurRadius: 14, offset: const Offset(0, 4)),
