@@ -15,6 +15,8 @@ import 'listen_word_screen.dart';
 import 'matching_screen.dart';
 import 'speaking_word_screen.dart';
 import 'true_or_false_screen.dart';
+import '../models/mini_phrase.dart';
+import '../widgets/mini_phrases/mini_phrase_session.dart';
 
 /// The human-readable name of each exercise type, for the run's title bar.
 Map<String, String> get lessonExerciseLabels => {
@@ -144,6 +146,10 @@ class LessonRunScreen extends StatefulWidget {
   final int lessonId;
   final int lessonNumber;
   final List<String> exerciseKeys;
+
+  /// Explained and assembled after the word exercises, before the results,
+  /// on every pass (chosen by the backend when the lesson was created).
+  final List<MiniPhrase> miniPhrases;
   final LessonRunDriver driver;
 
   const LessonRunScreen({
@@ -151,6 +157,7 @@ class LessonRunScreen extends StatefulWidget {
     required this.lessonId,
     required this.lessonNumber,
     required this.exerciseKeys,
+    this.miniPhrases = const [],
     this.driver = const ApiLessonRunDriver(),
   });
 
@@ -160,6 +167,7 @@ class LessonRunScreen extends StatefulWidget {
           lessonId: lesson.id,
           lessonNumber: lesson.number,
           exerciseKeys: lesson.exerciseKeys,
+          miniPhrases: lesson.miniPhrases,
           driver: driver,
         );
 
@@ -171,6 +179,9 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
   int _pass = 0;
   int _index = 0;
   bool _showingExercise = false;
+  bool _showingMiniPhrases = false;
+  // Refreshed after each pass: empty once the lesson is completed.
+  late List<MiniPhrase> _miniPhrases = widget.miniPhrases;
   bool _failed = false;
   Completer<void>? _current;
   LessonRounds _rounds = const LessonRounds({});
@@ -253,6 +264,17 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
 
     if (!mounted) return;
     setState(() => _showingExercise = false);
+
+    // The mini-phrases this lesson opens: reinforcement after the words.
+    if (_miniPhrases.isNotEmpty) {
+      final done = Completer<void>();
+      _current = done;
+      setState(() => _showingMiniPhrases = true);
+      await done.future;
+      if (!mounted) return;
+      setState(() => _showingMiniPhrases = false);
+    }
+
     await _showResults();
   }
 
@@ -278,6 +300,7 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
       if (mounted) setState(() => _failed = true);
       return;
     }
+    _miniPhrases = fresh.miniPhrases;
     final stats = await statsFuture;
     if (!mounted) return;
     final repeat = await widget.driver.showResults(context, fresh, stats);
@@ -313,8 +336,13 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
   Widget build(BuildContext context) {
     final keys = widget.exerciseKeys;
     final key = keys.isEmpty ? null : keys[_index];
-    final title = key == null ? tr('Урок {0}', [widget.lessonNumber]) : (lessonExerciseLabels[key] ?? key);
-    final progress = keys.isEmpty ? 0.0 : (_index + (_showingExercise ? 0 : 1)) / keys.length;
+    final title = _showingMiniPhrases
+        ? tr('Мини-фразы')
+        : key == null
+            ? tr('Урок {0}', [widget.lessonNumber])
+            : (lessonExerciseLabels[key] ?? key);
+    final progress =
+        _showingMiniPhrases ? 1.0 : keys.isEmpty ? 0.0 : (_index + (_showingExercise ? 0 : 1)) / keys.length;
 
     return PopScope(
       canPop: false,
@@ -328,7 +356,12 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(title),
-              if (keys.isNotEmpty)
+              if (_showingMiniPhrases)
+                Text(
+                  tr('Урок {0} · закрепление', [widget.lessonNumber]),
+                  style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
+                )
+              else if (keys.isNotEmpty)
                 Text(
                   tr('Урок {0} · упражнение {1} из {2}', [widget.lessonNumber, _index + 1, keys.length]),
                   style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
@@ -371,6 +404,14 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
             ],
           ),
         ),
+      );
+    }
+    if (_showingMiniPhrases) {
+      return MiniPhraseSession(
+        key: ValueKey('mini-phrases-$_pass'),
+        phrases: _miniPhrases,
+        lessonId: widget.lessonId,
+        onDone: _onExerciseFinished,
       );
     }
     if (!_showingExercise || key == null) {

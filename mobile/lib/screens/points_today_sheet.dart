@@ -121,16 +121,21 @@ class _PointsTodaySheetState extends State<_PointsTodaySheet> {
   Widget _row(PointsTodayItem item) {
     final isQuest = item.kind == 'quest';
     final isReview = item.kind == 'review';
+    final isMini = item.kind == 'mini_phrase';
     final color = isQuest
         ? AppColors.success
         : isReview
             ? const Color(0xFF13B5A6)
-            : AppColors.primary;
+            : isMini
+                ? const Color(0xFF8B5CF6)
+                : AppColors.primary;
     final title = isQuest
         ? (item.title ?? tr('Квест'))
         : isReview
             ? tr('Повторение')
-            : tr('Новое слово');
+            : isMini
+                ? tr('Мини-фраза')
+                : tr('Новое слово');
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
@@ -139,7 +144,17 @@ class _PointsTodaySheetState extends State<_PointsTodaySheet> {
             width: 38,
             height: 38,
             decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
-            child: Icon(isQuest ? Icons.flag_rounded : isReview ? Icons.replay_rounded : Icons.menu_book_rounded, color: color, size: 20),
+            child: Icon(
+              isQuest
+                  ? Icons.flag_rounded
+                  : isReview
+                      ? Icons.replay_rounded
+                      : isMini
+                          ? Icons.extension_rounded
+                          : Icons.menu_book_rounded,
+              color: color,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(

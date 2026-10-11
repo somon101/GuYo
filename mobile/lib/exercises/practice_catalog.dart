@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/dictionary.dart';
 import '../screens/build_phrase_by_ear_screen.dart';
 import '../screens/build_phrase_screen.dart';
+import '../screens/mini_phrases_practice_screen.dart';
 import '../screens/practice_exercise_screen.dart';
 import '../screens/practice_matching_screen.dart';
 import 'exercise_type.dart';
@@ -79,5 +80,10 @@ List<PracticeExercise> practiceExercises(GuyoDictionary dictionary) => [
         type: buildPhraseByEarExerciseType,
         description: tr('Прослушайте фразу и соберите её из слов'),
         builder: (_) => BuildPhraseByEarScreen(dictionary: dictionary),
+      ),
+      PracticeExercise(
+        type: miniPhrasesExerciseType,
+        description: tr('Повторите мини-фразы, открытые в уроках'),
+        builder: (_) => MiniPhrasesPracticeScreen(dictionary: dictionary),
       ),
     ];

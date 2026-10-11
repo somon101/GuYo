@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../services/google_auth.dart';
 import '../services/disk_cache.dart';
 import '../widgets/study_times_editor.dart' show StudyTime;
@@ -18,6 +19,7 @@ import '../models/exercise.dart';
 import '../models/learning.dart';
 import '../models/lesson.dart';
 import '../models/notification.dart';
+import '../models/mini_phrase.dart';
 import '../models/phrase.dart';
 import '../models/premium.dart';
 import '../models/quest.dart';
@@ -574,6 +576,42 @@ class ApiClient {
     await _throwIfUnauthorized(res);
     final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
     return list.map((e) => GuyoPhrase.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// Практика: mini-phrases this user has already gone through in a lesson.
+  Future<List<MiniPhrase>> fetchOpenMiniPhrases(int dictionaryId) async {
+    final res = await http.get(
+      _uri('/dictionaries/$dictionaryId/mini-phrases/open'),
+      headers: await _authHeaders(),
+    );
+    await _throwIfUnauthorized(res);
+    if (res.statusCode != 200) throw ApiException(tr('Не удалось загрузить мини-фразы'));
+    final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
+    return list.map((e) => MiniPhrase.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// A "Собери фразу" answer for a mini-phrase. The app already judged it
+  /// locally (the right answer is known), so this goes out in the
+  /// background and never makes anyone wait; the server re-checks it and
+  /// grants rating points once per mini-phrase. Retried once on failure.
+  void sendMiniPhraseAnswer(int miniPhraseId, List<String> answer, {int? lessonId}) {
+    Future<void> send() async {
+      final res = await http.post(
+        _uri('/mini-phrases/$miniPhraseId/answer'),
+        headers: {...await _authHeaders(), 'Content-Type': 'application/json'},
+        body: jsonEncode({'answer': answer, 'lesson_id': lessonId}),
+      );
+      if (res.statusCode >= 500) throw ApiException('retry');
+    }
+
+    unawaited(send().catchError((_) async {
+      await Future<void>.delayed(const Duration(seconds: 2));
+      try {
+        await send();
+      } catch (_) {
+        // Lost: the next lesson pass shows this mini-phrase again anyway.
+      }
+    }));
   }
 
   /// Pass exactly one of [categoryId] or [uncategorized]; pass neither for

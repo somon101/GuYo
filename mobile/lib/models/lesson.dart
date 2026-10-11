@@ -1,3 +1,4 @@
+import 'mini_phrase.dart';
 import 'word.dart';
 
 /// One word inside a Lesson, with its own cumulative WordProgress.score
@@ -66,6 +67,10 @@ class Lesson {
   final List<String> exerciseKeys;
   final List<LessonWord> words;
 
+  /// Shown after the word exercises on every pass until the lesson is
+  /// completed -- chosen by the backend when the lesson was created.
+  final List<MiniPhrase> miniPhrases;
+
   Lesson({
     required this.id,
     required this.dictionaryId,
@@ -73,6 +78,7 @@ class Lesson {
     required this.isCompleted,
     required this.exerciseKeys,
     required this.words,
+    this.miniPhrases = const [],
   });
 
   factory Lesson.fromJson(Map<String, dynamic> json) {
@@ -83,6 +89,10 @@ class Lesson {
       isCompleted: json['is_completed'] as bool,
       exerciseKeys: (json['exercise_keys'] as List<dynamic>).map((e) => e as String).toList(),
       words: (json['words'] as List<dynamic>).map((e) => LessonWord.fromJson(e as Map<String, dynamic>)).toList(),
+      miniPhrases: [
+        for (final m in (json['mini_phrases'] as List<dynamic>? ?? const []))
+          MiniPhrase.fromJson(m as Map<String, dynamic>),
+      ],
     );
   }
 }

@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:guyo_app/models/lesson.dart';
 import 'package:guyo_app/models/lesson_rounds.dart';
+import 'package:guyo_app/models/mini_phrase.dart';
 import 'package:guyo_app/screens/lesson_exercise_flow.dart';
 import 'package:guyo_app/screens/lesson_run_screen.dart';
 
@@ -196,5 +197,49 @@ void main() {
     await tester.tap(find.text('Выйти'));
     await tester.pumpAndSettle();
     expect(find.text('LESSON LIST'), findsOneWidget);
+  });
+
+  testWidgets('mini-phrases come after the word exercises, before the results', (tester) async {
+    final driver = _FakeDriver({'a': true, 'b': false, 'c': false});
+    const phrase = MiniPhrase(
+      id: 5,
+      dictionaryId: 1,
+      text: 'Я иду',
+      translation: 'Ман меравам',
+      parts: [
+        MiniPhrasePart(position: 1, text: 'Я', wordId: 1, role: 'pronoun'),
+        MiniPhrasePart(position: 2, text: 'иду', wordId: 2, role: 'verb'),
+      ],
+      explanation: [],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LessonRunScreen(
+          lessonId: 7,
+          lessonNumber: 3,
+          exerciseKeys: const ['a', 'b', 'c'],
+          miniPhrases: const [phrase],
+          driver: driver,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('EX a'), findsOneWidget);
+    await _finish(tester);
+
+    expect(find.byKey(const ValueKey('mini-phrase-next')), findsOneWidget, reason: 'the explanation comes first');
+    expect(driver.finished, 0, reason: 'the pass is finished only after the mini-phrases');
+    await tester.tap(find.byKey(const ValueKey('mini-phrase-next')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Я'));
+    await tester.pump();
+    await tester.tap(find.text('иду'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('mini-phrase-check')));
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+
+    expect(find.text('RESULTS'), findsOneWidget);
+    expect(driver.finished, 1);
   });
 }

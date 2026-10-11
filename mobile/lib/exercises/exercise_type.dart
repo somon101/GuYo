@@ -56,6 +56,11 @@ ExerciseTypeInfo get buildPhraseByEarExerciseType => ExerciseTypeInfo(
   label: tr('Собери фразу на слух'),
   icon: Icons.headphones_rounded,
 );
+ExerciseTypeInfo get miniPhrasesExerciseType => ExerciseTypeInfo(
+  key: 'mini_phrases',
+  label: tr('Мини-фразы'),
+  icon: Icons.extension_rounded,
+);
 
 /// Every exercise type a Lesson can include, keyed exactly like the
 /// backend's LessonOut.exercise_keys -- LessonDetailScreen looks itself up
