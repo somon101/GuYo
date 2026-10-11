@@ -1529,6 +1529,8 @@ export interface GeneratedMiniPhrase {
   similar_to: string | null;
   similar_source: "mini" | "phrase" | "batch" | null;
   too_similar: boolean;
+  usefulness: number | null;
+  situation: string | null;
 }
 
 export async function getMiniPhraseAnalysis(dictionaryId: number): Promise<MiniPhraseAnalysis> {
@@ -1539,16 +1541,26 @@ export async function getMiniPhraseAnalysis(dictionaryId: number): Promise<MiniP
 export async function generateMiniPhrases(
   dictionaryId: number,
   count: number,
+  categoryId: number | null = null,
 ): Promise<{ items: GeneratedMiniPhrase[]; tokens: number }> {
-  const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases/generate`, { count }, { timeout: 300000 });
+  const { data } = await api.post(
+    `/admin/dictionaries/${dictionaryId}/mini-phrases/generate`,
+    { count, category_id: categoryId },
+    { timeout: 300000 },
+  );
   return data;
 }
 
 export async function rephraseMiniPhrases(
   dictionaryId: number,
   items: GeneratedMiniPhrase[],
+  categoryId: number | null = null,
 ): Promise<{ items: GeneratedMiniPhrase[]; tokens: number }> {
-  const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases/generate/rephrase`, { items }, { timeout: 300000 });
+  const { data } = await api.post(
+    `/admin/dictionaries/${dictionaryId}/mini-phrases/generate/rephrase`,
+    { items, category_id: categoryId },
+    { timeout: 300000 },
+  );
   return data;
 }
 

@@ -4,11 +4,13 @@ import {
   addMissingWords,
   generateMiniPhrases,
   getMiniPhraseAnalysis,
+  listCategories,
   rephraseMiniPhrases,
   saveGeneratedMiniPhrases,
   type GeneratedMiniPhrase,
   type MiniPhraseAnalysis,
 } from "../api/endpoints";
+import type { Category } from "../types";
 
 function errorText(e: unknown, fallback: string): string {
   if (axios.isAxiosError(e) && typeof e.response?.data?.detail === "string") return e.response.data.detail;
@@ -43,6 +45,8 @@ export function MiniPhraseGenerator({ dictionaryId, onSaved }: { dictionaryId: n
   const [analysis, setAnalysis] = useState<MiniPhraseAnalysis | null>(null);
   const [chosenWords, setChosenWords] = useState<Set<string>>(new Set());
   const [count, setCount] = useState(20);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryId, setCategoryId] = useState<number | null>(null);
   const [items, setItems] = useState<GeneratedMiniPhrase[]>([]);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<string | null>(null);
@@ -59,6 +63,7 @@ export function MiniPhraseGenerator({ dictionaryId, onSaved }: { dictionaryId: n
   }
 
   useEffect(() => {
+    listCategories(dictionaryId).then(setCategories).catch(() => setCategories([]));
     loadAnalysis();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dictionaryId]);
@@ -111,7 +116,7 @@ export function MiniPhraseGenerator({ dictionaryId, onSaved }: { dictionaryId: n
   }, [items]);
 
   async function generate() {
-    const res = await run("generate", () => generateMiniPhrases(dictionaryId, count));
+    const res = await run("generate", () => generateMiniPhrases(dictionaryId, count, categoryId));
     if (!res) return;
     setTokens((t) => t + res.tokens);
     accept(res.items);
@@ -120,7 +125,7 @@ export function MiniPhraseGenerator({ dictionaryId, onSaved }: { dictionaryId: n
   async function rephrase() {
     const targets = items.filter((i) => i.too_similar && picked.has(i.key));
     if (targets.length === 0) return;
-    const res = await run("rephrase", () => rephraseMiniPhrases(dictionaryId, targets));
+    const res = await run("rephrase", () => rephraseMiniPhrases(dictionaryId, targets, categoryId));
     if (!res) return;
     setTokens((t) => t + res.tokens);
     accept(res.items, new Set(targets.map((t) => t.key)));
@@ -224,6 +229,21 @@ export function MiniPhraseGenerator({ dictionaryId, onSaved }: { dictionaryId: n
             onChange={(e) => setCount(Math.max(10, Math.min(50, Number(e.target.value) || 20)))}
           />
         </label>
+        <label className="text-sm text-slate-700">
+          <span className="mb-1 block text-xs text-slate-500">Тема</span>
+          <select
+            className="field px-3 py-2 text-sm"
+            value={categoryId ?? ""}
+            onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
+          >
+            <option value="">Все темы</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <button
           onClick={generate}
           disabled={busy !== null}
@@ -326,6 +346,12 @@ function Card({ item, checked, onToggle }: { item: GeneratedMiniPhrase; checked:
         <div className="flex flex-wrap items-baseline gap-2">
           <span className="font-serif text-[17px] font-medium text-slate-900">{item.text}</span>
           <span className="text-sm text-slate-500">{item.translation_tg}</span>
+          {item.situation && <span className="text-xs text-slate-400">· {item.situation}</span>}
+          {item.usefulness != null && (
+            <span className="text-xs text-amber-600" title="полезность для начинающего по оценке ИИ">
+              {"★".repeat(Math.max(0, Math.min(5, item.usefulness)))}
+            </span>
+          )}
           {item.similarity > 0 && (
             <span
               className={`rounded-full px-2 py-0.5 text-xs ${

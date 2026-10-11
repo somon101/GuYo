@@ -6,20 +6,23 @@ What the SCRIPT does (no tokens):
   words would unlock the most (phrases of «Мои фразы» short of a word, and
   key words for mini-phrases);
 - roles: guesses a missing word role from the word itself;
-- skeletons: picks the words of each new phrase by role patterns
-  (кто + действие + что ...), avoiding word combinations already used;
-- checking every phrase the model returns, the similarity to what exists,
-  choosing/creating templates, adding missing word forms on save.
+- the word list for the model: the chosen topic's words plus anchor words
+  (pronouns, the most important verbs), as compact `id:word` -- no
+  translations or forms, so few tokens;
+- checking every phrase the model returns (words from the list only, 2-4,
+  not a duplicate, has Tajik, usefulness >= 4), the similarity to what
+  exists, choosing/creating templates, adding missing word forms on save.
 
-What the MODEL does: put a skeleton's words into the right forms and order
-and translate the phrase (tg/uz/en); rebuild a phrase that came out too
-similar; build full word cards (translations + all forms) for new words.
+What the MODEL does: invents sensible everyday phrases from that list (picking
+the words itself, so they mean something), puts the words into the right
+forms, rates usefulness, says where it's said and translates (tg/uz/en);
+rebuilds a phrase that came out too similar; builds full word cards
+(translations + all forms) for new words.
 Nothing is saved until the admin picks what to keep.
 """
 
 import difflib
 import json
-import random
 import re
 
 import requests
@@ -179,47 +182,6 @@ def analyze(db: Session, dictionary: Dictionary) -> dict:
     }
 
 
-# --- Skeletons (script only) ----------------------------------------------------
-
-
-def build_skeletons(db: Session, dictionary: Dictionary, count: int, seed: int | None = None) -> list[list[Word]]:
-    rnd = random.Random(seed)
-    words = _words(db, dictionary.id)
-    pools: dict[str, list[Word]] = {}
-    for w in words:
-        pools.setdefault(role_of(w), []).append(w)
-    used = _used_combos(db, dictionary.id)
-    usage: dict[int, int] = {}
-    for combo in used:
-        for wid in combo:
-            usage[wid] = usage.get(wid, 0) + 1
-    patterns = [p for p in PATTERNS if all(pools.get(r) for r in p)]
-    out: list[list[Word]] = []
-    seen = set(used)
-    tries = 0
-    while patterns and len(out) < count and tries < count * 40:
-        tries += 1
-        pattern = rnd.choice(patterns)
-        pick: list[Word] = []
-        for r in pattern:
-            # Prefer words used less in existing mini-phrases.
-            cands = [w for w in pools[r] if w not in pick]
-            if not cands:
-                break
-            cands.sort(key=lambda w: (usage.get(w.id, 0), rnd.random()))
-            pick.append(cands[min(len(cands) - 1, int(rnd.random() ** 2 * min(len(cands), 12)))])
-        if len(pick) != len(pattern):
-            continue
-        combo = frozenset(w.id for w in pick)
-        if combo in seen:
-            continue
-        seen.add(combo)
-        for w in pick:
-            usage[w.id] = usage.get(w.id, 0) + 1
-        out.append(pick)
-    return out
-
-
 # --- The model ------------------------------------------------------------------
 
 
@@ -269,31 +231,63 @@ def chat(db: Session, system: str, payload: dict, max_tokens: int) -> tuple[dict
     return data, int((body.get("usage") or {}).get("total_tokens") or 0)
 
 
+MIN_USEFULNESS = 4
+
 _PHRASE_SYSTEM = (
-    "You build short Russian practice phrases for learners. Input: {\"s\":[{\"k\":key,\"w\":[[word_id,\"base word\"],...]}],"
-    "\"avoid\":[...]} . For each skeleton k make ONE natural, grammatical Russian phrase of 2-4 words using exactly "
-    "those words (each once; you may reorder them; put each into the correct grammatical form). If no natural "
-    "phrase is possible, return ok:false. Never add other words. Do not produce anything close to the phrases in avoid. "
-    "Reply JSON only: {\"r\":[{\"k\":key,\"ok\":true,\"p\":[[word_id,\"word as written in the phrase\"],...],"
-    "\"tg\":\"Tajik translation\",\"uz\":\"Uzbek translation (Latin, oʻ gʻ)\",\"en\":\"English translation\"}]}. "
-    "Parts in phrase order, lowercase except proper nouns. Translations short and natural."
+    "You are a Russian teacher writing short practice phrases for beginners whose native language is Tajik or "
+    "Uzbek. Input: {\"n\":how many,\"topic\":\"topic or empty\",\"w\":\"id:word,id:word,...\" (the ONLY words "
+    "you may use),\"avoid\":[existing phrases]}. Write n DIFFERENT phrases of 2-4 words that a learner really says "
+    "in everyday life: about themselves and family, food and drink, home, study and work, greetings, simple needs "
+    "and feelings, asking and answering (e.g. «Я пью чай», «Мама готовит обед», «Я не понял», «Где ты живёшь»). "
+    "Every word of a phrase must come from w (any grammatical form of it is fine: падеж, лицо, время). Each phrase "
+    "must make full sense on its own; no odd or absurd combinations; vary the situations and the words; do not "
+    "repeat or closely copy anything in avoid. Rate each: u = how useful for a beginner, 1-5 (5 = said daily). "
+    "Reply JSON only: {\"r\":[{\"p\":[[id,\"word as written in the phrase\"],...],\"u\":5,"
+    "\"s\":\"where it is said, 2-4 Russian words\",\"tg\":\"Tajik\",\"uz\":\"Uzbek (Latin, oʻ gʻ)\","
+    "\"en\":\"English\"}]}. Parts in phrase order; lowercase except the first letter is not needed."
 )
 
 
-def ai_phrases(db: Session, skeletons: list[list[Word]], avoid: list[str]) -> tuple[list[dict], int]:
+def word_list(db: Session, dictionary: Dictionary, category_id: int | None, limit: int = 260) -> list[Word]:
+    """The words sent to the model: the chosen topic's words (or all) plus the
+    anchor words every phrase leans on -- pronouns and the most important
+    verbs -- in a compact `id:word` form. Fewer, related words make sensible
+    phrases AND cost fewer tokens."""
+    words = _words(db, dictionary.id)
+    anchors = [w for w in words if role_of(w) == "pronoun"]
+    anchors += sorted((w for w in words if role_of(w) == "verb"), key=lambda w: -w.importance)[:40]
+    topic = [w for w in words if category_id is None or w.category_id == category_id]
+    topic.sort(key=lambda w: -w.importance)
+    picked = {w.id: w for w in anchors}
+    for w in topic:
+        if len(picked) >= limit:
+            break
+        picked.setdefault(w.id, w)
+    return list(picked.values())
+
+
+def _compact(words: list[Word]) -> str:
+    return ",".join(f"{w.id}:{w.word.strip().lower()}" for w in words)
+
+
+def ai_phrases(db: Session, words: list[Word], count: int, topic: str, avoid: list[str]) -> tuple[list[dict], int]:
     results: list[dict] = []
     tokens = 0
-    for start in range(0, len(skeletons), 25):
-        chunk = skeletons[start : start + 25]
-        payload = {
-            "s": [{"k": start + i, "w": [[w.id, w.word.strip().lower()] for w in sk]} for i, sk in enumerate(chunk)],
-            "avoid": avoid[:40],
-        }
-        data, used = chat(db, _PHRASE_SYSTEM, payload, max_tokens=180 * len(chunk) + 200)
+    remaining = count
+    seen = list(avoid)
+    while remaining > 0:
+        n = min(25, remaining)
+        data, used = chat(
+            db,
+            _PHRASE_SYSTEM,
+            {"n": n, "topic": topic, "w": _compact(words), "avoid": seen[-60:]},
+            max_tokens=170 * n + 200,
+        )
         tokens += used
-        for item in data.get("r") or []:
-            if isinstance(item, dict):
-                results.append(item)
+        got = [i for i in data.get("r") or [] if isinstance(i, dict)]
+        results += got
+        seen += [" ".join(str(x[1]) for x in i.get("p") or [] if isinstance(x, (list, tuple)) and len(x) == 2) for i in got]
+        remaining -= n
     return results, tokens
 
 
@@ -367,7 +361,7 @@ def _similarity(db: Session, dictionary_id: int):
     return score
 
 
-def check_candidates(db: Session, dictionary: Dictionary, raw: list[dict], skeleton_ids: dict | None = None) -> list[dict]:
+def check_candidates(db: Session, dictionary: Dictionary, raw: list[dict], allowed_ids: set[int] | None = None) -> list[dict]:
     """Turns the model's (or the admin's) items into checked preview items."""
     words = {w.id: w for w in _words(db, dictionary.id)}
     existing_texts = {normalize_answer(t) for (t,) in db.query(MiniPhrase.text).filter(MiniPhrase.dictionary_id == dictionary.id)}
@@ -405,10 +399,14 @@ def check_candidates(db: Session, dictionary: Dictionary, raw: list[dict], skele
                     "word_translation": primary.text if primary else None,
                 }
             )
-        if skeleton_ids is not None and "k" in item:
-            allowed = skeleton_ids.get(item["k"])
-            if allowed is not None and not {p["word_id"] for p in parts} <= allowed:
-                reason = reason or "ИИ добавил слово не из задания"
+        if allowed_ids is not None and not {p["word_id"] for p in parts} <= allowed_ids:
+            reason = reason or "ИИ взял слово не из списка"
+        try:
+            usefulness = int(item["u"]) if item.get("u") is not None else None
+        except (TypeError, ValueError):
+            usefulness = None
+        if not reason and usefulness is not None and usefulness < MIN_USEFULNESS:
+            reason = f"ИИ: слабая фраза (полезность {usefulness}/5)"
         if not reason and not 2 <= len(parts) <= 4:
             reason = "Нужно от 2 до 4 слов"
         text = " ".join(p["text"] for p in parts)
@@ -440,64 +438,63 @@ def check_candidates(db: Session, dictionary: Dictionary, raw: list[dict], skele
                 "similar_to": similar_to,
                 "similar_source": similar_source,
                 "too_similar": sim >= SIMILAR_THRESHOLD,
+                "usefulness": usefulness,
+                "situation": str(item.get("s") or "").strip() or None,
             }
         )
     return out
 
 
-def generate(db: Session, dictionary: Dictionary, count: int) -> dict:
-    skeletons = build_skeletons(db, dictionary, count)
-    if not skeletons:
+def _topic(db: Session, dictionary: Dictionary, category_id: int | None) -> tuple[str, int | None]:
+    if category_id is None:
+        return "", None
+    category = db.get(Category, category_id)
+    if category is None or category.dictionary_id != dictionary.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Тема не найдена")
+    return category.name, category.id
+
+
+def generate(db: Session, dictionary: Dictionary, count: int, category_id: int | None = None) -> dict:
+    topic, category_id = _topic(db, dictionary, category_id)
+    words = word_list(db, dictionary, category_id)
+    if len(words) < 2:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Из нынешних слов нельзя составить новые сочетания — добавьте слова (см. «Не хватает слов»)",
+            detail="Слишком мало слов для фраз — добавьте слова (см. «Не хватает слов»)",
         )
-    avoid = [t for (t,) in db.query(MiniPhrase.text).filter(MiniPhrase.dictionary_id == dictionary.id).limit(40)]
-    raw, tokens = ai_phrases(db, skeletons, avoid)
-    allowed = {i: {w.id for w in sk} for i, sk in enumerate(skeletons)}
-    items = check_candidates(db, dictionary, raw, allowed)
-    return {"items": items, "tokens": tokens, "skeletons": len(skeletons)}
+    avoid = [t for (t,) in db.query(MiniPhrase.text).filter(MiniPhrase.dictionary_id == dictionary.id).limit(60)]
+    raw, tokens = ai_phrases(db, words, count, topic, avoid)
+    for i, item in enumerate(raw):
+        item.setdefault("key", f"g{i}")
+    items = check_candidates(db, dictionary, raw, {w.id for w in words})
+    return {"items": items, "tokens": tokens, "words_sent": len(words)}
 
 
 _REPHRASE_SYSTEM = (
-    "You rebuild Russian practice phrases that came out too similar to existing ones. Input: "
-    "{\"r\":[{\"k\":key,\"was\":\"phrase\",\"like\":\"existing similar phrase\",\"w\":[[word_id,\"base word\"],...]}]}. "
-    "For each, make ONE different natural Russian phrase of 2-4 words using only words from its w list "
-    "(each at most once, correct grammatical forms), clearly different from both was and like. "
-    "Reply JSON only: {\"r\":[{\"k\":key,\"ok\":true,\"p\":[[word_id,\"word as written\"],...],"
+    "You rewrite Russian beginner practice phrases that came out too similar to existing ones. Input: "
+    "{\"w\":\"id:word,...\" (the ONLY words allowed),\"r\":[{\"k\":key,\"was\":\"phrase\",\"like\":\"similar existing phrase\"}]}. "
+    "For each, write ONE new natural everyday phrase of 2-4 words from w (any grammatical form), with a clearly "
+    "different meaning or situation from both was and like, that a beginner would really say. Rate u 1-5 usefulness. "
+    "Reply JSON only: {\"r\":[{\"k\":key,\"p\":[[id,\"word as written\"],...],\"u\":5,\"s\":\"where it is said\","
     "\"tg\":\"Tajik\",\"uz\":\"Uzbek (Latin)\",\"en\":\"English\"}]}."
 )
 
 
-def rephrase(db: Session, dictionary: Dictionary, items: list[dict]) -> dict:
-    words = _words(db, dictionary.id)
-    pools: dict[str, list[Word]] = {}
-    for w in words:
-        pools.setdefault(role_of(w), []).append(w)
-    by_id = {w.id: w for w in words}
-    rnd = random.Random()
-    payload_items = []
-    allowed: dict[str, set[int]] = {}
-    for item in items[:30]:
-        own = [by_id[p["word_id"]] for p in item.get("parts", []) if p.get("word_id") in by_id]
-        extra: list[Word] = []
-        for r in {role_of(w) for w in own}:
-            extra += rnd.sample(pools.get(r, []), min(4, len(pools.get(r, []))))
-        pick = list({w.id: w for w in own + extra}.values())[:14]
-        key = str(item.get("key"))
-        allowed[key] = {w.id for w in pick}
-        payload_items.append(
-            {"k": key, "was": item.get("text"), "like": item.get("similar_to") or "",
-             "w": [[w.id, w.word.strip().lower()] for w in pick]}
-        )
+def rephrase(db: Session, dictionary: Dictionary, items: list[dict], category_id: int | None = None) -> dict:
+    _, category_id = _topic(db, dictionary, category_id)
+    words = word_list(db, dictionary, category_id)
+    payload_items = [
+        {"k": str(item.get("key")), "was": item.get("text"), "like": item.get("similar_to") or ""} for item in items[:30]
+    ]
     if not payload_items:
         return {"items": [], "tokens": 0}
-    data, tokens = chat(db, _REPHRASE_SYSTEM, {"r": payload_items}, max_tokens=180 * len(payload_items) + 200)
+    data, tokens = chat(
+        db, _REPHRASE_SYSTEM, {"w": _compact(words), "r": payload_items}, max_tokens=170 * len(payload_items) + 200
+    )
     raw = [i for i in data.get("r") or [] if isinstance(i, dict)]
     for i in raw:
         i["key"] = str(i.get("k"))
-    out = check_candidates(db, dictionary, raw, {k: v for k, v in allowed.items()})
-    return {"items": out, "tokens": tokens}
+    return {"items": check_candidates(db, dictionary, raw, {w.id for w in words}), "tokens": tokens}
 
 
 # --- Saving the chosen ones (script only) -----------------------------------------

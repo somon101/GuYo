@@ -308,10 +308,13 @@ def fill_starter_set(dictionary_id: int, db: Session = Depends(get_db), _admin=D
 
 class GenerateIn(BaseModel):
     count: int = Field(default=20, ge=10, le=50)
+    # A word category of this dictionary to keep phrases on one topic; null = all.
+    category_id: int | None = None
 
 
 class ItemsIn(BaseModel):
     items: list[dict] = Field(max_length=60)
+    category_id: int | None = None
 
 
 class WordsIn(BaseModel):
@@ -334,7 +337,7 @@ def generate_mini_phrases(
     """Preview only -- nothing is saved."""
     from app.mini_phrases import generate
 
-    return generate.generate(db, _get_dictionary_or_404(db, dictionary_id), payload.count)
+    return generate.generate(db, _get_dictionary_or_404(db, dictionary_id), payload.count, payload.category_id)
 
 
 @router.post("/dictionaries/{dictionary_id}/mini-phrases/generate/rephrase")
@@ -343,7 +346,7 @@ def rephrase_mini_phrases(
 ):
     from app.mini_phrases import generate
 
-    return generate.rephrase(db, _get_dictionary_or_404(db, dictionary_id), payload.items)
+    return generate.rephrase(db, _get_dictionary_or_404(db, dictionary_id), payload.items, payload.category_id)
 
 
 @router.post("/dictionaries/{dictionary_id}/mini-phrases/generate/save")
