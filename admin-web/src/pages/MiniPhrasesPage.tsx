@@ -16,12 +16,18 @@ import {
   type MiniPhraseStarterReport,
 } from "../api/endpoints";
 import { LanguageSectionTabs } from "../components/LanguageSectionTabs";
-import { MiniPhraseGenerator } from "./MiniPhraseGenerator";
 import { MiniPhrasePhonePreview } from "../components/MiniPhrasePhonePreview";
-import type { Dictionary, MiniPhrase, MiniPhraseRole, MiniPhraseTemplate, Word } from "../types";
+import type {
+  Dictionary,
+  MiniPhrase,
+  MiniPhraseRole,
+  MiniPhraseTemplate,
+  Word,
+} from "../types";
 
 function errorText(e: unknown, fallback: string): string {
-  if (axios.isAxiosError(e) && typeof e.response?.data?.detail === "string") return e.response.data.detail;
+  if (axios.isAxiosError(e) && typeof e.response?.data?.detail === "string")
+    return e.response.data.detail;
   return fallback;
 }
 
@@ -70,12 +76,8 @@ export function MiniPhrasesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [report, setReport] = useState<MiniPhraseStarterReport | null>(null);
   const [isFilling, setIsFilling] = useState(false);
-  const [showGenerator, setShowGenerator] = useState(false);
-  const [templateFilter, setTemplateFilter] = useState<number | "none" | null>(null);
   const [previewId, setPreviewId] = useState<number | null>(null);
-  const shown = items.filter((mp) =>
-    templateFilter === null ? true : templateFilter === "none" ? mp.template_id === null : mp.template_id === templateFilter,
-  );
+  const shown = items;
 
   async function fillStarter() {
     setIsFilling(true);
@@ -115,7 +117,10 @@ export function MiniPhrasesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dictionaryId]);
 
-  const roleLabel = useMemo(() => Object.fromEntries(roles.map((r) => [r.id, r.label])), [roles]);
+  const roleLabel = useMemo(
+    () => Object.fromEntries(roles.map((r) => [r.id, r.label])),
+    [roles],
+  );
 
   async function remove(mp: MiniPhrase) {
     if (!confirm(`Удалить «${mp.text}»?`)) return;
@@ -132,13 +137,21 @@ export function MiniPhrasesPage() {
       translation_uz: mp.translation_uz ?? "",
       translation_en: mp.translation_en ?? "",
       enabled: mp.enabled,
-      parts: mp.parts.map((p) => ({ text: p.text, word_id: p.word_id, word_form_id: p.word_form_id, role: p.role })),
+      parts: mp.parts.map((p) => ({
+        text: p.text,
+        word_id: p.word_id,
+        word_form_id: p.word_form_id,
+        role: p.role,
+      })),
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   if (isLoading) return <p className="text-sm text-slate-500">Загрузка…</p>;
-  if (loadError || !dictionary) return <p className="text-sm text-red-600">{loadError ?? "Язык не найден"}</p>;
+  if (loadError || !dictionary)
+    return (
+      <p className="text-sm text-red-600">{loadError ?? "Язык не найден"}</p>
+    );
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -155,21 +168,20 @@ export function MiniPhrasesPage() {
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-[26px] font-bold tracking-tight text-slate-900">Мини-фразы</h1>
+          <h1 className="text-[26px] font-bold tracking-tight text-slate-900">
+            Мини-фразы
+          </h1>
           <p className="text-sm text-slate-500">
             {items.length} шт. · Шаблоны и очки —{" "}
-            <Link to="/mini-phrase-templates" className="text-indigo-600 hover:underline">
+            <Link
+              to="/mini-phrase-templates"
+              className="text-indigo-600 hover:underline"
+            >
               здесь
             </Link>
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-2">
-          <button
-            onClick={() => setShowGenerator((v) => !v)}
-            className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
-          >
-            {showGenerator ? "Скрыть ИИ-генерацию" : "✨ ИИ-генерация"}
-          </button>
           <button
             onClick={fillStarter}
             disabled={isFilling}
@@ -178,7 +190,9 @@ export function MiniPhrasesPage() {
             {isFilling ? "Заполнение…" : "Заполнить стартовым набором"}
           </button>
           <button
-            onClick={() => setDraft({ ...EMPTY, template_id: templates[0]?.id ?? null })}
+            onClick={() =>
+              setDraft({ ...EMPTY, template_id: templates[0]?.id ?? null })
+            }
             className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
           >
             + Мини-фраза
@@ -186,25 +200,32 @@ export function MiniPhrasesPage() {
         </div>
       </div>
 
-      {showGenerator && <MiniPhraseGenerator dictionaryId={dictionaryId} onSaved={reload} />}
-
       {report && (
         <div className="card mb-6 p-4 text-sm text-slate-700">
           <div className="mb-2 flex items-start justify-between gap-3">
             <p className="font-medium text-slate-900">
-              Создано: {report.created.length} · уже были: {report.already.length} · пропущено: {report.skipped.length}
-              {report.forms_added.length > 0 && ` · добавлено форм слов: ${report.forms_added.length}`}
+              Создано: {report.created.length} · уже были:{" "}
+              {report.already.length} · пропущено: {report.skipped.length}
+              {report.forms_added.length > 0 &&
+                ` · добавлено форм слов: ${report.forms_added.length}`}
             </p>
-            <button onClick={() => setReport(null)} className="text-slate-400 hover:text-slate-700">
+            <button
+              onClick={() => setReport(null)}
+              className="text-slate-400 hover:text-slate-700"
+            >
               ✕
             </button>
           </div>
           {report.skipped.length > 0 && (
             <>
               <p className="mb-1 text-slate-500">
-                Пропущены — в словаре нет слов (добавьте их и нажмите кнопку ещё раз):
+                Пропущены — в словаре нет слов (добавьте их и нажмите кнопку ещё
+                раз):
               </p>
-              <ul className="max-h-48 list-disc overflow-auto pl-5 text-slate-600" translate="no">
+              <ul
+                className="max-h-48 list-disc overflow-auto pl-5 text-slate-600"
+                translate="no"
+              >
                 {report.skipped.map((s) => (
                   <li key={s.text}>
                     {s.text} — нет: {s.missing_words.join(", ")}
@@ -232,60 +253,22 @@ export function MiniPhrasesPage() {
         />
       )}
 
-      {items.length > 0 && templateFilter === null && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {[
-            ...templates
-              .map((t) => ({
-                key: t.id as number | "none",
-                name: t.name,
-                note: t.explanation_ru ?? "",
-                list: items.filter((m) => m.template_id === t.id),
-              }))
-              .filter((t) => t.list.length > 0),
-            ...(items.some((m) => m.template_id === null)
-              ? [{ key: "none" as const, name: "Стандартный", note: "Без шаблона — общее объяснение", list: items.filter((m) => m.template_id === null) }]
-              : []),
-          ].map((t) => (
-            <button
-              key={String(t.key)}
-              onClick={() => setTemplateFilter(t.key)}
-              className="card flex flex-col gap-2 p-4 text-left transition hover:ring-2 hover:ring-indigo-300"
-            >
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="text-[16px] font-semibold text-slate-900">{t.name}</span>
-                <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-sm font-semibold text-indigo-700">{t.list.length}</span>
-              </div>
-              <span className="line-clamp-2 text-xs text-slate-500">{t.note}</span>
-              <span className="truncate text-sm text-slate-600" translate="no">
-                {t.list.slice(0, 4).map((m) => m.text).join(" · ")}
-                {t.list.length > 4 && " …"}
-              </span>
-            </button>
-          ))}
-        </div>
+      {previewId !== null && (
+        <MiniPhrasePhonePreview
+          id={previewId}
+          onClose={() => setPreviewId(null)}
+        />
       )}
-
-      {templateFilter !== null && (
-        <div className="mb-3 flex flex-wrap items-center gap-3">
-          <button onClick={() => setTemplateFilter(null)} className="text-sm font-medium text-indigo-600 hover:underline">
-            ← Все шаблоны
-          </button>
-          <h2 className="text-lg font-semibold text-slate-900">
-            {templateFilter === "none" ? "Стандартный" : templates.find((t) => t.id === templateFilter)?.name} · {shown.length} фраз
-          </h2>
-          <span className="text-xs text-slate-500">Нажмите на фразу — покажу, как она выглядит в телефоне</span>
-        </div>
-      )}
-
-      {previewId !== null && <MiniPhrasePhonePreview id={previewId} onClose={() => setPreviewId(null)} />}
 
       {items.length === 0 ? (
         <p className="text-sm text-slate-500">Пока нет мини-фраз</p>
-      ) : templateFilter === null ? null : (
+      ) : (
         <ul className="flex flex-col gap-3">
           {shown.map((mp) => (
-            <li key={mp.id} className="card flex flex-wrap items-start justify-between gap-3 p-4">
+            <li
+              key={mp.id}
+              className="card flex flex-wrap items-start justify-between gap-3 p-4"
+            >
               <div
                 className="min-w-0 flex-1 cursor-pointer"
                 translate="no"
@@ -294,34 +277,55 @@ export function MiniPhrasesPage() {
               >
                 <p className="font-serif text-[17px] font-medium text-slate-900">
                   {mp.text}
-                  {!mp.enabled && <span className="ml-2 font-sans text-xs text-slate-400">выключена</span>}
+                  {!mp.enabled && (
+                    <span className="ml-2 font-sans text-xs text-slate-400">
+                      выключена
+                    </span>
+                  )}
                 </p>
-                <p className="font-serif text-[15px] text-slate-600">{mp.translation_tg}</p>
+                <p className="font-serif text-[15px] text-slate-600">
+                  {mp.translation_tg}
+                </p>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   {mp.parts.map((p, i) => (
-                    <span key={p.position} className="inline-flex items-center gap-1">
+                    <span
+                      key={p.position}
+                      className="inline-flex items-center gap-1"
+                    >
                       {i > 0 && <span className="text-slate-400">+</span>}
                       <span className="rounded-full bg-[var(--fill)] px-2.5 py-0.5 text-xs text-slate-700">
                         {p.text}
                         <span className="text-slate-400">
                           {" "}
                           · {p.word}
-                          {(p.role ?? p.word_role) && ` · ${roleLabel[(p.role ?? p.word_role)!] ?? ""}`}
+                          {(p.role ?? p.word_role) &&
+                            ` · ${roleLabel[(p.role ?? p.word_role)!] ?? ""}`}
                         </span>
                       </span>
                     </span>
                   ))}
                 </div>
-                <p className="mt-1 text-xs text-slate-400">Шаблон: {mp.template_name ?? "стандартный"}</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  Шаблон: {mp.template_name ?? "стандартный"}
+                </p>
               </div>
               <div className="flex shrink-0 items-center gap-4">
-                <button onClick={() => setPreviewId(mp.id)} className="text-sm font-medium text-indigo-600 hover:underline">
+                <button
+                  onClick={() => setPreviewId(mp.id)}
+                  className="text-sm font-medium text-indigo-600 hover:underline"
+                >
                   📱 Просмотр
                 </button>
-                <button onClick={() => edit(mp)} className="text-sm font-medium text-indigo-600 hover:underline">
+                <button
+                  onClick={() => edit(mp)}
+                  className="text-sm font-medium text-indigo-600 hover:underline"
+                >
                   Редактировать
                 </button>
-                <button onClick={() => remove(mp)} className="text-sm text-slate-400 hover:text-red-600">
+                <button
+                  onClick={() => remove(mp)}
+                  className="text-sm text-slate-400 hover:text-red-600"
+                >
                   Удалить
                 </button>
               </div>
@@ -355,7 +359,10 @@ function Editor({
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const wordById = useMemo(() => new Map(words.map((w) => [w.id, w])), [words]);
-  const sortedWords = useMemo(() => [...words].sort((a, b) => a.word.localeCompare(b.word)), [words]);
+  const sortedWords = useMemo(
+    () => [...words].sort((a, b) => a.word.localeCompare(b.word)),
+    [words],
+  );
 
   async function split() {
     if (!draft.text.trim()) return;
@@ -365,10 +372,17 @@ function Editor({
       const parts = await suggestMiniPhraseParts(dictionaryId, draft.text);
       setDraft({
         ...draft,
-        parts: parts.map((p) => ({ text: p.text, word_id: p.word_id, word_form_id: p.word_form_id, role: null })),
+        parts: parts.map((p) => ({
+          text: p.text,
+          word_id: p.word_id,
+          word_form_id: p.word_form_id,
+          role: null,
+        })),
       });
       if (parts.some((p) => p.word_id == null)) {
-        setError("Не для всех частей нашлось слово в словаре — выберите вручную");
+        setError(
+          "Не для всех частей нашлось слово в словаре — выберите вручную",
+        );
       }
     } catch (e) {
       setError(errorText(e, "Не удалось разбить фразу"));
@@ -378,12 +392,18 @@ function Editor({
   }
 
   function setPart(i: number, patch: Partial<PartDraft>) {
-    setDraft({ ...draft, parts: draft.parts.map((p, j) => (j === i ? { ...p, ...patch } : p)) });
+    setDraft({
+      ...draft,
+      parts: draft.parts.map((p, j) => (j === i ? { ...p, ...patch } : p)),
+    });
   }
 
   async function save() {
     setError(null);
-    if (draft.parts.length === 0 || draft.parts.some((p) => p.word_id == null)) {
+    if (
+      draft.parts.length === 0 ||
+      draft.parts.some((p) => p.word_id == null)
+    ) {
       setError("У каждой части должно быть слово из словаря");
       return;
     }
@@ -394,7 +414,12 @@ function Editor({
       translation_uz: draft.translation_uz || null,
       translation_en: draft.translation_en || null,
       enabled: draft.enabled,
-      parts: draft.parts.map((p) => ({ text: p.text, word_id: p.word_id!, word_form_id: p.word_form_id, role: p.role })),
+      parts: draft.parts.map((p) => ({
+        text: p.text,
+        word_id: p.word_id!,
+        word_form_id: p.word_form_id,
+        role: p.role,
+      })),
     };
     setIsBusy(true);
     try {
@@ -408,19 +433,30 @@ function Editor({
     }
   }
 
-  const input = (key: "translation_tg" | "translation_uz" | "translation_en", label: string) => (
+  const input = (
+    key: "translation_tg" | "translation_uz" | "translation_en",
+    label: string,
+  ) => (
     <label className="block text-sm text-slate-700">
       <span className="mb-1 block text-xs text-slate-500">{label}</span>
-      <input className="field w-full px-3 py-2 text-sm" value={draft[key]} onChange={(e) => setDraft({ ...draft, [key]: e.target.value })} />
+      <input
+        className="field w-full px-3 py-2 text-sm"
+        value={draft[key]}
+        onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
+      />
     </label>
   );
 
   return (
     <div className="card mb-6 flex flex-col gap-4 p-4">
-      <h2 className="text-lg font-semibold text-slate-900">{draft.id === null ? "Новая мини-фраза" : "Мини-фраза"}</h2>
+      <h2 className="text-lg font-semibold text-slate-900">
+        {draft.id === null ? "Новая мини-фраза" : "Мини-фраза"}
+      </h2>
       <div className="flex flex-wrap items-end gap-3">
         <label className="min-w-0 flex-1 text-sm text-slate-700">
-          <span className="mb-1 block text-xs text-slate-500">Фраза — правильный вариант</span>
+          <span className="mb-1 block text-xs text-slate-500">
+            Фраза — правильный вариант
+          </span>
           <input
             className="field w-full px-3 py-2 text-sm"
             placeholder="Я покушал"
@@ -439,20 +475,37 @@ function Editor({
 
       {draft.parts.length > 0 && (
         <div className="flex flex-col gap-2">
-          <p className="text-xs text-slate-500">Части по порядку — проверьте слово, форму и роль</p>
+          <p className="text-xs text-slate-500">
+            Части по порядку — проверьте слово, форму и роль
+          </p>
           {draft.parts.map((p, i) => {
-            const word = p.word_id != null ? wordById.get(p.word_id) : undefined;
-            const forms = word?.forms.filter((f) => f.language === language) ?? [];
+            const word =
+              p.word_id != null ? wordById.get(p.word_id) : undefined;
+            const forms =
+              word?.forms.filter((f) => f.language === language) ?? [];
             return (
-              <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg bg-[var(--fill)] p-2">
-                <span className="w-6 text-center text-xs font-semibold text-slate-500">{i + 1}</span>
-                <span className="min-w-[80px] font-medium text-slate-900" translate="no">
+              <div
+                key={i}
+                className="flex flex-wrap items-center gap-2 rounded-lg bg-[var(--fill)] p-2"
+              >
+                <span className="w-6 text-center text-xs font-semibold text-slate-500">
+                  {i + 1}
+                </span>
+                <span
+                  className="min-w-[80px] font-medium text-slate-900"
+                  translate="no"
+                >
                   {p.text}
                 </span>
                 <select
                   className="field px-2 py-1.5 text-sm"
                   value={p.word_id ?? ""}
-                  onChange={(e) => setPart(i, { word_id: e.target.value ? Number(e.target.value) : null, word_form_id: null })}
+                  onChange={(e) =>
+                    setPart(i, {
+                      word_id: e.target.value ? Number(e.target.value) : null,
+                      word_form_id: null,
+                    })
+                  }
                 >
                   <option value="">— слово —</option>
                   {sortedWords.map((w) => (
@@ -465,7 +518,13 @@ function Editor({
                 <select
                   className="field px-2 py-1.5 text-sm"
                   value={p.word_form_id ?? ""}
-                  onChange={(e) => setPart(i, { word_form_id: e.target.value ? Number(e.target.value) : null })}
+                  onChange={(e) =>
+                    setPart(i, {
+                      word_form_id: e.target.value
+                        ? Number(e.target.value)
+                        : null,
+                    })
+                  }
                   disabled={forms.length === 0}
                 >
                   <option value="">основная форма</option>
@@ -481,7 +540,10 @@ function Editor({
                   onChange={(e) => setPart(i, { role: e.target.value || null })}
                 >
                   <option value="">
-                    роль из слова{word?.role ? `: ${roles.find((r) => r.id === word.role)?.label ?? word.role}` : " (не задана)"}
+                    роль из слова
+                    {word?.role
+                      ? `: ${roles.find((r) => r.id === word.role)?.label ?? word.role}`
+                      : " (не задана)"}
                   </option>
                   {roles.map((r) => (
                     <option key={r.id} value={r.id}>
@@ -507,7 +569,12 @@ function Editor({
           <select
             className="field px-3 py-2 text-sm"
             value={draft.template_id ?? ""}
-            onChange={(e) => setDraft({ ...draft, template_id: e.target.value ? Number(e.target.value) : null })}
+            onChange={(e) =>
+              setDraft({
+                ...draft,
+                template_id: e.target.value ? Number(e.target.value) : null,
+              })
+            }
           >
             <option value="">Стандартное объяснение</option>
             {templates.map((t) => (
@@ -518,7 +585,11 @@ function Editor({
           </select>
         </label>
         <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" checked={draft.enabled} onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })} />
+          <input
+            type="checkbox"
+            checked={draft.enabled}
+            onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
+          />
           Включена
         </label>
       </div>
@@ -527,12 +598,17 @@ function Editor({
       <div className="flex gap-3">
         <button
           onClick={save}
-          disabled={isBusy || !draft.text.trim() || !draft.translation_tg.trim()}
+          disabled={
+            isBusy || !draft.text.trim() || !draft.translation_tg.trim()
+          }
           className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
         >
           {isBusy ? "Сохранение…" : "Сохранить"}
         </button>
-        <button onClick={() => setDraft(null)} className="rounded-md px-4 py-2 text-sm text-slate-600 hover:bg-[var(--fill)]">
+        <button
+          onClick={() => setDraft(null)}
+          className="rounded-md px-4 py-2 text-sm text-slate-600 hover:bg-[var(--fill)]"
+        >
           Отмена
         </button>
       </div>
