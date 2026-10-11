@@ -11,6 +11,7 @@ import {
   type GeneratedMiniPhrase,
   type MiniPhraseAnalysis,
 } from "../api/endpoints";
+import { BulkMiniPhrases } from "../components/BulkMiniPhrases";
 import { SegmentedControl } from "../components/SegmentedControl";
 import type { Category } from "../types";
 
@@ -484,6 +485,10 @@ export function MiniPhraseGenerator({
                 : "Сгенерировать"}
             </button>
           </div>
+          <BulkMiniPhrases
+            dictionaryId={dictionaryId}
+            categoryId={categoryId}
+          />
         </div>
       )}
 
@@ -649,12 +654,14 @@ function Card({
           {item.situation && (
             <span className="text-xs text-slate-400">· {item.situation}</span>
           )}
-          {item.usefulness != null && (
+          {(item.stars ?? item.usefulness) != null && (
             <span
               className="text-xs text-amber-600"
-              title="полезность для начинающего по оценке ИИ"
+              title="оценка строгого ИИ-редактора"
             >
-              {"★".repeat(Math.max(0, Math.min(5, item.usefulness)))}
+              {"★".repeat(
+                Math.max(0, Math.min(5, item.stars ?? item.usefulness ?? 0)),
+              )}
             </span>
           )}
           {item.similarity > 0 && (

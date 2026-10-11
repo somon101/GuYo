@@ -231,6 +231,8 @@ def chat(db: Session, system: str, payload: dict, max_tokens: int) -> tuple[dict
 
 
 MIN_USEFULNESS = 4
+# A content word (noun, verb, adjective, adverb) may appear in at most this many mini-phrases.
+WORD_USE_CAP = 10
 
 _PHRASE_SYSTEM = (
     "You are an experienced Russian teacher. Your learners are adult beginners (native Tajik or Uzbek) who need "
@@ -261,16 +263,29 @@ _PHRASE_SYSTEM = (
 )
 
 
+def _word_use(db: Session, dictionary_id: int) -> dict[int, int]:
+    return dict(
+        db.query(MiniPhrasePart.word_id, func.count(func.distinct(MiniPhrasePart.mini_phrase_id)))
+        .join(MiniPhrase, MiniPhrase.id == MiniPhrasePart.mini_phrase_id)
+        .filter(MiniPhrase.dictionary_id == dictionary_id)
+        .group_by(MiniPhrasePart.word_id)
+        .all()
+    )
+
+
 def word_list(db: Session, dictionary: Dictionary, category_id: int | None, limit: int = 260) -> list[Word]:
     """The words sent to the model: the chosen topic's words (or all) plus the
     anchor words every phrase leans on -- pronouns and the most important
-    verbs -- in a compact `id:word` form. Fewer, related words make sensible
-    phrases AND cost fewer tokens."""
+    verbs -- in a compact `id:word` form. Content words already in
+    WORD_USE_CAP mini-phrases are left out, and the least used come first,
+    so hundreds of phrases spread over the whole dictionary."""
     words = _words(db, dictionary.id)
-    anchors = [w for w in words if role_of(w) == "pronoun"]
-    anchors += sorted((w for w in words if role_of(w) == "verb"), key=lambda w: -w.importance)[:40]
-    topic = [w for w in words if category_id is None or w.category_id == category_id]
-    topic.sort(key=lambda w: -w.importance)
+    use = _word_use(db, dictionary.id)
+    fresh = [w for w in words if role_of(w) == "pronoun" or use.get(w.id, 0) < WORD_USE_CAP]
+    anchors = [w for w in fresh if role_of(w) == "pronoun"]
+    anchors += sorted((w for w in fresh if role_of(w) == "verb"), key=lambda w: (use.get(w.id, 0) // 3, -w.importance))[:40]
+    topic = [w for w in fresh if category_id is None or w.category_id == category_id]
+    topic.sort(key=lambda w: (use.get(w.id, 0) // 3, -w.importance))
     picked = {w.id: w for w in anchors}
     for w in topic:
         if len(picked) >= limit:
@@ -486,6 +501,15 @@ def check_candidates(db: Session, dictionary: Dictionary, raw: list[dict], allow
         for t in [w.word] + [f.text for f in w.forms if f.language == dictionary.language]:
             by_text.setdefault(t.strip().lower(), w)
     content_use: dict[int, int] = {}
+    # How many saved mini-phrases each word is already in: across hundreds of
+    # phrases no word should dominate («чай, чай, чай»).
+    saved_use = dict(
+        db.query(MiniPhrasePart.word_id, func.count(func.distinct(MiniPhrasePart.mini_phrase_id)))
+        .join(MiniPhrase, MiniPhrase.id == MiniPhrasePart.mini_phrase_id)
+        .filter(MiniPhrase.dictionary_id == dictionary.id)
+        .group_by(MiniPhrasePart.word_id)
+        .all()
+    )
     out = []
     for item in raw:
         reason = None
@@ -548,6 +572,9 @@ def check_candidates(db: Session, dictionary: Dictionary, raw: list[dict], allow
             repeated = [words[i].word for i in content if content_use.get(i, 0) >= 2]
             if repeated:
                 reason = f"Слово «{repeated[0]}» уже в 2 фразах этой пачки — нужно разнообразие"
+            overused = [words[i].word for i in content if saved_use.get(i, 0) + content_use.get(i, 0) >= WORD_USE_CAP]
+            if not reason and overused:
+                reason = f"Слово «{overused[0]}» уже в {WORD_USE_CAP} мини-фразах — возьмите другие слова"
         if not reason and normalize_answer(text) in existing_texts:
             reason = "Такая мини-фраза уже есть"
         tg = str(item.get("tg") or "").strip()
@@ -612,8 +639,10 @@ def generate(db: Session, dictionary: Dictionary, count: int, category_id: int |
     allowed = {w.id for w in words}
     items = check_candidates(db, dictionary, raw, allowed)
     items, fix_tokens, fixed = self_review(db, dictionary, words, raw, items, allowed)
-    dropped = sum(1 for i in items if not i["valid"])
-    items = [i for i in items if i["valid"]]
+    # Only phrases the critic rated MIN_STARS+ are kept (similar ones go to «Похожие» for the admin).
+    keep = [i for i in items if i["valid"] and (i["too_similar"] or i.get("stars", 0) >= MIN_STARS)]
+    dropped = len(items) - len(keep)
+    items = keep
     return {
         "items": items,
         "tokens": tokens + fix_tokens,
@@ -642,18 +671,23 @@ SELF_REVIEW_ROUNDS = 3
 _CRITIC_SYSTEM = (
     "You are a strict native-speaker Russian editor and teacher of adult Tajik/Uzbek beginners. Input: "
     "{\"r\":[{\"k\":key,\"t\":\"phrase\",\"tg\":\"Tajik translation\"}]}. Think carefully and read every "
-    "phrase several times. Flag a phrase if ANY of these is true: it is not 100% correct Russian (case, person, "
-    "gender, aspect, word order); a native speaker would not naturally say it; it is not useful in real everyday "
-    "conversation; its meaning is unclear or odd; the Tajik translation is wrong; it repeats the meaning of another "
-    "phrase in the list. Do not flag good phrases. Reply JSON only: {\"bad\":[{\"k\":key,\"why\":\"short reason "
-    "in Russian\"}]}."
+    "phrase several times. Give each phrase stars 1-5: 5 = perfect, natural Russian a person really says, clear "
+    "meaning, very useful in everyday conversation, correct Tajik translation; 4 = good and useful; 3 or less = any "
+    "grammar mistake (case, person, gender, aspect, word order), unnatural or odd («Вода молодая»), unclear meaning, "
+    "rarely useful, wrong Tajik translation, or repeats the meaning of another phrase in the list. Be strict — only "
+    "really good phrases get 4-5. Reply JSON only: {\"r\":[{\"k\":key,\"stars\":5,\"why\":\"short reason in "
+    "Russian if below 4\"}]} with EVERY phrase."
 )
+
+MIN_STARS = 4
 
 
 def critic(db: Session, items: list[dict]) -> tuple[dict[str, str], int]:
     """A second, independent AI pass over the phrases that passed the script:
-    finds what is unnatural, wrong or useless. Returns {key: reason}."""
-    good = [i for i in items if i["valid"] and not i["too_similar"]]
+    it rates every phrase 1-5 stars (stored as item["stars"]); below
+    MIN_STARS is returned as {key: reason}. A phrase it forgot to rate counts
+    as not rated, i.e. rejected."""
+    good = [i for i in items if i["valid"] and not i["too_similar"] and i.get("stars", 0) < MIN_STARS]
     if not good:
         return {}, 0
     try:
@@ -661,16 +695,23 @@ def critic(db: Session, items: list[dict]) -> tuple[dict[str, str], int]:
             db,
             _CRITIC_SYSTEM,
             {"r": [{"k": i["key"], "t": i["text"], "tg": i["translation_tg"]} for i in good]},
-            max_tokens=40 * len(good) + 300,
+            max_tokens=45 * len(good) + 300,
         )
     except HTTPException:
         return {}, 0
-    keys = {i["key"] for i in good}
-    return {
-        str(b.get("k")): f"ИИ-проверка: {str(b.get('why') or 'неестественная фраза')[:120]}"
-        for b in data.get("bad") or []
-        if isinstance(b, dict) and str(b.get("k")) in keys
-    }, used
+    rated = {str(r.get("k")): r for r in data.get("r") or [] if isinstance(r, dict)}
+    bad: dict[str, str] = {}
+    for i in good:
+        r = rated.get(i["key"])
+        try:
+            stars = int(r.get("stars")) if r else 0
+        except (TypeError, ValueError):
+            stars = 0
+        i["stars"] = stars
+        if stars < MIN_STARS:
+            why = str((r or {}).get("why") or "не оценена").strip()[:120]
+            bad[i["key"]] = f"ИИ-оценка {stars}★: {why}"
+    return bad, used
 
 
 def self_review(db: Session, dictionary: Dictionary, words: list[Word], raw: list[dict], items: list[dict], allowed: set[int]):
@@ -719,6 +760,9 @@ def self_review(db: Session, dictionary: Dictionary, words: list[Word], raw: lis
             else:
                 new_raw.append(item)
         new_items = check_candidates(db, dictionary, new_raw, allowed)
+        for o, n in zip(items, new_items):
+            if o["key"] not in answers and "stars" in o:
+                n["stars"] = o["stars"]  # unchanged phrase: keep its rating, don't pay twice
         touched |= set(answers) & set(why)
         raw, items = new_raw, new_items
     # The last fixes get the same independent check; what still fails is dropped.

@@ -416,6 +416,56 @@ def save_generated_as_phrases(
     return {"created": created, "skipped": skipped}
 
 
+class BulkIn(BaseModel):
+    count: int = Field(default=500, ge=10, le=2000)
+    category_id: int | None = None
+
+
+def _job_out(job: dict | None) -> dict | None:
+    if job is None:
+        return None
+    return job
+
+
+@router.post("/dictionaries/{dictionary_id}/mini-phrases/generate/bulk")
+def start_bulk_generation(
+    dictionary_id: int, payload: BulkIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
+):
+    """Starts (or returns the already running) background job that keeps
+    generating until `count` good mini-phrases are saved."""
+    from app.mini_phrases import bulk
+    from app.mini_phrases.generate import _api_key
+
+    _get_dictionary_or_404(db, dictionary_id)
+    _api_key(db)  # fail now, not in the background, when there is no key
+    return _job_out(bulk.start(dictionary_id, payload.count, payload.category_id))
+
+
+@router.get("/dictionaries/{dictionary_id}/mini-phrases/generate/bulk")
+def current_bulk_generation(dictionary_id: int, _admin=Depends(get_current_admin)):
+    from app.mini_phrases import bulk
+
+    return _job_out(bulk.running_for(dictionary_id) or bulk.latest_for(dictionary_id))
+
+
+@router.get("/mini-phrase-jobs/{job_id}")
+def bulk_generation_status(job_id: str, _admin=Depends(get_current_admin)):
+    from app.mini_phrases import bulk
+
+    job = bulk.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена (сервер перезапускался?)")
+    return _job_out(job)
+
+
+@router.post("/mini-phrase-jobs/{job_id}/cancel")
+def cancel_bulk_generation(job_id: str, _admin=Depends(get_current_admin)):
+    from app.mini_phrases import bulk
+
+    bulk.cancel(job_id)
+    return _job_out(bulk.get(job_id))
+
+
 @router.post("/dictionaries/{dictionary_id}/mini-phrases/add-words")
 def add_missing_words(
     dictionary_id: int, payload: WordsIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)

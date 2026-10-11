@@ -1862,6 +1862,7 @@ export interface GeneratedMiniPhrase {
   situation: string | null;
   broken?: boolean;
   force?: boolean;
+  stars?: number;
 }
 
 export async function getMiniPhraseAnalysis(
@@ -1981,5 +1982,59 @@ export async function saveGeneratedAsPhrases(
     `/admin/dictionaries/${dictionaryId}/mini-phrases/generate/to-phrases`,
     { items },
   );
+  return data;
+}
+
+export interface MiniPhraseJob {
+  id: string;
+  dictionary_id: number;
+  target: number;
+  state: "running" | "done" | "cancelled" | "failed";
+  saved: number;
+  batches: number;
+  rejected: number;
+  tokens: number;
+  forms_added: number;
+  templates_created: number;
+  recent: string[];
+  message: string;
+  error: string | null;
+  started_at: number;
+  cancel?: boolean;
+}
+
+export async function startBulkMiniPhrases(
+  dictionaryId: number,
+  count: number,
+  categoryId: number | null,
+): Promise<MiniPhraseJob> {
+  const { data } = await api.post(
+    `/admin/dictionaries/${dictionaryId}/mini-phrases/generate/bulk`,
+    {
+      count,
+      category_id: categoryId,
+    },
+  );
+  return data;
+}
+
+export async function currentBulkMiniPhrases(
+  dictionaryId: number,
+): Promise<MiniPhraseJob | null> {
+  const { data } = await api.get(
+    `/admin/dictionaries/${dictionaryId}/mini-phrases/generate/bulk`,
+  );
+  return data;
+}
+
+export async function getMiniPhraseJob(jobId: string): Promise<MiniPhraseJob> {
+  const { data } = await api.get(`/admin/mini-phrase-jobs/${jobId}`);
+  return data;
+}
+
+export async function cancelMiniPhraseJob(
+  jobId: string,
+): Promise<MiniPhraseJob> {
+  const { data } = await api.post(`/admin/mini-phrase-jobs/${jobId}/cancel`);
   return data;
 }
