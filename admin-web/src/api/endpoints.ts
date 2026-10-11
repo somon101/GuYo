@@ -1963,9 +1963,10 @@ export interface MiniPhrasePreview {
 export async function previewMiniPhrase(
   id: number,
   ui: "ru" | "tg" | "uz",
+  lang: "tg" | "uz" | "en" = "tg",
 ): Promise<MiniPhrasePreview> {
   const { data } = await api.get(`/admin/mini-phrases/${id}/preview`, {
-    params: { ui },
+    params: { ui, lang },
   });
   return data;
 }

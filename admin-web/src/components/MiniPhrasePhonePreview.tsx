@@ -71,7 +71,10 @@ export function MiniPhrasePhonePreview({
   id: number;
   onClose: () => void;
 }) {
-  const [ui, setUi] = useState<Ui>("tg");
+  // What a learner reads: Tajik or Uzbek interface, or a Russian
+  // interface with English translations (the app's English option).
+  const [reader, setReader] = useState<"tg" | "uz" | "en">("tg");
+  const ui: Ui = reader === "en" ? "ru" : reader;
   const [dark, setDark] = useState(false);
   const [data, setData] = useState<MiniPhrasePreview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -103,13 +106,13 @@ export function MiniPhrasePhonePreview({
 
   useEffect(() => {
     setError(null);
-    previewMiniPhrase(id, ui)
+    previewMiniPhrase(id, ui, reader)
       .then((d) => {
         setData(d);
         setReplay((r) => r + 1);
       })
       .catch(() => setError("Не удалось загрузить предпросмотр"));
-  }, [id, ui]);
+  }, [id, ui, reader]);
 
   const c = palette(dark);
   const n = data?.parts.length ?? 0;
@@ -128,13 +131,13 @@ export function MiniPhrasePhonePreview({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-wrap items-center justify-center gap-1 rounded-full bg-white/95 p-1 text-sm shadow">
-          {(["tg", "uz", "ru"] as const).map((l) => (
+          {(["tg", "uz", "en"] as const).map((l) => (
             <button
               key={l}
-              onClick={() => setUi(l)}
-              className={`rounded-full px-3 py-1 ${ui === l ? "bg-indigo-600 text-white" : "text-slate-700"}`}
+              onClick={() => setReader(l)}
+              className={`rounded-full px-3 py-1 ${reader === l ? "bg-indigo-600 text-white" : "text-slate-700"}`}
             >
-              {l === "tg" ? "Тоҷикӣ" : l === "uz" ? "Oʻzbek" : "Русский"}
+              {l === "tg" ? "Тоҷикӣ" : l === "uz" ? "Oʻzbek" : "English"}
             </button>
           ))}
           <span className="mx-1 h-4 w-px bg-slate-300" />

@@ -241,17 +241,22 @@ def update_mini_phrase(
 
 @router.get("/mini-phrases/{mini_phrase_id}/preview")
 def preview_mini_phrase(
-    mini_phrase_id: int, ui: str = "tg", db: Session = Depends(get_db), _admin=Depends(get_current_admin)
+    mini_phrase_id: int,
+    ui: str = "tg",
+    lang: str = "tg",
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
 ):
     """What the app's explanation screen shows for this phrase, rendered as a
-    learner with interface language `ui` (ru/tg/uz) would see it."""
+    learner with interface language `ui` (ru/tg/uz) and, for a Russian
+    interface, translation language `lang` (tg/uz/en) would see it."""
     from app.core.content_language import set_content_language_for
     from app.mini_phrases.service import mini_phrase_out
 
     mp = db.get(MiniPhrase, mini_phrase_id)
     if mp is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mini-phrase not found")
-    set_content_language_for(ui, "tg")
+    set_content_language_for(ui, lang)
     return mini_phrase_out(db, None, mp, 0, with_distractors=False)
 
 
