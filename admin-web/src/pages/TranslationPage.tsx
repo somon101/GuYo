@@ -85,7 +85,7 @@ export function TranslationPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-xl font-semibold">ИИ-перевод</h1>
+        <h2 className="text-xl font-semibold">Перевод</h2>
         <p className="text-sm text-slate-500 mt-1">
           DeepSeek переводит все слова и фразы, у которых нет перевода на выбранный язык, опираясь на русский оригинал и
           таджикский перевод. Переводы сразу видны пользователям; исправить любой можно на странице слова

@@ -192,7 +192,7 @@ def _api_key(db: Session) -> str:
     if not key:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Не задан ключ DeepSeek — добавьте его в разделе «ИИ-перевод»",
+            detail="Не задан ключ DeepSeek — добавьте его в «ИИ-инструменты» → «Перевод»",
         )
     return key
 
