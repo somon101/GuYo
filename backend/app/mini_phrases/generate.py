@@ -450,15 +450,18 @@ def check_candidates(db: Session, dictionary: Dictionary, raw: list[dict], allow
             reason = "ИИ: из этих слов не получается естественная фраза"
         parts_in = item.get("p") or []
         parts = []
+        broken = False
         for p in parts_in:
             if not isinstance(p, (list, tuple)) or len(p) != 2:
                 reason = reason or "Неверный формат частей"
+                broken = True
                 continue
             wid, text = p
             word = words.get(wid) if isinstance(wid, int) else None
             text = str(text).strip()
             if word is None or not text:
                 reason = reason or "Слово не из этого словаря"
+                broken = True
                 continue
             known = {word.word.strip().lower()} | {
                 f.text.strip().lower() for f in word.forms if f.language == dictionary.language
@@ -531,6 +534,8 @@ def check_candidates(db: Session, dictionary: Dictionary, raw: list[dict], allow
                 "too_similar": sim >= SIMILAR_THRESHOLD,
                 "usefulness": usefulness,
                 "situation": str(item.get("s") or "").strip() or None,
+                # A part could not be matched to a dictionary word: never savable.
+                "broken": broken or not parts,
             }
         )
     return out
@@ -606,6 +611,20 @@ def save(db: Session, dictionary: Dictionary, items: list[dict]) -> dict:
             "en": item.get("translation_en"),
         }
         checked = check_candidates(db, dictionary, [raw])[0]
+        if not checked["valid"] and item.get("force"):
+            # The admin chose a rejected phrase by hand: only the hard rules
+            # still apply -- real dictionary words, a Tajik translation, no
+            # exact duplicate. Usefulness, length, repeats etc. are the
+            # admin's call.
+            existing = {normalize_answer(t) for (t,) in db.query(MiniPhrase.text).filter(MiniPhrase.dictionary_id == dictionary.id)}
+            if checked["broken"] or item.get("broken"):
+                checked["reason"] = "Есть слово не из словаря — такую фразу нельзя сохранить"
+            elif not checked["translation_tg"]:
+                checked["reason"] = "Нет перевода на таджикский"
+            elif normalize_answer(checked["text"]) in existing:
+                checked["reason"] = "Такая мини-фраза уже есть"
+            else:
+                checked["valid"] = True
         if not checked["valid"]:
             skipped.append({"text": checked["text"], "reason": checked["reason"]})
             continue

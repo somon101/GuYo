@@ -151,7 +151,7 @@ export function MiniPhraseGenerator({ dictionaryId, onSaved }: { dictionaryId: n
   }
 
   async function save() {
-    const chosen = items.filter((i) => i.valid && picked.has(i.key));
+    const chosen = items.filter((i) => picked.has(i.key)).map((i) => (i.valid ? i : { ...i, force: true }));
     const res = await run("save", () => saveGeneratedMiniPhrases(dictionaryId, chosen));
     if (!res) return;
     setItems((prev) => prev.filter((i) => !picked.has(i.key)));
@@ -176,10 +176,10 @@ export function MiniPhraseGenerator({ dictionaryId, onSaved }: { dictionaryId: n
   const similar = items.filter((i) => i.valid && i.too_similar);
   const normal = items.filter((i) => i.valid && !i.too_similar);
   const invalid = items.filter((i) => !i.valid);
-  const toSave = items.filter((i) => i.valid && picked.has(i.key)).length;
+  const toSave = items.filter((i) => picked.has(i.key)).length;
   const toRephrase = similar.filter((i) => picked.has(i.key)).length;
 
-  const saveBar = items.some((i) => i.valid) && (
+  const saveBar = items.length > 0 && (
     <div className="flex flex-wrap gap-3 border-t border-[var(--separator,rgba(0,0,0,0.08))] pt-3">
       <button
         onClick={save}
@@ -367,14 +367,21 @@ export function MiniPhraseGenerator({ dictionaryId, onSaved }: { dictionaryId: n
       )}
 
       {screen === "rejected" && (
-        <Section title={invalid.length ? `Не прошли проверку — ${invalid.length}` : "Отклонённых нет"}>
+        <Section
+          title={invalid.length ? `Не прошли проверку — ${invalid.length}` : "Отклонённых нет"}
+          hint={
+            invalid.length
+              ? "Можно всё равно добавить вручную: отметьте фразу и нажмите «Сохранить». Нельзя только фразы со словом не из словаря, без перевода или точные повторы."
+              : undefined
+          }
+        >
           {invalid.map((i) => (
-            <Card key={i.key} item={i} checked={false} onToggle={() => {}} />
+            <Card key={i.key} item={i} checked={picked.has(i.key)} onToggle={() => toggle(picked, i.key, setPicked)} manual />
           ))}
         </Section>
       )}
 
-      {(screen === "ready" || screen === "similar") && saveBar}
+      {(screen === "ready" || screen === "similar" || screen === "rejected") && saveBar}
     </div>
   );
 }
@@ -413,10 +420,21 @@ function Section({
   );
 }
 
-function Card({ item, checked, onToggle }: { item: GeneratedMiniPhrase; checked: boolean; onToggle: () => void }) {
+function Card({
+  item,
+  checked,
+  onToggle,
+  manual = false,
+}: {
+  item: GeneratedMiniPhrase;
+  checked: boolean;
+  onToggle: () => void;
+  manual?: boolean;
+}) {
+  const canPick = item.valid || (manual && !item.broken && item.parts.length > 0);
   return (
     <label
-      className={`flex cursor-pointer items-start gap-3 rounded-xl bg-[var(--card)] p-3.5 ${item.valid ? "" : "cursor-default opacity-60"}`}
+      className={`flex cursor-pointer items-start gap-3 rounded-xl bg-[var(--card)] p-3.5 ${canPick ? "" : "cursor-default opacity-60"} ${!item.valid && !checked ? "opacity-75" : ""}`}
       translate="no"
     >
       <input
@@ -424,7 +442,7 @@ function Card({ item, checked, onToggle }: { item: GeneratedMiniPhrase; checked:
         className="switch mt-0.5"
         aria-label="Добавить эту мини-фразу"
         checked={checked}
-        disabled={!item.valid}
+        disabled={!canPick}
         onChange={onToggle}
       />
       <div className="min-w-0 flex-1">

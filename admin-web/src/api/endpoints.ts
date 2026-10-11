@@ -1531,6 +1531,8 @@ export interface GeneratedMiniPhrase {
   too_similar: boolean;
   usefulness: number | null;
   situation: string | null;
+  broken?: boolean;
+  force?: boolean;
 }
 
 export async function getMiniPhraseAnalysis(dictionaryId: number): Promise<MiniPhraseAnalysis> {
