@@ -23,6 +23,7 @@ const navGroups = [
     items: [
       { to: "/dictionaries", icon: "globe", label: "Языки" },
       { to: "/exercises", icon: "dumbbell", label: "Упражнения" },
+      { to: "/mini-phrase-templates", icon: "blocks", label: "Мини-фразы" },
       { to: "/translation", icon: "sparkles", label: "ИИ-перевод" },
       { to: "/slogans", icon: "quote", label: "Слоганы" },
       { to: "/statuses", icon: "message", label: "Статусы" },
