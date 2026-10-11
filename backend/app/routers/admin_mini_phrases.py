@@ -376,6 +376,41 @@ def save_generated_mini_phrases(
     return report
 
 
+@router.post("/dictionaries/{dictionary_id}/mini-phrases/generate/to-phrases")
+def save_generated_as_phrases(
+    dictionary_id: int, payload: ItemsIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
+):
+    """Saves chosen generated items as ordinary phrases («Фразы»): only the
+    original text and its translations -- no parts, forms or templates."""
+    from app.models.phrase import Phrase
+
+    _get_dictionary_or_404(db, dictionary_id)
+    existing = {normalize_answer(t) for (t,) in db.query(Phrase.original).filter(Phrase.dictionary_id == dictionary_id)}
+    created, skipped = [], []
+    for item in payload.items:
+        text = str(item.get("text") or "").strip()
+        tg = str(item.get("translation_tg") or "").strip()
+        if not text or not tg:
+            skipped.append({"text": text, "reason": "Нет текста или перевода на таджикский"})
+            continue
+        if normalize_answer(text) in existing:
+            skipped.append({"text": text, "reason": "Такая фраза уже есть"})
+            continue
+        existing.add(normalize_answer(text))
+        db.add(
+            Phrase(
+                dictionary_id=dictionary_id,
+                original=text[:1000],
+                translation_tg=tg[:1000],
+                translation_uz=(str(item.get("translation_uz") or "").strip() or None),
+                translation_en=(str(item.get("translation_en") or "").strip() or None),
+            )
+        )
+        created.append(text)
+    db.commit()
+    return {"created": created, "skipped": skipped}
+
+
 @router.post("/dictionaries/{dictionary_id}/mini-phrases/add-words")
 def add_missing_words(
     dictionary_id: int, payload: WordsIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)

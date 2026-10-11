@@ -1969,3 +1969,14 @@ export async function previewMiniPhrase(
   });
   return data;
 }
+
+export async function saveGeneratedAsPhrases(
+  dictionaryId: number,
+  items: GeneratedMiniPhrase[],
+): Promise<{ created: string[]; skipped: { text: string; reason: string }[] }> {
+  const { data } = await api.post(
+    `/admin/dictionaries/${dictionaryId}/mini-phrases/generate/to-phrases`,
+    { items },
+  );
+  return data;
+}
