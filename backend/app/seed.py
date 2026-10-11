@@ -255,9 +255,54 @@ def seed_mini_phrases() -> None:
         db.close()
 
 
+def seed_starter_500() -> None:
+    """«Набор 500» (app/mini_phrases/starter_500.py) for every Russian
+    dictionary, saved topic by topic -- one commit per topic, so a problem
+    in one part never loses the rest or blocks the server start. Only
+    phrases whose words exist are created; re-running adds what new words
+    have unlocked and never duplicates."""
+    from app.mini_phrases.starter import fill_phrases
+    from app.mini_phrases.starter_500 import parse
+    from app.models.dictionary import Dictionary
+
+    phrases = parse()
+    topics: dict[str, list[dict]] = {}
+    for p in phrases:
+        topics.setdefault(p["template"], []).append(p)
+    db = SessionLocal()
+    try:
+        for dictionary in db.query(Dictionary).filter(Dictionary.language == "ru").all():
+            created = already = skipped = 0
+            missing: dict[str, int] = {}
+            for topic, part in topics.items():
+                try:
+                    report = fill_phrases(db, dictionary, part)
+                    db.commit()
+                except Exception as e:  # noqa: BLE001 -- never block the server start
+                    db.rollback()
+                    print(f"[seed] «Набор 500» / {topic}: failed: {e}")
+                    continue
+                created += len(report["created"])
+                already += len(report["already"])
+                skipped += len(report["skipped"])
+                for m in report["missing_words"]:
+                    missing[m["word"]] = missing.get(m["word"], 0) + m["phrases"]
+                print(f"[seed] «Набор 500» / {topic}: +{len(report['created'])}, waiting for words {len(report['skipped'])}")
+            print(
+                f"[seed] «Набор 500» for '{dictionary.name}': created {created}, already {already}, "
+                f"waiting for words {skipped} of {len(phrases)}"
+            )
+            if missing:
+                top = sorted(missing.items(), key=lambda kv: -kv[1])[:40]
+                print("[seed]   missing words: " + ", ".join(f"{w} ({n})" for w, n in top))
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
     seed_admin()
     seed_ranks()
     seed_statuses()
     seed_achievements()
     seed_mini_phrases()
+    seed_starter_500()
