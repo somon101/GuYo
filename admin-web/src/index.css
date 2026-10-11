@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   GuYo Admin -- quiet working look: one GuYo violet accent, flat white
-   panels with hairline borders (no shadows, no glass, no colour blobs),
-   Geist type, tabular numbers.
+   GuYo Admin -- the GuYo app's own world: indigo ink, violet action,
+   gold rewards, pastel tiles, soft white cards on a lavender canvas.
+   Colours mirror mobile/lib/theme/app_colors.dart (light and dark).
 
    Every page keeps its ordinary Tailwind classes; what those classes MEAN is
    decided here. slate -> iOS grays, indigo/blue -> systemBlue, red/rose ->
@@ -19,107 +19,139 @@
 
   /* "blue" is the accent slot every page already uses: GuYo's violet. */
   --sys-blue: #5862dd;
-  --sys-green: #1f9d63;
-  --sys-red: #dc3d43;
-  --sys-orange: #d9800b;
-  --sys-purple: #8b5cc6;
+  --sys-green: #0a9c5d;
+  --sys-red: #e0454b;
+  --sys-orange: #e08a00;
+  --sys-purple: #8b5cf6;
 
-  /* The same hues, deep enough to read as small text on a panel. */
-  --sys-blue-ink: #434cc0;
-  --sys-green-ink: #167a4c;
-  --sys-red-ink: #b8262c;
-  --sys-orange-ink: #a15c00;
-  --sys-purple-ink: #6d43a6;
+  /* The same hues, deep enough to read as small text on a card. */
+  --sys-blue-ink: #3f48c4;
+  --sys-green-ink: #087a49;
+  --sys-red-ink: #c0323a;
+  --sys-orange-ink: #7a5600;
+  --sys-purple-ink: #6d44d6;
 
-  /* Neutrals lean very slightly toward the violet. */
-  --bg: #f7f7f9;
+  /* The app's indigo: headings, the side rail. */
+  --ink: #101b63;
+  --rail: #101b63;
+  --rail-2: #1a2678;
+  --rail-text: #c9cdf3;
+  --gold: #ffeb3b;
+  --gold-ink: #7a5600;
+
+  /* Pastel tiles, as in the app's home screen. */
+  --tile-orange: #ffe3b8;
+  --tile-green: #c9efd3;
+  --tile-blue: #d5e4ff;
+  --tile-pink: #f6d6f4;
+  --tile-yellow: #fff1c2;
+
+  --bg: #f8f8fd;
   --card: #ffffff;
-  --card-hover: #f9f9fb;
-  --fill: rgb(88 92 130 / 0.07);
-  --fill-strong: rgb(88 92 130 / 0.12);
+  --card-hover: #fbfbff;
+  --fill: rgb(88 98 221 / 0.07);
+  --fill-strong: rgb(88 98 221 / 0.13);
   --field: #ffffff;
-  --field-border: #dfe0e8;
-  --separator: #e8e8ef;
-  --label: #16171d;
+  --field-border: #e2e5f3;
+  --separator: #edeff7;
+  --label: #101b63;
   --segment-thumb: #ffffff;
-  --switch-off: #dcdde6;
+  --switch-off: #dfe2f2;
 
-  --shadow-card: none;
-  --shadow-float: 0 12px 32px rgb(22 23 40 / 0.12), 0 0 0 1px rgb(22 23 40 / 0.06);
-  --header-glass: #ffffff;
+  --shadow-card: 0 1px 2px rgb(16 27 99 / 0.04), 0 8px 24px -8px rgb(16 27 99 / 0.1);
+  --shadow-lift: 0 2px 4px rgb(16 27 99 / 0.05), 0 16px 32px -12px rgb(16 27 99 / 0.2);
+  --shadow-float: 0 18px 44px -12px rgb(16 27 99 / 0.28), 0 0 0 1px rgb(16 27 99 / 0.05);
+  --shadow-primary: 0 6px 16px -6px rgb(88 98 221 / 0.65);
+  --header-glass: rgb(248 248 253 / 0.82);
   --blob-opacity: 0;
 
   --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 
-  --gray-50: #f4f4f7;
-  --gray-100: #ececf1;
-  --gray-200: #dfe0e8;
-  --gray-300: #cbccd7;
-  --gray-400: #a3a5b5;
-  --gray-500: #757789;
-  --gray-600: #5a5c6c;
-  --gray-700: #43444f;
-  --gray-800: #2b2c34;
-  --gray-900: #16171d;
-  --gray-950: #0b0b0f;
+  --gray-50: #f3f4fb;
+  --gray-100: #eceef8;
+  --gray-200: #e2e5f3;
+  --gray-300: #cdd2ea;
+  --gray-400: #a2a9cf;
+  --gray-500: #7180b0;
+  --gray-600: #56648f;
+  --gray-700: #3a4677;
+  --gray-800: #232e6b;
+  --gray-900: #101b63;
+  --gray-950: #0a1140;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --sys-blue: #7c84f0;
-    --sys-green: #34c27f;
-    --sys-red: #f2676c;
-    --sys-orange: #eb9b35;
-    --sys-purple: #a98ae0;
+    --sys-green: #2fcb86;
+    --sys-red: #ff6b70;
+    --sys-orange: #ffb547;
+    --sys-purple: #a78bfa;
 
     --sys-blue-ink: #a3a9f5;
-    --sys-green-ink: #5cd69c;
-    --sys-red-ink: #f58d91;
-    --sys-orange-ink: #f2b766;
-    --sys-purple-ink: #c4adec;
+    --sys-green-ink: #5cd9a0;
+    --sys-red-ink: #ff9195;
+    --sys-orange-ink: #ffd54f;
+    --sys-purple-ink: #c4b5fd;
 
-    --bg: #111218;
-    --card: #181a22;
-    --card-hover: #1e2029;
-    --fill: rgb(160 165 220 / 0.08);
-    --fill-strong: rgb(160 165 220 / 0.14);
-    --field: #14161d;
-    --field-border: #2c2f3b;
-    --separator: #262833;
-    --label: #ececf2;
-    --segment-thumb: #2c2f3b;
-    --switch-off: #2f3240;
+    --ink: #e9ebfa;
+    --rail: #161a2c;
+    --rail-2: #20253c;
+    --rail-text: #9aa3cc;
+    --gold: #ffd54f;
+    --gold-ink: #ffd54f;
 
-    --shadow-card: none;
-    --shadow-float: 0 12px 32px rgb(0 0 0 / 0.5), 0 0 0 1px #2c2f3b;
-    --header-glass: #14151c;
+    --tile-orange: #6b4416;
+    --tile-green: #1e5537;
+    --tile-blue: #233f75;
+    --tile-pink: #5c2a5a;
+    --tile-yellow: #4a4017;
+
+    --bg: #11131c;
+    --card: #1c1f2e;
+    --card-hover: #222639;
+    --fill: rgb(124 132 240 / 0.1);
+    --fill-strong: rgb(124 132 240 / 0.18);
+    --field: #161927;
+    --field-border: #2a2e45;
+    --separator: #2a2e45;
+    --label: #e9ebfa;
+    --segment-thumb: #3b4166;
+    --switch-off: #2c3150;
+
+    --shadow-card: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 10px 28px -12px rgb(0 0 0 / 0.6);
+    --shadow-lift: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 18px 36px -12px rgb(0 0 0 / 0.7);
+    --shadow-float: 0 20px 48px -12px rgb(0 0 0 / 0.75), 0 0 0 1px #2a2e45;
+    --shadow-primary: 0 6px 18px -6px rgb(124 132 240 / 0.7);
+    --header-glass: rgb(17 19 28 / 0.82);
     --blob-opacity: 0;
 
     /* The neutral ramp flips, so "light number = surface, dark number =
        text" keeps holding for every slate-* class. */
-    --gray-50: #1e2029;
-    --gray-100: #262833;
-    --gray-200: #30333f;
-    --gray-300: #3d404e;
-    --gray-400: #5b5e70;
-    --gray-500: #8a8da0;
-    --gray-600: #a9abbb;
-    --gray-700: #c6c8d4;
-    --gray-800: #dddee6;
-    --gray-900: #ececf2;
+    --gray-50: #23273a;
+    --gray-100: #2a2e45;
+    --gray-200: #2c3150;
+    --gray-300: #3b4166;
+    --gray-400: #5a6188;
+    --gray-500: #9aa3cc;
+    --gray-600: #b4bbdc;
+    --gray-700: #cdd2ec;
+    --gray-800: #dfe2f6;
+    --gray-900: #e9ebfa;
     --gray-950: #ffffff;
   }
 }
 
 @theme {
-  --font-sans: "Geist", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --font-sans: "Onest", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
   --font-serif: ui-serif, "New York", "Iowan Old Style", Georgia, "Times New Roman", serif;
-  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
-  --radius-2xl: 14px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
 }
 
 @theme inline {
@@ -272,14 +304,41 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    font-feature-settings: "ss01";
   }
 
   h1,
   h2,
   h3 {
     text-wrap: balance;
-    letter-spacing: -0.015em;
+    letter-spacing: -0.02em;
+  }
+
+  h1 {
+    color: var(--ink);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--gray-300);
+    border-radius: 999px;
+    border: 3px solid var(--bg);
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  input,
+  textarea {
+    caret-color: var(--sys-blue);
+  }
+
+  a {
+    text-underline-offset: 3px;
   }
 
   /* Numbers line up in every table and counter. */
@@ -299,7 +358,8 @@
   }
 
   ::selection {
-    background-color: color-mix(in srgb, var(--sys-blue) 26%, transparent);
+    background-color: color-mix(in srgb, var(--sys-blue) 24%, transparent);
+    color: inherit;
   }
 
   input[type="radio"],
@@ -354,19 +414,22 @@
 @utility card {
   background-color: var(--card);
   border: 1px solid var(--separator);
-  border-radius: 12px;
+  border-radius: 18px;
   box-shadow: var(--shadow-card);
-  animation: card-in 360ms var(--ease-ios) backwards;
 }
 
 @utility card-link {
   cursor: pointer;
   transition:
     background-color 160ms ease,
+    box-shadow 260ms var(--ease-out-expo),
+    translate 260ms var(--ease-out-expo),
     scale 200ms var(--ease-ios);
 
   &:hover {
     background-color: var(--card-hover);
+    box-shadow: var(--shadow-lift);
+    translate: 0 -2px;
   }
 
   &:active {
@@ -376,7 +439,7 @@
 
 @utility popover {
   background-color: var(--card);
-  border-radius: 10px;
+  border-radius: 14px;
   box-shadow: var(--shadow-float);
   animation: pop-in 220ms var(--ease-ios) both;
 }
@@ -388,6 +451,8 @@
 /* The top bar: a plain surface over a hairline. */
 @utility glass-bar {
   background-color: var(--header-glass);
+  -webkit-backdrop-filter: saturate(160%) blur(14px);
+  backdrop-filter: saturate(160%) blur(14px);
   border-bottom: 1px solid var(--separator);
 }
 
@@ -397,7 +462,7 @@
   background-color: var(--field);
   color: inherit;
   border: 1px solid var(--field-border);
-  border-radius: 8px;
+  border-radius: 12px;
   outline: none;
   transition:
     background-color 160ms ease,
@@ -414,7 +479,7 @@
 
   &:focus {
     border-color: var(--sys-blue);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--sys-blue) 16%, transparent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--sys-blue) 16%, transparent);
   }
 
   &:disabled {
@@ -423,7 +488,25 @@
   }
 }
 
-/* Secondary button: grey fill, blue text. */
+/* Primary buttons are written as bg-indigo-600 across the pages: give
+   them the app's violet glow and a small lift on hover. */
+button[class*="bg-indigo-600"],
+a[class*="bg-indigo-600"] {
+  box-shadow: var(--shadow-primary);
+  transition:
+    translate 220ms var(--ease-out-expo),
+    box-shadow 220ms var(--ease-out-expo),
+    background-color 160ms ease,
+    scale 160ms var(--ease-ios);
+}
+
+button[class*="bg-indigo-600"]:hover:not(:disabled),
+a[class*="bg-indigo-600"]:hover {
+  translate: 0 -1px;
+  box-shadow: 0 10px 22px -8px color-mix(in srgb, var(--sys-blue) 75%, transparent);
+}
+
+/* Secondary button: violet-tinted fill, violet text. */
 @utility btn-tinted {
   background-color: var(--fill);
   color: var(--sys-blue);
@@ -520,16 +603,30 @@
   }
 }
 
-/* Cards in the same group arrive one after another, 60 ms apart. */
-.card:nth-child(2) { animation-delay: 60ms; }
-.card:nth-child(3) { animation-delay: 120ms; }
-.card:nth-child(4) { animation-delay: 180ms; }
-.card:nth-child(5) { animation-delay: 240ms; }
-.card:nth-child(6) { animation-delay: 300ms; }
-.card:nth-child(7) { animation-delay: 360ms; }
-.card:nth-child(8) { animation-delay: 420ms; }
-.card:nth-child(9) { animation-delay: 480ms; }
-.card:nth-child(n + 10) { animation-delay: 540ms; }
+/* The side rail's active pill: glides to the chosen section. */
+.rail-pill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--sys-blue) 92%, white), var(--sys-blue));
+  box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--sys-blue) 90%, transparent);
+  transition:
+    translate 520ms var(--ease-out-expo),
+    height 520ms var(--ease-out-expo),
+    opacity 200ms ease;
+  pointer-events: none;
+}
+
+.rail-link .rail-tile {
+  transition: scale 260ms var(--ease-out-expo), rotate 260ms var(--ease-out-expo);
+}
+
+.rail-link:hover .rail-tile {
+  scale: 1.08;
+  rotate: -4deg;
+}
 
 /* Screen-to-screen: the new screen slides in from the right while the old
    one drifts left and fades -- iOS navigation. Driven by the View
@@ -637,6 +734,19 @@ html[data-vt-dir="back"]::view-transition-new(page) {
    position:fixed modal inside it. */
 .page-enter {
   animation: page-new-forward 420ms var(--ease-ios) backwards;
+}
+
+/* Each page rises in once on arrival (from an already-readable state). */
+.page-view > * {
+  animation: page-rise 560ms var(--ease-out-expo) backwards;
+}
+
+@keyframes page-rise {
+  from {
+    opacity: 0.35;
+    translate: 0 10px;
+    filter: blur(3px);
+  }
 }
 
 .page-enter[data-dir="back"] {

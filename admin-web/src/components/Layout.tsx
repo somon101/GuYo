@@ -61,23 +61,31 @@ const navGroups: { title: string; tile: Tile; items: { to: string; label: string
 
 const navItems = navGroups.flatMap((g) => g.items.map((item) => ({ ...item, tile: g.tile })));
 
-function isActive(pathname: string, to: string) {
-  return pathname === to || pathname.startsWith(`${to}/`);
-}
-
 export function Layout({ children }: { children: ReactNode }) {
   const { logout } = useAuth();
   const location = useLocation();
   usePageTransitions();
   const enterDir = usePageEnter(location.pathname);
-  const section = navItems.find((item) => isActive(location.pathname, item.to));
 
   // The violet pill glides to the active item: the rail's one motion.
   const navRef = useRef<HTMLElement>(null);
   const [pill, setPill] = useState<{ y: number; h: number } | null>(null);
   useLayoutEffect(() => {
-    const active = navRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
-    setPill(active ? { y: active.offsetTop, h: active.offsetHeight } : null);
+    const nav = navRef.current;
+    if (!nav) return;
+    const measure = () => {
+      const active = nav.querySelector<HTMLElement>('[aria-current="page"]');
+      if (!active) return setPill(null);
+      const navBox = nav.getBoundingClientRect();
+      const box = active.getBoundingClientRect();
+      setPill({ y: box.top - navBox.top + nav.scrollTop, h: box.height });
+    };
+    measure();
+    // Webfonts and the window can change the rail's line heights.
+    const observer = new ResizeObserver(measure);
+    observer.observe(nav);
+    document.fonts?.ready.then(measure);
+    return () => observer.disconnect();
   }, [location.pathname]);
 
   return (
@@ -157,7 +165,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <header className="app-header glass-bar sticky top-0 z-30 md:hidden">
           <div className="flex h-14 items-center gap-2.5 px-4">
             <img src={logoMark} alt="" className="h-7 w-7 shrink-0" />
-            <span className="flex-1 truncate text-[16px] font-bold text-[var(--ink)]">{section?.label ?? "GuYo"}</span>
+            <span className="flex-1 truncate text-[16px] font-bold text-[var(--ink)]">GuYo</span>
             <ChangePasswordButton />
             <button onClick={logout} className="btn-tinted rounded-full px-3.5 py-1.5 text-sm font-medium">
               Выйти
