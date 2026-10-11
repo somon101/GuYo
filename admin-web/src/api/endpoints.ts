@@ -1579,3 +1579,17 @@ export async function addMissingWords(
   const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases/add-words`, { words }, { timeout: 300000 });
   return data;
 }
+
+export interface MiniPhrasePreview {
+  id: number;
+  text: string;
+  translation: string | null;
+  audio_url: string | null;
+  parts: { position: number; text: string; role: string | null; translation: string | null }[];
+  explanation: { kind: string; text: string; role: string | null }[];
+}
+
+export async function previewMiniPhrase(id: number, ui: "ru" | "tg" | "uz"): Promise<MiniPhrasePreview> {
+  const { data } = await api.get(`/admin/mini-phrases/${id}/preview`, { params: { ui } });
+  return data;
+}

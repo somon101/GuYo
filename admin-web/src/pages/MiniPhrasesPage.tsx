@@ -17,6 +17,7 @@ import {
 } from "../api/endpoints";
 import { LanguageSectionTabs } from "../components/LanguageSectionTabs";
 import { MiniPhraseGenerator } from "./MiniPhraseGenerator";
+import { MiniPhrasePhonePreview } from "../components/MiniPhrasePhonePreview";
 import type { Dictionary, MiniPhrase, MiniPhraseRole, MiniPhraseTemplate, Word } from "../types";
 
 function errorText(e: unknown, fallback: string): string {
@@ -70,6 +71,11 @@ export function MiniPhrasesPage() {
   const [report, setReport] = useState<MiniPhraseStarterReport | null>(null);
   const [isFilling, setIsFilling] = useState(false);
   const [showGenerator, setShowGenerator] = useState(false);
+  const [templateFilter, setTemplateFilter] = useState<number | "none" | null>(null);
+  const [previewId, setPreviewId] = useState<number | null>(null);
+  const shown = items.filter((mp) =>
+    templateFilter === null ? true : templateFilter === "none" ? mp.template_id === null : mp.template_id === templateFilter,
+  );
 
   async function fillStarter() {
     setIsFilling(true);
@@ -226,13 +232,44 @@ export function MiniPhrasesPage() {
         />
       )}
 
+      {items.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {[
+            { key: null as number | "none" | null, name: "Все шаблоны", n: items.length },
+            ...templates
+              .map((t) => ({ key: t.id as number | "none" | null, name: t.name, n: items.filter((m) => m.template_id === t.id).length }))
+              .filter((t) => t.n > 0),
+            ...(items.some((m) => m.template_id === null)
+              ? [{ key: "none" as const, name: "Стандартный", n: items.filter((m) => m.template_id === null).length }]
+              : []),
+          ].map((t) => (
+            <button
+              key={String(t.key)}
+              onClick={() => setTemplateFilter(t.key)}
+              className={`rounded-full px-3 py-1.5 text-sm ${
+                templateFilter === t.key ? "bg-indigo-600 text-white" : "bg-[var(--fill)] text-slate-700 hover:bg-indigo-50"
+              }`}
+            >
+              {t.name} <span className={templateFilter === t.key ? "text-indigo-100" : "text-slate-400"}>{t.n}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {previewId !== null && <MiniPhrasePhonePreview id={previewId} onClose={() => setPreviewId(null)} />}
+
       {items.length === 0 ? (
         <p className="text-sm text-slate-500">Пока нет мини-фраз</p>
       ) : (
         <ul className="flex flex-col gap-3">
-          {items.map((mp) => (
+          {shown.map((mp) => (
             <li key={mp.id} className="card flex flex-wrap items-start justify-between gap-3 p-4">
-              <div className="min-w-0 flex-1" translate="no">
+              <div
+                className="min-w-0 flex-1 cursor-pointer"
+                translate="no"
+                title="Показать, как выглядит в приложении"
+                onClick={() => setPreviewId(mp.id)}
+              >
                 <p className="font-serif text-[17px] font-medium text-slate-900">
                   {mp.text}
                   {!mp.enabled && <span className="ml-2 font-sans text-xs text-slate-400">выключена</span>}
@@ -256,6 +293,9 @@ export function MiniPhrasesPage() {
                 <p className="mt-1 text-xs text-slate-400">Шаблон: {mp.template_name ?? "стандартный"}</p>
               </div>
               <div className="flex shrink-0 items-center gap-4">
+                <button onClick={() => setPreviewId(mp.id)} className="text-sm font-medium text-indigo-600 hover:underline">
+                  📱 Просмотр
+                </button>
                 <button onClick={() => edit(mp)} className="text-sm font-medium text-indigo-600 hover:underline">
                   Редактировать
                 </button>
