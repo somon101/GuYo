@@ -642,16 +642,29 @@ const IMPORTANCE_LABELS: Record<number, string> = {
   1: "1 — редкие",
 };
 
+const WORD_ROLE_OPTIONS = [
+  { value: "pronoun", label: "Местоимение (кто)" },
+  { value: "verb", label: "Глагол (действие)" },
+  { value: "noun", label: "Существительное (что)" },
+  { value: "adjective", label: "Прилагательное (какой)" },
+  { value: "adverb", label: "Наречие (как)" },
+  { value: "preposition", label: "Предлог" },
+  { value: "number", label: "Число" },
+  { value: "other", label: "Другое" },
+];
+
 /** How a random lesson prioritises this word: its own form and save,
  * separate from the main multipart word form above. */
 function WordLearningSection({ word, onSaved }: { word: Word; onSaved: (word: Word) => void }) {
   const [importance, setImportance] = useState(word.importance);
   const [topics, setTopics] = useState<WordTopic[]>(word.topics);
+  const [role, setRole] = useState<string>(word.role ?? "");
   const [isSaving, setIsSaving] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
   const isDirty =
     importance !== word.importance ||
+    role !== (word.role ?? "") ||
     topics.length !== word.topics.length ||
     topics.some((t) => !word.topics.includes(t));
 
@@ -664,7 +677,7 @@ function WordLearningSection({ word, onSaved }: { word: Word; onSaved: (word: Wo
     setIsSaving(true);
     setStatus(null);
     try {
-      onSaved(await updateWordLearning(word.id, { importance, topics }));
+      onSaved(await updateWordLearning(word.id, { importance, topics, role: role || null }));
       setStatus("Сохранено");
     } catch {
       setStatus("Не удалось сохранить");
@@ -674,7 +687,7 @@ function WordLearningSection({ word, onSaved }: { word: Word; onSaved: (word: Wo
   }
 
   return (
-    <Section title="Темы и важность">
+    <Section title="Темы, важность и роль">
       <p className="mb-4 text-sm text-slate-500">
         Случайный урок сначала берёт слова из тем, которые выбрал человек, и внутри них — самые важные.
       </p>
@@ -690,6 +703,23 @@ function WordLearningSection({ word, onSaved }: { word: Word; onSaved: (word: Wo
           {[5, 4, 3, 2, 1].map((n) => (
             <option key={n} value={n}>
               {IMPORTANCE_LABELS[n]}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Роль в фразе" hint="задаётся один раз — по ней объясняются все мини-фразы с этим словом">
+        <select
+          className="w-full max-w-xs field px-3 py-2 text-sm"
+          value={role}
+          onChange={(e) => {
+            setRole(e.target.value);
+            setStatus(null);
+          }}
+        >
+          <option value="">Не указана</option>
+          {WORD_ROLE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
             </option>
           ))}
         </select>

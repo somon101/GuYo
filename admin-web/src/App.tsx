@@ -17,6 +17,8 @@ import { WordEditPage } from "./pages/WordEditPage";
 import { PhraseCategoriesPage } from "./pages/PhraseCategoriesPage";
 import { PhrasesListPage } from "./pages/PhrasesListPage";
 import { PhraseEditPage } from "./pages/PhraseEditPage";
+import { MiniPhrasesPage } from "./pages/MiniPhrasesPage";
+import { MiniPhraseTemplatesPage } from "./pages/MiniPhraseTemplatesPage";
 import { ExercisesPage } from "./pages/ExercisesPage";
 import { TrueOrFalseSettingsPage } from "./pages/exercises/TrueOrFalseSettingsPage";
 import { MatchingSettingsPage } from "./pages/exercises/MatchingSettingsPage";
@@ -145,6 +147,26 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <PhraseEditPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dictionaries/:id/mini-phrases"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <MiniPhrasesPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mini-phrase-templates"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <MiniPhraseTemplatesPage />
                 </Layout>
               </ProtectedRoute>
             }

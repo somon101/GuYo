@@ -10,7 +10,7 @@ export function LanguageSectionTabs({
   active,
 }: {
   dictionaryId: number;
-  active: "words" | "phrases";
+  active: "words" | "phrases" | "mini-phrases";
 }) {
   const segmentClass = (isActive: boolean) =>
     `rounded-[7px] px-5 py-1 text-center text-[13px] font-medium transition-colors ${
@@ -20,7 +20,7 @@ export function LanguageSectionTabs({
     }`;
 
   return (
-    <div className="mb-4 grid w-fit grid-cols-2 rounded-[9px] bg-[var(--fill)] p-0.5">
+    <div className="mb-4 grid w-fit grid-cols-3 rounded-[9px] bg-[var(--fill)] p-0.5">
       <Link
         to={`/dictionaries/${dictionaryId}`}
         aria-current={active === "words" ? "page" : undefined}
@@ -34,6 +34,13 @@ export function LanguageSectionTabs({
         className={segmentClass(active === "phrases")}
       >
         Фразы
+      </Link>
+      <Link
+        to={`/dictionaries/${dictionaryId}/mini-phrases`}
+        aria-current={active === "mini-phrases" ? "page" : undefined}
+        className={segmentClass(active === "mini-phrases")}
+      >
+        Мини-фразы
       </Link>
     </div>
   );

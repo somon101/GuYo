@@ -18,6 +18,11 @@ import type {
   ConditionType,
   Dictionary,
   ExerciseSettings,
+  MiniPhrase,
+  MiniPhraseRole,
+  MiniPhraseSettings,
+  MiniPhraseTemplate,
+  SuggestedMiniPhrasePart,
   Phrase,
   PhraseCategory,
   PriorityLevelBand,
@@ -1272,7 +1277,7 @@ export async function deleteReminder(id: number): Promise<void> {
 
 export async function updateWordLearning(
   wordId: number,
-  input: { importance: number; topics: WordTopic[] },
+  input: { importance: number; topics: WordTopic[]; role: string | null },
 ): Promise<Word> {
   const { data } = await api.put(`/words/${wordId}/learning`, input);
   return data;
@@ -1368,5 +1373,89 @@ export interface ClientErrorRow {
 
 export async function listClientErrors(): Promise<ClientErrorRow[]> {
   const { data } = await api.get("/admin/client-errors", { params: { limit: 200 } });
+  return data;
+}
+
+// --- Mini-phrases --------------------------------------------------------
+
+export async function listMiniPhraseRoles(): Promise<MiniPhraseRole[]> {
+  const { data } = await api.get("/admin/mini-phrases/roles");
+  return data;
+}
+
+export type MiniPhraseTemplateInput = Omit<MiniPhraseTemplate, "id" | "usage_count">;
+
+export async function listMiniPhraseTemplates(): Promise<MiniPhraseTemplate[]> {
+  const { data } = await api.get("/admin/mini-phrase-templates");
+  return data;
+}
+
+export async function createMiniPhraseTemplate(input: MiniPhraseTemplateInput): Promise<MiniPhraseTemplate> {
+  const { data } = await api.post("/admin/mini-phrase-templates", input);
+  return data;
+}
+
+export async function updateMiniPhraseTemplate(id: number, input: MiniPhraseTemplateInput): Promise<MiniPhraseTemplate> {
+  const { data } = await api.put(`/admin/mini-phrase-templates/${id}`, input);
+  return data;
+}
+
+export async function deleteMiniPhraseTemplate(id: number): Promise<void> {
+  await api.delete(`/admin/mini-phrase-templates/${id}`);
+}
+
+export interface MiniPhrasePartInput {
+  text: string;
+  word_id: number;
+  word_form_id: number | null;
+  role: string | null;
+}
+
+export interface MiniPhraseInput {
+  template_id: number | null;
+  text: string;
+  translation_tg: string;
+  translation_uz: string | null;
+  translation_en: string | null;
+  enabled: boolean;
+  parts: MiniPhrasePartInput[];
+}
+
+export async function listMiniPhrases(dictionaryId: number): Promise<MiniPhrase[]> {
+  const { data } = await api.get(`/admin/dictionaries/${dictionaryId}/mini-phrases`);
+  return data;
+}
+
+export async function getMiniPhrase(id: number): Promise<MiniPhrase> {
+  const { data } = await api.get(`/admin/mini-phrases/${id}`);
+  return data;
+}
+
+export async function createMiniPhrase(dictionaryId: number, input: MiniPhraseInput): Promise<MiniPhrase> {
+  const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases`, input);
+  return data;
+}
+
+export async function updateMiniPhrase(id: number, input: MiniPhraseInput): Promise<MiniPhrase> {
+  const { data } = await api.put(`/admin/mini-phrases/${id}`, input);
+  return data;
+}
+
+export async function deleteMiniPhrase(id: number): Promise<void> {
+  await api.delete(`/admin/mini-phrases/${id}`);
+}
+
+export async function suggestMiniPhraseParts(dictionaryId: number, text: string): Promise<SuggestedMiniPhrasePart[]> {
+  const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases/suggest-parts`, { text });
+  return data;
+}
+
+export async function getMiniPhraseSettings(): Promise<MiniPhraseSettings> {
+  const { data } = await api.get("/admin/mini-phrase-settings");
+  return data;
+}
+
+export async function updateMiniPhraseSettings(input: Partial<MiniPhraseSettings>): Promise<MiniPhraseSettings> {
+  const { data } = await api.patch("/admin/mini-phrase-settings", input);
   return data;
 }

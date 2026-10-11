@@ -86,6 +86,8 @@ export interface Word {
   category_name: string | null;
   importance: number;
   topics: WordTopic[];
+  /** Role in a phrase (pronoun, verb, ...) -- drives mini-phrase explanations. */
+  role: string | null;
   created_at: string;
   updated_at: string;
   // Convenience mirror of translations[0], kept for the word-list card.
@@ -662,3 +664,64 @@ export interface Reminders {
 // The sign-up "why are you learning" list, reused as word topics
 // (backend app/core/topics.py).
 export type WordTopic = "study" | "work" | "communication" | "travel" | "relocation";
+
+// --- Mini-phrases ----------------------------------------------------------
+// Short ready-made phrases ("Я иду") whose parts point at existing words
+// (word_id + optional word_form_id). A template explains many of them.
+
+export interface MiniPhraseRole {
+  id: string;
+  label: string;
+}
+
+export interface MiniPhraseTemplate {
+  id: number;
+  name: string;
+  kind: string;
+  explanation_ru: string | null;
+  explanation_tg: string | null;
+  explanation_uz: string | null;
+  distractor_count: number;
+  enabled: boolean;
+  usage_count: number;
+}
+
+export interface MiniPhrasePart {
+  position: number;
+  text: string;
+  word_id: number;
+  word: string;
+  word_form_id: number | null;
+  word_form_text: string | null;
+  role: string | null;
+  word_role: string | null;
+}
+
+export interface MiniPhrase {
+  id: number;
+  dictionary_id: number;
+  template_id: number | null;
+  template_name: string | null;
+  text: string;
+  translation_tg: string;
+  translation_uz: string | null;
+  translation_en: string | null;
+  enabled: boolean;
+  parts: MiniPhrasePart[];
+  created_at: string;
+}
+
+export interface SuggestedMiniPhrasePart {
+  text: string;
+  word_id: number | null;
+  word: string | null;
+  word_form_id: number | null;
+  word_form_text: string | null;
+  role: string | null;
+}
+
+export interface MiniPhraseSettings {
+  points_enabled: boolean;
+  points_per_correct: number;
+  max_per_lesson: number;
+}

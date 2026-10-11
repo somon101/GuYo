@@ -10,6 +10,7 @@ const navItems = [
   { to: "/dictionaries", label: "Языки" },
   { to: "/exercises", label: "Упражнения" },
   { to: "/achievements", label: "Достижения" },
+  { to: "/mini-phrase-templates", label: "Мини-фразы" },
   { to: "/rating", label: "Рейтинг" },
   { to: "/review", label: "Повтори слово" },
   { to: "/statuses", label: "Статусы" },
