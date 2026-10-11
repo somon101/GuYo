@@ -275,6 +275,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
     }
     _selectedDictionary = selected;
+    GuyoDictionary.studyLanguage = selected.language;
 
     // Keying by dictionary id makes each tab's content rebuild fresh
     // whenever the selected language changes. IndexedStack (not a simple
