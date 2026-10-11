@@ -9,7 +9,7 @@ What the SCRIPT does (no tokens):
 - the word list for the model: the chosen topic's words plus anchor words
   (pronouns, the most important verbs), as compact `id:word` -- no
   translations or forms, so few tokens;
-- checking every phrase the model returns (words from the list only, 2-4,
+- checking every phrase the model returns (words from the list only, 2-5,
   not a duplicate, has Tajik, usefulness >= 4), the similarity to what
   exists, choosing/creating templates, adding missing word forms on save.
 
@@ -234,20 +234,28 @@ MIN_USEFULNESS = 4
 
 _PHRASE_SYSTEM = (
     "You are an experienced Russian teacher. Your learners are adult beginners (native Tajik or Uzbek) who need "
-    "Russian to COMMUNICATE: talk to people, ask, answer, request, explain. Input: {\"n\":how many,\"topic\":"
-    "\"topic or empty\",\"w\":\"id:word,...\" (the ONLY words you may use),\"avoid\":[phrases that already exist]}. "
-    "Write n short phrases (2-4 words) that are genuinely USEFUL IN CONVERSATION and universal: questions, requests, "
-    "answers, politeness, needs, wishes, plans, feelings, opinions, agreement/disagreement — across all areas of life "
-    "(meeting people, family, work, study, shop, transport, doctor, city, phone, time, home). Good: «Я не понимаю», "
-    "«Где ты живёшь?», «Мне нужна помощь», «Я хочу работать», «Можно спросить?», «Я согласен», «Сколько это стоит?». "
-    "Bad: narrow descriptive scenes nobody says in a talk («Я вижу собаку», «Я пью чай», «Мама готовит обед»), "
-    "odd or absurd combinations, near-duplicates of each other or of avoid. Every word of a phrase must come from w "
-    "(any grammatical form is fine). Rate u = how often a beginner would actually need it in real conversation, 1-5. "
-    "If the given words do not allow enough really useful phrases, list in need up to 10 words to add to the "
-    "dictionary, each with an example phrase it would make possible. "
-    "Reply JSON only: {\"r\":[{\"p\":[[id,\"word as written in the phrase\"],...],\"u\":5,\"s\":\"situation, "
-    "2-4 Russian words\",\"tg\":\"Tajik\",\"uz\":\"Uzbek (Latin, oʻ gʻ)\",\"en\":\"English\"}],"
-    "\"need\":[{\"w\":\"word (base form)\",\"ex\":\"example phrase\"}]}. Parts in phrase order."
+    "Russian to COMMUNICATE. Input: {\"n\":how many,\"topic\":\"topic or empty\",\"w\":\"id:word,...\" (the "
+    "learner's dictionary — the ONLY words you may use),\"have\":[mini-phrases the learner ALREADY has]}. "
+    "Step 1 — study w completely: which words exist, what they let you say, what is missing. "
+    "Step 2 — write n phrases of 2-5 words that a person really says in conversation in any area of life (meeting "
+    "people, family, work, study, shop, transport, doctor, city, phone, time, home): questions, requests, answers, "
+    "politeness, needs, wishes, plans, feelings, opinions. Use as many words as the thought needs: two only if the "
+    "phrase is complete and natural («Я понял», «Можно войти?»), otherwise 3-5. Good: «Я не понимаю», «Где ты "
+    "живёшь?», «Мне нужна помощь», «Я хочу работать здесь», «Сколько это стоит?». Bad: descriptive scenes («Я вижу "
+    "собаку», «Я пью чай»), absurd combinations, ungrammatical Russian. "
+    "Step 3 — check every phrase before answering, drop and replace the ones that fail: (a) it is 100% correct, "
+    "natural Russian with the right case/person/gender (never «Я помню ты» — must be «Я помню тебя»); (b) EVERY word "
+    "in its exact written form belongs to the w word whose id you give (a form of THAT word: «тебя» is a form of "
+    "«ты», never of another word; if the form or the word is not in w, do not use the phrase — put the word in "
+    "need); (c) its MEANING differs from every phrase in have and from your other phrases (not the same thought with "
+    "another pronoun or object); (d) no content word (noun, verb, adjective) is used in more than one of your phrases "
+    "— cover many different words and situations. "
+    "Rate u = how often a beginner needs it in real conversation, 1-5. "
+    "ALWAYS list in need 5-10 words NOT in w that would most widen what the learner can say, each with an example "
+    "phrase. Reply JSON only: {\"r\":[{\"t\":\"the full correct phrase\",\"p\":[[id,\"word exactly as in t"
+    "\"],...],\"u\":5,\"s\":\"situation, 2-4 Russian words\",\"tg\":\"Tajik\",\"uz\":\"Uzbek (Latin, oʻ gʻ)\","
+    "\"en\":\"English\"}],\"need\":[{\"w\":\"word (base form)\",\"ex\":\"example phrase\"}]}. "
+    "p lists every word of t in order."
 )
 
 
@@ -284,13 +292,13 @@ def ai_phrases(db: Session, words: list[Word], count: int, topic: str, avoid: li
         data, used = chat(
             db,
             _PHRASE_SYSTEM,
-            {"n": n, "topic": topic, "w": _compact(words), "avoid": seen[-60:]},
-            max_tokens=170 * n + 600,
+            {"n": n, "topic": topic, "w": _compact(words), "have": seen[-150:]},
+            max_tokens=190 * n + 700,
         )
         tokens += used
         got = [i for i in data.get("r") or [] if isinstance(i, dict)]
         results += got
-        seen += [" ".join(str(x[1]) for x in i.get("p") or [] if isinstance(x, (list, tuple)) and len(x) == 2) for i in got]
+        seen += [str(i.get("t") or " ".join(str(x[1]) for x in i.get("p") or [] if isinstance(x, (list, tuple)) and len(x) == 2)) for i in got]
         for need in data.get("need") or []:
             if isinstance(need, dict) and str(need.get("w") or "").strip():
                 key = str(need["w"]).strip().lower()[:60]
@@ -339,6 +347,22 @@ _FUNCTION_WORDS = {
 }
 
 
+_PRONOUNS = {"я", "ты", "он", "она", "оно", "мы", "вы", "они", "меня", "тебя", "его", "её", "ее", "нас", "вас", "их",
+             "мне", "тебе", "ему", "ей", "нам", "вам", "им"}
+
+
+def _plausible_form(word: Word, text: str) -> bool:
+    """A new form must look like a form of THIS word: pronouns get no new
+    forms (their cases are separate words in the dictionary), and any other
+    form starts with the same letter as the word («пить → пью», «идти → иду»),
+    so «я» is never taken as a form of «мы»."""
+    base = word.word.strip().lower().replace("ё", "е")
+    t = text.lower().replace("ё", "е")
+    if role_of(word) == "pronoun":
+        return False
+    return bool(base) and bool(t) and base[0] == t[0]
+
+
 def _stem(token: str) -> str:
     t = token.lower().replace("ё", "е")
     return t[:5] if len(t) > 5 else t
@@ -360,13 +384,13 @@ def _similarity(db: Session, dictionary_id: int):
             w = words.get(wid)
             if w is None:
                 continue
-            if role_of(w) in ("pronoun", "preposition") or w.word.strip().lower() in _FUNCTION_WORDS:
+            if role_of(w) != "pronoun" and (role_of(w) == "preposition" or w.word.strip().lower() in _FUNCTION_WORDS):
                 continue
             out.add(f"w{wid}")
         return out
 
     def text_key(text: str) -> set[str]:
-        return {_stem(t) for t in _TOKEN.findall(text.lower()) if t not in _FUNCTION_WORDS}
+        return {_stem(t) for t in _TOKEN.findall(text.lower()) if t not in _FUNCTION_WORDS or t in _PRONOUNS}
 
     def stems_of_ids(ids: set[int]) -> set[str]:
         return {_stem(words[i].word.strip()) for i in ids if i in words and f"w{i}" in ids_key({i})}
@@ -414,6 +438,11 @@ def check_candidates(db: Session, dictionary: Dictionary, raw: list[dict], allow
     templates = {t.name: t for t in db.query(MiniPhraseTemplate).all()}
     score = _similarity(db, dictionary.id)
     batch: list[tuple[str, set[int]]] = []
+    by_text: dict[str, Word] = {}
+    for w in words.values():
+        for t in [w.word] + [f.text for f in w.forms if f.language == dictionary.language]:
+            by_text.setdefault(t.strip().lower(), w)
+    content_use: dict[int, int] = {}
     out = []
     for item in raw:
         reason = None
@@ -434,6 +463,12 @@ def check_candidates(db: Session, dictionary: Dictionary, raw: list[dict], allow
             known = {word.word.strip().lower()} | {
                 f.text.strip().lower() for f in word.forms if f.language == dictionary.language
             }
+            if text.lower() not in known and text.lower() in by_text:
+                # The model gave the wrong id: the text is another word (or its form).
+                word = by_text[text.lower()]
+                known = {text.lower()}
+            if text.lower() not in known and not _plausible_form(word, text):
+                reason = reason or f"«{text}» не похоже на форму слова «{word.word}»"
             primary = primary_translation(word)
             parts.append(
                 {
@@ -453,10 +488,18 @@ def check_candidates(db: Session, dictionary: Dictionary, raw: list[dict], allow
             usefulness = None
         if not reason and usefulness is not None and usefulness < MIN_USEFULNESS:
             reason = f"ИИ: слабая фраза (полезность {usefulness}/5)"
-        if not reason and not 2 <= len(parts) <= 4:
-            reason = "Нужно от 2 до 4 слов"
+        if not reason and not 2 <= len(parts) <= 5:
+            reason = "Нужно от 2 до 5 слов"
         text = " ".join(p["text"] for p in parts)
         text = text[:1].upper() + text[1:]
+        full = str(item.get("t") or "").strip()
+        if not reason and full and normalize_answer(full) != normalize_answer(text):
+            reason = f"Части «{text}» не совпадают с правильной фразой «{full}» (нужного слова/формы нет в словаре)"
+        content = {p["word_id"] for p in parts if p["role"] in ("noun", "verb", "adjective", "adverb")}
+        if not reason:
+            repeated = [words[i].word for i in content if content_use.get(i, 0) >= 2]
+            if repeated:
+                reason = f"Слово «{repeated[0]}» уже в 2 фразах этой пачки — нужно разнообразие"
         if not reason and normalize_answer(text) in existing_texts:
             reason = "Такая мини-фраза уже есть"
         tg = str(item.get("tg") or "").strip()
@@ -468,6 +511,8 @@ def check_candidates(db: Session, dictionary: Dictionary, raw: list[dict], allow
         sim, similar_to, similar_source = score(text, ids, batch) if parts else (0, None, None)
         if not reason:
             batch.append((text, ids))
+            for i in content:
+                content_use[i] = content_use.get(i, 0) + 1
         out.append(
             {
                 "key": str(item["key"] if item.get("key") is not None else item.get("k", len(out))),
@@ -508,7 +553,7 @@ def generate(db: Session, dictionary: Dictionary, count: int, category_id: int |
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Слишком мало слов для фраз — добавьте слова (см. «Не хватает слов»)",
         )
-    avoid = [t for (t,) in db.query(MiniPhrase.text).filter(MiniPhrase.dictionary_id == dictionary.id).limit(60)]
+    avoid = [t for (t,) in db.query(MiniPhrase.text).filter(MiniPhrase.dictionary_id == dictionary.id).limit(150)]
     raw, needs, tokens = ai_phrases(db, words, count, topic, avoid)
     known = _known_tokens(_words(db, dictionary.id), dictionary.language)
     needs = [n for n in needs if n["text"] not in known]
@@ -521,11 +566,12 @@ def generate(db: Session, dictionary: Dictionary, count: int, category_id: int |
 _REPHRASE_SYSTEM = (
     "You are an experienced Russian teacher for adult Tajik/Uzbek beginners. Input: {\"w\":\"id:word,...\" (the ONLY "
     "words allowed),\"r\":[{\"k\":key,\"was\":\"phrase\",\"like\":\"an existing phrase\"}]}. For each, write ONE "
-    "different short phrase (2-4 words) from w (any grammatical form) that is genuinely useful in real conversation "
-    "(question, request, answer, politeness, need, plan, feeling, opinion) and means something clearly different from "
-    "both was and like. Rate u 1-5 how often a beginner needs it. Reply JSON only: {\"r\":[{\"k\":key,\"p\":[[id,"
-    "\"word as written\"],...],\"u\":5,\"s\":\"situation\",\"tg\":\"Tajik\",\"uz\":\"Uzbek (Latin)\","
-    "\"en\":\"English\"}]}."
+    "new phrase of 2-5 words that is genuinely useful in real conversation (question, request, answer, politeness, "
+    "need, plan, feeling, opinion), 100% correct natural Russian, and means something clearly different from both was "
+    "and like. Every word in its exact form must be a form of the w word whose id you give; if a needed word/form is "
+    "missing from w, choose another phrase. Check each answer before replying. Rate u 1-5 how often a beginner needs "
+    "it. Reply JSON only: {\"r\":[{\"k\":key,\"t\":\"full phrase\",\"p\":[[id,\"word exactly as in t\"],...],"
+    "\"u\":5,\"s\":\"situation\",\"tg\":\"Tajik\",\"uz\":\"Uzbek (Latin)\",\"en\":\"English\"}]}."
 )
 
 
