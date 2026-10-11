@@ -38,6 +38,10 @@ class Word(Base):
     # 1-5, 5 = the words a beginner needs first. A random lesson takes the
     # most important unlearned words first (see app.routers.lessons).
     importance: Mapped[int] = mapped_column(Integer, nullable=False, default=3, server_default="3")
+    # The word's role in a sentence ("pronoun", "verb", ... -- see
+    # app/models/mini_phrase.py's WORD_ROLES), set once per word so every
+    # mini-phrase using it is explained the same way. Null = not set.
+    role: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     # Storage keys (relative paths), not raw bytes -- see app/core/storage.py.
     word_audio_key: Mapped[str | None] = mapped_column(Text, nullable=True)

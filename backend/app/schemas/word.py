@@ -35,6 +35,9 @@ class WordOut(BaseModel):
     category_name: str | None
     importance: int = 3
     topics: list[str] = []
+    # Role in a sentence ("pronoun", "verb", ...) -- see WORD_ROLES in
+    # app/models/mini_phrase.py. Mini-phrase explanations use it.
+    role: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -69,3 +72,5 @@ class WordLearningIn(BaseModel):
 
     importance: int = Field(ge=1, le=5)
     topics: list[WordTopicCode]
+    # Sent by Admin Web with every save; null clears it.
+    role: str | None = None

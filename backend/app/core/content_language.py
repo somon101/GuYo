@@ -48,11 +48,19 @@ def set_content_language_for(ui_language: str | None, translation_language: str 
         holder = {}
         _language.set(holder)
     holder["lang"] = reading_language(ui_language, translation_language)
+    holder["ui"] = ui_language if ui_language in UI_LANGUAGES else "ru"
 
 
 def content_language() -> str:
     holder = _language.get()
     return holder["lang"] if holder else "tg"
+
+
+def ui_language() -> str:
+    """The current request's interface language (ru/tg/uz) -- what
+    explanation texts (e.g. mini-phrase templates) are written in."""
+    holder = _language.get()
+    return holder.get("ui", "ru") if holder else "ru"
 
 
 def primary_translation(word, *, strict: bool = False):

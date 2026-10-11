@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field, model_validator
 
 from app.schemas.word import WordOut
+from app.schemas.mini_phrase import MiniPhraseOut
 
 
 class CreateLessonIn(BaseModel):
@@ -51,6 +52,9 @@ class LessonOut(BaseModel):
     is_completed: bool
     exercise_keys: list[str]
     words: list[LessonWordOut]
+    # Shown after the word exercises on every pass, until the lesson is
+    # completed (chosen when the lesson was created -- see app/mini_phrases).
+    mini_phrases: list[MiniPhraseOut] = []
 
 
 class PassExerciseStatOut(BaseModel):

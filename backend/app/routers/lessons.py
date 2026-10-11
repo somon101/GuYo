@@ -164,6 +164,16 @@ def _lesson_to_out(db: Session, lesson: Lesson, threshold: int) -> LessonOut:
         for le in db.query(LessonExercise).filter(LessonExercise.lesson_id == lesson.id).order_by(LessonExercise.id).all()
     ]
 
+    # Mini-phrases are part of the lesson until it's completed: every pass
+    # ends with them (see app/mini_phrases).
+    mini_phrases = []
+    if not lesson.is_completed:
+        from app.mini_phrases import lesson_mini_phrases_out
+
+        owner = db.get(User, lesson.user_id)
+        if owner is not None:
+            mini_phrases = lesson_mini_phrases_out(db, owner, lesson, threshold)
+
     return LessonOut(
         id=lesson.id,
         dictionary_id=lesson.dictionary_id,
@@ -171,6 +181,7 @@ def _lesson_to_out(db: Session, lesson: Lesson, threshold: int) -> LessonOut:
         is_completed=lesson.is_completed,
         exercise_keys=exercise_keys,
         words=words_out,
+        mini_phrases=mini_phrases,
     )
 
 
@@ -511,6 +522,12 @@ def build_lesson(
         if exercise_type.is_available(db, user, dictionary.id, selected_ids, threshold):
             db.add(LessonExercise(lesson_id=lesson.id, exercise_key=exercise_key))
 
+    # The mini-phrases this lesson's words open (with what's already known),
+    # frozen with the lesson like its words -- see app/mini_phrases.
+    from app.mini_phrases import attach_to_lesson
+
+    attach_to_lesson(db, user, lesson, list(selected_ids), threshold)
+
     log_event(db, user.id, "lesson_created", lesson_id=lesson.id,
               data={"number": lesson.number, "adaptive": is_adaptive, "words": len(selected_ids)})
     db.flush()
@@ -668,6 +685,13 @@ def finish_lesson_pass(
                 award_word_points_if_new(db, user, word_id)
         if lesson_completed:
             check_and_grant_achievements(db, user, "lessons_completed")
+        # The lesson's mini-phrases were gone through on this pass: they're
+        # open now (Практика) and never attached to another lesson.
+        from app.mini_phrases import mark_done
+        from app.models.mini_phrase import LessonMiniPhrase
+
+        for (mini_phrase_id,) in db.query(LessonMiniPhrase.mini_phrase_id).filter(LessonMiniPhrase.lesson_id == lesson.id):
+            mark_done(db, user.id, mini_phrase_id)
         db.commit()
         db.refresh(lesson)
     return _lesson_to_out(db, lesson, threshold)

@@ -15,6 +15,7 @@ from app.core.languages import is_valid_translation_language
 from app.core.storage import MEDIA_ROOT, delete_by_key, save_bytes, save_upload, url_for_key
 from app.database import SessionLocal, get_db
 from app.exercises.common import fill_word_progress
+from app.models.mini_phrase import WORD_ROLES
 from app.models.category import Category
 from app.models.dictionary import Dictionary
 from app.models.import_job import ImportJob
@@ -64,6 +65,7 @@ def word_to_out(word: Word) -> WordOut:
         category_name=word.category.name if word.category is not None else None,
         importance=word.importance,
         topics=word.topics,
+        role=word.role,
         created_at=word.created_at,
         updated_at=word.updated_at,
         translation=primary.text if primary else None,
@@ -259,6 +261,9 @@ def update_word_learning(
     random lesson. JSON, unlike the multipart word form above."""
     db_word = _get_word_or_404(db, word_id)
     db_word.importance = payload.importance
+    if payload.role is not None and payload.role not in WORD_ROLES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown role '{payload.role}'")
+    db_word.role = payload.role
     wanted = list(dict.fromkeys(payload.topics))
     db_word.topic_links = [link for link in db_word.topic_links if link.topic in wanted]
     have = {link.topic for link in db_word.topic_links}

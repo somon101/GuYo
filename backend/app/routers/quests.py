@@ -16,6 +16,7 @@ from app.core.storage import url_for_key
 from app.database import get_db
 from app.exercises.common import get_threshold
 from app.models.quest import Quest, QuestWord, UserQuestWordDay
+from app.models.mini_phrase import MiniPhrase, UserMiniPhrasePoints
 from app.models.rating import Season, UserReviewPoints, UserWordPoints
 from app.models.word import Word
 from app.models.word_level import WordLevel
@@ -206,6 +207,18 @@ def get_season_quest_overview(
         .all()
     )
 
+    # ...and mini-phrases assembled right (once each).
+    points_today += sum(
+        row[0]
+        for row in db.query(UserMiniPhrasePoints.points_awarded)
+        .filter(
+            UserMiniPhrasePoints.user_id == user.id,
+            UserMiniPhrasePoints.awarded_at >= day_start,
+            UserMiniPhrasePoints.awarded_at <= day_end,
+        )
+        .all()
+    )
+
     quests = _available_quests(db, user, dictionary_id)
 
     return SeasonQuestOverviewOut(
@@ -261,6 +274,17 @@ def get_points_today(db: Session = Depends(get_db), user: User = Depends(get_cur
         .all()
     ):
         items.append(PointsTodayItemOut(kind="review", word=text, points=points, at=at))
+    for points, at, text in (
+        db.query(UserMiniPhrasePoints.points_awarded, UserMiniPhrasePoints.awarded_at, MiniPhrase.text)
+        .join(MiniPhrase, MiniPhrase.id == UserMiniPhrasePoints.mini_phrase_id)
+        .filter(
+            UserMiniPhrasePoints.user_id == user.id,
+            UserMiniPhrasePoints.awarded_at >= day_start,
+            UserMiniPhrasePoints.awarded_at <= day_end,
+        )
+        .all()
+    ):
+        items.append(PointsTodayItemOut(kind="mini_phrase", word=text, points=points, at=at))
     items.sort(key=lambda i: i.at, reverse=True)
     return items
 
