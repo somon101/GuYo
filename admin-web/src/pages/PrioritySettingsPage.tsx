@@ -31,11 +31,11 @@ const inputClass =
 /** Every number app/priority/calculate.py reads on the backend, in one
  * place: the 4 factor weights + the 3 recent-error window weights (one
  * settings row), then the three range-based band lists (давность,
- * стабильность, итоговый Priority Level) -- same range+contribution+order
+ * стабильность, итоговый Priority Level) — same range+contribution+order
  * shape WordLevelsSettingsPage already uses for word levels, whose own
  * "вклад в Priority" field lives on that page instead of here (one admin
  * decision, one place to make it). Nothing here is business math anyone
- * has signed off on -- every value shown was seeded as a starting example
+ * has signed off on — every value shown was seeded as a starting example
  * and is meant to be tuned. */
 export function PrioritySettingsPage() {
   return (
@@ -45,8 +45,8 @@ export function PrioritySettingsPage() {
       </Link>
       <h1 className="mb-1 mt-3 text-[26px] font-bold tracking-tight text-slate-900">Приоритет</h1>
       <p className="mb-6 text-sm text-slate-500">
-        Насколько срочно слову нужно повторение -- считается на лету из истории попыток (см. «Диагностика слова» в
-        Аналитике), а не хранится. Вклад по уровню слова редактируется на странице «Уровни слов»; здесь -- всё
+        Насколько срочно слову нужно повторение — считается на лету из истории попыток (см. «Диагностика слова» в
+        Аналитике), а не хранится. Вклад по уровню слова редактируется на странице «Уровни слов»; здесь — всё
         остальное.
       </p>
 
@@ -81,7 +81,7 @@ function Section({
   );
 }
 
-/** Compact key/value list for inside an InfoTooltip -- the same "current
+/** Compact key/value list for inside an InfoTooltip — the same "current
  * setting, in plain numbers" shape every tooltip in this file uses. */
 function TooltipFacts({ rows }: { rows: { label: string; value: React.ReactNode }[] }) {
   return (
@@ -702,7 +702,7 @@ function LevelBandsSection() {
       hint={
         'Диапазоны финального Priority Score → Критический/Высокий/Средний/Низкий/Минимальный. Роль каждого уровня ' +
         "(автоурок, приоритет в квестах, отвлекающие варианты) определяется РАНГОМ среди этих диапазонов (самый верхний " +
-        "= Критический, самый нижний = Минимальный), а не названием -- переименовать можно свободно."
+        "= Критический, самый нижний = Минимальный), а не названием — переименовать можно свободно."
       }
       titleExtra={
         <InfoTooltip label="Что означают уровни приоритета">
@@ -828,7 +828,7 @@ function LevelBandForm({ band, onSaved, onCancel }: { band: PriorityLevelBand | 
   );
 }
 
-/** A band form's field with a label that stays visible -- a placeholder
+/** A band form's field with a label that stays visible — a placeholder
  * alone disappears as soon as the field holds a number. */
 function Labeled({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (

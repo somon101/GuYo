@@ -57,12 +57,12 @@ export function UsersPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="mx-auto max-w-5xl">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-[26px] font-bold tracking-tight text-slate-900">Пользователи</h1>
         <button
           onClick={() => setIsFormOpen((v) => !v)}
-          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          className="whitespace-nowrap rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
         >
           + Новый пользователь
         </button>
@@ -78,7 +78,7 @@ export function UsersPage() {
         />
       )}
 
-      <div className="overflow-hidden card">
+      <div className="overflow-x-auto card">
         {isLoading ? (
           <p className="p-6 text-sm text-slate-500">Загрузка…</p>
         ) : loadError ? (
@@ -93,7 +93,7 @@ export function UsersPage() {
                 <th className="px-4 py-3 font-medium">Логин</th>
                 <th className="px-4 py-3 font-medium">Имя</th>
                 <th className="px-4 py-3 font-medium">Почта</th>
-                <th className="px-4 py-3 font-medium">Дата создания</th>
+                <th className="whitespace-nowrap px-4 py-3 font-medium">Дата создания</th>
                 <th className="px-4 py-3" aria-label="Действия" />
               </tr>
             </thead>
@@ -107,7 +107,7 @@ export function UsersPage() {
                     {[u.first_name, u.last_name].filter(Boolean).join(" ") || "—"}
                   </td>
                   <td className="px-4 py-3 text-slate-500" translate="no">{u.email ?? "—"}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatDate(u.created_at)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-500">{formatDate(u.created_at)}</td>
                   <td className="px-4 py-3 text-right">
                     <button
                       type="button"
@@ -146,7 +146,7 @@ function CreateUserForm({ onCreated, onCancel }: { onCreated: () => void; onCanc
       onCreated();
     } catch (err) {
       if (isAxiosError(err) && err.response?.status === 409) {
-        // The backend says WHICH one is taken -- login or email.
+        // The backend says WHICH one is taken — login or email.
         const detail = err.response?.data?.detail as string | undefined;
         setError(detail ?? "Такой логин уже занят");
       } else if (isAxiosError(err) && err.response?.status === 422) {
@@ -169,10 +169,13 @@ function CreateUserForm({ onCreated, onCancel }: { onCreated: () => void; onCanc
         <input
           className="w-full field px-3 py-2 text-sm"
           value={login}
-          onChange={(e) => setLogin(e.target.value)}
+          // Same rules as the app: English letters, digits, _ and ., case-insensitive.
+          onChange={(e) => setLogin(e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ""))}
           autoFocus
           required
           minLength={3}
+          maxLength={13}
+          placeholder="a-z, 0-9, _ ."
         />
       </div>
       <div>

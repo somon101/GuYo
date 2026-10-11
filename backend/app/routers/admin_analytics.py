@@ -22,6 +22,8 @@ from app.database import get_db
 from app.models.achievement import UserActivityDay
 from app.models.dictionary import Dictionary
 from app.models.phrase import Phrase
+from app.models.mini_phrase import MiniPhrase, UserMiniPhraseDone, UserMiniPhrasePoints
+from app.mini_phrases.service import _learned_word_ids
 from app.models.user import User
 from app.models.word import Word
 from app.models.word_attempt import WordAttempt
@@ -43,6 +45,9 @@ from app.schemas.analytics import (
     RetentionRateOut,
     RetentionSourceOut,
     UserPhraseAnalyticsOut,
+    UserMiniPhraseAnalyticsOut,
+    MiniPhraseDoneOut,
+    MiniPhraseNearOut,
     UserWordProgressOut,
     WordAttemptOut,
     WordDiagnosticsOut,
@@ -202,6 +207,91 @@ def get_user_phrase_analytics(
         remaining_phrase_count=len(phrases) - len(open_phrases),
         open_phrases=open_phrases,
         near_phrases=near_phrases,
+        top_words=top_words,
+    )
+
+
+@router.get("/users/{user_id}/mini-phrases", response_model=UserMiniPhraseAnalyticsOut)
+def get_user_mini_phrase_analytics(
+    user_id: int,
+    dictionary_id: int,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """The phrase report's twin for mini-phrases. A mini-phrase opens when
+    every part's Word is learned (the rule select_for_lesson uses), and is
+    "done" once gone through in a lesson (UserMiniPhraseDone)."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if db.get(Dictionary, dictionary_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dictionary not found")
+
+    learned = _learned_word_ids(db, user.id, dictionary_id, _get_threshold(db))
+    minis = (
+        db.query(MiniPhrase)
+        .filter(MiniPhrase.dictionary_id == dictionary_id, MiniPhrase.enabled.is_(True))
+        .order_by(MiniPhrase.id)
+        .all()
+    )
+    done_at = dict(
+        db.query(UserMiniPhraseDone.mini_phrase_id, UserMiniPhraseDone.created_at)
+        .filter(UserMiniPhraseDone.user_id == user.id)
+        .all()
+    )
+    points = dict(
+        db.query(UserMiniPhrasePoints.mini_phrase_id, UserMiniPhrasePoints.points_awarded)
+        .filter(UserMiniPhrasePoints.user_id == user.id)
+        .all()
+    )
+
+    def template_name(mp: MiniPhrase) -> str | None:
+        return mp.template.name if mp.template is not None else None
+
+    done: list[MiniPhraseDoneOut] = []
+    available: list[MiniPhraseNearOut] = []
+    near: list[MiniPhraseNearOut] = []
+    word_impact: dict[int, list] = {}
+    for mp in minis:
+        if mp.id in done_at:
+            done.append(
+                MiniPhraseDoneOut(
+                    mini_phrase_id=mp.id, text=mp.text, translation_tg=mp.translation_tg,
+                    template_name=template_name(mp), done_at=done_at[mp.id], points=points.get(mp.id),
+                )
+            )
+            continue
+        words: dict[int, str] = {}
+        for part in mp.parts:
+            words.setdefault(part.word_id, part.word.word if part.word is not None else part.text)
+        missing = [(wid, text) for wid, text in words.items() if wid not in learned]
+        row = MiniPhraseNearOut(
+            mini_phrase_id=mp.id, text=mp.text, translation_tg=mp.translation_tg,
+            template_name=template_name(mp), learned_count=len(words) - len(missing), total_count=len(words),
+            missing_words=[MissingWordOut(word_id=wid, text=text) for wid, text in missing],
+        )
+        (available if not missing else near).append(row)
+        if len(missing) == 1:
+            entry = word_impact.setdefault(missing[0][0], [missing[0][1], []])
+            entry[1].append(mp.text)
+
+    near.sort(key=lambda m: (m.total_count - m.learned_count, m.total_count, m.mini_phrase_id))
+    done.sort(key=lambda m: m.done_at, reverse=True)
+    top_words = sorted(
+        (
+            WordImpactOut(word_id=wid, word=text, new_phrase_count=len(texts), sample_phrases=texts)
+            for wid, (text, texts) in word_impact.items()
+        ),
+        key=lambda w: (-w.new_phrase_count, w.word),
+    )
+    return UserMiniPhraseAnalyticsOut(
+        total_count=len(minis),
+        done_count=len(done),
+        available_count=len(available),
+        points_total=sum(points.values()),
+        available=available,
+        near=near,
+        done=done,
         top_words=top_words,
     )
 

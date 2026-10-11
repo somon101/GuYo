@@ -31,7 +31,10 @@ export function usePageTransitions() {
   currentRef.current = location.pathname + location.search;
 
   useEffect(() => {
-    if (typeof document.startViewTransition !== "function") return;
+    // Switched off: the slide made every click wait ~0.4s. Pages now
+    // change instantly; kept here so it can be turned back on in one line.
+    const enabled = false;
+    if (!enabled || typeof document.startViewTransition !== "function") return;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     function onClick(e: MouseEvent) {

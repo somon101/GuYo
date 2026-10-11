@@ -75,7 +75,7 @@ export function DictionariesPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-[26px] font-bold tracking-tight text-slate-900">Языки</h1>
         <button
           onClick={() => setIsFormOpen((v) => !v)}
@@ -166,7 +166,7 @@ export function DictionariesPage() {
   );
 }
 
-/** Inline "Алфавит" field on each language card -- used by exercises that
+/** Inline "Алфавит" field on each language card — used by exercises that
  * need distractor letters (e.g. "Собери слово"). Never a hardcoded
  * per-language alphabet anywhere else: this is the one place it's set. */
 function AlphabetEditor({

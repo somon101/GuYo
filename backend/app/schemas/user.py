@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from typing import Literal
 
@@ -36,13 +37,41 @@ def normalize_email(value: str) -> str:
     return email
 
 
+LOGIN_MIN = 3
+LOGIN_MAX = 13
+_LOGIN_RE = re.compile(r"[a-z0-9_.]+")
+
+
+def login_problem(value: str) -> str | None:
+    """Why `value` (already normalized) can't be a login, or None."""
+    if len(value) < LOGIN_MIN:
+        return f"Логин — не короче {LOGIN_MIN} символов"
+    if len(value) > LOGIN_MAX:
+        return f"Логин — не длиннее {LOGIN_MAX} символов"
+    if not _LOGIN_RE.fullmatch(value):
+        return "Только английские буквы, цифры, _ и ."
+    return None
+
+
+def normalize_login(value: str) -> str:
+    """Logins are English letters, digits, _ and . -- up to LOGIN_MAX --
+    and case never matters: stored lower-cased, so "Somon" and "somon"
+    are one login. Accounts made before these rules keep their logins
+    (they are only enforced when a login is chosen)."""
+    login = value.strip().lower()
+    problem = login_problem(login)
+    if problem:
+        raise ValueError(problem)
+    return login
+
+
 class UserCreate(BaseModel):
     """Everything a NEW account must have. Deliberately stricter than the
     database, which keeps the personal fields nullable so accounts created
     before they existed keep working -- those older accounts simply never
     go through this schema again."""
 
-    login: str = Field(min_length=3, max_length=64)
+    login: str = Field(min_length=1, max_length=64)
     password: str = Field(min_length=4, max_length=128)
     first_name: str = Field(min_length=1, max_length=100)
     last_name: str = Field(min_length=1, max_length=100)
@@ -53,6 +82,11 @@ class UserCreate(BaseModel):
     def _check_email(cls, value: str) -> str:
         return normalize_email(value)
 
+    @field_validator("login")
+    @classmethod
+    def _check_login(cls, value: str) -> str:
+        return normalize_login(value)
+
 
 class RegisterIn(BaseModel):
     """Self-registration, from the app's own multi-step sign-up (see
@@ -62,7 +96,7 @@ class RegisterIn(BaseModel):
     parallel account-creation path: app/routers/auth.py's register_user
     builds the exact same User row admin_router's create_user does."""
 
-    login: str = Field(min_length=3, max_length=64)
+    login: str = Field(min_length=1, max_length=64)
     password: str = Field(min_length=4, max_length=128)
     password_confirm: str = Field(min_length=4, max_length=128)
     first_name: str = Field(min_length=1, max_length=100)
@@ -84,6 +118,11 @@ class RegisterIn(BaseModel):
     ui_language: UiLanguage = "ru"
     translation_language: TranslationLanguage = "tg"
 
+    @field_validator("login")
+    @classmethod
+    def _check_login(cls, value: str) -> str:
+        return normalize_login(value)
+
     @model_validator(mode="after")
     def _check_passwords_match(self) -> "RegisterIn":
         if self.password != self.password_confirm:
@@ -101,7 +140,7 @@ class GoogleRegisterIn(BaseModel):
     unnecessary. The login is still the user's own choice."""
 
     id_token: str = Field(min_length=10)
-    login: str = Field(min_length=3, max_length=64)
+    login: str = Field(min_length=1, max_length=64)
     learning_language: str = Field(min_length=1, max_length=16)
     age_group: AgeGroup
     learning_goal: LearningGoal
@@ -109,6 +148,11 @@ class GoogleRegisterIn(BaseModel):
     referral_source: ReferralSource
     ui_language: UiLanguage = "ru"
     translation_language: TranslationLanguage = "tg"
+
+    @field_validator("login")
+    @classmethod
+    def _check_login(cls, value: str) -> str:
+        return normalize_login(value)
 
 
 class GoogleAuthOut(BaseModel):
@@ -133,7 +177,7 @@ class UserUpdateIn(BaseModel):
     permanent by definition, and changing a password is a different
     operation with its own rules."""
 
-    login: str | None = Field(default=None, min_length=3, max_length=64)
+    login: str | None = Field(default=None, min_length=1, max_length=64)
     first_name: str | None = Field(default=None, min_length=1, max_length=100)
     last_name: str | None = Field(default=None, min_length=1, max_length=100)
     email: str | None = Field(default=None, min_length=3, max_length=255)
@@ -145,6 +189,11 @@ class UserUpdateIn(BaseModel):
     @classmethod
     def _check_email(cls, value: str | None) -> str | None:
         return None if value is None else normalize_email(value)
+
+    @field_validator("login")
+    @classmethod
+    def _check_login(cls, value: str | None) -> str | None:
+        return None if value is None else normalize_login(value)
 
 
 class UserOut(BaseModel):

@@ -1034,6 +1034,23 @@ class ApiClient {
     await _throwIfUnauthorized(res);
   }
 
+  /// Live sign-up check: false when the login is already taken (the rules
+  /// themselves are checked on the device, see login_rules.dart). Null
+  /// when the server can't be reached -- the caller decides.
+  Future<bool?> isLoginAvailable(String login) async {
+    try {
+      final res = await http.get(
+        _uri('/auth/login-available?login=${Uri.encodeQueryComponent(login)}'),
+        headers: {'X-App-Build': '$appBuild'},
+      );
+      if (res.statusCode != 200) return null;
+      final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+      return data['available'] as bool;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// The times of day the user picked to study (reminders go out at each).
   Future<List<StudyTime>> fetchStudyTimes() async {
     final res = await http.get(_uri('/notifications/study-times'), headers: await _authHeaders());

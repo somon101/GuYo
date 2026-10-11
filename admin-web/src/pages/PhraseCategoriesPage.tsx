@@ -25,7 +25,7 @@ function phraseImportJobStorageKey(dictionaryId: number): string {
   return `guyo_phrase_import_job_${dictionaryId}`;
 }
 
-/** Category overview for Фразы -- the exact same shape as the word category
+/** Category overview for Фразы — the exact same shape as the word category
  * overview (DictionaryDetailPage), just pointed at the phrase-category API
  * instead. Phrases and words have fully independent category lists, even
  * within the same language block. */

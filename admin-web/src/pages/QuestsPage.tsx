@@ -12,7 +12,7 @@ import {
 } from "../api/endpoints";
 import type { Quest, WordLevel } from "../types";
 
-// Same 5 labels ExercisesPage.tsx already uses -- Quests may only target
+// Same 5 labels ExercisesPage.tsx already uses — Quests may only target
 // these word-scoped exercise types (never "Собери фразу"/"Собери фразу на
 // слух", which aren't tied to a specific word_id on the backend).
 const EXERCISE_LABELS: Record<string, string> = {
@@ -100,11 +100,11 @@ export function QuestsPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-[26px] font-bold tracking-tight text-slate-900">Квесты</h1>
           <p className="mt-0.5 text-sm text-slate-500">
-            Слово может выполнить только ОДИН квест в день -- независимо от того, какой именно.
+            Слово может выполнить только ОДИН квест в день — независимо от того, какой именно.
           </p>
         </div>
         <button

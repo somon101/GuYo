@@ -20,6 +20,49 @@ export function setToken(token: string): void {
 
 export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
+  clearApiCache();
+}
+
+// Repeat visits open instantly: a GET answered in the last 30 seconds is
+// served from memory. Any save, delete or upload clears everything, so an
+// edit is never shown stale.
+const CACHE_MS = 30_000;
+// Progress the pages poll (imports, AI translation) is always fetched fresh.
+function isLive(url: string | undefined): boolean {
+  return !!url && (url.includes("/import/") || url.startsWith("/admin/translation"));
+}
+
+const cache = new Map<string, { at: number; data: unknown; status: number; headers: unknown }>();
+
+api.interceptors.request.use((config) => {
+  const method = (config.method ?? "get").toLowerCase();
+  if (method !== "get") {
+    cache.clear();
+    return config;
+  }
+  if (isLive(config.url)) return config;
+  const key = `${config.url}?${JSON.stringify(config.params ?? {})}`;
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_MS) {
+    config.adapter = async () => ({ data: hit.data, status: hit.status, statusText: "OK", headers: hit.headers as never, config });
+  }
+  return config;
+});
+
+api.interceptors.response.use((response) => {
+  const config = response.config;
+  if ((config.method ?? "get").toLowerCase() === "get" && config.responseType !== "blob" && !isLive(config.url)) {
+    const key = `${config.url}?${JSON.stringify(config.params ?? {})}`;
+    if (!cache.has(key) || Date.now() - cache.get(key)!.at >= CACHE_MS) {
+      cache.set(key, { at: Date.now(), data: response.data, status: response.status, headers: response.headers });
+    }
+  }
+  return response;
+});
+
+/** Drops remembered answers (logout). */
+export function clearApiCache(): void {
+  cache.clear();
 }
 
 api.interceptors.request.use((config) => {

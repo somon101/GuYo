@@ -495,6 +495,16 @@ export async function listAnalyticsDictionaries(): Promise<AnalyticsDictionary[]
   return data;
 }
 
+export async function getUserMiniPhraseAnalytics(
+  userId: number,
+  dictionaryId: number,
+): Promise<import("../types").UserMiniPhraseAnalytics> {
+  const { data } = await api.get(`/admin/analytics/users/${userId}/mini-phrases`, {
+    params: { dictionary_id: dictionaryId },
+  });
+  return data;
+}
+
 export async function getUserPhraseAnalytics(
   userId: number,
   dictionaryId: number,
@@ -1470,6 +1480,10 @@ export interface MiniPhraseStarterReport {
 export async function fillMiniPhraseStarter(dictionaryId: number): Promise<MiniPhraseStarterReport> {
   const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases/fill-starter`);
   return data;
+}
+
+export async function changeAdminPassword(currentPassword: string, newPassword: string): Promise<void> {
+  await api.post("/auth/admin/password", { current_password: currentPassword, new_password: newPassword });
 }
 
 // --- Mini-phrase generation (AI) ---------------------------------------------

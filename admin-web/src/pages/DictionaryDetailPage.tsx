@@ -23,7 +23,7 @@ function mediaUrl(path: string | null): string | null {
 }
 
 // The import itself runs on the backend as a job, entirely independent of
-// this component's lifetime -- so the one piece of state that actually
+// this component's lifetime — so the one piece of state that actually
 // needs to survive a lost React tree (navigating away, closing the tab,
 // reopening Admin Web later) is just the job_id, kept here rather than in
 // memory. On mount, this page checks for one and resumes polling it
@@ -276,7 +276,7 @@ export function DictionaryDetailPage() {
 
 /** One category's picture, uploaded and cleared right here: each is its own
  * PUT/DELETE on that category, so there is nothing to "save" afterwards.
- * A category with no icon shows a neutral placeholder -- exactly what the
+ * A category with no icon shows a neutral placeholder — exactly what the
  * mobile app falls back to when icon_url is null. */
 function CategoryIcon({
   dictionaryId,

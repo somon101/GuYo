@@ -19,7 +19,7 @@ function mediaUrl(path: string | null): string | null {
 /** Shared list of a dictionary's words: either every word ("Все слова",
  * reached with no :categoryId) or just the words filed under one category
  * (reached via /dictionaries/:id/categories/:categoryId). Editing, deleting
- * and adding words behaves identically either way -- only the filter and
+ * and adding words behaves identically either way — only the filter and
  * the breadcrumb differ. */
 export function WordsListPage() {
   const { id, categoryId: categoryIdParam } = useParams<{ id: string; categoryId?: string }>();
@@ -92,7 +92,7 @@ export function WordsListPage() {
         </span>
       </nav>
 
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-[26px] font-bold tracking-tight text-slate-900" translate="no">
             {currentCategory ? currentCategory.name : "Все слова"}
@@ -353,7 +353,7 @@ function AddWordForm({
 }
 
 /** Rows of forms for one fixed language (the dictionary's own language, or
- * Tajik) -- staged locally since the word doesn't exist yet. Sent to the
+ * Tajik) — staged locally since the word doesn't exist yet. Sent to the
  * server only after the word is created, via addWordForm. */
 function FormsRows({
   label,

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { UserHistorySection } from "../components/UserHistorySection";
+import { MiniPhraseAnalytics } from "../components/MiniPhraseAnalytics";
 import {
   getUserPhraseAnalytics,
   listAnalyticsDictionaries,
@@ -20,7 +21,7 @@ const PAGE_SIZE = 10;
 
 /** Read-only report over data that already exists (Word/WordForm/
  * WordProgress/Phrase), built on the exact same "is this phrase available"
- * definition the app's own "Мои фразы" uses -- every number here comes
+ * definition the app's own "Мои фразы" uses — every number here comes
  * straight from the backend (see GET /admin/analytics/users/{id}), this
  * page only renders it. Nothing is computed client-side from raw
  * word/phrase lists. */
@@ -84,7 +85,7 @@ export function UserAnalyticsPage() {
     <div className="mx-auto max-w-4xl">
       <h1 className="mb-1 text-[26px] font-bold tracking-tight text-slate-900">Аналитика пользователей</h1>
       <p className="mb-6 text-sm text-slate-500">
-        Изучение слов и открытие фраз конкретного пользователя.
+        Изучение слов, открытие фраз и мини-фраз конкретного пользователя.
       </p>
 
       {isLoadingOptions ? (
@@ -144,6 +145,10 @@ export function UserAnalyticsPage() {
               ) : analytics ? (
                 <AnalyticsReport data={analytics} />
               ) : null}
+
+              {selectedUserId != null && selectedDictionaryId != null && (
+                <MiniPhraseAnalytics userId={selectedUserId} dictionaryId={selectedDictionaryId} />
+              )}
             </div>
           )}
         </>
@@ -153,7 +158,7 @@ export function UserAnalyticsPage() {
 }
 
 /** Every Word this user has EVER attempted in this dictionary (a
- * WordProgress row exists for it) -- the picker for «Диагностика слова».
+ * WordProgress row exists for it) — the picker for «Диагностика слова».
  * Level/score/attempt-count are already computed server-side; this only
  * lists and links them. */
 function WordsSection({ userId, words }: { userId: number; words: UserWordProgress[] }) {
