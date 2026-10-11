@@ -16,7 +16,14 @@ const PATHS: Record<string, string> = {
   target: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM12 12h.01",
   crown: "M4 18h16M5 15 3.5 7l5 4L12 5l3.5 6 5-4L19 15H5Z",
   ticket: "M4 8V6h16v2a2 2 0 0 0 0 4v2a2 2 0 0 0 0 4v2H4v-2a2 2 0 0 0 0-4v-2a2 2 0 0 0 0-4ZM14 6v12",
-  bug: "M8 9a4 4 0 0 1 8 0v5a4 4 0 0 1-8 0V9ZM12 11v7M4 13h4M16 13h4M5 7l3 2M19 7l-3 2M5 19l3-2M19 19l-3-2",
+  truefalse: "M5 12l4 4 10-10M5 4l4 4M9 4 5 8",
+  link: "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1",
+  letters: "M4 20V8h6v12M4 14h6M14 20V8h4a3 3 0 0 1 0 6h-4M18 14a3 3 0 0 1 0 6h-4",
+  mic: "M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3ZM6 11a6 6 0 0 0 12 0M12 17v4M9 21h6",
+  speaker: "M4 9h4l5-4v14l-5-4H4V9ZM17 9a4 4 0 0 1 0 6M19.5 6.5a8 8 0 0 1 0 11",
+  layers: "M12 3 3 8l9 5 9-5-9-5ZM3 13l9 5 9-5M3 17l9 5 9-5",
+  flag: "M5 21V4M5 4h11l-2 4 2 4H5",
+  bug:"M8 9a4 4 0 0 1 8 0v5a4 4 0 0 1-8 0V9ZM12 11v7M4 13h4M16 13h4M5 7l3 2M19 7l-3 2M5 19l3-2M19 19l-3-2",
 };
 
 export function NavIcon({ name }: { name: string }) {
