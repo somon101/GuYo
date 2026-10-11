@@ -89,11 +89,18 @@ export function Layout({ children }: { children: ReactNode }) {
       setPill({ y: box.top - navBox.top + nav.scrollTop, h: box.height });
     };
     measure();
+    // Re-measure once layout has settled (fonts, the page's own render).
+    const frame = requestAnimationFrame(measure);
+    const late = window.setTimeout(measure, 400);
     // Webfonts and the window can change the rail's line heights.
     const observer = new ResizeObserver(measure);
     observer.observe(nav);
     document.fonts?.ready.then(measure);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+      window.clearTimeout(late);
+    };
   }, [location.pathname]);
 
   return (

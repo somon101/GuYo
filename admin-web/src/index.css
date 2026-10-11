@@ -18,25 +18,25 @@
   color-scheme: light dark;
 
   /* "blue" is the accent slot every page already uses: GuYo's violet. */
-  --sys-blue: #5862dd;
-  --violet-fill: #5862dd;
-  --sys-green: #0a9c5d;
-  --sys-red: #e0454b;
-  --sys-orange: #e08a00;
-  --sys-purple: #8b5cf6;
+  --sys-blue: #007aff;
+  --violet-fill: #007aff;
+  --sys-green: #34c759;
+  --sys-red: #ff3b30;
+  --sys-orange: #ff9500;
+  --sys-purple: #af52de;
 
   /* The same hues, deep enough to read as small text on a card. */
-  --sys-blue-ink: #3f48c4;
-  --sys-green-ink: #087a49;
-  --sys-red-ink: #c0323a;
-  --sys-orange-ink: #7a5600;
-  --sys-purple-ink: #6d44d6;
+  --sys-blue-ink: #0062cc;
+  --sys-green-ink: #248a3d;
+  --sys-red-ink: #d70015;
+  --sys-orange-ink: #b35900;
+  --sys-purple-ink: #8944ab;
 
   /* The app's indigo: headings, the side rail. */
-  --ink: #101b63;
-  --rail: #101b63;
-  --rail-2: #1a2678;
-  --rail-text: #c9cdf3;
+  --ink: #000000;
+  --rail: #1c1c1e;
+  --rail-2: #2c2c2e;
+  --rail-text: #c7c7cc;
   --gold: #ffeb3b;
   --gold-ink: #7a5600;
 
@@ -48,60 +48,60 @@
   --tile-yellow: #fff6dd;
   --tile-gold: #ffeb3b;
 
-  --bg: #f8f8fd;
+  --bg: #f2f2f7;
   --card: #ffffff;
-  --card-hover: #fbfbff;
-  --fill: rgb(88 98 221 / 0.07);
-  --fill-strong: rgb(88 98 221 / 0.13);
-  --field: #ffffff;
-  --field-border: #e2e5f3;
-  --separator: #edeff7;
-  --label: #101b63;
+  --card-hover: #f7f7fa;
+  --fill: rgb(118 118 128 / 0.12);
+  --fill-strong: rgb(118 118 128 / 0.2);
+  --field: rgb(118 118 128 / 0.1);
+  --field-border: transparent;
+  --separator: rgb(60 60 67 / 0.16);
+  --label: #000000;
   --segment-thumb: #ffffff;
-  --switch-off: #dfe2f2;
+  --switch-off: rgb(120 120 128 / 0.16);
 
-  --shadow-card: 0 1px 2px rgb(16 27 99 / 0.04), 0 8px 24px -8px rgb(16 27 99 / 0.1);
-  --shadow-lift: 0 2px 4px rgb(16 27 99 / 0.05), 0 16px 32px -12px rgb(16 27 99 / 0.2);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 2px 14px rgb(0 0 0 / 0.035);
+  --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.05), 0 10px 26px rgb(0 0 0 / 0.08);
   --shadow-float: 0 18px 44px -12px rgb(16 27 99 / 0.28), 0 0 0 1px rgb(16 27 99 / 0.05);
   --shadow-primary: none;
-  --header-glass: rgb(248 248 253 / 0.82);
+  --header-glass: rgb(242 242 247 / 0.72);
   --blob-opacity: 0.38;
 
   --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 
-  --gray-50: #f3f4fb;
-  --gray-100: #eceef8;
-  --gray-200: #e2e5f3;
-  --gray-300: #cdd2ea;
-  --gray-400: #a2a9cf;
-  --gray-500: #5d6a9c;
-  --gray-600: #56648f;
-  --gray-700: #3a4677;
-  --gray-800: #232e6b;
-  --gray-900: #101b63;
-  --gray-950: #0a1140;
+  --gray-50: #f2f2f7;
+  --gray-100: #e5e5ea;
+  --gray-200: #d1d1d6;
+  --gray-300: #c7c7cc;
+  --gray-400: #aeaeb2;
+  --gray-500: #6e6e73;
+  --gray-600: #636366;
+  --gray-700: #48484a;
+  --gray-800: #2c2c2e;
+  --gray-900: #1c1c1e;
+  --gray-950: #000000;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --sys-blue: #7c84f0;
-    --violet-fill: #5b63e0;
-    --sys-green: #2fcb86;
-    --sys-red: #ff6b70;
-    --sys-orange: #ffb547;
-    --sys-purple: #a78bfa;
+    --sys-blue: #0a84ff;
+    --violet-fill: #0a84ff;
+    --sys-green: #30d158;
+    --sys-red: #ff453a;
+    --sys-orange: #ff9f0a;
+    --sys-purple: #bf5af2;
 
-    --sys-blue-ink: #a3a9f5;
-    --sys-green-ink: #5cd9a0;
-    --sys-red-ink: #ff9195;
-    --sys-orange-ink: #ffd54f;
-    --sys-purple-ink: #c4b5fd;
+    --sys-blue-ink: #409cff;
+    --sys-green-ink: #30db5b;
+    --sys-red-ink: #ff6961;
+    --sys-orange-ink: #ffb340;
+    --sys-purple-ink: #da8fff;
 
-    --ink: #e9ebfa;
-    --rail: #18205a;
-    --rail-2: #212a6e;
-    --rail-text: #b9bfeb;
+    --ink: #ffffff;
+    --rail: #1c1c1e;
+    --rail-2: #2c2c2e;
+    --rail-text: #aeaeb2;
     --gold: #ffd54f;
     --gold-ink: #ffd54f;
 
@@ -112,43 +112,45 @@
     --tile-yellow: #4a4017;
     --tile-gold: #5c4a00;
 
-    --bg: #11131c;
-    --card: #1c1f2e;
-    --card-hover: #222639;
-    --fill: rgb(124 132 240 / 0.1);
-    --fill-strong: rgb(124 132 240 / 0.18);
-    --field: #161927;
-    --field-border: #2a2e45;
-    --separator: #2a2e45;
-    --label: #e9ebfa;
+    --bg: #000000;
+    --card: #1c1c1e;
+    --card-hover: #242426;
+    --fill: rgb(118 118 128 / 0.24);
+    --fill-strong: rgb(118 118 128 / 0.34);
+    --field: rgb(118 118 128 / 0.24);
+    --field-border: transparent;
+    --separator: rgb(84 84 88 / 0.65);
+    --label: #ffffff;
     --segment-thumb: #3b4166;
-    --switch-off: #2c3150;
+    --switch-off: rgb(120 120 128 / 0.32);
 
-    --shadow-card: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 10px 28px -12px rgb(0 0 0 / 0.6);
-    --shadow-lift: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 18px 36px -12px rgb(0 0 0 / 0.7);
+    --shadow-card: none;
+    --shadow-lift: none;
     --shadow-float: 0 20px 48px -12px rgb(0 0 0 / 0.75), 0 0 0 1px #2a2e45;
     --shadow-primary: none;
-    --header-glass: rgb(17 19 28 / 0.82);
+    --header-glass: rgb(22 22 24 / 0.72);
     --blob-opacity: 0.4;
 
     /* The neutral ramp flips, so "light number = surface, dark number =
        text" keeps holding for every slate-* class. */
-    --gray-50: #23273a;
-    --gray-100: #2a2e45;
-    --gray-200: #2c3150;
-    --gray-300: #3b4166;
-    --gray-400: #5a6188;
-    --gray-500: #9aa3cc;
-    --gray-600: #b4bbdc;
-    --gray-700: #cdd2ec;
-    --gray-800: #dfe2f6;
-    --gray-900: #e9ebfa;
+    --gray-50: #2c2c2e;
+    --gray-100: #3a3a3c;
+    --gray-200: #48484a;
+    --gray-300: #545458;
+    --gray-400: #636366;
+    --gray-500: #8e8e93;
+    --gray-600: #aeaeb2;
+    --gray-700: #c7c7cc;
+    --gray-800: #e5e5ea;
+    --gray-900: #f2f2f7;
     --gray-950: #ffffff;
   }
 }
 
 @theme {
-  --font-sans: "Onest", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI Variable Text", "Segoe UI",
+    system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-serif: ui-serif, "New York", "Iowan Old Style", Georgia, "Times New Roman", serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
