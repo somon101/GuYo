@@ -60,7 +60,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --sys-blue: #0a84ff;
     --sys-green: #30d158;
     --sys-red: #ff453a;
@@ -104,6 +104,56 @@
     --gray-900: #f2f2f7;
     --gray-950: #ffffff;
   }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+    --sys-blue: #0a84ff;
+    --sys-green: #30d158;
+    --sys-red: #ff453a;
+    --sys-orange: #ff9f0a;
+    --sys-purple: #bf5af2;
+
+    --sys-blue-ink: #409cff;
+    --sys-green-ink: #30db5b;
+    --sys-red-ink: #ff6961;
+    --sys-orange-ink: #ffb340;
+    --sys-purple-ink: #da8fff;
+
+    --bg: #000000;
+    --card: #1c1c1e;
+    --card-hover: #242426;
+    --fill: rgb(118 118 128 / 0.24);
+    --fill-strong: rgb(118 118 128 / 0.34);
+    --field: rgb(118 118 128 / 0.24);
+    --separator: rgb(84 84 88 / 0.65);
+    --label: #ffffff;
+    --segment-thumb: #636366;
+    --switch-off: rgb(120 120 128 / 0.32);
+
+    /* Elevation in dark mode is a lighter surface, not a shadow -- as on iOS. */
+    --shadow-card: none;
+    --shadow-float: 0 10px 34px rgb(0 0 0 / 0.55);
+    --header-glass: rgb(22 22 24 / 0.72);
+    --blob-opacity: 0.4;
+
+    /* The neutral ramp flips, so "light number = surface, dark number =
+       text" keeps holding for every slate-* class. */
+    --gray-50: #2c2c2e;
+    --gray-100: #3a3a3c;
+    --gray-200: #48484a;
+    --gray-300: #545458;
+    --gray-400: #636366;
+    --gray-500: #8e8e93;
+    --gray-600: #aeaeb2;
+    --gray-700: #c7c7cc;
+    --gray-800: #e5e5ea;
+    --gray-900: #f2f2f7;
+    --gray-950: #ffffff;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 @theme {
