@@ -169,10 +169,13 @@ function CreateUserForm({ onCreated, onCancel }: { onCreated: () => void; onCanc
         <input
           className="w-full field px-3 py-2 text-sm"
           value={login}
-          onChange={(e) => setLogin(e.target.value)}
+          // Same rules as the app: English letters, digits, _ and ., case-insensitive.
+          onChange={(e) => setLogin(e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ""))}
           autoFocus
           required
           minLength={3}
+          maxLength={13}
+          placeholder="a-z, 0-9, _ ."
         />
       </div>
       <div>

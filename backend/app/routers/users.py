@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.content_language import reading_language
@@ -60,6 +61,14 @@ def list_users(db: Session = Depends(get_db), _admin: Admin = Depends(get_curren
     return db.query(User).order_by(User.id).all()
 
 
+def login_taken(db: Session, login: str, except_user_id: int | None = None) -> bool:
+    """Case-insensitive: "Somon" is taken if "somon" exists."""
+    query = db.query(User.id).filter(func.lower(User.login) == login.strip().lower())
+    if except_user_id is not None:
+        query = query.filter(User.id != except_user_id)
+    return query.first() is not None
+
+
 def new_user_row(
     db: Session,
     *,
@@ -83,8 +92,8 @@ def new_user_row(
     drift between the two entry points. Does not commit; the caller owns
     the transaction (register_user also needs the row's id for the token
     it issues right after)."""
-    if db.query(User).filter(User.login == login).first() is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Login already taken")
+    if login_taken(db, login):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Этот логин уже занят")
     if db.query(User).filter(User.email == email).first() is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Этот адрес почты уже занят")
 
@@ -223,8 +232,7 @@ def update_my_profile(
 
     if "login" in fields:
         login = fields["login"].strip()
-        taken = db.query(User).filter(User.login == login, User.id != user.id).first()
-        if taken is not None:
+        if login_taken(db, login, except_user_id=user.id):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Этот логин уже занят")
         user.login = login
 

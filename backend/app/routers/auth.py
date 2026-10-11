@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_principal, Principal
@@ -10,7 +12,7 @@ from app.schemas.auth import LoginRequest, MeResponse, TokenResponse
 import secrets
 
 from app.core.google_auth import GoogleTokenError, verify_google_id_token
-from app.schemas.user import GoogleAuthIn, GoogleAuthOut, GoogleRegisterIn, RegisterIn
+from app.schemas.user import GoogleAuthIn, GoogleAuthOut, GoogleRegisterIn, RegisterIn, login_problem
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -26,11 +28,36 @@ def admin_login(payload: LoginRequest, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 def user_login(payload: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.login == payload.login).first()
+    # Case never matters; an exact match wins for any older pair of
+    # accounts that differ only in case.
+    login = payload.login.strip()
+    user = db.query(User).filter(User.login == login).first() or (
+        db.query(User).filter(func.lower(User.login) == login.lower()).first()
+    )
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid login or password")
     token = create_access_token(subject=user.id, role="user")
     return TokenResponse(access_token=token, role="user")
+
+
+class LoginAvailableOut(BaseModel):
+    available: bool
+    # Why not, in the user's words (rules broken, or taken).
+    reason: str | None = None
+
+
+@router.get("/login-available", response_model=LoginAvailableOut)
+def login_available(login: str, db: Session = Depends(get_db)):
+    """Live check while a login is typed at sign-up (and in Settings)."""
+    from app.routers.users import login_taken
+
+    value = login.strip().lower()
+    problem = login_problem(value)
+    if problem:
+        return LoginAvailableOut(available=False, reason=problem)
+    if login_taken(db, value):
+        return LoginAvailableOut(available=False, reason="Этот логин уже занят")
+    return LoginAvailableOut(available=True)
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
