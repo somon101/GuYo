@@ -1882,6 +1882,7 @@ export async function generateMiniPhrases(
   tokens: number;
   suggested_words?: { text: string; example: string }[];
   auto_fixed?: number;
+  dropped?: number;
 }> {
   const { data } = await api.post(
     `/admin/dictionaries/${dictionaryId}/mini-phrases/generate`,

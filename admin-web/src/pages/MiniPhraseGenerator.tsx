@@ -14,7 +14,7 @@ import {
 import { SegmentedControl } from "../components/SegmentedControl";
 import type { Category } from "../types";
 
-type Screen = "words" | "generate" | "similar" | "ready" | "rejected";
+type Screen = "words" | "generate" | "similar" | "ready";
 
 function errorText(e: unknown, fallback: string): string {
   if (axios.isAxiosError(e) && typeof e.response?.data?.detail === "string")
@@ -177,7 +177,10 @@ export function MiniPhraseGenerator({
       (i) => i.valid && i.too_similar,
     ).length;
     setMessage(
-      `Получено ${res.items.length}: готовых ${ready}, похожих ${similarCount}, отклонено ${res.items.length - ready - similarCount}` +
+      `Готовых ${ready}, похожих ${similarCount}` +
+        (res.dropped
+          ? ` · ИИ отбраковал и не показывает: ${res.dropped}`
+          : "") +
         (res.auto_fixed
           ? ` · ИИ сам проверил и исправил: ${res.auto_fixed}`
           : "") +
@@ -185,7 +188,7 @@ export function MiniPhraseGenerator({
           ? ` · ИИ предлагает добавить слов: ${res.suggested_words.length} (вкладка «Слова»)`
           : ""),
     );
-    setScreen(ready > 0 ? "ready" : similarCount > 0 ? "similar" : "rejected");
+    setScreen(similarCount > 0 && ready === 0 ? "similar" : "ready");
   }
 
   async function rephrase() {
@@ -252,7 +255,6 @@ export function MiniPhraseGenerator({
 
   const similar = items.filter((i) => i.valid && i.too_similar);
   const normal = items.filter((i) => i.valid && !i.too_similar);
-  const invalid = items.filter((i) => !i.valid);
   const toSave = items.filter(
     (i) => picked.has(i.key) || toPhraseKeys.has(i.key),
   ).length;
@@ -308,7 +310,6 @@ export function MiniPhraseGenerator({
             { value: "generate", label: "Генерация" },
             { value: "similar", label: `Похожие (${similar.length})` },
             { value: "ready", label: `Готовые (${normal.length})` },
-            { value: "rejected", label: `Отклонённые (${invalid.length})` },
           ]}
         />
       </div>
@@ -549,37 +550,7 @@ export function MiniPhraseGenerator({
         </Section>
       )}
 
-      {screen === "rejected" && (
-        <Section
-          title={
-            invalid.length
-              ? `Не прошли проверку — ${invalid.length}`
-              : "Отклонённых нет"
-          }
-          hint={
-            invalid.length
-              ? "Можно всё равно добавить вручную: отметьте фразу и нажмите «Сохранить». Нельзя только фразы со словом не из словаря, без перевода или точные повторы."
-              : undefined
-          }
-        >
-          {invalid.map((i) => (
-            <Card
-              key={i.key}
-              item={i}
-              checked={picked.has(i.key)}
-              onToggle={() => toggle(picked, i.key, setPicked)}
-              toPhrase={toPhraseKeys.has(i.key)}
-              onTogglePhrase={() =>
-                toggle(toPhraseKeys, i.key, setToPhraseKeys)
-              }
-              manual
-            />
-          ))}
-        </Section>
-      )}
-
-      {(screen === "ready" || screen === "similar" || screen === "rejected") &&
-        saveBar}
+      {(screen === "ready" || screen === "similar") && saveBar}
     </div>
   );
 }

@@ -236,6 +236,8 @@ _PHRASE_SYSTEM = (
     "You are an experienced Russian teacher. Your learners are adult beginners (native Tajik or Uzbek) who need "
     "Russian to COMMUNICATE. Input: {\"n\":how many,\"topic\":\"topic or empty\",\"w\":\"id:word,...\" (the "
     "learner's dictionary — the ONLY words you may use),\"have\":[mini-phrases the learner ALREADY has]}. "
+    "Take your time and think deeply: draft more phrases than needed, reread each one several times as a "
+    "native speaker would, and keep only the best. "
     "Step 1 — study w completely: which words exist, what they let you say, what is missing. "
     "Step 2 — write n phrases of 2-5 words that a person really says in conversation in any area of life (meeting "
     "people, family, work, study, shop, transport, doctor, city, phone, time, home): questions, requests, answers, "
@@ -610,12 +612,15 @@ def generate(db: Session, dictionary: Dictionary, count: int, category_id: int |
     allowed = {w.id for w in words}
     items = check_candidates(db, dictionary, raw, allowed)
     items, fix_tokens, fixed = self_review(db, dictionary, words, raw, items, allowed)
+    dropped = sum(1 for i in items if not i["valid"])
+    items = [i for i in items if i["valid"]]
     return {
         "items": items,
         "tokens": tokens + fix_tokens,
         "words_sent": len(words),
         "suggested_words": needs,
         "auto_fixed": fixed,
+        "dropped": dropped,
     }
 
 
@@ -631,7 +636,41 @@ _FIX_SYSTEM = (
     "\"uz\":\"Uzbek (Latin)\",\"en\":\"English\"}]}."
 )
 
-SELF_REVIEW_ROUNDS = 2
+SELF_REVIEW_ROUNDS = 3
+
+
+_CRITIC_SYSTEM = (
+    "You are a strict native-speaker Russian editor and teacher of adult Tajik/Uzbek beginners. Input: "
+    "{\"r\":[{\"k\":key,\"t\":\"phrase\",\"tg\":\"Tajik translation\"}]}. Think carefully and read every "
+    "phrase several times. Flag a phrase if ANY of these is true: it is not 100% correct Russian (case, person, "
+    "gender, aspect, word order); a native speaker would not naturally say it; it is not useful in real everyday "
+    "conversation; its meaning is unclear or odd; the Tajik translation is wrong; it repeats the meaning of another "
+    "phrase in the list. Do not flag good phrases. Reply JSON only: {\"bad\":[{\"k\":key,\"why\":\"short reason "
+    "in Russian\"}]}."
+)
+
+
+def critic(db: Session, items: list[dict]) -> tuple[dict[str, str], int]:
+    """A second, independent AI pass over the phrases that passed the script:
+    finds what is unnatural, wrong or useless. Returns {key: reason}."""
+    good = [i for i in items if i["valid"] and not i["too_similar"]]
+    if not good:
+        return {}, 0
+    try:
+        data, used = chat(
+            db,
+            _CRITIC_SYSTEM,
+            {"r": [{"k": i["key"], "t": i["text"], "tg": i["translation_tg"]} for i in good]},
+            max_tokens=40 * len(good) + 300,
+        )
+    except HTTPException:
+        return {}, 0
+    keys = {i["key"] for i in good}
+    return {
+        str(b.get("k")): f"ИИ-проверка: {str(b.get('why') or 'неестественная фраза')[:120]}"
+        for b in data.get("bad") or []
+        if isinstance(b, dict) and str(b.get("k")) in keys
+    }, used
 
 
 def self_review(db: Session, dictionary: Dictionary, words: list[Word], raw: list[dict], items: list[dict], allowed: set[int]):
@@ -639,9 +678,15 @@ def self_review(db: Session, dictionary: Dictionary, words: list[Word], raw: lis
     script rejected or found too similar goes back with the exact reason, and
     the fixed versions are checked again -- up to SELF_REVIEW_ROUNDS times.
     Only what still fails after that reaches «Отклонённые» / «Похожие»."""
-    tokens, fixed = 0, 0
+    tokens = 0
+    touched: set[str] = set()
     have = [t for (t,) in db.query(MiniPhrase.text).filter(MiniPhrase.dictionary_id == dictionary.id).limit(150)]
     for _ in range(SELF_REVIEW_ROUNDS):
+        flagged, used = critic(db, items)
+        tokens += used
+        for i in items:
+            if i["key"] in flagged:
+                i["valid"], i["reason"] = False, flagged[i["key"]]
         bad = [i for i in items if not i["valid"] or i["too_similar"]]
         if not bad:
             break
@@ -674,10 +719,15 @@ def self_review(db: Session, dictionary: Dictionary, words: list[Word], raw: lis
             else:
                 new_raw.append(item)
         new_items = check_candidates(db, dictionary, new_raw, allowed)
-        fixed += sum(
-            1 for o, n in zip(items, new_items) if o["key"] in answers and (not o["valid"] or o["too_similar"]) and n["valid"] and not n["too_similar"]
-        )
+        touched |= set(answers) & set(why)
         raw, items = new_raw, new_items
+    # The last fixes get the same independent check; what still fails is dropped.
+    flagged, used = critic(db, items)
+    tokens += used
+    for i in items:
+        if i["key"] in flagged:
+            i["valid"], i["reason"] = False, flagged[i["key"]]
+    fixed = sum(1 for i in items if i["key"] in touched and i["valid"] and not i["too_similar"])
     return items, tokens, fixed
 
 
@@ -707,7 +757,10 @@ def rephrase(db: Session, dictionary: Dictionary, items: list[dict], category_id
     raw = [i for i in data.get("r") or [] if isinstance(i, dict)]
     for i in raw:
         i["key"] = str(i.get("k"))
-    return {"items": check_candidates(db, dictionary, raw, {w.id for w in words}), "tokens": tokens}
+    allowed = {w.id for w in words}
+    items = check_candidates(db, dictionary, raw, allowed)
+    items, fix_tokens, _ = self_review(db, dictionary, words, raw, items, allowed)
+    return {"items": [i for i in items if i["valid"]], "tokens": tokens + fix_tokens}
 
 
 # --- Saving the chosen ones (script only) -----------------------------------------
