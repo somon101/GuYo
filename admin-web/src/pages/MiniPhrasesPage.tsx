@@ -16,6 +16,7 @@ import {
   type MiniPhraseStarterReport,
 } from "../api/endpoints";
 import { LanguageSectionTabs } from "../components/LanguageSectionTabs";
+import { MiniPhraseGenerator } from "./MiniPhraseGenerator";
 import type { Dictionary, MiniPhrase, MiniPhraseRole, MiniPhraseTemplate, Word } from "../types";
 
 function errorText(e: unknown, fallback: string): string {
@@ -68,6 +69,7 @@ export function MiniPhrasesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [report, setReport] = useState<MiniPhraseStarterReport | null>(null);
   const [isFilling, setIsFilling] = useState(false);
+  const [showGenerator, setShowGenerator] = useState(false);
 
   async function fillStarter() {
     setIsFilling(true);
@@ -157,6 +159,12 @@ export function MiniPhrasesPage() {
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-2">
           <button
+            onClick={() => setShowGenerator((v) => !v)}
+            className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
+          >
+            {showGenerator ? "Скрыть ИИ-генерацию" : "✨ ИИ-генерация"}
+          </button>
+          <button
             onClick={fillStarter}
             disabled={isFilling}
             className="rounded-md bg-[var(--fill)] px-4 py-2 text-sm font-medium text-slate-800 hover:bg-[var(--fill-strong)] disabled:opacity-50"
@@ -171,6 +179,8 @@ export function MiniPhrasesPage() {
           </button>
         </div>
       </div>
+
+      {showGenerator && <MiniPhraseGenerator dictionaryId={dictionaryId} onSaved={reload} />}
 
       {report && (
         <div className="card mb-6 p-4 text-sm text-slate-700">
