@@ -21,7 +21,7 @@ function formatDate(value: string): string {
  * "Уведомления": write to one user, and see what has been sent.
  *
  * Sending goes through the backend's own send_notification, the same
- * function a future automatic rule will call -- so the list below already
+ * function a future automatic rule will call — so the list below already
  * shows every notification there is, not just the hand-written ones. When
  * rules arrive, their messages appear here too, told apart by "источник".
  */

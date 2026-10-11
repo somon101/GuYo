@@ -28,7 +28,7 @@ import type {
 } from "../types";
 
 /** Every Priority setting/band an explanatory tooltip on this page needs
- * to describe the CURRENT configuration -- fetched once via the exact
+ * to describe the CURRENT configuration — fetched once via the exact
  * same admin endpoints PrioritySettingsPage itself uses (see
  * ../api/endpoints.ts), never re-derived or hardcoded here. */
 interface PriorityConfig {
@@ -42,7 +42,7 @@ const PAGE_SIZE = 10;
 
 /** The 5 universal word-scoped exercise types, in the same order and with
  * the same labels the app itself uses (mobile/lib/exercises/
- * exercise_type.dart) -- shown even for a type with zero attempts, so the
+ * exercise_type.dart) — shown even for a type with zero attempts, so the
  * breakdown always reads as "here is every exercise this word could have
  * been asked through", not just the ones that happened to come up. */
 const EXERCISE_LABELS: { key: string; label: string }[] = [
@@ -69,7 +69,7 @@ function dayBucketKey(iso: string): string {
 
 /** «Диагностика слова»: WordProgress (level/score, re-derived fresh, never
  * cached) plus every WordAttempt this (user, word) pair has, already
- * aggregated by the backend -- see GET /admin/analytics/users/{id}/words/
+ * aggregated by the backend — see GET /admin/analytics/users/{id}/words/
  * {wordId}. This page only renders what it's given; no total, average or
  * per-exercise count is computed here. */
 export function WordDiagnosticsPage() {
@@ -88,7 +88,7 @@ export function WordDiagnosticsPage() {
       .then(setData)
       .catch(() => setError("Не удалось загрузить диагностику этого слова"))
       .finally(() => setIsLoading(false));
-    // Config for the explanatory tooltips -- not required for the page's
+    // Config for the explanatory tooltips — not required for the page's
     // own numbers (those all come from getWordDiagnostics above), so a
     // failure here just means tooltips fall back to their generic text.
     Promise.all([getPrioritySettings(), listRecencyBands(), listStabilityBands(), listPriorityLevelBands()])
@@ -271,7 +271,7 @@ export function WordDiagnosticsPage() {
 }
 
 /** Count of wrong answers among the LAST `window` attempts, oldest-first
- * `history` sliced from the end -- pure display arithmetic (a count, not
+ * `history` sliced from the end — pure display arithmetic (a count, not
  * a weighted score) backing the "Недавние ошибки" tooltip with this
  * word's real numbers; the actual weighted contribution always comes
  * from the backend's own recent_errors_contribution, never re-derived
@@ -282,7 +282,7 @@ function recentErrorCount(history: WordAttempt[], window: number): { errors: num
 }
 
 /** The "at a glance" diagnostic block: level, score/range, Priority and
- * its 4 factors, and when this word was last touched -- the facts an
+ * its 4 factors, and when this word was last touched — the facts an
  * admin wants before reading the detailed sections below. */
 function DiagnosticsPanel({ data, config }: { data: WordDiagnostics; config: PriorityConfig | null }) {
   const range = data.level

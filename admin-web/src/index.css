@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 /* ==========================================================================
    GuYo Admin -- the GuYo app's own world: indigo ink, violet action,
@@ -19,6 +19,7 @@
 
   /* "blue" is the accent slot every page already uses: GuYo's violet. */
   --sys-blue: #5862dd;
+  --violet-fill: #5862dd;
   --sys-green: #0a9c5d;
   --sys-red: #e0454b;
   --sys-orange: #e08a00;
@@ -44,7 +45,8 @@
   --tile-green: #c9efd3;
   --tile-blue: #d5e4ff;
   --tile-pink: #f6d6f4;
-  --tile-yellow: #fff1c2;
+  --tile-yellow: #fff6dd;
+  --tile-gold: #ffeb3b;
 
   --bg: #f8f8fd;
   --card: #ffffff;
@@ -61,7 +63,7 @@
   --shadow-card: 0 1px 2px rgb(16 27 99 / 0.04), 0 8px 24px -8px rgb(16 27 99 / 0.1);
   --shadow-lift: 0 2px 4px rgb(16 27 99 / 0.05), 0 16px 32px -12px rgb(16 27 99 / 0.2);
   --shadow-float: 0 18px 44px -12px rgb(16 27 99 / 0.28), 0 0 0 1px rgb(16 27 99 / 0.05);
-  --shadow-primary: 0 6px 16px -6px rgb(88 98 221 / 0.65);
+  --shadow-primary: none;
   --header-glass: rgb(248 248 253 / 0.82);
   --blob-opacity: 0;
 
@@ -73,7 +75,7 @@
   --gray-200: #e2e5f3;
   --gray-300: #cdd2ea;
   --gray-400: #a2a9cf;
-  --gray-500: #7180b0;
+  --gray-500: #5d6a9c;
   --gray-600: #56648f;
   --gray-700: #3a4677;
   --gray-800: #232e6b;
@@ -84,6 +86,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --sys-blue: #7c84f0;
+    --violet-fill: #5b63e0;
     --sys-green: #2fcb86;
     --sys-red: #ff6b70;
     --sys-orange: #ffb547;
@@ -96,9 +99,9 @@
     --sys-purple-ink: #c4b5fd;
 
     --ink: #e9ebfa;
-    --rail: #161a2c;
-    --rail-2: #20253c;
-    --rail-text: #9aa3cc;
+    --rail: #18205a;
+    --rail-2: #212a6e;
+    --rail-text: #b9bfeb;
     --gold: #ffd54f;
     --gold-ink: #ffd54f;
 
@@ -107,6 +110,7 @@
     --tile-blue: #233f75;
     --tile-pink: #5c2a5a;
     --tile-yellow: #4a4017;
+    --tile-gold: #5c4a00;
 
     --bg: #11131c;
     --card: #1c1f2e;
@@ -123,7 +127,7 @@
     --shadow-card: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 10px 28px -12px rgb(0 0 0 / 0.6);
     --shadow-lift: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 18px 36px -12px rgb(0 0 0 / 0.7);
     --shadow-float: 0 20px 48px -12px rgb(0 0 0 / 0.75), 0 0 0 1px #2a2e45;
-    --shadow-primary: 0 6px 18px -6px rgb(124 132 240 / 0.7);
+    --shadow-primary: none;
     --header-glass: rgb(17 19 28 / 0.82);
     --blob-opacity: 0;
 
@@ -175,7 +179,7 @@
   --color-indigo-300: color-mix(in srgb, var(--sys-blue) 55%, var(--card));
   --color-indigo-400: color-mix(in srgb, var(--sys-blue) 78%, var(--card));
   --color-indigo-500: var(--sys-blue);
-  --color-indigo-600: var(--sys-blue);
+  --color-indigo-600: var(--violet-fill);
   --color-indigo-700: var(--sys-blue-ink);
   --color-indigo-800: var(--sys-blue-ink);
   --color-indigo-900: var(--sys-blue-ink);
@@ -187,7 +191,7 @@
   --color-blue-300: color-mix(in srgb, var(--sys-blue) 55%, var(--card));
   --color-blue-400: color-mix(in srgb, var(--sys-blue) 78%, var(--card));
   --color-blue-500: var(--sys-blue);
-  --color-blue-600: var(--sys-blue);
+  --color-blue-600: var(--violet-fill);
   --color-blue-700: var(--sys-blue-ink);
   --color-blue-800: var(--sys-blue-ink);
   --color-blue-900: var(--sys-blue-ink);
@@ -470,7 +474,7 @@
     box-shadow 160ms ease;
 
   &::placeholder {
-    color: var(--gray-400);
+    color: var(--gray-500);
   }
 
   &:hover:not(:focus):not(:disabled) {
@@ -492,7 +496,6 @@
    them the app's violet glow and a small lift on hover. */
 button[class*="bg-indigo-600"],
 a[class*="bg-indigo-600"] {
-  box-shadow: var(--shadow-primary);
   transition:
     translate 220ms var(--ease-out-expo),
     box-shadow 220ms var(--ease-out-expo),
@@ -503,7 +506,7 @@ a[class*="bg-indigo-600"] {
 button[class*="bg-indigo-600"]:hover:not(:disabled),
 a[class*="bg-indigo-600"]:hover {
   translate: 0 -1px;
-  box-shadow: 0 10px 22px -8px color-mix(in srgb, var(--sys-blue) 75%, transparent);
+  background-color: var(--sys-blue-ink);
 }
 
 /* Secondary button: violet-tinted fill, violet text. */
@@ -610,8 +613,7 @@ a[class*="bg-indigo-600"]:hover {
   right: 0;
   top: 0;
   border-radius: 12px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--sys-blue) 92%, white), var(--sys-blue));
-  box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--sys-blue) 90%, transparent);
+  background: var(--violet-fill);
   transition:
     translate 520ms var(--ease-out-expo),
     height 520ms var(--ease-out-expo),
@@ -625,7 +627,22 @@ a[class*="bg-indigo-600"]:hover {
 
 .rail-link:hover .rail-tile {
   scale: 1.08;
-  rotate: -4deg;
+}
+
+/* The rail keeps every item reachable: a soft fade says there is more. */
+.rail-nav {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+}
+
+/* Every page starts at the same edge next to the rail. */
+.page-view > * {
+  margin-inline: 0;
+}
+
+/* One arrival only: the page rise. The horizontal slide is retired. */
+::view-transition-old(page),
+::view-transition-new(page) {
+  animation: none;
 }
 
 /* Screen-to-screen: the new screen slides in from the right while the old
@@ -733,7 +750,7 @@ html[data-vt-dir="back"]::view-transition-new(page) {
    a translate on the page and turn it into the containing block of every
    position:fixed modal inside it. */
 .page-enter {
-  animation: page-new-forward 420ms var(--ease-ios) backwards;
+  animation: none;
 }
 
 /* Each page rises in once on arrival (from an already-readable state). */

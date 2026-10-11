@@ -15,7 +15,7 @@ import type { Slogan } from "../types";
  * The admin curates a pool; the backend draws one per user per day and
  * holds it (see backend/app/slogans/service.py). So editing a line here
  * changes what everyone who drew it sees, and disabling one takes it out
- * of the draw -- including for people who already drew it today.
+ * of the draw — including for people who already drew it today.
  */
 export function SlogansPage() {
   const [slogans, setSlogans] = useState<Slogan[]>([]);

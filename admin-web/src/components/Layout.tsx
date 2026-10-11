@@ -7,7 +7,7 @@ import { ChangePasswordButton } from "./ChangePasswordButton";
 import { NavIcon } from "./NavIcon";
 import logoMark from "../assets/logo-mark.png";
 
-type Tile = "orange" | "green" | "blue" | "pink" | "yellow";
+type Tile = "orange" | "green" | "blue" | "pink" | "yellow" | "gold";
 
 // The side menu, grouped by what the team is looking after. Each group
 // wears one of the app's pastel tiles, as on the app's home screen.
@@ -46,7 +46,7 @@ const navGroups: { title: string; tile: Tile; items: { to: string; label: string
   },
   {
     title: "Доход",
-    tile: "yellow",
+    tile: "gold" as Tile,
     items: [
       { to: "/premium", label: "Premium", icon: "crown" },
       { to: "/promo", label: "Промокоды", icon: "ticket" },
@@ -69,6 +69,14 @@ export function Layout({ children }: { children: ReactNode }) {
 
   // The violet pill glides to the active item: the rail's one motion.
   const navRef = useRef<HTMLElement>(null);
+  const phoneNavRef = useRef<HTMLElement>(null);
+
+  // On a phone the current section's pill is always scrolled into view.
+  useLayoutEffect(() => {
+    const active = phoneNavRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    active?.scrollIntoView({ inline: "center", block: "nearest", behavior: reduce ? "instant" : "smooth" });
+  }, [location.pathname]);
   const [pill, setPill] = useState<{ y: number; h: number } | null>(null);
   useLayoutEffect(() => {
     const nav = navRef.current;
@@ -102,7 +110,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         </div>
 
-        <nav ref={navRef} aria-label="Разделы" className="relative flex-1 overflow-y-auto px-3 pb-6 [scrollbar-width:none]">
+        <nav ref={navRef} aria-label="Разделы" className="rail-nav relative flex-1 overflow-y-auto px-3 pb-6 [scrollbar-width:none]">
           {pill && (
             <span
               aria-hidden="true"
@@ -111,7 +119,7 @@ export function Layout({ children }: { children: ReactNode }) {
             />
           )}
           {navGroups.map((group) => (
-            <div key={group.title} className="mt-4 first:mt-0">
+            <div key={group.title} className="mt-3 first:mt-0">
               <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--rail-text)] opacity-70">
                 {group.title}
               </p>
@@ -120,7 +128,7 @@ export function Layout({ children }: { children: ReactNode }) {
                   key={item.to}
                   to={item.to}
                   className={({ isActive: on }) =>
-                    `rail-link relative z-10 flex items-center gap-3 rounded-xl px-2.5 py-[7px] text-[14.5px] transition-colors ${
+                    `rail-link relative z-10 flex items-center gap-3 rounded-xl px-2.5 py-[5px] text-[14px] transition-colors ${
                       on ? "font-semibold text-white" : "text-[var(--rail-text)] hover:bg-white/[0.06] hover:text-white"
                     }`
                   }
@@ -128,7 +136,7 @@ export function Layout({ children }: { children: ReactNode }) {
                   {({ isActive: on }) => (
                     <>
                       <span
-                        className={`rail-tile flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] ${
+                        className={`rail-tile flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] ${
                           on ? "bg-white/20 text-white" : "text-[var(--ink)]"
                         }`}
                         style={on ? undefined : { backgroundColor: `var(--tile-${group.tile})` }}
@@ -156,7 +164,9 @@ export function Layout({ children }: { children: ReactNode }) {
             </span>
             Выйти
           </button>
-          <ChangePasswordButton />
+          <span className="flex items-center rounded-xl bg-white/10 px-1 [&_button]:px-2.5 [&_button]:py-2 [&_button]:text-[13.5px] [&_button:hover]:text-white">
+            <ChangePasswordButton />
+          </span>
         </div>
       </aside>
 
@@ -171,7 +181,7 @@ export function Layout({ children }: { children: ReactNode }) {
               Выйти
             </button>
           </div>
-          <nav aria-label="Разделы" className="flex gap-1.5 overflow-x-auto px-4 pb-3 [scrollbar-width:none]">
+          <nav ref={phoneNavRef} aria-label="Разделы" className="flex gap-1.5 overflow-x-auto px-4 pb-3 [scrollbar-width:none]">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}

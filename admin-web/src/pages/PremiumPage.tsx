@@ -31,7 +31,7 @@ function errorDetail(err: unknown, fallback: string): string {
 }
 
 /**
- * "Premium": payment happens outside the app -- the user transfers money
+ * "Premium": payment happens outside the app — the user transfers money
  * and puts their 9-digit ID in the comment, and the admin grants a period
  * here. Premium then ends on its own when the period runs out.
  */

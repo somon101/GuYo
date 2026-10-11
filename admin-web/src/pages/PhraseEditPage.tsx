@@ -9,7 +9,7 @@ function mediaUrl(path: string | null): string | null {
   return path ? `${API_URL}${path}` : null;
 }
 
-/** Local staging for one file resource -- identical convention to
+/** Local staging for one file resource — identical convention to
  * WordEditPage's FileStage: pick/replace/remove happens locally, nothing
  * is sent to the server until "Сохранить изменения" is pressed. */
 interface FileStage {

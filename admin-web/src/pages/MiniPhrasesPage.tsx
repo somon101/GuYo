@@ -53,7 +53,7 @@ const EMPTY: Draft = {
 };
 
 /** A language's mini-phrases ("Я иду"): each one is its ready text, its
- * translations, a template, and its parts in order -- every part linked to
+ * translations, a template, and its parts in order — every part linked to
  * an existing word (and the exact form when the phrase uses one). */
 export function MiniPhrasesPage() {
   const { id } = useParams<{ id: string }>();

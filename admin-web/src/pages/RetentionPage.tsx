@@ -39,7 +39,7 @@ const WINDOWS: { key: "next_day" | "week_later" | "month_later"; title: string; 
   },
 ];
 
-// Server dates are UTC calendar days -- format them in UTC so a day never
+// Server dates are UTC calendar days — format them in UTC so a day never
 // shifts by one in the admin's own timezone.
 const dayFormat = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", timeZone: "UTC" });
 const percentFormat = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 });

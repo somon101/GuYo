@@ -17,7 +17,7 @@ function mediaUrl(path: string | null): string | null {
   return path ? `${API_URL}${path}` : null;
 }
 
-// Purely a display grouping/labeling choice for this page -- the backend's
+// Purely a display grouping/labeling choice for this page — the backend's
 // own condition_type set (app/achievements/conditions.py's CONDITION_TYPES)
 // is untouched, and any condition_type not listed here still gets its own
 // chain automatically (see conditionGroups below), just with the backend's
@@ -111,7 +111,7 @@ export function AchievementsPage() {
 
   // Native HTML5 drag-and-drop, same mechanism as before, just scoped to
   // ONE chain at a time: dragging within a condition_type's row only
-  // reshuffles that row's own items relative to each other -- every other
+  // reshuffles that row's own items relative to each other — every other
   // achievement (any other condition_type) keeps its exact current
   // position in the underlying list. The backend's `order` is still one
   // shared, global field (see admin_achievements.py's reorder endpoint),
@@ -162,10 +162,10 @@ export function AchievementsPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-[26px] font-bold tracking-tight text-slate-900">Достижения</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Каждый тип условия -- своя цепочка. Перетаскивайте карточки внутри цепочки, чтобы изменить порядок.</p>
+          <p className="mt-0.5 text-sm text-slate-500">Каждый тип условия — своя цепочка. Перетаскивайте карточки внутри цепочки, чтобы изменить порядок.</p>
         </div>
         <button
           onClick={() => setEditing("new")}
@@ -498,7 +498,7 @@ function AchievementForm({
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Иконка</label>
         <p className="mb-2 text-xs text-slate-400">
-          Загрузите готовое изображение -- оно и будет показано пользователю как иконка достижения.
+          Загрузите готовое изображение — оно и будет показано пользователю как иконка достижения.
         </p>
         <div className="flex items-center gap-3">
           <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-50">

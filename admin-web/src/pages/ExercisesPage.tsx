@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-// Just an index of exercises -- each one's settings live on their own page
+// Just an index of exercises — each one's settings live on their own page
 // (pages/exercises/*SettingsPage.tsx) so a future exercise's settings never
 // have to be squeezed into a shared form alongside every other exercise's.
 const EXERCISES: { key: string; label: string }[] = [

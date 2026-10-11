@@ -389,7 +389,7 @@ export function WordEditPage() {
 
 /** One fixed-language group of Forms: existing forms (with delete) plus a
  * single-text-field "+ Добавить форму" that saves immediately. The language
- * itself is never chosen here -- it's fixed by the caller (the dictionary's
+ * itself is never chosen here — it's fixed by the caller (the dictionary's
  * own language, or Tajik), per the block-language rule. */
 function FormsGroup({
   forms,

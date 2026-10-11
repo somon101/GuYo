@@ -48,7 +48,7 @@ function StatusPill({ enabled }: { enabled: boolean }) {
 /**
  * "Промокоды": codes the admin makes up, and links to GuYo's own videos.
  * A user enters either one in the app's "Промокод" screen and gets Premium
- * days -- added to the end of an active subscription, like a payment.
+ * days — added to the end of an active subscription, like a payment.
  */
 export function PromoPage() {
   const [codes, setCodes] = useState<PromoCode[]>([]);

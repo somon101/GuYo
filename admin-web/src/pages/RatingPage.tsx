@@ -108,7 +108,7 @@ function PointsCard({
   }
 
   return (
-    <SectionCard title="Очки" subtitle="Влияет только на будущие начисления -- уже заработанные очки не пересчитываются.">
+    <SectionCard title="Очки" subtitle="Влияет только на будущие начисления — уже заработанные очки не пересчитываются.">
       <div className="flex items-end gap-3">
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Очков за изученное слово</label>
@@ -456,7 +456,7 @@ function RankForm({ rank, onSaved, onCancel }: { rank: Rank | null; onSaved: (r:
 
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Иконка</label>
-        <p className="mb-2 text-xs text-slate-400">Загрузите изображение -- оно будет показано как иконка ранга.</p>
+        <p className="mb-2 text-xs text-slate-400">Загрузите изображение — оно будет показано как иконка ранга.</p>
         <div className="flex items-center gap-3">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-card">
             {iconPreview ? <img src={iconPreview} alt="" className="h-full w-full object-cover" /> : <span className="text-xs text-slate-400">нет</span>}
@@ -711,7 +711,7 @@ function SeasonsCard({ seasons, onChanged }: { seasons: Season[]; onChanged: () 
 }
 
 /** A season's picture. Uploaded and cleared on its own endpoints, so there
- * is nothing to save afterwards -- and nothing renders it in the app yet,
+ * is nothing to save afterwards — and nothing renders it in the app yet,
  * it is only stored. */
 function SeasonIcon({ season, onChanged }: { season: Season; onChanged: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
