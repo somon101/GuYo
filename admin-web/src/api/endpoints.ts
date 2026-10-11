@@ -1485,3 +1485,85 @@ export async function fillMiniPhraseStarter(dictionaryId: number): Promise<MiniP
 export async function changeAdminPassword(currentPassword: string, newPassword: string): Promise<void> {
   await api.post("/auth/admin/password", { current_password: currentPassword, new_password: newPassword });
 }
+
+// --- Mini-phrase generation (AI) ---------------------------------------------
+
+export interface MissingWordSuggestion {
+  text: string;
+  source: "phrases" | "key";
+  unlocks: number;
+  appears: number;
+  role?: string;
+}
+
+export interface MiniPhraseAnalysis {
+  words: number;
+  roles: Record<string, number>;
+  existing_mini_phrases: number;
+  possible_combinations: number;
+  phrases_short_of_words: number;
+  missing_words: MissingWordSuggestion[];
+}
+
+export interface GeneratedPart {
+  text: string;
+  word_id: number;
+  word: string;
+  role: string;
+  new_form: boolean;
+  word_translation: string | null;
+}
+
+export interface GeneratedMiniPhrase {
+  key: string;
+  text: string;
+  translation_tg: string;
+  translation_uz: string | null;
+  translation_en: string | null;
+  parts: GeneratedPart[];
+  template_name: string;
+  template_exists: boolean;
+  valid: boolean;
+  reason: string | null;
+  similarity: number;
+  similar_to: string | null;
+  similar_source: "mini" | "phrase" | "batch" | null;
+  too_similar: boolean;
+}
+
+export async function getMiniPhraseAnalysis(dictionaryId: number): Promise<MiniPhraseAnalysis> {
+  const { data } = await api.get(`/admin/dictionaries/${dictionaryId}/mini-phrases/analysis`);
+  return data;
+}
+
+export async function generateMiniPhrases(
+  dictionaryId: number,
+  count: number,
+): Promise<{ items: GeneratedMiniPhrase[]; tokens: number }> {
+  const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases/generate`, { count }, { timeout: 300000 });
+  return data;
+}
+
+export async function rephraseMiniPhrases(
+  dictionaryId: number,
+  items: GeneratedMiniPhrase[],
+): Promise<{ items: GeneratedMiniPhrase[]; tokens: number }> {
+  const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases/generate/rephrase`, { items }, { timeout: 300000 });
+  return data;
+}
+
+export async function saveGeneratedMiniPhrases(
+  dictionaryId: number,
+  items: GeneratedMiniPhrase[],
+): Promise<{ created: string[]; skipped: { text: string; reason: string }[]; forms_added: string[]; templates_created: string[] }> {
+  const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases/generate/save`, { items });
+  return data;
+}
+
+export async function addMissingWords(
+  dictionaryId: number,
+  words: string[],
+): Promise<{ created: { word: string; forms: number; category: string | null }[]; updated: { word: string; forms_added: number }[]; tokens: number }> {
+  const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases/add-words`, { words }, { timeout: 300000 });
+  return data;
+}

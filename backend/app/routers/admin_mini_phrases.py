@@ -4,6 +4,7 @@ suggestion helper and the mini-phrase settings."""
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -301,6 +302,70 @@ def fill_starter_set(dictionary_id: int, db: Session = Depends(get_db), _admin=D
     from app.mini_phrases.starter import fill_starter
 
     report = fill_starter(db, _get_dictionary_or_404(db, dictionary_id))
+    db.commit()
+    return report
+
+
+class GenerateIn(BaseModel):
+    count: int = Field(default=20, ge=10, le=50)
+
+
+class ItemsIn(BaseModel):
+    items: list[dict] = Field(max_length=60)
+
+
+class WordsIn(BaseModel):
+    words: list[str] = Field(min_length=1, max_length=30)
+
+
+@router.get("/dictionaries/{dictionary_id}/mini-phrases/analysis")
+def mini_phrase_analysis(dictionary_id: int, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    """Script-only: how many mini-phrases the words allow and which missing
+    words would unlock the most. No AI, no tokens."""
+    from app.mini_phrases import generate
+
+    return generate.analyze(db, _get_dictionary_or_404(db, dictionary_id))
+
+
+@router.post("/dictionaries/{dictionary_id}/mini-phrases/generate")
+def generate_mini_phrases(
+    dictionary_id: int, payload: GenerateIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
+):
+    """Preview only -- nothing is saved."""
+    from app.mini_phrases import generate
+
+    return generate.generate(db, _get_dictionary_or_404(db, dictionary_id), payload.count)
+
+
+@router.post("/dictionaries/{dictionary_id}/mini-phrases/generate/rephrase")
+def rephrase_mini_phrases(
+    dictionary_id: int, payload: ItemsIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
+):
+    from app.mini_phrases import generate
+
+    return generate.rephrase(db, _get_dictionary_or_404(db, dictionary_id), payload.items)
+
+
+@router.post("/dictionaries/{dictionary_id}/mini-phrases/generate/save")
+def save_generated_mini_phrases(
+    dictionary_id: int, payload: ItemsIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
+):
+    from app.mini_phrases import generate
+
+    report = generate.save(db, _get_dictionary_or_404(db, dictionary_id), payload.items)
+    db.commit()
+    return report
+
+
+@router.post("/dictionaries/{dictionary_id}/mini-phrases/add-words")
+def add_missing_words(
+    dictionary_id: int, payload: WordsIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
+):
+    """Full word cards (translations, role, category, all forms) made by the
+    AI for the chosen missing words."""
+    from app.mini_phrases import generate
+
+    report = generate.add_words(db, _get_dictionary_or_404(db, dictionary_id), payload.words)
     db.commit()
     return report
 

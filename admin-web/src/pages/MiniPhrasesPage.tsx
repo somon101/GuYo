@@ -16,6 +16,7 @@ import {
   type MiniPhraseStarterReport,
 } from "../api/endpoints";
 import { LanguageSectionTabs } from "../components/LanguageSectionTabs";
+import { MiniPhraseGenerator } from "./MiniPhraseGenerator";
 import type { Dictionary, MiniPhrase, MiniPhraseRole, MiniPhraseTemplate, Word } from "../types";
 
 function errorText(e: unknown, fallback: string): string {
@@ -68,6 +69,7 @@ export function MiniPhrasesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [report, setReport] = useState<MiniPhraseStarterReport | null>(null);
   const [isFilling, setIsFilling] = useState(false);
+  const [showGenerator, setShowGenerator] = useState(false);
 
   async function fillStarter() {
     setIsFilling(true);
@@ -145,7 +147,7 @@ export function MiniPhrasesPage() {
       </nav>
       <LanguageSectionTabs dictionaryId={dictionaryId} active="mini-phrases" />
 
-      <div className="mb-6 flex items-center justify-between gap-4">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-[26px] font-bold tracking-tight text-slate-900">Мини-фразы</h1>
           <p className="text-sm text-slate-500">
@@ -156,6 +158,12 @@ export function MiniPhrasesPage() {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-2">
+          <button
+            onClick={() => setShowGenerator((v) => !v)}
+            className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
+          >
+            {showGenerator ? "Скрыть ИИ-генерацию" : "✨ ИИ-генерация"}
+          </button>
           <button
             onClick={fillStarter}
             disabled={isFilling}
@@ -171,6 +179,8 @@ export function MiniPhrasesPage() {
           </button>
         </div>
       </div>
+
+      {showGenerator && <MiniPhraseGenerator dictionaryId={dictionaryId} onSaved={reload} />}
 
       {report && (
         <div className="card mb-6 p-4 text-sm text-slate-700">
