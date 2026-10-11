@@ -296,19 +296,22 @@ def delete_my_avatar(db: Session = Depends(get_db), user: User = Depends(get_cur
 
 @router.get("/me/achievements", response_model=list[UserAchievementOut])
 def get_my_achievements(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """Every ENABLED achievement, each with this user's own earned status
+    """Every enabled achievement -- plus archived (disabled) ones this user
+    already earned, which stay theirs -- each with this user's own earned status
     and (for the ones not yet earned) their current progress -- computed
     fresh here, on read, so it's always accurate even if the user earned
     something through an action that hasn't explicitly re-run the granting
     check (see app/achievements/service.py) since. The backend decides all
     of this; nothing about "have I earned this" is computed in Flutter."""
-    achievements = (
-        db.query(Achievement).filter(Achievement.enabled.is_(True)).order_by(Achievement.order, Achievement.id).all()
-    )
     earned_at_by_id = {
         row.achievement_id: row.earned_at
         for row in db.query(UserAchievement).filter(UserAchievement.user_id == user.id).all()
     }
+    achievements = [
+        a
+        for a in db.query(Achievement).order_by(Achievement.order, Achievement.id).all()
+        if a.enabled or a.id in earned_at_by_id
+    ]
 
     # Each condition_type's current value only needs computing once, no
     # matter how many achievements of that type exist.

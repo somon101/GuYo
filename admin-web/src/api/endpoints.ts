@@ -576,10 +576,7 @@ export async function updateAchievement(id: number, input: AchievementInput): Pr
   return data;
 }
 
-// Throws with the backend's own 409 message when the achievement has
-// already been earned by at least one user -- callers should show that
-// message rather than a generic failure, since it's telling the admin
-// exactly what to do instead (disable it).
+/** Deletes it for everyone -- users who earned it lose it too. */
 export async function deleteAchievement(id: number): Promise<void> {
   await api.delete(`/admin/achievements/${id}`);
 }

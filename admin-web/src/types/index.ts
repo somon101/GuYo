@@ -299,6 +299,8 @@ export interface Achievement {
   visibility: AchievementVisibility;
   show_before_unlock: boolean;
   order: number;
+  /** How many users have earned it. */
+  earned_count: number;
 }
 
 export interface ConditionType {

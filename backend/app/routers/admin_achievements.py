@@ -7,6 +7,7 @@ to this row's own `id`.
 """
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.achievements import CONDITION_TYPE_LABELS, CONDITION_TYPES
@@ -27,7 +28,17 @@ ALLOWED_ICON_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 VALID_VISIBILITIES = {VISIBILITY_VISIBLE, VISIBILITY_HIDDEN}
 
 
-def _achievement_out(a: Achievement) -> AchievementOut:
+def _earned_counts(db: Session) -> dict[int, int]:
+    rows = db.query(UserAchievement.achievement_id, func.count()).group_by(UserAchievement.achievement_id).all()
+    return dict(rows)
+
+
+def _achievement_out(a: Achievement, earned_count: int | None = None) -> AchievementOut:
+    if earned_count is None:
+        db = Session.object_session(a)
+        earned_count = (
+            db.query(UserAchievement).filter(UserAchievement.achievement_id == a.id).count() if db is not None else 0
+        )
     return AchievementOut(
         id=a.id,
         title=a.title,
@@ -40,6 +51,7 @@ def _achievement_out(a: Achievement) -> AchievementOut:
         visibility=a.visibility,
         show_before_unlock=a.show_before_unlock,
         order=a.order,
+        earned_count=earned_count,
     )
 
 
@@ -79,7 +91,8 @@ def _read_validated_icon(icon: UploadFile) -> bytes:
 @router.get("", response_model=list[AchievementOut])
 def list_achievements(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
     achievements = db.query(Achievement).order_by(Achievement.order, Achievement.id).all()
-    return [_achievement_out(a) for a in achievements]
+    counts = _earned_counts(db)
+    return [_achievement_out(a, counts.get(a.id, 0)) for a in achievements]
 
 
 @router.get("/condition-types", response_model=list[ConditionTypeOut])
@@ -219,22 +232,11 @@ def reorder_achievements(
 
 @router.delete("/{achievement_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_achievement(achievement_id: int, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
-    """Refuses to delete an achievement any user has already earned --
-    disable it instead (`enabled: false`) if it shouldn't be earnable
-    anymore. This is deliberate: a user's earned badge is a historical
-    fact, and silently erasing it (or the CASCADE-deleted grant that would
-    otherwise leave no record of it) just because an admin deleted the
-    definition would contradict "already earned achievement should keep
-    being shown"."""
+    """Deletes the achievement for everyone: users who earned it lose it
+    too (their grants go with it, ondelete=CASCADE). Admin Web says how
+    many that is before asking. To retire one but let its holders keep it,
+    archive it instead (`enabled: false`, see GET /users/me/achievements)."""
     achievement = _get_achievement_or_404(db, achievement_id)
-    has_grants = (
-        db.query(UserAchievement).filter(UserAchievement.achievement_id == achievement_id).first() is not None
-    )
-    if has_grants:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Это достижение уже получено пользователями -- отключите его вместо удаления",
-        )
     icon_key = achievement.icon_key
     db.delete(achievement)
     db.commit()

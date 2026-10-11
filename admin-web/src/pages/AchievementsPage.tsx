@@ -66,7 +66,11 @@ export function AchievementsPage() {
   }, []);
 
   async function handleDelete(a: Achievement) {
-    if (!confirm(`Удалить достижение «${a.title}»? Это действие нельзя отменить.`)) return;
+    const who =
+      a.earned_count > 0
+        ? `Его получили ${a.earned_count} польз. — у них оно тоже пропадёт.\nЧтобы у них осталось, используйте «В архив».`
+        : "Его ещё никто не получил.";
+    if (!confirm(`Удалить достижение «${a.title}» навсегда?\n${who}\n\nОтменить нельзя.`)) return;
     setActionError(null);
     setDeletingId(a.id);
     try {
@@ -75,6 +79,31 @@ export function AchievementsPage() {
     } catch (err) {
       const detail = axios.isAxiosError(err) ? (err.response?.data?.detail as string | undefined) : undefined;
       setActionError(detail ?? "Не удалось удалить достижение");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  /** Archived (enabled=false): no one can earn it any more and those who
+   * haven't don't see it, but whoever already earned it keeps it. */
+  async function handleArchive(a: Achievement, archive: boolean) {
+    setActionError(null);
+    setDeletingId(a.id);
+    try {
+      const saved = await updateAchievement(a.id, {
+        title: a.title,
+        description: a.description,
+        conditionType: a.condition_type,
+        conditionValue: a.condition_value,
+        color: a.color,
+        visibility: a.visibility,
+        showBeforeUnlock: a.show_before_unlock,
+        enabled: !archive,
+        order: a.order,
+      });
+      setAchievements((prev) => prev.map((x) => (x.id === a.id ? saved : x)));
+    } catch {
+      setActionError(archive ? "Не удалось отправить в архив" : "Не удалось вернуть из архива");
     } finally {
       setDeletingId(null);
     }
@@ -170,7 +199,7 @@ export function AchievementsPage() {
         <div className={`flex flex-col gap-8 ${isReordering ? "opacity-60" : ""}`}>
           {orderedGroupIds.map((conditionType) => {
             const items = achievements
-              .filter((a) => a.condition_type === conditionType)
+              .filter((a) => a.condition_type === conditionType && a.enabled)
               .sort((a, b) => a.order - b.order);
             if (items.length === 0) return null;
             const label = GROUP_LABEL_OVERRIDES[conditionType] ?? conditionTypes.find((c) => c.id === conditionType)?.label ?? conditionType;
@@ -185,10 +214,18 @@ export function AchievementsPage() {
                 onDragEnd={handleDragEnd}
                 onEdit={setEditing}
                 onDelete={handleDelete}
+                onArchive={(a) => handleArchive(a, true)}
                 deletingId={deletingId}
               />
             );
           })}
+          <ArchiveSection
+            items={achievements.filter((a) => !a.enabled)}
+            busyId={deletingId}
+            onRestore={(a) => handleArchive(a, false)}
+            onDelete={handleDelete}
+            onEdit={setEditing}
+          />
         </div>
       )}
     </div>
@@ -204,6 +241,7 @@ function AchievementChain({
   onDragEnd,
   onEdit,
   onDelete,
+  onArchive,
   deletingId,
 }: {
   label: string;
@@ -214,6 +252,7 @@ function AchievementChain({
   onDragEnd: () => void;
   onEdit: (a: Achievement) => void;
   onDelete: (a: Achievement) => void;
+  onArchive: (a: Achievement) => void;
   deletingId: number | null;
 }) {
   const unit = CONDITION_UNIT[conditionType];
@@ -241,10 +280,19 @@ function AchievementChain({
                 {a.visibility === "hidden" && (
                   <span className="text-[10px] text-slate-400">{a.show_before_unlock ? "🔒 силуэт" : "🔒 скрыто"}</span>
                 )}
-                {!a.enabled && <span className="text-[10px] font-medium text-amber-600">отключено</span>}
-                <div className="mt-0.5 flex gap-2 opacity-0 group-hover:opacity-100">
+                <span className="text-[10px] text-slate-400" title="Сколько пользователей получили">
+                  получили: {a.earned_count}
+                </span>
+                <div className="mt-0.5 flex flex-wrap justify-center gap-x-2 gap-y-0.5 opacity-0 group-hover:opacity-100">
                   <button onClick={() => onEdit(a)} className="text-[11px] font-medium text-indigo-600 hover:text-indigo-700">
                     Изменить
+                  </button>
+                  <button
+                    onClick={() => onArchive(a)}
+                    disabled={deletingId === a.id}
+                    className="text-[11px] text-slate-500 hover:text-amber-600 disabled:opacity-60"
+                  >
+                    В архив
                   </button>
                   <button
                     onClick={() => onDelete(a)}
@@ -263,6 +311,67 @@ function AchievementChain({
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Archived achievements: still shown to whoever earned them, hidden from
+ * everyone else, and no longer earnable. */
+function ArchiveSection({
+  items,
+  busyId,
+  onRestore,
+  onDelete,
+  onEdit,
+}: {
+  items: Achievement[];
+  busyId: number | null;
+  onRestore: (a: Achievement) => void;
+  onDelete: (a: Achievement) => void;
+  onEdit: (a: Achievement) => void;
+}) {
+  return (
+    <div>
+      <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-500">Архив</h2>
+      <p className="mb-3 text-xs text-slate-500">
+        Остаются у тех, кто уже получил. Остальные их не видят и получить больше не могут.
+      </p>
+      {items.length === 0 ? (
+        <p className="text-sm text-slate-400">В архиве пусто</p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {items.map((a) => (
+            <div key={a.id} className="group flex w-28 flex-col items-center gap-1.5 rounded-lg p-2 text-center hover:bg-slate-50">
+              <div className="opacity-60 grayscale">
+                <ChainIcon achievement={a} />
+              </div>
+              <p className="w-full truncate text-xs font-semibold text-slate-500" title={a.title}>
+                {a.title}
+              </p>
+              <span className="text-[10px] text-slate-400">получили: {a.earned_count}</span>
+              <div className="mt-0.5 flex flex-wrap justify-center gap-x-2 gap-y-0.5 opacity-0 group-hover:opacity-100">
+                <button
+                  onClick={() => onRestore(a)}
+                  disabled={busyId === a.id}
+                  className="text-[11px] font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-60"
+                >
+                  Из архива
+                </button>
+                <button onClick={() => onEdit(a)} className="text-[11px] text-slate-500 hover:text-slate-700">
+                  Изменить
+                </button>
+                <button
+                  onClick={() => onDelete(a)}
+                  disabled={busyId === a.id}
+                  className="text-[11px] text-slate-400 hover:text-red-600 disabled:opacity-60"
+                >
+                  {busyId === a.id ? "…" : "Удалить"}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -487,7 +596,7 @@ function AchievementForm({
 
       <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
         <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="switch" />
-        Включено
+        Активно (выключено — в архиве)
       </label>
 
       <div className="flex gap-2">
