@@ -1,5 +1,6 @@
 import '../services/google_auth.dart';
 import '../services/disk_cache.dart';
+import '../widgets/study_times_editor.dart' show StudyTime;
 import '../widgets/update_required.dart';
 import '../screens/stats_screen.dart' show UserStats;
 import '../services/session_cache.dart';
@@ -156,6 +157,9 @@ class ApiClient {
     return {
       'Content-Type': 'application/json',
       'X-App-Build': '$appBuild',
+      // Content comes in the language on screen right away, even before a
+      // just-changed interface language is saved to the profile.
+      'X-UI-Language': appLanguage.value,
       if (t != null) 'Authorization': 'Bearer $t',
     };
   }
@@ -384,6 +388,50 @@ class ApiClient {
           .toList());
   Leaderboard? cachedMyRankLeaderboard() =>
       _cached('leaderboard', (j) => Leaderboard.fromJson(j as Map<String, dynamic>));
+  List<GuyoWord>? cachedLearnedWords(int dictionaryId, {bool includeInProgress = false}) =>
+      _cached('learned-words-$dictionaryId-$includeInProgress', _parseWords);
+  List<LearnedCategory>? cachedLearnedCategories(int dictionaryId, {bool includeInProgress = false}) =>
+      _cached('learned-categories-$dictionaryId-$includeInProgress', _parseLearnedCategories);
+  List<WordLevelSummary>? cachedWordLevels() => _cached('word-levels', _parseWordLevels);
+  List<RankSummary>? cachedAllRanks() => _cached('ranks', _parseRanks);
+  StreakInfo? cachedMyStreak() => _cached('streak', _parseStreak);
+  List<StudyTime>? cachedStudyTimes() => _cached('study-times', _parseStudyTimes);
+
+  List<StudyTime> _parseStudyTimes(dynamic json) => [
+        for (final t in (json as Map<String, dynamic>)['times'] as List<dynamic>)
+          StudyTime.fromJson(t as Map<String, dynamic>),
+      ];
+
+  /// Drops what was kept for instant screens -- after a language change
+  /// it is all in the old language. Screens then load fresh once.
+  void forgetCachedContent() {
+    SessionCache.clear();
+    DiskCache.clear();
+  }
+
+  List<GuyoWord> _parseWords(dynamic json) =>
+      (json as List<dynamic>).map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
+  List<LearnedCategory> _parseLearnedCategories(dynamic json) =>
+      (json as List<dynamic>).map((e) => LearnedCategory.fromJson(e as Map<String, dynamic>)).toList();
+  List<WordLevelSummary> _parseWordLevels(dynamic json) =>
+      (json as List<dynamic>).map((e) => WordLevelSummary.fromJson(e as Map<String, dynamic>)).toList();
+  List<RankSummary> _parseRanks(dynamic json) =>
+      (json as List<dynamic>).map((e) => RankSummary.fromJson(e as Map<String, dynamic>)).toList();
+
+  StreakInfo _parseStreak(dynamic json) {
+    final map = json as Map<String, dynamic>;
+    DateTime day(String s) {
+      final d = DateTime.parse(s);
+      return DateTime(d.year, d.month, d.day);
+    }
+
+    return StreakInfo(
+      currentStreakDays: map['current_streak_days'] as int,
+      today: day(map['today'] as String),
+      activeDates: [for (final s in map['active_dates'] as List<dynamic>) day(s as String)],
+      frozenDates: [for (final s in (map['frozen_dates'] as List<dynamic>? ?? const [])) day(s as String)],
+    );
+  }
 
   Future<List<GuyoWord>> fetchWords(int dictionaryId) async {
     final res = await http.get(
@@ -509,8 +557,7 @@ class ApiClient {
     final uri = _uri('/learned-words/categories').replace(queryParameters: params);
     final res = await http.get(uri, headers: await _authHeaders());
     await _throwIfUnauthorized(res);
-    final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
-    return list.map((e) => LearnedCategory.fromJson(e as Map<String, dynamic>)).toList();
+    return _parseLearnedCategories(_remember('learned-categories-$dictionaryId-$includeInProgress', res));
   }
 
   /// "Мои фразы": every Phrase in this dictionary whose every word is
@@ -547,8 +594,10 @@ class ApiClient {
     final uri = _uri('/learned-words').replace(queryParameters: params);
     final res = await http.get(uri, headers: await _authHeaders());
     await _throwIfUnauthorized(res);
-    final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
-    return list.map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
+    final json = categoryId == null && !uncategorized
+        ? _remember('learned-words-$dictionaryId-$includeInProgress', res)
+        : jsonDecode(utf8.decode(res.bodyBytes));
+    return _parseWords(json);
   }
 
   // --- Упражнения ("Exercises") ------------------------------------------
@@ -947,6 +996,24 @@ class ApiClient {
     await _throwIfUnauthorized(res);
   }
 
+  /// The times of day the user picked to study (reminders go out at each).
+  Future<List<StudyTime>> fetchStudyTimes() async {
+    final res = await http.get(_uri('/notifications/study-times'), headers: await _authHeaders());
+    await _throwWithDetail(res);
+    return _parseStudyTimes(_remember('study-times', res));
+  }
+
+  /// Replaces the whole list; returns what the server stored.
+  Future<List<StudyTime>> saveStudyTimes(List<StudyTime> times) async {
+    final res = await http.put(
+      _uri('/notifications/study-times'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'times': [for (final t in times) t.toJson()]}),
+    );
+    await _throwWithDetail(res);
+    return _parseStudyTimes(_remember('study-times', res));
+  }
+
   Future<void> unregisterPushToken(String pushToken) async {
     final res = await http.delete(
       _uri('/notifications/push-token'),
@@ -1108,8 +1175,7 @@ class ApiClient {
   Future<List<WordLevelSummary>> fetchWordLevels() async {
     final res = await http.get(_uri('/word-levels'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
-    final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
-    return list.map((e) => WordLevelSummary.fromJson(e as Map<String, dynamic>)).toList();
+    return _parseWordLevels(_remember('word-levels', res));
   }
 
   /// What the status picker offers, plus the user's current status.
@@ -1176,8 +1242,7 @@ class ApiClient {
   Future<List<RankSummary>> fetchAllRanks() async {
     final res = await http.get(_uri('/rating/ranks'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
-    final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
-    return list.map((e) => RankSummary.fromJson(e as Map<String, dynamic>)).toList();
+    return _parseRanks(_remember('ranks', res));
   }
 
   // --- Квесты ---------------------------------------------------------------
@@ -1224,18 +1289,7 @@ class ApiClient {
     final res = await http.get(_uri('/users/me/streak'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
     if (res.statusCode != 200) throw ApiException('Не удалось загрузить серию', statusCode: res.statusCode);
-    final json = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
-    DateTime day(String s) {
-      final d = DateTime.parse(s);
-      return DateTime(d.year, d.month, d.day);
-    }
-
-    return StreakInfo(
-      currentStreakDays: json['current_streak_days'] as int,
-      today: day(json['today'] as String),
-      activeDates: [for (final s in json['active_dates'] as List<dynamic>) day(s as String)],
-      frozenDates: [for (final s in (json['frozen_dates'] as List<dynamic>? ?? const [])) day(s as String)],
-    );
+    return _parseStreak(_remember('streak', res));
   }
 
   Future<QuestRound> fetchQuestRound(int questId, int dictionaryId) async {

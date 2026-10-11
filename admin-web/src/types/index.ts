@@ -117,6 +117,7 @@ export interface Phrase {
   transcription: string | null;
   translation_tg: string;
   translation_uz: string | null;
+  translation_en: string | null;
   original_audio_url: string | null;
   translation_audio_url: string | null;
   created_at: string;
@@ -298,6 +299,8 @@ export interface Achievement {
   visibility: AchievementVisibility;
   show_before_unlock: boolean;
   order: number;
+  /** How many users have earned it. */
+  earned_count: number;
 }
 
 export interface ConditionType {
@@ -317,6 +320,9 @@ export interface RatingSettings {
   season_reset_value: number;
   /** Moving this many places within one's rank sends a notification; 0 = off. */
   rank_move_notify_threshold: number;
+  /** «Повторить сегодня»: rating points for each right answer on a word being forgotten. */
+  review_points_enabled: boolean;
+  review_points_per_correct: number;
 }
 
 export interface Rank {
@@ -627,7 +633,7 @@ export interface Retention extends RetentionGroup {
   sources: RetentionSource[];
 }
 
-export type ReminderKind = "inactivity" | "streak_risk" | "streak_milestone";
+export type ReminderKind = "inactivity" | "streak_risk" | "streak_milestone" | "study_time" | "study_followup";
 
 export interface ReminderRuleInput {
   kind: ReminderKind;
@@ -644,6 +650,8 @@ export interface ReminderRule extends ReminderRuleInput {
 export interface ReminderSettings {
   streak_risk_hour: number;
   default_hour: number;
+  /** How long after the user's last study time of the day the follow-up goes out. */
+  study_followup_minutes: number;
 }
 
 export interface Reminders {

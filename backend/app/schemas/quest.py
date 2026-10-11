@@ -78,7 +78,7 @@ class PointsTodayItemOut(BaseModel):
     """One grant in today's points history: a newly learned word, or a word
     a quest consumed. Only today's are ever listed."""
 
-    kind: Literal["word", "quest"]
+    kind: Literal["word", "quest", "review"]
     # The quest's name for kind="quest"; null for a learned word.
     title: str | None = None
     word: str | None = None

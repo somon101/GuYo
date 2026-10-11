@@ -1,8 +1,10 @@
 """Admin Web's «ИИ-перевод» section: the DeepSeek key (never sent back in
-full) and the run that fills missing Uzbek translations
+full) and the run that fills missing Uzbek or English translations
 (app/translation/deepseek.py)."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Literal
+
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -17,6 +19,10 @@ class KeyIn(BaseModel):
     api_key: str
 
 
+class StartIn(BaseModel):
+    language: Literal["uz", "en"] = "uz"
+
+
 def _state(db: Session) -> dict:
     row = deepseek.settings_row(db)
     key = row.deepseek_api_key
@@ -28,8 +34,12 @@ def _state(db: Session) -> dict:
         "done": row.translate_done,
         "failed": row.translate_failed,
         "error": row.translate_error,
-        "missing_words": len(deepseek.missing_words(db)),
-        "missing_phrases": len(deepseek.missing_phrases(db)),
+        "language": row.translate_language,
+        # Per language, so the page can show what each run would fill.
+        "missing": {
+            lang: {"words": len(deepseek.missing_words(db, lang)), "phrases": len(deepseek.missing_phrases(db, lang))}
+            for lang in deepseek.LANGUAGES
+        },
     }
 
 
@@ -46,10 +56,12 @@ def set_key(payload: KeyIn, db: Session = Depends(get_db), _admin=Depends(get_cu
 
 
 @router.post("/start")
-def start_translation(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+def start_translation(
+    payload: StartIn | None = None, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
+):
     if not deepseek.settings_row(db).deepseek_api_key:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Сначала сохраните ключ DeepSeek")
-    if not deepseek.start(db):
+    if not deepseek.start(db, payload.language if payload else "uz"):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Перевод уже идёт")
     return _state(db)
 

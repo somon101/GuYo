@@ -104,6 +104,7 @@ def phrase_to_out(phrase: Phrase) -> PhraseOut:
         transcription=phrase.transcription,
         translation_tg=phrase.translation_tg,
         translation_uz=phrase.translation_uz,
+        translation_en=phrase.translation_en,
         translation=phrase_translation(phrase),
         original_audio_url=url_for_key(phrase.original_audio_key),
         translation_audio_url=url_for_key(phrase.translation_audio_key),
@@ -244,6 +245,7 @@ def update_phrase(
     remove_transcription: bool = Form(False),
     translation_tg: str | None = Form(None),
     translation_uz: str | None = Form(None),
+    translation_en: str | None = Form(None),
     category_id: int | None = Form(None),
     remove_category: bool = Form(False),
     original_audio: UploadFile | None = File(None),
@@ -268,6 +270,8 @@ def update_phrase(
     # Sent empty, the Uzbek translation is cleared (it is optional).
     if translation_uz is not None:
         db_phrase.translation_uz = translation_uz.strip() or None
+    if translation_en is not None:
+        db_phrase.translation_en = translation_en.strip() or None
 
     if remove_transcription:
         db_phrase.transcription = None

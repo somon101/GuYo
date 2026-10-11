@@ -55,7 +55,7 @@ class PushTokenIn(BaseModel):
     token: str = Field(min_length=10, max_length=512)
 
 
-ReminderKind = Literal["inactivity", "streak_risk", "streak_milestone"]
+ReminderKind = Literal["inactivity", "streak_risk", "streak_milestone", "study_time", "study_followup"]
 
 
 class ReminderRuleIn(BaseModel):
@@ -73,8 +73,27 @@ class ReminderRuleOut(ReminderRuleIn):
 class ReminderSettingsIn(BaseModel):
     streak_risk_hour: int = Field(ge=0, le=23)
     default_hour: int = Field(ge=0, le=23)
+    study_followup_minutes: int = Field(default=120, ge=15, le=720)
 
 
 class RemindersOut(BaseModel):
     settings: ReminderSettingsIn
     rules: list[ReminderRuleOut]
+
+
+MAX_STUDY_TIMES = 5
+
+
+class StudyTimeItem(BaseModel):
+    """A time the user picked to study: minutes since midnight, Dushanbe."""
+
+    minute_of_day: int = Field(ge=0, lt=1440)
+    enabled: bool = True
+
+
+class StudyTimesIn(BaseModel):
+    times: list[StudyTimeItem] = Field(max_length=MAX_STUDY_TIMES)
+
+
+class StudyTimesOut(BaseModel):
+    times: list[StudyTimeItem]

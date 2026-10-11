@@ -1,4 +1,5 @@
 import '../l10n/l10n.dart';
+import '../widgets/guyo_ui.dart';
 import 'package:flutter/material.dart';
 import '../models/user_profile.dart';
 import '../theme/app_colors.dart';
@@ -69,11 +70,10 @@ class AchievementsScreen extends StatelessWidget {
       ),
       body: SafeArea(
         child: achievements.isEmpty
-            ? Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text(tr('Пока нет доступных достижений'), style: TextStyle(color: AppColors.secondaryText)),
-                ),
+            ? GuyoEmptyState(
+                icon: Icons.emoji_events_outlined,
+                title: tr('Пока нет доступных достижений'),
+                message: tr('Скоро здесь появятся награды за ваши успехи.'),
               )
             : CustomScrollView(
                 slivers: [

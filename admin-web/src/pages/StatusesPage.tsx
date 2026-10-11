@@ -420,13 +420,13 @@ function PhraseForm({
 
   return (
     <form onSubmit={handleSubmit} className="card mb-4 p-4">
-      <label className="mb-1 block text-sm font-medium text-slate-700">Фраза (до 60 символов)</label>
+      <label className="mb-1 block text-sm font-medium text-slate-700">Фраза (до 20 символов)</label>
       <input
         className="w-full field px-3 py-2 text-sm"
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Я буду первым!"
-        maxLength={60}
+        maxLength={20}
         autoFocus
       />
       <label className="mt-3 flex items-center gap-2 text-sm font-medium text-slate-700">

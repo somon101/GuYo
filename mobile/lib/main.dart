@@ -21,6 +21,9 @@ Future<void> main() async {
   ErrorReporter.install();
   // Portrait only: the app's screens are laid out for a phone held upright.
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  // Content runs under the system bars, like Telegram: no grey strip behind
+  // Android's navigation buttons (see _systemBarsStyle).
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   await PushService.instance.init();
   await loadAppLanguage();
   await loadAppTheme();
@@ -69,10 +72,28 @@ class _GuyoAppState extends State<GuyoApp> with WidgetsBindingObserver {
         navigatorKey: appNavigatorKey,
         debugShowCheckedModeBanner: false,
         theme: buildAppTheme(),
+        builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(value: _systemBarsStyle(), child: child!),
         home: const _StartupGate(),
       ),
     );
   }
+}
+
+/// Transparent status and navigation bars, with their icons light on the
+/// dark theme and dark on the light one. Contrast enforcement off: that is
+/// what made Android paint its own grey scrim behind the buttons.
+SystemUiOverlayStyle _systemBarsStyle() {
+  final iconBrightness = AppColors.dark ? Brightness.light : Brightness.dark;
+  return SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: iconBrightness,
+    statusBarBrightness: AppColors.dark ? Brightness.dark : Brightness.light,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarDividerColor: Colors.transparent,
+    systemNavigationBarIconBrightness: iconBrightness,
+    systemNavigationBarContrastEnforced: false,
+    systemStatusBarContrastEnforced: false,
+  );
 }
 
 /// Decides whether to show the login screen or jump straight to the home

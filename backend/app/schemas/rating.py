@@ -11,6 +11,8 @@ class RatingSettingsOut(BaseModel):
     season_reset_mode: str
     season_reset_value: int
     rank_move_notify_threshold: int
+    review_points_enabled: bool
+    review_points_per_correct: int
 
 
 class RatingSettingsIn(BaseModel):
@@ -19,6 +21,8 @@ class RatingSettingsIn(BaseModel):
     season_reset_value: int = Field(ge=0)
     # Optional so a form that doesn't know about it leaves it alone.
     rank_move_notify_threshold: int | None = Field(default=None, ge=0, le=1000)
+    review_points_enabled: bool | None = None
+    review_points_per_correct: int | None = Field(default=None, ge=0, le=1000)
 
     @field_validator("season_reset_mode")
     @classmethod

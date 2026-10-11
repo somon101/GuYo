@@ -40,19 +40,28 @@ class _StreakSheetState extends State<_StreakSheet> {
   @override
   void initState() {
     super.initState();
+    // The week appears at once from the last answer kept on the device.
+    final cached = ApiClient.instance.cachedMyStreak();
+    if (cached != null) {
+      _apply(cached);
+      // The card's own number is fresher than a saved answer.
+      _streak = widget.initialStreak;
+    }
     _load();
+  }
+
+  void _apply(StreakInfo data) {
+    _streak = data.currentStreakDays;
+    _today = data.today;
+    _active = data.activeDates.toSet();
+    _frozen = data.frozenDates.toSet();
   }
 
   Future<void> _load() async {
     try {
       final data = await ApiClient.instance.fetchMyStreak();
       if (!mounted) return;
-      setState(() {
-        _streak = data.currentStreakDays;
-        _today = data.today;
-        _active = data.activeDates.toSet();
-        _frozen = data.frozenDates.toSet();
-      });
+      setState(() => _apply(data));
     } catch (_) {
       // The number on the card is already right; the week just stays empty.
     }

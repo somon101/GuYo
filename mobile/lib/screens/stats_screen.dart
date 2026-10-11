@@ -356,7 +356,7 @@ class _DialPainter extends CustomPainter {
       final paint = Paint()
         ..strokeWidth = 8
         ..strokeCap = StrokeCap.round
-        ..color = i < lit ? Color.lerp(const Color(0xFF7FA8FF), _blue, i / segments)! : const Color(0xFFE3E7F2);
+        ..color = i < lit ? Color.lerp(const Color(0xFF7FA8FF), _blue, i / segments)! : AppColors.progressTrack;
       canvas.drawLine(
         c + Offset(math.cos(a), math.sin(a)) * inner,
         c + Offset(math.cos(a), math.sin(a)) * outer,

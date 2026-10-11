@@ -1,4 +1,5 @@
 import '../l10n/l10n.dart';
+import '../widgets/guyo_ui.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
@@ -265,18 +266,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (selected == null) {
       // No published content at all -- a clean, explicit state, not an
       // error and not a guess at what might be there.
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(tr('Пока нет доступных словарей'), textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              OutlinedButton(onPressed: _loadDictionaries, child: Text(tr('Проверить снова'))),
-            ],
-          ),
-        ),
+      return GuyoEmptyState(
+        icon: Icons.translate_rounded,
+        title: tr('Пока нет доступных словарей'),
+        message: tr('Скоро здесь появятся языки для изучения.'),
+        actionLabel: tr('Проверить снова'),
+        onAction: _loadDictionaries,
       );
     }
     _selectedDictionary = selected;

@@ -109,22 +109,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (_items.isEmpty) {
       return ListView(
         children: [
-          SizedBox(height: 80),
-          Icon(Icons.notifications_none_rounded, size: 56, color: AppColors.muted),
-          SizedBox(height: 12),
-          Text(
-            tr('Пока нет уведомлений'),
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
-          ),
-          SizedBox(height: 4),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 40),
-            child: Text(
-              tr('Здесь появятся сообщения от GuYo'),
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
-            ),
+          const SizedBox(height: 70),
+          GuyoEmptyState(
+            icon: Icons.notifications_none_rounded,
+            title: tr('Пока нет уведомлений'),
+            message: tr('Здесь появятся сообщения от GuYo'),
           ),
         ],
       );

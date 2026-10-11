@@ -1,4 +1,5 @@
 import '../l10n/l10n.dart';
+import '../widgets/guyo_ui.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
@@ -73,12 +74,11 @@ class _MyPhrasesScreenState extends State<MyPhrasesScreen> {
             if (phrases.isEmpty) {
               return ListView(
                 children: [
-                  Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text(
-                      tr('Пока нет доступных фраз.\nФраза появится здесь, как только вы изучите все слова в ней.'),
-                      textAlign: TextAlign.center,
-                    ),
+                  const SizedBox(height: 70),
+                  GuyoEmptyState(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    title: tr('Пока нет доступных фраз'),
+                    message: tr('Фраза появится здесь, как только вы изучите все слова в ней.'),
                   ),
                 ],
               );

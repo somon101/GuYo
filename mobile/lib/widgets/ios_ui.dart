@@ -28,7 +28,7 @@ class IosSegmented<T extends Object> extends StatelessWidget {
       child: CupertinoSlidingSegmentedControl<T>(
         groupValue: value,
         backgroundColor: AppColors.progressTrack,
-        thumbColor: Colors.white,
+        thumbColor: AppColors.segmentThumb,
         padding: const EdgeInsets.all(3),
         onValueChanged: (v) {
           if (v == null) return;

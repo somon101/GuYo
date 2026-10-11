@@ -86,7 +86,15 @@ class PushToken(Base):
 REMINDER_INACTIVITY = "inactivity"  # sent after exactly `days` whole days without opening the app
 REMINDER_STREAK_RISK = "streak_risk"  # evening warning; `days` = the shortest streak worth warning about
 REMINDER_STREAK_MILESTONE = "streak_milestone"  # congratulation on the day the streak reaches `days`
-REMINDER_KINDS = (REMINDER_INACTIVITY, REMINDER_STREAK_RISK, REMINDER_STREAK_MILESTONE)
+REMINDER_STUDY_TIME = "study_time"  # at each time the user picked to study; `days` unused (1)
+REMINDER_STUDY_FOLLOWUP = "study_followup"  # if nothing was answered after the day's last study time; `days` unused (1)
+REMINDER_KINDS = (
+    REMINDER_INACTIVITY,
+    REMINDER_STREAK_RISK,
+    REMINDER_STREAK_MILESTONE,
+    REMINDER_STUDY_TIME,
+    REMINDER_STUDY_FOLLOWUP,
+)
 
 
 class ReminderRule(Base):
@@ -122,6 +130,26 @@ class ReminderSettings(Base):
     # Inactivity reminders go out at the hour the user usually studies; this
     # is the fallback for someone with no answers in the last 30 days.
     default_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=18, server_default="18")
+    # How long after the day's last study time the follow-up goes out when
+    # the user has answered nothing since.
+    study_followup_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=120, server_default="120")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class UserStudyTime(Base):
+    """A time of day the user chose to study (registration or settings);
+    a study_time reminder goes out at each enabled one. Minutes since
+    midnight, Asia/Dushanbe."""
+
+    __tablename__ = "user_study_times"
+    __table_args__ = (
+        UniqueConstraint("user_id", "minute_of_day", name="uq_user_study_time"),
+        CheckConstraint("minute_of_day >= 0 AND minute_of_day < 1440", name="ck_user_study_time_minute"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    minute_of_day: Mapped[int] = mapped_column(Integer, nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")

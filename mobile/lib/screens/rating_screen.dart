@@ -1,5 +1,6 @@
 import '../l10n/l10n.dart';
 import 'add_friend_sheet.dart';
+import '../widgets/guyo_ui.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../services/session_cache.dart';
@@ -154,19 +155,11 @@ class _RatingScreenState extends State<RatingScreen> {
         ),
         if (rank == null)
           Padding(
-            padding: const EdgeInsets.only(top: 24),
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(AppShapes.cardRadius),
-                border: Border.all(color: AppColors.cardBorder),
-              ),
-              child: Text(
-                tr('Пока нет ранга — начните учить слова, чтобы попасть в рейтинг'),
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.secondaryText),
-              ),
+            padding: const EdgeInsets.only(top: 12),
+            child: GuyoEmptyState(
+              icon: Icons.leaderboard_rounded,
+              title: tr('Пока нет ранга'),
+              message: tr('Начните учить слова, чтобы попасть в рейтинг.'),
             ),
           )
         else ...[
@@ -372,6 +365,12 @@ class _PodiumPlace extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // The status phrase, always visible above the person like an
+          // Instagram note.
+          if (person.statusText != null) ...[
+            StatusNote(text: person.statusText!, maxWidth: avatarSize + 40),
+            const SizedBox(height: 2),
+          ],
           // Only first place is crowned; the others reserve no space at
           // all, which is what lifts the winner above them.
           SizedBox(height: isFirst ? 26 : 0, child: isFirst ? const _Crown(size: 26) : null),
@@ -474,7 +473,7 @@ class _PodiumPlace extends StatelessWidget {
     if (person.isMe && onEditMyStatus != null) {
       return GestureDetector(behavior: HitTestBehavior.opaque, onTap: onEditMyStatus, child: card);
     }
-    return StatusBubble(emojiUrl: person.statusEmojiUrl, text: person.statusText, child: card);
+    return card;
   }
 }
 
@@ -605,8 +604,7 @@ class LeaderboardRow extends StatelessWidget {
   final Color accentColor;
   final bool showRank;
 
-  /// Tapping your own row opens the status picker; tapping anyone else's
-  /// shows their status.
+  /// Tapping your own row opens the status picker.
   final VoidCallback? onEditMyStatus;
 
   const LeaderboardRow({
@@ -651,25 +649,31 @@ class LeaderboardRow extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: UserNameText(
-                        entry.login,
-                        isPremium: entry.isPremium,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: entry.isMe ? FontWeight.w800 : FontWeight.w600,
-                          color: AppColors.primaryDark,
-                        ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  UserNameText(
+                    entry.login,
+                    isPremium: entry.isPremium,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: entry.isMe ? FontWeight.w800 : FontWeight.w600,
+                      color: AppColors.primaryDark,
+                    ),
+                  ),
+                  // The status phrase, always visible: one quiet line.
+                  if (entry.statusText != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 1),
+                      child: Text(
+                        entry.statusText!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
                       ),
                     ),
-                    if (entry.statusText != null) const StatusPhraseHint(),
-                  ],
-                ),
+                ],
               ),
             ),
             if ((entry.positionChange ?? 0) != 0) ...[
@@ -691,7 +695,7 @@ class LeaderboardRow extends StatelessWidget {
     if (entry.isMe && onEditMyStatus != null) {
       return GestureDetector(behavior: HitTestBehavior.opaque, onTap: onEditMyStatus, child: row);
     }
-    return StatusBubble(emojiUrl: entry.statusEmojiUrl, text: entry.statusText, child: row);
+    return row;
   }
 }
 

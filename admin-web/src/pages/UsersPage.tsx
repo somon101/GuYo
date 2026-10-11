@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { isAxiosError } from "axios";
-import { createUser, listUsers } from "../api/endpoints";
+import { createUser, deleteUser, listUsers } from "../api/endpoints";
 import type { AdminUser } from "../types";
 
 function formatDate(iso: string): string {
@@ -31,6 +31,30 @@ export function UsersPage() {
   useEffect(() => {
     reload();
   }, []);
+
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  // Irreversible (progress, rating, purchases go with it), so the admin
+  // types the login to confirm instead of clicking through a yes/no.
+  async function handleDelete(user: AdminUser) {
+    const typed = window.prompt(
+      `Удалить пользователя «${user.login}» навсегда?\nВместе с ним удалятся весь прогресс, рейтинг, друзья и уведомления. Отменить нельзя.\n\nЧтобы подтвердить, введите его логин:`,
+    );
+    if (typed === null) return;
+    if (typed.trim() !== user.login) {
+      window.alert("Логин не совпал — пользователь не удалён.");
+      return;
+    }
+    setDeletingId(user.id);
+    try {
+      await deleteUser(user.id);
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+    } catch {
+      window.alert("Не удалось удалить пользователя");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -70,6 +94,7 @@ export function UsersPage() {
                 <th className="px-4 py-3 font-medium">Имя</th>
                 <th className="px-4 py-3 font-medium">Почта</th>
                 <th className="px-4 py-3 font-medium">Дата создания</th>
+                <th className="px-4 py-3" aria-label="Действия" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -83,6 +108,16 @@ export function UsersPage() {
                   </td>
                   <td className="px-4 py-3 text-slate-500" translate="no">{u.email ?? "—"}</td>
                   <td className="px-4 py-3 text-slate-500">{formatDate(u.created_at)}</td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(u)}
+                      disabled={deletingId === u.id}
+                      className="rounded-md px-2.5 py-1 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
+                    >
+                      {deletingId === u.id ? "Удаление…" : "Удалить"}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

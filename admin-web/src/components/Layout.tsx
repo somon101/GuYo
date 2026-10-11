@@ -11,6 +11,7 @@ const navItems = [
   { to: "/exercises", label: "Упражнения" },
   { to: "/achievements", label: "Достижения" },
   { to: "/rating", label: "Рейтинг" },
+  { to: "/review", label: "Повтори слово" },
   { to: "/statuses", label: "Статусы" },
   { to: "/quests", label: "Квесты" },
   { to: "/slogans", label: "Слоганы" },

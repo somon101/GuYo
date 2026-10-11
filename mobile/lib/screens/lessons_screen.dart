@@ -284,8 +284,8 @@ class _LessonCard extends StatelessWidget {
         badgeColor = AppColors.primary;
         tint = AppColors.primary;
       case _LessonCardState.unlocked:
-        badgeColor = Colors.grey.shade400;
-        tint = Colors.grey.shade500;
+        badgeColor = AppColors.muted;
+        tint = AppColors.secondaryText;
     }
 
     return Padding(

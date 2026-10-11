@@ -31,25 +31,19 @@ Widget _host(Widget child) => MaterialApp(home: Scaffold(body: Center(child: Siz
 void main() {
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
 
-  testWidgets('a status shows as a badge on the avatar and its phrase on tap', (tester) async {
+  testWidgets('a status shows as a badge on the avatar and its phrase always under the name', (tester) async {
     await tester.pumpWidget(_host(LeaderboardRow(
       entry: _entry(emoji: '/media/status/emojis/fire.png', text: 'Я буду первым!'),
       accentColor: Colors.blue,
     )));
     expect(find.byType(StatusEmojiBadge), findsOneWidget);
-    expect(find.byType(StatusPhraseHint), findsOneWidget);
-    expect(find.text('Я буду первым!'), findsNothing, reason: 'compact: only the badge until tapped');
-
-    await tester.tap(find.text('firdavs'));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Я буду первым!'), findsOneWidget);
-    await tester.pump(const Duration(seconds: 4));
+    expect(find.text('Я буду первым!'), findsOneWidget, reason: 'visible without tapping, like an Instagram note');
   });
 
-  testWidgets('no status: no badge, nothing on tap', (tester) async {
+  testWidgets('no status: no badge, no phrase', (tester) async {
     await tester.pumpWidget(_host(LeaderboardRow(entry: _entry(), accentColor: Colors.blue)));
     expect(find.byType(StatusEmojiBadge), findsNothing);
-    expect(find.byType(StatusPhraseHint), findsNothing);
+    expect(find.text('Я буду первым!'), findsNothing);
   });
 
   testWidgets('your own row opens the picker', (tester) async {

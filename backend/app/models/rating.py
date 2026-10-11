@@ -59,6 +59,10 @@ class RatingSettings(Base):
     rank_move_notify_threshold: Mapped[int] = mapped_column(
         Integer, nullable=False, default=5, server_default="5"
     )
+    # "Повторить сегодня": rating points for each right answer on a word the
+    # memory model says was being forgotten. Off by default.
+    review_points_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    review_points_per_correct: Mapped[int] = mapped_column(Integer, nullable=False, default=5, server_default="5")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -243,3 +247,19 @@ class UserRankPosition(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class UserReviewPoints(Base):
+    """One rating grant for a right answer in "Повторить сегодня". A word
+    only qualifies while it is due for review, and a right answer makes it
+    no longer due, so a word earns this at most once per forgetting cycle.
+    `points_awarded` is a snapshot of the setting at that moment. Read by
+    "очков сегодня" next to the learned-word and quest ledgers."""
+
+    __tablename__ = "user_review_points"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    word_id: Mapped[int] = mapped_column(ForeignKey("words.id", ondelete="CASCADE"), nullable=False, index=True)
+    points_awarded: Mapped[int] = mapped_column(Integer, nullable=False)
+    awarded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())

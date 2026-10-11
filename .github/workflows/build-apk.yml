@@ -9,12 +9,9 @@ name: Build Android APK
 #   (~/.android/debug.keystore) as base64. The app is signed with it, so
 #   its SHA-1 -- the one registered for Google sign-in -- stays the same.
 #   Without it a fresh key is used and "Войти через Google" won't work.
+# Manual only (Actions -> Build Android APK -> Run workflow): APKs are
+# normally built locally.
 on:
-  push:
-    branches: [claude/kind-ramanujan-8hw2as, main]
-    paths:
-      - "mobile/**"
-      - ".github/workflows/build-apk.yml"
   workflow_dispatch:
 
 permissions:

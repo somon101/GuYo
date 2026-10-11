@@ -6,7 +6,13 @@ import {
   startTranslation,
   stopTranslation,
   type TranslationState,
+  type TranslatorLanguage,
 } from "../api/endpoints";
+
+const LANGUAGES: { code: TranslatorLanguage; label: string; genitive: string }[] = [
+  { code: "uz", label: "Узбекский", genitive: "узбекского" },
+  { code: "en", label: "Английский", genitive: "английского" },
+];
 
 const STATUS_LABELS: Record<TranslationState["status"], string> = {
   idle: "Ещё не запускался",
@@ -21,7 +27,7 @@ function errorText(e: unknown): string {
   return "Не удалось выполнить запрос";
 }
 
-/** «ИИ-перевод»: DeepSeek fills every missing Uzbek translation of words
+/** «ИИ-перевод»: DeepSeek fills every missing Uzbek or English translation of words
  * and phrases (backend app/translation/deepseek.py). Results go live at
  * once and stay editable on the word and phrase pages. */
 export function TranslationPage() {
@@ -29,9 +35,15 @@ export function TranslationPage() {
   const [key, setKey] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [language, setLanguage] = useState<TranslatorLanguage>("uz");
 
   useEffect(() => {
-    getTranslationState().then(setState).catch((e) => setError(errorText(e)));
+    getTranslationState()
+      .then((s) => {
+        setState(s);
+        setLanguage(s.language);
+      })
+      .catch((e) => setError(errorText(e)));
   }, []);
 
   const running = state?.status === "running";
@@ -64,14 +76,18 @@ export function TranslationPage() {
   if (!state) return <p className="text-sm text-slate-500">{error ?? "Загрузка…"}</p>;
 
   const percent = state.total ? Math.round((state.done / state.total) * 100) : 0;
-  const missing = state.missing_words + state.missing_phrases;
+  const counts = state.missing[language];
+  const missing = counts.words + counts.phrases;
+  const current = LANGUAGES.find((l) => l.code === language)!;
+  // Progress belongs to the language the run was started for.
+  const runLanguage = LANGUAGES.find((l) => l.code === state.language)!;
 
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-xl font-semibold">ИИ-перевод на узбекский</h1>
+        <h1 className="text-xl font-semibold">ИИ-перевод</h1>
         <p className="text-sm text-slate-500 mt-1">
-          DeepSeek переводит все слова и фразы без узбекского перевода, опираясь на русский оригинал и
+          DeepSeek переводит все слова и фразы, у которых нет перевода на выбранный язык, опираясь на русский оригинал и
           таджикский перевод. Переводы сразу видны пользователям; исправить любой можно на странице слова
           или фразы. Аудио не создаётся.
         </p>
@@ -101,11 +117,30 @@ export function TranslationPage() {
 
       <section className="card p-4 space-y-3">
         <h2 className="font-medium">Перевод</h2>
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Язык перевода">
+          {LANGUAGES.map((l) => (
+            <button
+              key={l.code}
+              type="button"
+              role="radio"
+              aria-checked={language === l.code}
+              disabled={running}
+              onClick={() => setLanguage(l.code)}
+              className={
+                language === l.code
+                  ? "rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white"
+                  : "btn-tinted rounded-md px-3 py-1.5 text-sm font-medium disabled:opacity-60"
+              }
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
         <p className="text-sm">
-          Без узбекского перевода: <b>{state.missing_words}</b> слов и <b>{state.missing_phrases}</b> фраз
+          Без {current.genitive} перевода: <b>{counts.words}</b> слов и <b>{counts.phrases}</b> фраз
         </p>
         <p className="text-sm">
-          Статус: <b>{STATUS_LABELS[state.status]}</b>
+          Статус{state.status !== "idle" && <> ({runLanguage.label.toLowerCase()})</>}: <b>{STATUS_LABELS[state.status]}</b>
           {state.total > 0 && (
             <>
               {" "}— {state.done} из {state.total} ({percent}%), не удалось: {state.failed}
@@ -127,7 +162,7 @@ export function TranslationPage() {
             <button
               className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
               disabled={busy || !state.key_set || missing === 0}
-              onClick={() => act(startTranslation)}
+              onClick={() => act(() => startTranslation(language))}
             >
               {missing === 0 ? "Всё переведено" : `Перевести ${missing}`}
             </button>

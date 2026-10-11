@@ -10,8 +10,11 @@ const GROUPS: {
   help: string;
   daysLabel: string;
   newDays: number;
-  hourSetting?: keyof ReminderSettings;
+  hourSetting?: "streak_risk_hour" | "default_hour";
   hourLabel?: string;
+  /** No «days» number: the reminder is tied to the user's own study times. */
+  noDays?: boolean;
+  followupSetting?: boolean;
 }[] = [
   {
     kind: "inactivity",
@@ -38,7 +41,31 @@ const GROUPS: {
     daysLabel: "День серии",
     newDays: 50,
   },
+  {
+    kind: "study_time",
+    title: "Время занятий",
+    help: "Приходит в каждое время, которое человек сам выбрал для занятий (при регистрации или в настройках приложения).",
+    daysLabel: "",
+    newDays: 1,
+    noDays: true,
+  },
+  {
+    kind: "study_followup",
+    title: "Если не зашёл после напоминания",
+    help: "Одно повторное напоминание после последнего выбранного времени дня, если человек с того момента ничего не ответил. Ночью (с 23:00) не отправляется.",
+    daysLabel: "",
+    newDays: 1,
+    noDays: true,
+    followupSetting: true,
+  },
 ];
+
+const FOLLOWUP_MINUTES = [30, 60, 90, 120, 180, 240];
+
+function minutesLabel(m: number): string {
+  if (m < 60) return `${m} мин`;
+  return m % 60 === 0 ? `${m / 60} ч` : `${Math.floor(m / 60)} ч ${m % 60} мин`;
+}
 
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 
@@ -69,11 +96,12 @@ export function RemindersSection() {
   async function changeHour(key: keyof ReminderSettings, hour: number) {
     if (!settings) return;
     const next = { ...settings, [key]: hour };
+    const saved = key === "study_followup_minutes" ? "Задержка сохранена" : "Время сохранено";
     setSettings(next);
     setSettingsStatus(null);
     try {
       await updateReminderSettings(next);
-      setSettingsStatus("Время сохранено");
+      setSettingsStatus(saved);
     } catch (err) {
       setSettingsStatus(errorText(err, "Не удалось сохранить время"));
     }
@@ -124,12 +152,31 @@ export function RemindersSection() {
                 </label>
               )}
 
+              {group.followupSetting && (
+                <label className="mb-4 flex flex-wrap items-center gap-2 text-sm text-slate-700">
+                  Отправлять через
+                  <select
+                    className="field px-2 py-1 text-sm"
+                    value={settings.study_followup_minutes}
+                    onChange={(e) => changeHour("study_followup_minutes", Number(e.target.value))}
+                  >
+                    {FOLLOWUP_MINUTES.map((m) => (
+                      <option key={m} value={m}>
+                        {minutesLabel(m)}
+                      </option>
+                    ))}
+                  </select>
+                  после последнего времени занятий
+                </label>
+              )}
+
               <div className="flex flex-col divide-y divide-[var(--separator)]">
                 {groupRules.map((rule) => (
                   <RuleRow
                     key={rule.id}
                     kind={group.kind}
                     daysLabel={group.daysLabel}
+                    noDays={group.noDays}
                     rule={rule}
                     onSaved={(saved) => setRules((prev) => prev.map((r) => (r.id === saved.id ? saved : r)))}
                     onDeleted={() => setRules((prev) => prev.filter((r) => r.id !== rule.id))}
@@ -140,6 +187,7 @@ export function RemindersSection() {
                     key={`draft-${draft.key}`}
                     kind={group.kind}
                     daysLabel={group.daysLabel}
+                    noDays={group.noDays}
                     initialDays={group.newDays}
                     onSaved={(saved) => {
                       setRules((prev) => [...prev, saved]);
@@ -171,6 +219,7 @@ export function RemindersSection() {
 function RuleRow({
   kind,
   daysLabel,
+  noDays = false,
   rule,
   initialDays = 1,
   onSaved,
@@ -178,6 +227,7 @@ function RuleRow({
 }: {
   kind: ReminderKind;
   daysLabel: string;
+  noDays?: boolean;
   rule?: ReminderRule;
   initialDays?: number;
   onSaved: (rule: ReminderRule) => void;
@@ -236,8 +286,8 @@ function RuleRow({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-3 py-3 first:pt-0 sm:grid-cols-[110px_1fr]">
-      <div>
+    <div className={`grid grid-cols-1 gap-3 py-3 first:pt-0 ${noDays ? "" : "sm:grid-cols-[110px_1fr]"}`}>
+      <div className={noDays ? "hidden" : ""}>
         <label className="mb-1 block text-xs text-slate-500">{daysLabel}</label>
         <input
           type="number"

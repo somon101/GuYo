@@ -21,12 +21,12 @@ class StatusPhraseOut(BaseModel):
 
 
 class StatusPhraseCreateIn(BaseModel):
-    text: str = Field(min_length=1, max_length=60)
+    text: str = Field(min_length=1, max_length=20)
     enabled: bool = True
 
 
 class StatusPhraseUpdateIn(BaseModel):
-    text: str | None = Field(default=None, min_length=1, max_length=60)
+    text: str | None = Field(default=None, min_length=1, max_length=20)
     enabled: bool | None = None
 
 

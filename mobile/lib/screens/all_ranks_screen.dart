@@ -31,14 +31,23 @@ class _AllRanksScreenState extends State<AllRanksScreen> {
   @override
   void initState() {
     super.initState();
+    final cached = ApiClient.instance.cachedAllRanks();
+    if (cached != null) {
+      _ranks = cached;
+      _isLoading = false;
+    }
     _load();
   }
 
   Future<void> _load() async {
-    setState(() {
-      _isLoading = true;
-      _loadError = null;
-    });
+    // With the ladder already on screen the refresh stays invisible.
+    final quiet = !_isLoading && _loadError == null;
+    if (!quiet) {
+      setState(() {
+        _isLoading = true;
+        _loadError = null;
+      });
+    }
     try {
       final ranks = await ApiClient.instance.fetchAllRanks();
       if (!mounted) return;
@@ -47,7 +56,7 @@ class _AllRanksScreenState extends State<AllRanksScreen> {
         _isLoading = false;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || quiet) return;
       setState(() {
         _isLoading = false;
         _loadError = tr('Не удалось загрузить уровни');

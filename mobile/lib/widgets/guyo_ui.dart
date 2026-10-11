@@ -267,3 +267,104 @@ class SectionHeader extends StatelessWidget {
     );
   }
 }
+
+/// The one "nothing here yet" view every screen uses: a soft glowing icon,
+/// a short bold line, one calm sentence on what unlocks it, and -- when
+/// there is something to do about it -- a single pill button. Fades and
+/// rises in gently, readable on both themes. Never a bare icon and grey
+/// text again.
+class GuyoEmptyState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  const GuyoEmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.message,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = AppColors.primary;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: 1),
+          duration: const Duration(milliseconds: 420),
+          curve: Curves.easeOutCubic,
+          builder: (context, t, child) => Opacity(
+            opacity: t,
+            child: Transform.translate(offset: Offset(0, 12 * (1 - t)), child: child),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 320),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [primary.withValues(alpha: 0.20), primary.withValues(alpha: 0.0)],
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Container(
+                    width: 62,
+                    height: 62,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.surface,
+                      border: Border.all(color: primary.withValues(alpha: 0.18)),
+                      boxShadow: [
+                        BoxShadow(color: primary.withValues(alpha: 0.18), blurRadius: 18, offset: const Offset(0, 6)),
+                      ],
+                    ),
+                    child: Icon(icon, size: 28, color: primary),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryDark, height: 1.25),
+                ),
+                if (message != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    message!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: AppColors.secondaryText, height: 1.4),
+                  ),
+                ],
+                if (actionLabel != null && onAction != null) ...[
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: onAction,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 13),
+                      shape: const StadiumBorder(),
+                      textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                    ),
+                    child: Text(actionLabel!),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

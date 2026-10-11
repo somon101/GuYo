@@ -21,6 +21,8 @@ class AchievementOut(BaseModel):
     visibility: str
     show_before_unlock: bool
     order: int
+    # How many users have earned it -- what deleting it would take away.
+    earned_count: int = 0
 
 
 class UserAchievementOut(BaseModel):

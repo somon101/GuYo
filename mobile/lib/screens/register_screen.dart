@@ -1,4 +1,5 @@
 import '../services/google_auth.dart';
+import '../widgets/study_times_editor.dart';
 import '../widgets/google_logo.dart';
 import '../l10n/l10n.dart';
 
@@ -59,6 +60,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     'account',
     'age',
     'goal',
+    'studyTime',
     'referral',
   ];
 
@@ -90,6 +92,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _ageGroup;
   final List<String> _learningGoals = [];
   String? _referralSource;
+
+  // --- Study times (optional; reminders go out at each) ---------------------
+  List<StudyTime> _studyTimes = const [StudyTime(20 * 60)];
 
   bool _isSubmitting = false;
   String? _submitError;
@@ -152,6 +157,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return _ageGroup != null;
       case 'goal':
         return _learningGoals.isNotEmpty;
+      case 'studyTime':
+        return true; // optional: no time picked means no reminders
       case 'referral':
         return _referralSource != null;
     }
@@ -250,6 +257,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
           referralSource: _referralSource!,
           translationLanguage: _translationLanguage,
         );
+      }
+      // Best effort: the account exists already, and the times can be set
+      // again in Settings if this one request fails.
+      if (_studyTimes.isNotEmpty) {
+        try {
+          await ApiClient.instance.saveStudyTimes(_studyTimes);
+        } catch (_) {}
       }
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const HomeScreen()), (route) => false);
@@ -369,7 +383,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           title: tr('На каком языке показывать перевод слов?'),
           subtitle: tr('Это можно изменить в настройках.'),
           keyPrefix: 'translation',
-          options: const [(code: 'tg', label: 'Тоҷикӣ'), (code: 'uz', label: 'Oʻzbekcha')],
+          options: const [(code: 'tg', label: 'Тоҷикӣ'), (code: 'uz', label: 'Oʻzbekcha'), (code: 'en', label: 'English')],
           selected: _translationLanguage,
           onSelect: (code) => setState(() => _translationLanguage = code),
         );
@@ -416,6 +430,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
           selectedMany: _learningGoals,
           onSelect: (code) =>
               setState(() => _learningGoals.contains(code) ? _learningGoals.remove(code) : _learningGoals.add(code)),
+        );
+      case 'studyTime':
+        return _StepScaffold(
+          title: tr('Когда вам удобно заниматься?'),
+          subtitle: tr('В это время придёт напоминание. Можно выбрать несколько или пропустить.'),
+          child: StudyTimesEditor(times: _studyTimes, onChanged: (t) => setState(() => _studyTimes = t)),
         );
       case 'referral':
         return _ChoiceStep(

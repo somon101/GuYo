@@ -188,6 +188,9 @@ def record_practice_answer(
     progress = (
         db.query(WordProgress).filter(WordProgress.user_id == user.id, WordProgress.word_id == word.id).first()
     )
+    # Decided before this answer updates the memory model: a right answer
+    # makes the word no longer due, so it can earn at most once per cycle.
+    was_due = _is_due_for_review(db, progress)
     record_word_attempt(
         db,
         user_id=user.id,
@@ -200,7 +203,39 @@ def record_practice_answer(
         timed_out=payload.timed_out,
         given_answer=payload.given_answer,
     )
+    if payload.is_correct and was_due:
+        _grant_review_points(db, user, word.id)
     db.commit()
+
+
+def _is_due_for_review(db: Session, progress: WordProgress | None) -> bool:
+    """The same rule GET /review-due lists words by: learned, and the
+    memory model's recall chance now below the target retention."""
+    from app.core.dates import utc_now
+    from app.memory.service import recall_probability
+    from app.priority.settings import get_priority_settings
+
+    if progress is None or progress.score < get_threshold(db):
+        return False
+    settings = get_priority_settings(db)
+    if not settings.memory_enabled:
+        return False
+    r = recall_probability(progress, utc_now())
+    return r is not None and r < settings.memory_target_retention
+
+
+def _grant_review_points(db: Session, user: User, word_id: int) -> None:
+    """Rating points for a right answer on a word being forgotten, when
+    the admin has them on (Admin Web -> Повтори слово)."""
+    from app.models.rating import UserReviewPoints
+    from app.rating import get_rating_settings, grant_rating_points
+
+    settings = get_rating_settings(db)
+    points = settings.review_points_per_correct
+    if not settings.review_points_enabled or points <= 0:
+        return
+    grant_rating_points(db, user, points)
+    db.add(UserReviewPoints(user_id=user.id, word_id=word_id, points_awarded=points))
 
 
 @router.get("/review-due")

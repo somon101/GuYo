@@ -194,7 +194,8 @@ class QuestAnswerResult {
 
 /// One grant in today's points history (GET /quests/points-today).
 class PointsTodayItem {
-  /// "word" -- a newly learned word; "quest" -- a word a quest consumed.
+  /// "word" -- a newly learned word; "quest" -- a word a quest consumed;
+  /// "review" -- a right answer in "Повторить сегодня".
   final String kind;
   final String? title;
   final String? word;
