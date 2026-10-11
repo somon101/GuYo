@@ -294,6 +294,17 @@ def suggest_parts(
     return out
 
 
+@router.post("/dictionaries/{dictionary_id}/mini-phrases/fill-starter")
+def fill_starter_set(dictionary_id: int, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    """Adds the starter mini-phrases whose words exist in this dictionary
+    (missing forms are added) and reports what was skipped and why."""
+    from app.mini_phrases.starter import fill_starter
+
+    report = fill_starter(db, _get_dictionary_or_404(db, dictionary_id))
+    db.commit()
+    return report
+
+
 # --- Settings -----------------------------------------------------------------
 
 

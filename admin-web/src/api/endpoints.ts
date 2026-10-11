@@ -1459,3 +1459,15 @@ export async function updateMiniPhraseSettings(input: Partial<MiniPhraseSettings
   const { data } = await api.patch("/admin/mini-phrase-settings", input);
   return data;
 }
+
+export interface MiniPhraseStarterReport {
+  created: string[];
+  already: string[];
+  skipped: { text: string; missing_words: string[] }[];
+  forms_added: string[];
+}
+
+export async function fillMiniPhraseStarter(dictionaryId: number): Promise<MiniPhraseStarterReport> {
+  const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases/fill-starter`);
+  return data;
+}

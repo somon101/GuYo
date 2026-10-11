@@ -233,8 +233,31 @@ def seed_achievements() -> None:
         db.close()
 
 
+def seed_mini_phrases() -> None:
+    """The starter mini-phrases for every Russian dictionary -- only those
+    whose words exist there (see app/mini_phrases/starter.py). Idempotent."""
+    from app.mini_phrases.starter import fill_starter
+    from app.models.dictionary import Dictionary
+
+    db = SessionLocal()
+    try:
+        for dictionary in db.query(Dictionary).filter(Dictionary.language == "ru").all():
+            report = fill_starter(db, dictionary)
+            db.commit()
+            print(
+                f"[seed] mini-phrases for '{dictionary.name}': created {len(report['created'])}, "
+                f"already {len(report['already'])}, skipped {len(report['skipped'])}, "
+                f"forms added {len(report['forms_added'])}"
+            )
+            for item in report["skipped"]:
+                print(f"[seed]   skipped «{item['text']}»: no word {', '.join(item['missing_words'])}")
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
     seed_admin()
     seed_ranks()
     seed_statuses()
     seed_achievements()
+    seed_mini_phrases()
