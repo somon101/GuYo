@@ -1,7 +1,15 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { SearchBox, useSearchQuery } from "../components/SearchBox";
+import { matches } from "../utils/search";
 import { Link, useParams } from "react-router-dom";
 import { API_URL } from "../api/client";
-import { createPhrase, deletePhrase, getDictionary, listPhraseCategories, listPhrases } from "../api/endpoints";
+import {
+  createPhrase,
+  deletePhrase,
+  getDictionary,
+  listPhraseCategories,
+  listPhrases,
+} from "../api/endpoints";
 import type { Dictionary, Phrase, PhraseCategory } from "../types";
 import { PlayButton } from "../components/PlayButton";
 
@@ -14,7 +22,10 @@ function mediaUrl(path: string | null): string | null {
  * (reached via /dictionaries/:id/phrases/categories/:categoryId). Mirrors
  * WordsListPage exactly, just against the Phrase entity/API. */
 export function PhrasesListPage() {
-  const { id, categoryId: categoryIdParam } = useParams<{ id: string; categoryId?: string }>();
+  const { id, categoryId: categoryIdParam } = useParams<{
+    id: string;
+    categoryId?: string;
+  }>();
   const dictionaryId = Number(id);
   const categoryId = categoryIdParam ? Number(categoryIdParam) : undefined;
 
@@ -24,6 +35,18 @@ export function PhrasesListPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [query, setQuery] = useSearchQuery();
+  const shown = phrases.filter((p) =>
+    matches(
+      query,
+      p.original,
+      p.translation_tg,
+      p.translation_uz,
+      p.translation_en,
+      p.transcription,
+      p.category_name,
+    ),
+  );
 
   async function reload() {
     setIsLoading(true);
@@ -60,10 +83,15 @@ export function PhrasesListPage() {
   }
 
   if (loadError || !dictionary) {
-    return <p className="text-sm text-red-600">{loadError ?? "Язык не найден"}</p>;
+    return (
+      <p className="text-sm text-red-600">{loadError ?? "Язык не найден"}</p>
+    );
   }
 
-  const currentCategory = categoryId != null ? categories.find((c) => c.id === categoryId) : undefined;
+  const currentCategory =
+    categoryId != null
+      ? categories.find((c) => c.id === categoryId)
+      : undefined;
   if (categoryId != null && !currentCategory) {
     return <p className="text-sm text-red-600">Категория не найдена</p>;
   }
@@ -75,7 +103,11 @@ export function PhrasesListPage() {
           Языки
         </Link>
         <span>→</span>
-        <Link to={`/dictionaries/${dictionaryId}/phrases`} className="text-indigo-600 hover:underline" translate="no">
+        <Link
+          to={`/dictionaries/${dictionaryId}/phrases`}
+          className="text-indigo-600 hover:underline"
+          translate="no"
+        >
           {dictionary.name} · Фразы
         </Link>
         <span>→</span>
@@ -86,7 +118,10 @@ export function PhrasesListPage() {
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-[26px] font-bold tracking-tight text-slate-900" translate="no">
+          <h1
+            className="text-[26px] font-bold tracking-tight text-slate-900"
+            translate="no"
+          >
             {currentCategory ? currentCategory.name : "Все фразы"}
           </h1>
           <p className="text-sm text-slate-500">{phrases.length} фраз</p>
@@ -113,21 +148,38 @@ export function PhrasesListPage() {
         />
       )}
 
+      {phrases.length > 0 && (
+        <SearchBox
+          value={query}
+          onChange={setQuery}
+          placeholder="Поиск: фраза, перевод, тема"
+          found={shown.length}
+        />
+      )}
+
       {phrases.length === 0 ? (
         <p className="text-sm text-slate-500">
-          {currentCategory ? "В этой категории пока нет фраз" : "В этом языке пока нет фраз"}
+          {currentCategory
+            ? "В этой категории пока нет фраз"
+            : "В этом языке пока нет фраз"}
         </p>
       ) : (
         <ul className="flex flex-col gap-3">
-          {phrases.map((p) => (
+          {shown.map((p) => (
             <li
               key={p.id}
               className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 card p-4"
             >
               <div translate="no" className="min-w-0 flex-1">
-                <p className="font-serif text-[17px] font-medium text-slate-900">{p.original}</p>
-                {p.transcription && <p className="text-sm text-slate-400">{p.transcription}</p>}
-                <p className="font-serif text-[15px] text-slate-600">{p.translation_tg}</p>
+                <p className="font-serif text-[17px] font-medium text-slate-900">
+                  {p.original}
+                </p>
+                {p.transcription && (
+                  <p className="text-sm text-slate-400">{p.transcription}</p>
+                )}
+                <p className="font-serif text-[15px] text-slate-600">
+                  {p.translation_tg}
+                </p>
                 {!currentCategory && p.category_name && (
                   <p className="mt-1 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
                     {p.category_name}
@@ -136,15 +188,21 @@ export function PhrasesListPage() {
                 <div className="mt-2 flex flex-wrap gap-3">
                   {mediaUrl(p.original_audio_url) && (
                     <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-500">
-                        <PlayButton src={mediaUrl(p.original_audio_url)!} label="Прослушать фразу" />
-                        Фраза
-                      </span>
+                      <PlayButton
+                        src={mediaUrl(p.original_audio_url)!}
+                        label="Прослушать фразу"
+                      />
+                      Фраза
+                    </span>
                   )}
                   {mediaUrl(p.translation_audio_url) && (
                     <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-500">
-                        <PlayButton src={mediaUrl(p.translation_audio_url)!} label="Прослушать перевод" />
-                        Перевод
-                      </span>
+                      <PlayButton
+                        src={mediaUrl(p.translation_audio_url)!}
+                        label="Прослушать перевод"
+                      />
+                      Перевод
+                    </span>
                   )}
                 </div>
               </div>
@@ -188,7 +246,9 @@ function AddPhraseForm({
   const [original, setOriginal] = useState("");
   const [translationTg, setTranslationTg] = useState("");
   const [transcription, setTranscription] = useState("");
-  const [categoryId, setCategoryId] = useState<number | null>(defaultCategoryId);
+  const [categoryId, setCategoryId] = useState<number | null>(
+    defaultCategoryId,
+  );
   const [originalAudio, setOriginalAudio] = useState<File | null>(null);
   const [translationAudio, setTranslationAudio] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -216,13 +276,12 @@ function AddPhraseForm({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="mb-6 flex flex-col gap-4 card p-5"
-    >
+    <form onSubmit={handleSubmit} className="mb-6 flex flex-col gap-4 card p-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Язык</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">
+            Язык
+          </label>
           <input
             className="w-full rounded-[10px] bg-[var(--field)] px-3 py-2 text-sm text-slate-500"
             value={languageLabel}
@@ -231,12 +290,15 @@ function AddPhraseForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">
-            Категория <span className="font-normal text-slate-400">(необязательно)</span>
+            Категория{" "}
+            <span className="font-normal text-slate-400">(необязательно)</span>
           </label>
           <select
             className="w-full field px-3 py-2 text-sm"
             value={categoryId ?? ""}
-            onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
+            onChange={(e) =>
+              setCategoryId(e.target.value ? Number(e.target.value) : null)
+            }
           >
             <option value="">Без категории</option>
             {categories.map((c) => (
@@ -249,7 +311,9 @@ function AddPhraseForm({
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700">Оригинальная фраза</label>
+        <label className="mb-1 block text-sm font-medium text-slate-700">
+          Оригинальная фраза
+        </label>
         <input
           className="w-full field px-3 py-2 text-sm"
           value={original}
@@ -261,7 +325,8 @@ function AddPhraseForm({
 
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">
-          Транскрипция <span className="font-normal text-slate-400">(необязательно)</span>
+          Транскрипция{" "}
+          <span className="font-normal text-slate-400">(необязательно)</span>
         </label>
         <input
           className="w-full max-w-xs field px-3 py-2 text-sm"
@@ -271,7 +336,9 @@ function AddPhraseForm({
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700">Перевод (Тоҷикӣ)</label>
+        <label className="mb-1 block text-sm font-medium text-slate-700">
+          Перевод (Тоҷикӣ)
+        </label>
         <input
           className="w-full field px-3 py-2 text-sm"
           value={translationTg}
@@ -281,8 +348,16 @@ function AddPhraseForm({
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <FileField label="Аудио оригинала" accept="audio/*" onChange={setOriginalAudio} />
-        <FileField label="Аудио перевода" accept="audio/*" onChange={setTranslationAudio} />
+        <FileField
+          label="Аудио оригинала"
+          accept="audio/*"
+          onChange={setOriginalAudio}
+        />
+        <FileField
+          label="Аудио перевода"
+          accept="audio/*"
+          onChange={setTranslationAudio}
+        />
       </div>
 
       <div className="flex gap-2">
@@ -318,7 +393,8 @@ function FileField({
   return (
     <div>
       <label className="mb-1 block text-sm font-medium text-slate-700">
-        {label} <span className="font-normal text-slate-400">(необязательно)</span>
+        {label}{" "}
+        <span className="font-normal text-slate-400">(необязательно)</span>
       </label>
       <input
         type="file"

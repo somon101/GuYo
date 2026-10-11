@@ -1,4 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { SearchBox, useSearchQuery } from "../components/SearchBox";
+import { matches } from "../utils/search";
 import { Link, useParams } from "react-router-dom";
 import { API_URL } from "../api/client";
 import {
@@ -22,7 +24,10 @@ function mediaUrl(path: string | null): string | null {
  * and adding words behaves identically either way — only the filter and
  * the breadcrumb differ. */
 export function WordsListPage() {
-  const { id, categoryId: categoryIdParam } = useParams<{ id: string; categoryId?: string }>();
+  const { id, categoryId: categoryIdParam } = useParams<{
+    id: string;
+    categoryId?: string;
+  }>();
   const dictionaryId = Number(id);
   const categoryId = categoryIdParam ? Number(categoryIdParam) : undefined;
 
@@ -32,6 +37,17 @@ export function WordsListPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [query, setQuery] = useSearchQuery();
+  const shown = words.filter((w) =>
+    matches(
+      query,
+      w.word,
+      w.transcription,
+      w.category_name,
+      ...w.forms.map((f) => f.text),
+      ...w.translations.map((t) => t.text),
+    ),
+  );
 
   async function reload() {
     setIsLoading(true);
@@ -68,10 +84,15 @@ export function WordsListPage() {
   }
 
   if (loadError || !dictionary) {
-    return <p className="text-sm text-red-600">{loadError ?? "Язык не найден"}</p>;
+    return (
+      <p className="text-sm text-red-600">{loadError ?? "Язык не найден"}</p>
+    );
   }
 
-  const currentCategory = categoryId != null ? categories.find((c) => c.id === categoryId) : undefined;
+  const currentCategory =
+    categoryId != null
+      ? categories.find((c) => c.id === categoryId)
+      : undefined;
   if (categoryId != null && !currentCategory) {
     return <p className="text-sm text-red-600">Категория не найдена</p>;
   }
@@ -83,7 +104,11 @@ export function WordsListPage() {
           Языки
         </Link>
         <span>→</span>
-        <Link to={`/dictionaries/${dictionaryId}`} className="text-indigo-600 hover:underline" translate="no">
+        <Link
+          to={`/dictionaries/${dictionaryId}`}
+          className="text-indigo-600 hover:underline"
+          translate="no"
+        >
           {dictionary.name}
         </Link>
         <span>→</span>
@@ -94,7 +119,10 @@ export function WordsListPage() {
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-[26px] font-bold tracking-tight text-slate-900" translate="no">
+          <h1
+            className="text-[26px] font-bold tracking-tight text-slate-900"
+            translate="no"
+          >
             {currentCategory ? currentCategory.name : "Все слова"}
           </h1>
           <p className="text-sm text-slate-500">{words.length} слов</p>
@@ -122,13 +150,24 @@ export function WordsListPage() {
         />
       )}
 
+      {words.length > 0 && (
+        <SearchBox
+          value={query}
+          onChange={setQuery}
+          placeholder="Поиск: слово, форма, перевод, тема"
+          found={shown.length}
+        />
+      )}
+
       {words.length === 0 ? (
         <p className="text-sm text-slate-500">
-          {currentCategory ? "В этой категории пока нет слов" : "В этом словаре пока нет слов"}
+          {currentCategory
+            ? "В этой категории пока нет слов"
+            : "В этом словаре пока нет слов"}
         </p>
       ) : (
         <ul className="flex flex-col gap-3">
-          {words.map((w) => (
+          {shown.map((w) => (
             <li
               key={w.id}
               className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 card p-4"
@@ -142,11 +181,15 @@ export function WordsListPage() {
                   />
                 )}
                 <div translate="no" className="min-w-0">
-                  <p className="font-serif text-[17px] font-medium text-slate-900">{w.word}</p>
+                  <p className="font-serif text-[17px] font-medium text-slate-900">
+                    {w.word}
+                  </p>
                   {w.transcription && (
                     <p className="text-sm text-slate-400">{w.transcription}</p>
                   )}
-                  <p className="font-serif text-[15px] text-slate-600">{w.translation}</p>
+                  <p className="font-serif text-[15px] text-slate-600">
+                    {w.translation}
+                  </p>
                   {!currentCategory && w.category_name && (
                     <p className="mt-1 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
                       {w.category_name}
@@ -155,13 +198,19 @@ export function WordsListPage() {
                   <div className="mt-2 flex flex-wrap gap-3">
                     {mediaUrl(w.word_audio_url) && (
                       <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-500">
-                        <PlayButton src={mediaUrl(w.word_audio_url)!} label="Прослушать слово" />
+                        <PlayButton
+                          src={mediaUrl(w.word_audio_url)!}
+                          label="Прослушать слово"
+                        />
                         Слово
                       </span>
                     )}
                     {mediaUrl(w.translation_audio_url) && (
                       <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-500">
-                        <PlayButton src={mediaUrl(w.translation_audio_url)!} label="Прослушать перевод" />
+                        <PlayButton
+                          src={mediaUrl(w.translation_audio_url)!}
+                          label="Прослушать перевод"
+                        />
                         Перевод
                       </span>
                     )}
@@ -210,7 +259,9 @@ function AddWordForm({
   const [word, setWord] = useState("");
   const [translation, setTranslation] = useState("");
   const [transcription, setTranscription] = useState("");
-  const [categoryId, setCategoryId] = useState<number | null>(defaultCategoryId);
+  const [categoryId, setCategoryId] = useState<number | null>(
+    defaultCategoryId,
+  );
   const [mainForms, setMainForms] = useState<string[]>([""]);
   const [tajikForms, setTajikForms] = useState<string[]>([""]);
   const [wordAudio, setWordAudio] = useState<File | null>(null);
@@ -237,7 +288,10 @@ function AddWordForm({
       const formRequests: Promise<unknown>[] = [];
       for (const text of mainForms) {
         const trimmed = text.trim();
-        if (trimmed) formRequests.push(addWordForm(newWord.id, dictionaryLanguage, trimmed));
+        if (trimmed)
+          formRequests.push(
+            addWordForm(newWord.id, dictionaryLanguage, trimmed),
+          );
       }
       for (const text of tajikForms) {
         const trimmed = text.trim();
@@ -254,13 +308,12 @@ function AddWordForm({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="mb-6 flex flex-col gap-4 card p-5"
-    >
+    <form onSubmit={handleSubmit} className="mb-6 flex flex-col gap-4 card p-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Язык</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">
+            Язык
+          </label>
           <input
             className="w-full rounded-[10px] bg-[var(--field)] px-3 py-2 text-sm text-slate-500"
             value={languageLabel}
@@ -269,12 +322,15 @@ function AddWordForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">
-            Категория <span className="font-normal text-slate-400">(необязательно)</span>
+            Категория{" "}
+            <span className="font-normal text-slate-400">(необязательно)</span>
           </label>
           <select
             className="w-full field px-3 py-2 text-sm"
             value={categoryId ?? ""}
-            onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
+            onChange={(e) =>
+              setCategoryId(e.target.value ? Number(e.target.value) : null)
+            }
           >
             <option value="">Без категории</option>
             {categories.map((c) => (
@@ -288,7 +344,9 @@ function AddWordForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Слово</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">
+            Слово
+          </label>
           <input
             className="w-full field px-3 py-2 text-sm"
             value={word}
@@ -298,7 +356,9 @@ function AddWordForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Перевод</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">
+            Перевод
+          </label>
           <input
             className="w-full field px-3 py-2 text-sm"
             value={translation}
@@ -310,7 +370,8 @@ function AddWordForm({
 
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">
-          Транскрипция <span className="font-normal text-slate-400">(необязательно)</span>
+          Транскрипция{" "}
+          <span className="font-normal text-slate-400">(необязательно)</span>
         </label>
         <input
           className="w-full max-w-xs field px-3 py-2 text-sm"
@@ -321,13 +382,29 @@ function AddWordForm({
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <FormsRows label={languageLabel} values={mainForms} onChange={setMainForms} />
-        <FormsRows label="Тоҷикӣ" values={tajikForms} onChange={setTajikForms} />
+        <FormsRows
+          label={languageLabel}
+          values={mainForms}
+          onChange={setMainForms}
+        />
+        <FormsRows
+          label="Тоҷикӣ"
+          values={tajikForms}
+          onChange={setTajikForms}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <FileField label="Аудио слова" accept="audio/*" onChange={setWordAudio} />
-        <FileField label="Аудио перевода" accept="audio/*" onChange={setTranslationAudio} />
+        <FileField
+          label="Аудио слова"
+          accept="audio/*"
+          onChange={setWordAudio}
+        />
+        <FileField
+          label="Аудио перевода"
+          accept="audio/*"
+          onChange={setTranslationAudio}
+        />
         <FileField label="Изображение" accept="image/*" onChange={setImage} />
       </div>
 
@@ -367,7 +444,8 @@ function FormsRows({
   return (
     <div>
       <label className="mb-1 block text-sm font-medium text-slate-700">
-        Формы ({label}) <span className="font-normal text-slate-400">(необязательно)</span>
+        Формы ({label}){" "}
+        <span className="font-normal text-slate-400">(необязательно)</span>
       </label>
       <div className="flex flex-col gap-2">
         {values.map((v, i) => (
@@ -375,7 +453,9 @@ function FormsRows({
             <input
               className="flex-1 field px-3 py-2 text-sm"
               value={v}
-              onChange={(e) => onChange(values.map((x, j) => (j === i ? e.target.value : x)))}
+              onChange={(e) =>
+                onChange(values.map((x, j) => (j === i ? e.target.value : x)))
+              }
             />
             {values.length > 1 && (
               <button
@@ -412,7 +492,8 @@ function FileField({
   return (
     <div>
       <label className="mb-1 block text-sm font-medium text-slate-700">
-        {label} <span className="font-normal text-slate-400">(необязательно)</span>
+        {label}{" "}
+        <span className="font-normal text-slate-400">(необязательно)</span>
       </label>
       <input
         type="file"

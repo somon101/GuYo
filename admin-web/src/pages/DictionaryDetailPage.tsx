@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import { Link, useParams } from "react-router-dom";
 import { API_URL } from "../api/client";
 import {
@@ -15,6 +22,8 @@ import {
 import type { Category, Dictionary } from "../types";
 import { Modal } from "../components/Modal";
 import { LanguageSectionTabs } from "../components/LanguageSectionTabs";
+import { LanguageSearch } from "../components/LanguageSearch";
+import { useSearchQuery } from "../components/SearchBox";
 
 const IMPORT_JOB_POLL_MS = 1500;
 
@@ -41,6 +50,7 @@ export function DictionaryDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [query, setQuery] = useSearchQuery();
   const importInputRef = useRef<HTMLInputElement>(null);
   const [importJob, setImportJob] = useState<ImportJob | null>(null);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -68,7 +78,10 @@ export function DictionaryDetailPage() {
         .then((job) => {
           setImportJob(job);
           if (job.status === "pending" || job.status === "processing") {
-            pollTimeoutRef.current = setTimeout(() => pollImportJob(jobId), IMPORT_JOB_POLL_MS);
+            pollTimeoutRef.current = setTimeout(
+              () => pollImportJob(jobId),
+              IMPORT_JOB_POLL_MS,
+            );
             return;
           }
           // Terminal state (completed or failed): the job's result is now
@@ -83,7 +96,10 @@ export function DictionaryDetailPage() {
           // A transient network hiccup while polling must not make the
           // import look "lost" -- the job keeps running server-side
           // regardless, so just try again shortly.
-          pollTimeoutRef.current = setTimeout(() => pollImportJob(jobId), IMPORT_JOB_POLL_MS);
+          pollTimeoutRef.current = setTimeout(
+            () => pollImportJob(jobId),
+            IMPORT_JOB_POLL_MS,
+          );
         });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -131,7 +147,8 @@ export function DictionaryDetailPage() {
       setImportJob({
         job_id: "",
         status: "failed",
-        error_message: "Не удалось отправить файл на сервер. Проверьте соединение и повторите попытку.",
+        error_message:
+          "Не удалось отправить файл на сервер. Проверьте соединение и повторите попытку.",
         categories_created: null,
         categories_reused: null,
         words_created: null,
@@ -143,19 +160,25 @@ export function DictionaryDetailPage() {
     }
   }
 
-  const isImporting = importJob?.status === "pending" || importJob?.status === "processing";
+  const isImporting =
+    importJob?.status === "pending" || importJob?.status === "processing";
 
   if (isLoading) {
     return <p className="text-sm text-slate-500">Загрузка…</p>;
   }
 
   if (loadError || !dictionary) {
-    return <p className="text-sm text-red-600">{loadError ?? "Язык не найден"}</p>;
+    return (
+      <p className="text-sm text-red-600">{loadError ?? "Язык не найден"}</p>
+    );
   }
 
   return (
     <div className="mx-auto max-w-3xl">
-      <Link to="/dictionaries" className="mb-4 inline-block text-sm text-indigo-600 hover:underline">
+      <Link
+        to="/dictionaries"
+        className="mb-4 inline-block text-sm text-indigo-600 hover:underline"
+      >
         ← Все языки
       </Link>
 
@@ -163,13 +186,16 @@ export function DictionaryDetailPage() {
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-[26px] font-bold tracking-tight text-slate-900" translate="no">
+          <h1
+            className="text-[26px] font-bold tracking-tight text-slate-900"
+            translate="no"
+          >
             {dictionary.name}
           </h1>
           <p className="text-xs text-slate-400">ID: {dictionary.id}</p>
           <p className="text-sm text-slate-500">
-            {dictionary.is_published ? "Опубликовано" : "Черновик"} · Категорий: {categories.length} ·
-            Всего слов: {dictionary.word_count}
+            {dictionary.is_published ? "Опубликовано" : "Черновик"} · Категорий:{" "}
+            {categories.length} · Всего слов: {dictionary.word_count}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -216,48 +242,65 @@ export function DictionaryDetailPage() {
                 : "text-slate-500"
           }`}
         >
-          {importJob.status === "failed" && (importJob.error_message ?? "Не удалось импортировать файл.")}
+          {importJob.status === "failed" &&
+            (importJob.error_message ?? "Не удалось импортировать файл.")}
           {importJob.status === "completed" && summaryText(importJob)}
-          {(importJob.status === "pending" || importJob.status === "processing") &&
+          {(importJob.status === "pending" ||
+            importJob.status === "processing") &&
             "Импорт выполняется на сервере… Можно уйти со страницы — прогресс сохранится, и результат будет здесь при возврате."}
         </p>
       )}
 
-      <Link
-        to={`/dictionaries/${dictionaryId}/words`}
-        className="mb-4 block card p-4 text-sm font-medium text-indigo-600 card-link"
-      >
-        Все слова ({dictionary.word_count}) →
-      </Link>
+      <LanguageSearch
+        dictionaryId={dictionaryId}
+        kind="words"
+        query={query}
+        onQuery={setQuery}
+      />
 
-      {categories.length === 0 ? (
-        <p className="text-sm text-slate-500">Категорий пока нет</p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {categories.map((c) => (
-            <li
-              key={c.id}
-              className="flex items-center gap-3 card p-4"
-            >
-              <CategoryIcon
-                dictionaryId={dictionaryId}
-                category={c}
-                onChanged={(updated) =>
-                  setCategories((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
-                }
-              />
-              <Link
-                to={`/dictionaries/${dictionaryId}/categories/${c.id}`}
-                className="flex min-w-0 flex-1 items-center justify-between gap-3 hover:text-indigo-600"
-              >
-                <span className="truncate font-medium text-slate-900" translate="no">
-                  {c.name}
-                </span>
-                <span className="shrink-0 text-sm text-slate-400">{c.word_count} слов</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+      {!query.trim() && (
+        <>
+          <Link
+            to={`/dictionaries/${dictionaryId}/words`}
+            className="mb-4 block card p-4 text-sm font-medium text-indigo-600 card-link"
+          >
+            Все слова ({dictionary.word_count}) →
+          </Link>
+
+          {categories.length === 0 ? (
+            <p className="text-sm text-slate-500">Категорий пока нет</p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {categories.map((c) => (
+                <li key={c.id} className="flex items-center gap-3 card p-4">
+                  <CategoryIcon
+                    dictionaryId={dictionaryId}
+                    category={c}
+                    onChanged={(updated) =>
+                      setCategories((prev) =>
+                        prev.map((x) => (x.id === updated.id ? updated : x)),
+                      )
+                    }
+                  />
+                  <Link
+                    to={`/dictionaries/${dictionaryId}/categories/${c.id}`}
+                    className="flex min-w-0 flex-1 items-center justify-between gap-3 hover:text-indigo-600"
+                  >
+                    <span
+                      className="truncate font-medium text-slate-900"
+                      translate="no"
+                    >
+                      {c.name}
+                    </span>
+                    <span className="shrink-0 text-sm text-slate-400">
+                      {c.word_count} слов
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
 
       {isModalOpen && (
@@ -384,8 +427,10 @@ function CreateCategoryModal({
       await createCategory(dictionaryId, trimmed);
       onCreated();
     } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } })?.response?.status;
-      if (status === 409) setError("Категория с таким названием уже есть в этом словаре");
+      const status = (err as { response?: { status?: number } })?.response
+        ?.status;
+      if (status === 409)
+        setError("Категория с таким названием уже есть в этом словаре");
       else setError("Не удалось создать категорию");
     } finally {
       setIsSaving(false);
@@ -396,7 +441,9 @@ function CreateCategoryModal({
     <Modal title="Новая категория" onClose={onClose}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Название</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">
+            Название
+          </label>
           <input
             className="w-full field px-3 py-2 text-sm"
             value={name}

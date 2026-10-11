@@ -17,6 +17,8 @@ import {
 } from "../api/endpoints";
 import { LanguageSectionTabs } from "../components/LanguageSectionTabs";
 import { MiniPhrasePhonePreview } from "../components/MiniPhrasePhonePreview";
+import { SearchBox, useSearchQuery } from "../components/SearchBox";
+import { matches } from "../utils/search";
 import type {
   Dictionary,
   MiniPhrase,
@@ -77,7 +79,18 @@ export function MiniPhrasesPage() {
   const [report, setReport] = useState<MiniPhraseStarterReport | null>(null);
   const [isFilling, setIsFilling] = useState(false);
   const [previewId, setPreviewId] = useState<number | null>(null);
-  const shown = items;
+  const [query, setQuery] = useSearchQuery();
+  const shown = items.filter((mp) =>
+    matches(
+      query,
+      mp.text,
+      mp.translation_tg,
+      mp.translation_uz,
+      mp.translation_en,
+      mp.template_name,
+      ...mp.parts.map((p) => `${p.text} ${p.word}`),
+    ),
+  );
 
   async function fillStarter() {
     setIsFilling(true);
@@ -257,6 +270,15 @@ export function MiniPhrasesPage() {
         <MiniPhrasePhonePreview
           id={previewId}
           onClose={() => setPreviewId(null)}
+        />
+      )}
+
+      {items.length > 0 && (
+        <SearchBox
+          value={query}
+          onChange={setQuery}
+          placeholder="Поиск: фраза, перевод, слово, шаблон"
+          found={shown.length}
         />
       )}
 
