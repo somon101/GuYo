@@ -50,12 +50,19 @@ import type {
   WordTranslation,
 } from "../types";
 
-export async function adminLogin(login: string, password: string): Promise<string> {
+export async function adminLogin(
+  login: string,
+  password: string,
+): Promise<string> {
   const { data } = await api.post("/auth/admin/login", { login, password });
   return data.access_token as string;
 }
 
-export async function fetchMe(): Promise<{ id: number; login: string; role: string }> {
+export async function fetchMe(): Promise<{
+  id: number;
+  login: string;
+  role: string;
+}> {
   const { data } = await api.get("/auth/me");
   return data;
 }
@@ -96,8 +103,14 @@ export async function listDictionaries(): Promise<Dictionary[]> {
   return data;
 }
 
-export async function createDictionary(language: string, alphabet?: string): Promise<Dictionary> {
-  const { data } = await api.post("/dictionaries", { language, alphabet: alphabet || undefined });
+export async function createDictionary(
+  language: string,
+  alphabet?: string,
+): Promise<Dictionary> {
+  const { data } = await api.post("/dictionaries", {
+    language,
+    alphabet: alphabet || undefined,
+  });
   return data;
 }
 
@@ -106,12 +119,20 @@ export async function getDictionary(id: number): Promise<Dictionary> {
   return data;
 }
 
-export async function setDictionaryPublished(id: number, isPublished: boolean): Promise<Dictionary> {
-  const { data } = await api.patch(`/dictionaries/${id}`, { is_published: isPublished });
+export async function setDictionaryPublished(
+  id: number,
+  isPublished: boolean,
+): Promise<Dictionary> {
+  const { data } = await api.patch(`/dictionaries/${id}`, {
+    is_published: isPublished,
+  });
   return data;
 }
 
-export async function setDictionaryAlphabet(id: number, alphabet: string): Promise<Dictionary> {
+export async function setDictionaryAlphabet(
+  id: number,
+  alphabet: string,
+): Promise<Dictionary> {
   const { data } = await api.patch(`/dictionaries/${id}`, { alphabet });
   return data;
 }
@@ -120,20 +141,30 @@ export async function deleteDictionary(id: number): Promise<void> {
   await api.delete(`/dictionaries/${id}`);
 }
 
-export async function listWords(dictionaryId: number, categoryId?: number): Promise<Word[]> {
+export async function listWords(
+  dictionaryId: number,
+  categoryId?: number,
+): Promise<Word[]> {
   const { data } = await api.get(`/dictionaries/${dictionaryId}/words`, {
     params: categoryId !== undefined ? { category_id: categoryId } : undefined,
   });
   return data;
 }
 
-export async function listCategories(dictionaryId: number): Promise<Category[]> {
+export async function listCategories(
+  dictionaryId: number,
+): Promise<Category[]> {
   const { data } = await api.get(`/dictionaries/${dictionaryId}/categories`);
   return data;
 }
 
-export async function createCategory(dictionaryId: number, name: string): Promise<Category> {
-  const { data } = await api.post(`/dictionaries/${dictionaryId}/categories`, { name });
+export async function createCategory(
+  dictionaryId: number,
+  name: string,
+): Promise<Category> {
+  const { data } = await api.post(`/dictionaries/${dictionaryId}/categories`, {
+    name,
+  });
   return data;
 }
 
@@ -176,14 +207,19 @@ export interface CreateWordInput {
   image?: File | null;
 }
 
-export async function createWord(dictionaryId: number, input: CreateWordInput): Promise<Word> {
+export async function createWord(
+  dictionaryId: number,
+  input: CreateWordInput,
+): Promise<Word> {
   const form = new FormData();
   form.append("word", input.word);
   form.append("translation", input.translation);
   if (input.transcription) form.append("transcription", input.transcription);
-  if (input.categoryId != null) form.append("category_id", String(input.categoryId));
+  if (input.categoryId != null)
+    form.append("category_id", String(input.categoryId));
   if (input.wordAudio) form.append("word_audio", input.wordAudio);
-  if (input.translationAudio) form.append("translation_audio", input.translationAudio);
+  if (input.translationAudio)
+    form.append("translation_audio", input.translationAudio);
   if (input.image) form.append("image", input.image);
 
   const { data } = await api.post(`/dictionaries/${dictionaryId}/words`, form, {
@@ -217,12 +253,17 @@ export interface UpdateWordInput {
   removeImage?: boolean;
 }
 
-export async function updateWord(wordId: number, input: UpdateWordInput): Promise<Word> {
+export async function updateWord(
+  wordId: number,
+  input: UpdateWordInput,
+): Promise<Word> {
   const form = new FormData();
   if (input.word !== undefined) form.append("word", input.word);
-  if (input.transcription !== undefined) form.append("transcription", input.transcription);
+  if (input.transcription !== undefined)
+    form.append("transcription", input.transcription);
   if (input.removeTranscription) form.append("remove_transcription", "true");
-  if (input.categoryId !== undefined) form.append("category_id", String(input.categoryId));
+  if (input.categoryId !== undefined)
+    form.append("category_id", String(input.categoryId));
   if (input.removeCategory) form.append("remove_category", "true");
   if (input.wordAudio) form.append("word_audio", input.wordAudio);
   if (input.removeWordAudio) form.append("remove_word_audio", "true");
@@ -238,7 +279,11 @@ export async function updateWord(wordId: number, input: UpdateWordInput): Promis
 /** Appends one more grammatical form of the word in `language`. Always
  * creates a new row -- a word may have several forms in the same language,
  * unlike translations. */
-export async function addWordForm(wordId: number, language: string, text: string): Promise<WordForm> {
+export async function addWordForm(
+  wordId: number,
+  language: string,
+  text: string,
+): Promise<WordForm> {
   const form = new FormData();
   form.append("language", language);
   form.append("text", text);
@@ -249,7 +294,10 @@ export async function addWordForm(wordId: number, language: string, text: string
   return data;
 }
 
-export async function deleteWordForm(wordId: number, formId: number): Promise<void> {
+export async function deleteWordForm(
+  wordId: number,
+  formId: number,
+): Promise<void> {
   await api.delete(`/words/${wordId}/forms/${formId}`);
 }
 
@@ -264,13 +312,20 @@ export async function upsertTranslation(
   if (input.audio) form.append("audio", input.audio);
   if (input.removeAudio) form.append("remove_audio", "true");
 
-  const { data } = await api.put(`/words/${wordId}/translations/${language}`, form, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  const { data } = await api.put(
+    `/words/${wordId}/translations/${language}`,
+    form,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+    },
+  );
   return data;
 }
 
-export async function deleteTranslation(wordId: number, language: TranslationLanguage): Promise<void> {
+export async function deleteTranslation(
+  wordId: number,
+  language: TranslationLanguage,
+): Promise<void> {
   await api.delete(`/words/${wordId}/translations/${language}`);
 }
 
@@ -305,20 +360,33 @@ export interface ImportJob {
  * an opaque file/blob, never parses it client-side. Starting an import
  * only hands the file to the backend and gets a job_id back immediately;
  * use `getDictionaryImportJob` to poll for its actual result. */
-export async function startDictionaryImport(dictionaryId: number, file: File): Promise<ImportJob> {
+export async function startDictionaryImport(
+  dictionaryId: number,
+  file: File,
+): Promise<ImportJob> {
   const formData = new FormData();
   formData.append("file", file);
-  const { data } = await api.post(`/dictionaries/${dictionaryId}/import`, formData);
+  const { data } = await api.post(
+    `/dictionaries/${dictionaryId}/import`,
+    formData,
+  );
   return data;
 }
 
-export async function getDictionaryImportJob(dictionaryId: number, jobId: string): Promise<ImportJob> {
-  const { data } = await api.get(`/dictionaries/${dictionaryId}/import/${jobId}`);
+export async function getDictionaryImportJob(
+  dictionaryId: number,
+  jobId: string,
+): Promise<ImportJob> {
+  const { data } = await api.get(
+    `/dictionaries/${dictionaryId}/import/${jobId}`,
+  );
   return data;
 }
 
 export async function exportDictionary(dictionaryId: number): Promise<Blob> {
-  const { data } = await api.get(`/dictionaries/${dictionaryId}/export`, { responseType: "blob" });
+  const { data } = await api.get(`/dictionaries/${dictionaryId}/export`, {
+    responseType: "blob",
+  });
   return data;
 }
 
@@ -326,17 +394,30 @@ export async function exportDictionary(dictionaryId: number): Promise<Blob> {
 // Separate entity from Word, own id (phrase_id) and own category
 // namespace (PhraseCategory), same CRUD shape as Words/Categories.
 
-export async function listPhraseCategories(dictionaryId: number): Promise<PhraseCategory[]> {
-  const { data } = await api.get(`/dictionaries/${dictionaryId}/phrase-categories`);
+export async function listPhraseCategories(
+  dictionaryId: number,
+): Promise<PhraseCategory[]> {
+  const { data } = await api.get(
+    `/dictionaries/${dictionaryId}/phrase-categories`,
+  );
   return data;
 }
 
-export async function createPhraseCategory(dictionaryId: number, name: string): Promise<PhraseCategory> {
-  const { data } = await api.post(`/dictionaries/${dictionaryId}/phrase-categories`, { name });
+export async function createPhraseCategory(
+  dictionaryId: number,
+  name: string,
+): Promise<PhraseCategory> {
+  const { data } = await api.post(
+    `/dictionaries/${dictionaryId}/phrase-categories`,
+    { name },
+  );
   return data;
 }
 
-export async function listPhrases(dictionaryId: number, categoryId?: number): Promise<Phrase[]> {
+export async function listPhrases(
+  dictionaryId: number,
+  categoryId?: number,
+): Promise<Phrase[]> {
   const { data } = await api.get(`/dictionaries/${dictionaryId}/phrases`, {
     params: categoryId !== undefined ? { category_id: categoryId } : undefined,
   });
@@ -352,18 +433,27 @@ export interface CreatePhraseInput {
   translationAudio?: File | null;
 }
 
-export async function createPhrase(dictionaryId: number, input: CreatePhraseInput): Promise<Phrase> {
+export async function createPhrase(
+  dictionaryId: number,
+  input: CreatePhraseInput,
+): Promise<Phrase> {
   const form = new FormData();
   form.append("original", input.original);
   form.append("translation_tg", input.translationTg);
   if (input.transcription) form.append("transcription", input.transcription);
-  if (input.categoryId != null) form.append("category_id", String(input.categoryId));
+  if (input.categoryId != null)
+    form.append("category_id", String(input.categoryId));
   if (input.originalAudio) form.append("original_audio", input.originalAudio);
-  if (input.translationAudio) form.append("translation_audio", input.translationAudio);
+  if (input.translationAudio)
+    form.append("translation_audio", input.translationAudio);
 
-  const { data } = await api.post(`/dictionaries/${dictionaryId}/phrases`, form, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  const { data } = await api.post(
+    `/dictionaries/${dictionaryId}/phrases`,
+    form,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+    },
+  );
   return data;
 }
 
@@ -387,20 +477,30 @@ export interface UpdatePhraseInput {
   removeTranslationAudio?: boolean;
 }
 
-export async function updatePhrase(phraseId: number, input: UpdatePhraseInput): Promise<Phrase> {
+export async function updatePhrase(
+  phraseId: number,
+  input: UpdatePhraseInput,
+): Promise<Phrase> {
   const form = new FormData();
   if (input.original !== undefined) form.append("original", input.original);
-  if (input.transcription !== undefined) form.append("transcription", input.transcription);
+  if (input.transcription !== undefined)
+    form.append("transcription", input.transcription);
   if (input.removeTranscription) form.append("remove_transcription", "true");
-  if (input.translationTg !== undefined) form.append("translation_tg", input.translationTg);
-  if (input.translationUz !== undefined) form.append("translation_uz", input.translationUz);
-  if (input.translationEn !== undefined) form.append("translation_en", input.translationEn);
-  if (input.categoryId !== undefined) form.append("category_id", String(input.categoryId));
+  if (input.translationTg !== undefined)
+    form.append("translation_tg", input.translationTg);
+  if (input.translationUz !== undefined)
+    form.append("translation_uz", input.translationUz);
+  if (input.translationEn !== undefined)
+    form.append("translation_en", input.translationEn);
+  if (input.categoryId !== undefined)
+    form.append("category_id", String(input.categoryId));
   if (input.removeCategory) form.append("remove_category", "true");
   if (input.originalAudio) form.append("original_audio", input.originalAudio);
   if (input.removeOriginalAudio) form.append("remove_original_audio", "true");
-  if (input.translationAudio) form.append("translation_audio", input.translationAudio);
-  if (input.removeTranslationAudio) form.append("remove_translation_audio", "true");
+  if (input.translationAudio)
+    form.append("translation_audio", input.translationAudio);
+  if (input.removeTranslationAudio)
+    form.append("remove_translation_audio", "true");
 
   const { data } = await api.patch(`/phrases/${phraseId}`, form, {
     headers: { "Content-Type": "multipart/form-data" },
@@ -421,26 +521,42 @@ export async function deletePhrase(phraseId: number): Promise<void> {
  * as an opaque file/blob, never parses it client-side. Starting an import
  * only hands the file to the backend and gets a job_id back immediately;
  * use `getPhraseImportJob` to poll for its actual result. */
-export async function startPhraseImport(dictionaryId: number, file: File): Promise<ImportJob> {
+export async function startPhraseImport(
+  dictionaryId: number,
+  file: File,
+): Promise<ImportJob> {
   const formData = new FormData();
   formData.append("file", file);
-  const { data } = await api.post(`/dictionaries/${dictionaryId}/phrases/import`, formData);
+  const { data } = await api.post(
+    `/dictionaries/${dictionaryId}/phrases/import`,
+    formData,
+  );
   return data;
 }
 
-export async function getPhraseImportJob(dictionaryId: number, jobId: string): Promise<ImportJob> {
-  const { data } = await api.get(`/dictionaries/${dictionaryId}/phrases/import/${jobId}`);
+export async function getPhraseImportJob(
+  dictionaryId: number,
+  jobId: string,
+): Promise<ImportJob> {
+  const { data } = await api.get(
+    `/dictionaries/${dictionaryId}/phrases/import/${jobId}`,
+  );
   return data;
 }
 
 export async function exportPhrases(dictionaryId: number): Promise<Blob> {
-  const { data } = await api.get(`/dictionaries/${dictionaryId}/phrases/export`, { responseType: "blob" });
+  const { data } = await api.get(
+    `/dictionaries/${dictionaryId}/phrases/export`,
+    { responseType: "blob" },
+  );
   return data;
 }
 
 // --- Exercise settings ---------------------------------------------------
 
-export async function getExerciseSettings(exerciseKey: string): Promise<ExerciseSettings> {
+export async function getExerciseSettings(
+  exerciseKey: string,
+): Promise<ExerciseSettings> {
   const { data } = await api.get(`/exercise-settings/${exerciseKey}`);
   return data;
 }
@@ -490,7 +606,9 @@ export async function setExerciseSettings(
 // Word/WordForm/WordProgress/Phrase data, using the exact same
 // "is this phrase available" definition as the app's own "Мои фразы".
 
-export async function listAnalyticsDictionaries(): Promise<AnalyticsDictionary[]> {
+export async function listAnalyticsDictionaries(): Promise<
+  AnalyticsDictionary[]
+> {
   const { data } = await api.get("/admin/analytics/dictionaries");
   return data;
 }
@@ -499,9 +617,12 @@ export async function getUserMiniPhraseAnalytics(
   userId: number,
   dictionaryId: number,
 ): Promise<import("../types").UserMiniPhraseAnalytics> {
-  const { data } = await api.get(`/admin/analytics/users/${userId}/mini-phrases`, {
-    params: { dictionary_id: dictionaryId },
-  });
+  const { data } = await api.get(
+    `/admin/analytics/users/${userId}/mini-phrases`,
+    {
+      params: { dictionary_id: dictionaryId },
+    },
+  );
   return data;
 }
 
@@ -525,8 +646,13 @@ export async function listUserWordProgress(
   return data;
 }
 
-export async function getWordDiagnostics(userId: number, wordId: number): Promise<WordDiagnostics> {
-  const { data } = await api.get(`/admin/analytics/users/${userId}/words/${wordId}`);
+export async function getWordDiagnostics(
+  userId: number,
+  wordId: number,
+): Promise<WordDiagnostics> {
+  const { data } = await api.get(
+    `/admin/analytics/users/${userId}/words/${wordId}`,
+  );
   return data;
 }
 
@@ -577,17 +703,30 @@ function achievementForm(input: AchievementInput): FormData {
   return form;
 }
 
-export async function createAchievement(input: AchievementInput): Promise<Achievement> {
-  const { data } = await api.post("/admin/achievements", achievementForm(input), {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+export async function createAchievement(
+  input: AchievementInput,
+): Promise<Achievement> {
+  const { data } = await api.post(
+    "/admin/achievements",
+    achievementForm(input),
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+    },
+  );
   return data;
 }
 
-export async function updateAchievement(id: number, input: AchievementInput): Promise<Achievement> {
-  const { data } = await api.patch(`/admin/achievements/${id}`, achievementForm(input), {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+export async function updateAchievement(
+  id: number,
+  input: AchievementInput,
+): Promise<Achievement> {
+  const { data } = await api.patch(
+    `/admin/achievements/${id}`,
+    achievementForm(input),
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+    },
+  );
   return data;
 }
 
@@ -598,8 +737,12 @@ export async function deleteAchievement(id: number): Promise<void> {
 
 /** Persists the chain's full new order, front to back, from Admin Web's
  * drag-and-drop -- never only client-side/local state. */
-export async function reorderAchievements(achievementIds: number[]): Promise<Achievement[]> {
-  const { data } = await api.put("/admin/achievements/order", { achievement_ids: achievementIds });
+export async function reorderAchievements(
+  achievementIds: number[],
+): Promise<Achievement[]> {
+  const { data } = await api.put("/admin/achievements/order", {
+    achievement_ids: achievementIds,
+  });
   return data;
 }
 
@@ -611,7 +754,9 @@ export async function getRatingSettings(): Promise<RatingSettings> {
   return data;
 }
 
-export async function updateRatingSettings(input: RatingSettings): Promise<RatingSettings> {
+export async function updateRatingSettings(
+  input: RatingSettings,
+): Promise<RatingSettings> {
   const { data } = await api.put("/admin/rating/settings", input);
   return data;
 }
@@ -638,7 +783,8 @@ function rankForm(input: RankInput): FormData {
   const form = new FormData();
   form.append("name", input.name);
   form.append("min_points", String(input.minPoints));
-  if (input.maxPoints !== null) form.append("max_points", String(input.maxPoints));
+  if (input.maxPoints !== null)
+    form.append("max_points", String(input.maxPoints));
   else form.append("clear_max_points", "true");
   form.append("color", input.color);
   form.append("enabled", String(input.enabled));
@@ -655,9 +801,13 @@ export async function createRank(input: RankInput): Promise<Rank> {
 }
 
 export async function updateRank(id: number, input: RankInput): Promise<Rank> {
-  const { data } = await api.patch(`/admin/rating/ranks/${id}`, rankForm(input), {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  const { data } = await api.patch(
+    `/admin/rating/ranks/${id}`,
+    rankForm(input),
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+    },
+  );
   return data;
 }
 
@@ -669,7 +819,9 @@ export async function deleteRank(id: number): Promise<void> {
 }
 
 export async function reorderRanks(rankIds: number[]): Promise<Rank[]> {
-  const { data } = await api.put("/admin/rating/ranks/order", { rank_ids: rankIds });
+  const { data } = await api.put("/admin/rating/ranks/order", {
+    rank_ids: rankIds,
+  });
   return data;
 }
 
@@ -709,7 +861,10 @@ export interface SeasonUpdateInput {
 
 // Only a season that hasn't completed can be edited; a completed one is
 // already frozen into every user's history.
-export async function updateSeason(id: number, input: SeasonUpdateInput): Promise<Season> {
+export async function updateSeason(
+  id: number,
+  input: SeasonUpdateInput,
+): Promise<Season> {
   const { data } = await api.patch(`/admin/rating/seasons/${id}`, {
     name: input.name,
     starts_at: input.startsAt,
@@ -765,14 +920,18 @@ function wordLevelBody(input: WordLevelInput) {
   return {
     name: input.name,
     min_points: input.minPoints,
-    ...(input.maxPoints === null ? { clear_max_points: true } : { max_points: input.maxPoints }),
+    ...(input.maxPoints === null
+      ? { clear_max_points: true }
+      : { max_points: input.maxPoints }),
     enabled: input.enabled,
     order: input.order,
     priority_weight: input.priorityWeight,
   };
 }
 
-export async function createWordLevel(input: WordLevelInput): Promise<WordLevel> {
+export async function createWordLevel(
+  input: WordLevelInput,
+): Promise<WordLevel> {
   const { data } = await api.post("/admin/word-levels", {
     name: input.name,
     min_points: input.minPoints,
@@ -784,8 +943,14 @@ export async function createWordLevel(input: WordLevelInput): Promise<WordLevel>
   return data;
 }
 
-export async function updateWordLevel(id: number, input: WordLevelInput): Promise<WordLevel> {
-  const { data } = await api.patch(`/admin/word-levels/${id}`, wordLevelBody(input));
+export async function updateWordLevel(
+  id: number,
+  input: WordLevelInput,
+): Promise<WordLevel> {
+  const { data } = await api.patch(
+    `/admin/word-levels/${id}`,
+    wordLevelBody(input),
+  );
   return data;
 }
 
@@ -796,7 +961,9 @@ export async function deleteWordLevel(id: number): Promise<void> {
 }
 
 export async function reorderWordLevels(ids: number[]): Promise<WordLevel[]> {
-  const { data } = await api.put("/admin/word-levels/order", { word_level_ids: ids });
+  const { data } = await api.put("/admin/word-levels/order", {
+    word_level_ids: ids,
+  });
   return data;
 }
 
@@ -807,7 +974,9 @@ export async function getPrioritySettings(): Promise<PrioritySettings> {
   return data;
 }
 
-export async function updatePrioritySettings(input: PrioritySettings): Promise<PrioritySettings> {
+export async function updatePrioritySettings(
+  input: PrioritySettings,
+): Promise<PrioritySettings> {
   const { data } = await api.put("/admin/priority/settings", input);
   return data;
 }
@@ -830,14 +999,18 @@ function recencyBandBody(input: RecencyBandInput) {
   return {
     name: input.name,
     min_days: input.minDays,
-    ...(input.maxDays === null ? { clear_max_days: true } : { max_days: input.maxDays }),
+    ...(input.maxDays === null
+      ? { clear_max_days: true }
+      : { max_days: input.maxDays }),
     contribution: input.contribution,
     enabled: input.enabled,
     order: input.order,
   };
 }
 
-export async function createRecencyBand(input: RecencyBandInput): Promise<PriorityRecencyBand> {
+export async function createRecencyBand(
+  input: RecencyBandInput,
+): Promise<PriorityRecencyBand> {
   const { data } = await api.post("/admin/priority/recency-bands", {
     name: input.name,
     min_days: input.minDays,
@@ -849,8 +1022,14 @@ export async function createRecencyBand(input: RecencyBandInput): Promise<Priori
   return data;
 }
 
-export async function updateRecencyBand(id: number, input: RecencyBandInput): Promise<PriorityRecencyBand> {
-  const { data } = await api.patch(`/admin/priority/recency-bands/${id}`, recencyBandBody(input));
+export async function updateRecencyBand(
+  id: number,
+  input: RecencyBandInput,
+): Promise<PriorityRecencyBand> {
+  const { data } = await api.patch(
+    `/admin/priority/recency-bands/${id}`,
+    recencyBandBody(input),
+  );
   return data;
 }
 
@@ -858,8 +1037,12 @@ export async function deleteRecencyBand(id: number): Promise<void> {
   await api.delete(`/admin/priority/recency-bands/${id}`);
 }
 
-export async function reorderRecencyBands(ids: number[]): Promise<PriorityRecencyBand[]> {
-  const { data } = await api.put("/admin/priority/recency-bands/order", { band_ids: ids });
+export async function reorderRecencyBands(
+  ids: number[],
+): Promise<PriorityRecencyBand[]> {
+  const { data } = await api.put("/admin/priority/recency-bands/order", {
+    band_ids: ids,
+  });
   return data;
 }
 
@@ -888,13 +1071,24 @@ function stabilityBandBody(input: StabilityBandInput) {
   };
 }
 
-export async function createStabilityBand(input: StabilityBandInput): Promise<PriorityStabilityBand> {
-  const { data } = await api.post("/admin/priority/stability-bands", stabilityBandBody(input));
+export async function createStabilityBand(
+  input: StabilityBandInput,
+): Promise<PriorityStabilityBand> {
+  const { data } = await api.post(
+    "/admin/priority/stability-bands",
+    stabilityBandBody(input),
+  );
   return data;
 }
 
-export async function updateStabilityBand(id: number, input: StabilityBandInput): Promise<PriorityStabilityBand> {
-  const { data } = await api.patch(`/admin/priority/stability-bands/${id}`, stabilityBandBody(input));
+export async function updateStabilityBand(
+  id: number,
+  input: StabilityBandInput,
+): Promise<PriorityStabilityBand> {
+  const { data } = await api.patch(
+    `/admin/priority/stability-bands/${id}`,
+    stabilityBandBody(input),
+  );
   return data;
 }
 
@@ -902,8 +1096,12 @@ export async function deleteStabilityBand(id: number): Promise<void> {
   await api.delete(`/admin/priority/stability-bands/${id}`);
 }
 
-export async function reorderStabilityBands(ids: number[]): Promise<PriorityStabilityBand[]> {
-  const { data } = await api.put("/admin/priority/stability-bands/order", { band_ids: ids });
+export async function reorderStabilityBands(
+  ids: number[],
+): Promise<PriorityStabilityBand[]> {
+  const { data } = await api.put("/admin/priority/stability-bands/order", {
+    band_ids: ids,
+  });
   return data;
 }
 
@@ -924,13 +1122,17 @@ function priorityLevelBandBody(input: PriorityLevelBandInput) {
   return {
     name: input.name,
     min_score: input.minScore,
-    ...(input.maxScore === null ? { clear_max_score: true } : { max_score: input.maxScore }),
+    ...(input.maxScore === null
+      ? { clear_max_score: true }
+      : { max_score: input.maxScore }),
     enabled: input.enabled,
     order: input.order,
   };
 }
 
-export async function createPriorityLevelBand(input: PriorityLevelBandInput): Promise<PriorityLevelBand> {
+export async function createPriorityLevelBand(
+  input: PriorityLevelBandInput,
+): Promise<PriorityLevelBand> {
   const { data } = await api.post("/admin/priority/level-bands", {
     name: input.name,
     min_score: input.minScore,
@@ -941,8 +1143,14 @@ export async function createPriorityLevelBand(input: PriorityLevelBandInput): Pr
   return data;
 }
 
-export async function updatePriorityLevelBand(id: number, input: PriorityLevelBandInput): Promise<PriorityLevelBand> {
-  const { data } = await api.patch(`/admin/priority/level-bands/${id}`, priorityLevelBandBody(input));
+export async function updatePriorityLevelBand(
+  id: number,
+  input: PriorityLevelBandInput,
+): Promise<PriorityLevelBand> {
+  const { data } = await api.patch(
+    `/admin/priority/level-bands/${id}`,
+    priorityLevelBandBody(input),
+  );
   return data;
 }
 
@@ -950,8 +1158,12 @@ export async function deletePriorityLevelBand(id: number): Promise<void> {
   await api.delete(`/admin/priority/level-bands/${id}`);
 }
 
-export async function reorderPriorityLevelBands(ids: number[]): Promise<PriorityLevelBand[]> {
-  const { data } = await api.put("/admin/priority/level-bands/order", { band_ids: ids });
+export async function reorderPriorityLevelBands(
+  ids: number[],
+): Promise<PriorityLevelBand[]> {
+  const { data } = await api.put("/admin/priority/level-bands/order", {
+    band_ids: ids,
+  });
   return data;
 }
 
@@ -995,7 +1207,10 @@ export async function createQuest(input: QuestInput): Promise<Quest> {
   return data;
 }
 
-export async function updateQuest(id: number, input: QuestInput): Promise<Quest> {
+export async function updateQuest(
+  id: number,
+  input: QuestInput,
+): Promise<Quest> {
   const { data } = await api.patch(`/admin/quests/${id}`, questBody(input));
   return data;
 }
@@ -1031,13 +1246,18 @@ export async function createSlogan(input: SloganInput): Promise<Slogan> {
 
 // Only the fields passed are changed, so toggling a slogan off never
 // rewrites its text.
-export async function updateSlogan(id: number, input: Partial<SloganInput>): Promise<Slogan> {
+export async function updateSlogan(
+  id: number,
+  input: Partial<SloganInput>,
+): Promise<Slogan> {
   const { data } = await api.patch(`/admin/slogans/${id}`, input);
   return data;
 }
 
 export async function reorderSlogans(sloganIds: number[]): Promise<Slogan[]> {
-  const { data } = await api.put("/admin/slogans/order", { slogan_ids: sloganIds });
+  const { data } = await api.put("/admin/slogans/order", {
+    slogan_ids: sloganIds,
+  });
   return data;
 }
 
@@ -1061,26 +1281,42 @@ export interface StatusEmojiInput {
 function statusEmojiForm(input: StatusEmojiInput): FormData {
   const form = new FormData();
   if (input.name !== undefined) form.append("name", input.name);
-  if (input.enabled !== undefined) form.append("enabled", String(input.enabled));
+  if (input.enabled !== undefined)
+    form.append("enabled", String(input.enabled));
   if (input.image) form.append("image", input.image);
   return form;
 }
 
-export async function createStatusEmoji(input: StatusEmojiInput): Promise<StatusEmoji> {
-  const { data } = await api.post("/admin/status/emojis", statusEmojiForm(input), {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+export async function createStatusEmoji(
+  input: StatusEmojiInput,
+): Promise<StatusEmoji> {
+  const { data } = await api.post(
+    "/admin/status/emojis",
+    statusEmojiForm(input),
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+    },
+  );
   return data;
 }
 
-export async function updateStatusEmoji(id: number, input: StatusEmojiInput): Promise<StatusEmoji> {
-  const { data } = await api.patch(`/admin/status/emojis/${id}`, statusEmojiForm(input), {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+export async function updateStatusEmoji(
+  id: number,
+  input: StatusEmojiInput,
+): Promise<StatusEmoji> {
+  const { data } = await api.patch(
+    `/admin/status/emojis/${id}`,
+    statusEmojiForm(input),
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+    },
+  );
   return data;
 }
 
-export async function reorderStatusEmojis(ids: number[]): Promise<StatusEmoji[]> {
+export async function reorderStatusEmojis(
+  ids: number[],
+): Promise<StatusEmoji[]> {
   const { data } = await api.put("/admin/status/emojis/order", { ids });
   return data;
 }
@@ -1094,7 +1330,10 @@ export async function listStatusPhrases(): Promise<StatusPhrase[]> {
   return data;
 }
 
-export async function createStatusPhrase(input: { text: string; enabled: boolean }): Promise<StatusPhrase> {
+export async function createStatusPhrase(input: {
+  text: string;
+  enabled: boolean;
+}): Promise<StatusPhrase> {
   const { data } = await api.post("/admin/status/phrases", input);
   return data;
 }
@@ -1107,7 +1346,9 @@ export async function updateStatusPhrase(
   return data;
 }
 
-export async function reorderStatusPhrases(ids: number[]): Promise<StatusPhrase[]> {
+export async function reorderStatusPhrases(
+  ids: number[],
+): Promise<StatusPhrase[]> {
   const { data } = await api.put("/admin/status/phrases/order", { ids });
   return data;
 }
@@ -1136,7 +1377,9 @@ export async function sendNotification(input: {
 
 // Everything sent, newest first -- or one user's thread. Will include
 // automatically sent messages once rules exist, since they are the same rows.
-export async function listSentNotifications(userId?: number): Promise<AdminNotification[]> {
+export async function listSentNotifications(
+  userId?: number,
+): Promise<AdminNotification[]> {
   const { data } = await api.get("/admin/notifications", {
     params: userId !== undefined ? { user_id: userId } : undefined,
   });
@@ -1150,7 +1393,9 @@ export async function getPremiumSettings(): Promise<PremiumSettings> {
   return data;
 }
 
-export async function updatePremiumSettings(input: PremiumSettings): Promise<PremiumSettings> {
+export async function updatePremiumSettings(
+  input: PremiumSettings,
+): Promise<PremiumSettings> {
   const { data } = await api.put("/admin/premium/settings", input);
   return data;
 }
@@ -1161,7 +1406,9 @@ export async function listPremiumUsers(): Promise<PremiumUser[]> {
   return data;
 }
 
-export async function listPremiumGrants(userId?: number): Promise<PremiumGrant[]> {
+export async function listPremiumGrants(
+  userId?: number,
+): Promise<PremiumGrant[]> {
   const { data } = await api.get("/admin/premium/grants", {
     params: userId !== undefined ? { user_id: userId } : undefined,
   });
@@ -1169,7 +1416,10 @@ export async function listPremiumGrants(userId?: number): Promise<PremiumGrant[]
 }
 
 // Adds `days` of Premium; an active subscription is extended, not overlapped.
-export async function grantPremium(userId: number, input: { days: number; note?: string }): Promise<PremiumGrant> {
+export async function grantPremium(
+  userId: number,
+  input: { days: number; note?: string },
+): Promise<PremiumGrant> {
   const { data } = await api.post(`/admin/premium/users/${userId}/grant`, {
     days: input.days,
     note: input.note || null,
@@ -1197,14 +1447,19 @@ export async function listPromoCodes(): Promise<PromoCode[]> {
   return data;
 }
 
-export async function createPromoCode(input: PromoCodeInput): Promise<PromoCode> {
+export async function createPromoCode(
+  input: PromoCodeInput,
+): Promise<PromoCode> {
   const { data } = await api.post("/admin/promo/codes", input);
   return data;
 }
 
 // Only the fields passed are changed; null expires_at/max_activations
 // removes that restriction.
-export async function updatePromoCode(id: number, input: Partial<PromoCodeInput>): Promise<PromoCode> {
+export async function updatePromoCode(
+  id: number,
+  input: Partial<PromoCodeInput>,
+): Promise<PromoCode> {
   const { data } = await api.patch(`/admin/promo/codes/${id}`, input);
   return data;
 }
@@ -1225,12 +1480,17 @@ export async function listPromoLinks(): Promise<PromoLink[]> {
   return data;
 }
 
-export async function createPromoLink(input: PromoLinkInput): Promise<PromoLink> {
+export async function createPromoLink(
+  input: PromoLinkInput,
+): Promise<PromoLink> {
   const { data } = await api.post("/admin/promo/links", input);
   return data;
 }
 
-export async function updatePromoLink(id: number, input: Partial<PromoLinkInput>): Promise<PromoLink> {
+export async function updatePromoLink(
+  id: number,
+  input: Partial<PromoLinkInput>,
+): Promise<PromoLink> {
   const { data } = await api.patch(`/admin/promo/links/${id}`, input);
   return data;
 }
@@ -1244,7 +1504,9 @@ export async function getPromoSettings(): Promise<PromoSettings> {
   return data;
 }
 
-export async function updatePromoSettings(input: PromoSettings): Promise<PromoSettings> {
+export async function updatePromoSettings(
+  input: PromoSettings,
+): Promise<PromoSettings> {
   const { data } = await api.put("/admin/promo/settings", input);
   return data;
 }
@@ -1254,7 +1516,9 @@ export async function listPromoActivations(): Promise<PromoActivation[]> {
   return data;
 }
 
-export async function getRetention(selfRegisteredOnly: boolean): Promise<Retention> {
+export async function getRetention(
+  selfRegisteredOnly: boolean,
+): Promise<Retention> {
   const { data } = await api.get("/admin/analytics/retention", {
     params: { self_registered_only: selfRegisteredOnly },
   });
@@ -1266,17 +1530,27 @@ export async function getReminders(): Promise<Reminders> {
   return data;
 }
 
-export async function updateReminderSettings(input: ReminderSettings): Promise<ReminderSettings> {
-  const { data } = await api.put("/admin/notifications/reminders/settings", input);
+export async function updateReminderSettings(
+  input: ReminderSettings,
+): Promise<ReminderSettings> {
+  const { data } = await api.put(
+    "/admin/notifications/reminders/settings",
+    input,
+  );
   return data;
 }
 
-export async function createReminder(input: ReminderRuleInput): Promise<ReminderRule> {
+export async function createReminder(
+  input: ReminderRuleInput,
+): Promise<ReminderRule> {
   const { data } = await api.post("/admin/notifications/reminders", input);
   return data;
 }
 
-export async function updateReminder(id: number, input: ReminderRuleInput): Promise<ReminderRule> {
+export async function updateReminder(
+  id: number,
+  input: ReminderRuleInput,
+): Promise<ReminderRule> {
   const { data } = await api.put(`/admin/notifications/reminders/${id}`, input);
   return data;
 }
@@ -1313,12 +1587,16 @@ export async function getTranslationState(): Promise<TranslationState> {
   return data;
 }
 
-export async function setTranslationKey(apiKey: string): Promise<TranslationState> {
+export async function setTranslationKey(
+  apiKey: string,
+): Promise<TranslationState> {
   const { data } = await api.put("/admin/translation/key", { api_key: apiKey });
   return data;
 }
 
-export async function startTranslation(language: TranslatorLanguage): Promise<TranslationState> {
+export async function startTranslation(
+  language: TranslatorLanguage,
+): Promise<TranslationState> {
   const { data } = await api.post("/admin/translation/start", { language });
   return data;
 }
@@ -1361,13 +1639,23 @@ export interface UserHistory {
     personal_quest_answers: number;
     personal_quest_correct: number;
     app_opens: number;
-    top_mistakes: { word_id: number; word: string | null; translation: string | null; wrong: number }[];
+    top_mistakes: {
+      word_id: number;
+      word: string | null;
+      translation: string | null;
+      wrong: number;
+    }[];
   };
   items: UserHistoryItem[];
 }
 
-export async function getUserHistory(userId: number, days: number): Promise<UserHistory> {
-  const { data } = await api.get(`/admin/analytics/users/${userId}/history`, { params: { days } });
+export async function getUserHistory(
+  userId: number,
+  days: number,
+): Promise<UserHistory> {
+  const { data } = await api.get(`/admin/analytics/users/${userId}/history`, {
+    params: { days },
+  });
   return data;
 }
 
@@ -1382,7 +1670,9 @@ export interface ClientErrorRow {
 }
 
 export async function listClientErrors(): Promise<ClientErrorRow[]> {
-  const { data } = await api.get("/admin/client-errors", { params: { limit: 200 } });
+  const { data } = await api.get("/admin/client-errors", {
+    params: { limit: 200 },
+  });
   return data;
 }
 
@@ -1393,19 +1683,27 @@ export async function listMiniPhraseRoles(): Promise<MiniPhraseRole[]> {
   return data;
 }
 
-export type MiniPhraseTemplateInput = Omit<MiniPhraseTemplate, "id" | "usage_count">;
+export type MiniPhraseTemplateInput = Omit<
+  MiniPhraseTemplate,
+  "id" | "usage_count"
+>;
 
 export async function listMiniPhraseTemplates(): Promise<MiniPhraseTemplate[]> {
   const { data } = await api.get("/admin/mini-phrase-templates");
   return data;
 }
 
-export async function createMiniPhraseTemplate(input: MiniPhraseTemplateInput): Promise<MiniPhraseTemplate> {
+export async function createMiniPhraseTemplate(
+  input: MiniPhraseTemplateInput,
+): Promise<MiniPhraseTemplate> {
   const { data } = await api.post("/admin/mini-phrase-templates", input);
   return data;
 }
 
-export async function updateMiniPhraseTemplate(id: number, input: MiniPhraseTemplateInput): Promise<MiniPhraseTemplate> {
+export async function updateMiniPhraseTemplate(
+  id: number,
+  input: MiniPhraseTemplateInput,
+): Promise<MiniPhraseTemplate> {
   const { data } = await api.put(`/admin/mini-phrase-templates/${id}`, input);
   return data;
 }
@@ -1431,8 +1729,12 @@ export interface MiniPhraseInput {
   parts: MiniPhrasePartInput[];
 }
 
-export async function listMiniPhrases(dictionaryId: number): Promise<MiniPhrase[]> {
-  const { data } = await api.get(`/admin/dictionaries/${dictionaryId}/mini-phrases`);
+export async function listMiniPhrases(
+  dictionaryId: number,
+): Promise<MiniPhrase[]> {
+  const { data } = await api.get(
+    `/admin/dictionaries/${dictionaryId}/mini-phrases`,
+  );
   return data;
 }
 
@@ -1441,12 +1743,21 @@ export async function getMiniPhrase(id: number): Promise<MiniPhrase> {
   return data;
 }
 
-export async function createMiniPhrase(dictionaryId: number, input: MiniPhraseInput): Promise<MiniPhrase> {
-  const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases`, input);
+export async function createMiniPhrase(
+  dictionaryId: number,
+  input: MiniPhraseInput,
+): Promise<MiniPhrase> {
+  const { data } = await api.post(
+    `/admin/dictionaries/${dictionaryId}/mini-phrases`,
+    input,
+  );
   return data;
 }
 
-export async function updateMiniPhrase(id: number, input: MiniPhraseInput): Promise<MiniPhrase> {
+export async function updateMiniPhrase(
+  id: number,
+  input: MiniPhraseInput,
+): Promise<MiniPhrase> {
   const { data } = await api.put(`/admin/mini-phrases/${id}`, input);
   return data;
 }
@@ -1455,8 +1766,14 @@ export async function deleteMiniPhrase(id: number): Promise<void> {
   await api.delete(`/admin/mini-phrases/${id}`);
 }
 
-export async function suggestMiniPhraseParts(dictionaryId: number, text: string): Promise<SuggestedMiniPhrasePart[]> {
-  const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases/suggest-parts`, { text });
+export async function suggestMiniPhraseParts(
+  dictionaryId: number,
+  text: string,
+): Promise<SuggestedMiniPhrasePart[]> {
+  const { data } = await api.post(
+    `/admin/dictionaries/${dictionaryId}/mini-phrases/suggest-parts`,
+    { text },
+  );
   return data;
 }
 
@@ -1465,7 +1782,9 @@ export async function getMiniPhraseSettings(): Promise<MiniPhraseSettings> {
   return data;
 }
 
-export async function updateMiniPhraseSettings(input: Partial<MiniPhraseSettings>): Promise<MiniPhraseSettings> {
+export async function updateMiniPhraseSettings(
+  input: Partial<MiniPhraseSettings>,
+): Promise<MiniPhraseSettings> {
   const { data } = await api.patch("/admin/mini-phrase-settings", input);
   return data;
 }
@@ -1477,13 +1796,23 @@ export interface MiniPhraseStarterReport {
   forms_added: string[];
 }
 
-export async function fillMiniPhraseStarter(dictionaryId: number): Promise<MiniPhraseStarterReport> {
-  const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases/fill-starter`);
+export async function fillMiniPhraseStarter(
+  dictionaryId: number,
+): Promise<MiniPhraseStarterReport> {
+  const { data } = await api.post(
+    `/admin/dictionaries/${dictionaryId}/mini-phrases/fill-starter`,
+  );
   return data;
 }
 
-export async function changeAdminPassword(currentPassword: string, newPassword: string): Promise<void> {
-  await api.post("/auth/admin/password", { current_password: currentPassword, new_password: newPassword });
+export async function changeAdminPassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  await api.post("/auth/admin/password", {
+    current_password: currentPassword,
+    new_password: newPassword,
+  });
 }
 
 // --- Mini-phrase generation (AI) ---------------------------------------------
@@ -1535,8 +1864,12 @@ export interface GeneratedMiniPhrase {
   force?: boolean;
 }
 
-export async function getMiniPhraseAnalysis(dictionaryId: number): Promise<MiniPhraseAnalysis> {
-  const { data } = await api.get(`/admin/dictionaries/${dictionaryId}/mini-phrases/analysis`);
+export async function getMiniPhraseAnalysis(
+  dictionaryId: number,
+): Promise<MiniPhraseAnalysis> {
+  const { data } = await api.get(
+    `/admin/dictionaries/${dictionaryId}/mini-phrases/analysis`,
+  );
   return data;
 }
 
@@ -1544,7 +1877,11 @@ export async function generateMiniPhrases(
   dictionaryId: number,
   count: number,
   categoryId: number | null = null,
-): Promise<{ items: GeneratedMiniPhrase[]; tokens: number; suggested_words?: { text: string; example: string }[] }> {
+): Promise<{
+  items: GeneratedMiniPhrase[];
+  tokens: number;
+  suggested_words?: { text: string; example: string }[];
+}> {
   const { data } = await api.post(
     `/admin/dictionaries/${dictionaryId}/mini-phrases/generate`,
     { count, category_id: categoryId },
@@ -1569,17 +1906,44 @@ export async function rephraseMiniPhrases(
 export async function saveGeneratedMiniPhrases(
   dictionaryId: number,
   items: GeneratedMiniPhrase[],
-): Promise<{ created: string[]; skipped: { text: string; reason: string }[]; forms_added: string[]; templates_created: string[] }> {
-  const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases/generate/save`, { items });
+): Promise<{
+  created: string[];
+  skipped: { text: string; reason: string }[];
+  forms_added: string[];
+  templates_created: string[];
+}> {
+  const { data } = await api.post(
+    `/admin/dictionaries/${dictionaryId}/mini-phrases/generate/save`,
+    { items },
+  );
   return data;
 }
 
 export async function addMissingWords(
   dictionaryId: number,
   words: string[],
-): Promise<{ created: { word: string; forms: number; category: string | null }[]; updated: { word: string; forms_added: number }[]; tokens: number }> {
-  const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases/add-words`, { words }, { timeout: 300000 });
-  return data;
+): Promise<{
+  created: { word: string; forms: number; category: string | null }[];
+  updated: { word: string; forms_added: number }[];
+  tokens: number;
+}> {
+  // Small batches: each word card is a long AI answer.
+  const total = {
+    created: [] as { word: string; forms: number; category: string | null }[],
+    updated: [] as { word: string; forms_added: number }[],
+    tokens: 0,
+  };
+  for (let i = 0; i < words.length; i += 8) {
+    const { data } = await api.post(
+      `/admin/dictionaries/${dictionaryId}/mini-phrases/add-words`,
+      { words: words.slice(i, i + 8) },
+      { timeout: 300000 },
+    );
+    total.created.push(...data.created);
+    total.updated.push(...data.updated);
+    total.tokens += data.tokens;
+  }
+  return total;
 }
 
 export interface MiniPhrasePreview {
@@ -1587,11 +1951,21 @@ export interface MiniPhrasePreview {
   text: string;
   translation: string | null;
   audio_url: string | null;
-  parts: { position: number; text: string; role: string | null; translation: string | null }[];
+  parts: {
+    position: number;
+    text: string;
+    role: string | null;
+    translation: string | null;
+  }[];
   explanation: { kind: string; text: string; role: string | null }[];
 }
 
-export async function previewMiniPhrase(id: number, ui: "ru" | "tg" | "uz"): Promise<MiniPhrasePreview> {
-  const { data } = await api.get(`/admin/mini-phrases/${id}/preview`, { params: { ui } });
+export async function previewMiniPhrase(
+  id: number,
+  ui: "ru" | "tg" | "uz",
+): Promise<MiniPhrasePreview> {
+  const { data } = await api.get(`/admin/mini-phrases/${id}/preview`, {
+    params: { ui },
+  });
   return data;
 }

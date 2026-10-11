@@ -274,6 +274,34 @@ export function MiniPhraseGenerator({ dictionaryId, onSaved }: { dictionaryId: n
               </div>
             </div>
           )}
+          {wordCount > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() =>
+                  setChosenWords(new Set([...aiNeeds.map((n) => n.text), ...(analysis?.missing_words ?? []).map((m) => m.text)]))
+                }
+                className="rounded-md bg-[var(--fill)] px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-indigo-50"
+              >
+                Выбрать все ({wordCount})
+              </button>
+              {aiNeeds.length > 0 && (
+                <button
+                  onClick={() => setChosenWords(new Set([...chosenWords, ...aiNeeds.map((n) => n.text)]))}
+                  className="rounded-md bg-[var(--fill)] px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-indigo-50"
+                >
+                  Все от ИИ ({aiNeeds.length})
+                </button>
+              )}
+              {chosenWords.size > 0 && (
+                <button
+                  onClick={() => setChosenWords(new Set())}
+                  className="rounded-md px-3 py-1.5 text-sm text-slate-600 hover:bg-[var(--fill)]"
+                >
+                  Снять выбор
+                </button>
+              )}
+            </div>
+          )}
           <div>
             <button
               onClick={addWords}
