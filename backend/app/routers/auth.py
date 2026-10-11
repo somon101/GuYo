@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_principal, Principal
-from app.core.security import create_access_token, verify_password
+from app.core.deps import get_current_admin, get_current_principal, Principal
+from app.core.security import create_access_token, hash_password, verify_password
 from app.database import get_db
 from app.models.admin import Admin
 from app.models.user import User
@@ -171,3 +172,18 @@ def google_register(payload: GoogleRegisterIn, db: Session = Depends(get_db)):
     )
     db.commit()
     return TokenResponse(access_token=create_access_token(subject=user.id, role="user"), role="user")
+
+
+class AdminPasswordIn(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=10, max_length=128)
+
+
+@router.post("/admin/password", status_code=status.HTTP_204_NO_CONTENT)
+def change_admin_password(payload: AdminPasswordIn, db: Session = Depends(get_db), admin: Admin = Depends(get_current_admin)):
+    """The admin's own password change. The seed only ever creates the
+    account (app/seed.py), so a changed password survives every deploy."""
+    if not verify_password(payload.current_password, admin.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Текущий пароль неверный")
+    admin.password_hash = hash_password(payload.new_password)
+    db.commit()

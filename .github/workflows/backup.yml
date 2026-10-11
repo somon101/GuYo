@@ -1,0 +1,52 @@
+name: Daily backup
+
+# Every day at 21:00 Dushanbe (16:00 UTC), and on demand: downloads the whole
+# database and every media file (tools/backup/guyo_backup.py), encrypts them
+# with AES-256 (7-Zip, file names hidden too) and keeps the archive as a run
+# artifact for 90 days. Needs two repository secrets:
+#   GUYO_ADMIN_PASSWORD  the Admin Web password
+#   BACKUP_PASSWORD      the archive password -- without it nobody can open
+#                        a backup, so keep it somewhere safe
+on:
+  schedule:
+    - cron: "0 16 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download database and media
+        env:
+          GUYO_ADMIN_PASSWORD: ${{ secrets.GUYO_ADMIN_PASSWORD }}
+          BACKUP_DIR: ${{ runner.temp }}/guyo
+        run: |
+          if [ -z "$GUYO_ADMIN_PASSWORD" ]; then echo "Secret GUYO_ADMIN_PASSWORD is missing"; exit 1; fi
+          python tools/backup/guyo_backup.py
+
+      - name: Encrypt
+        env:
+          BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
+        run: |
+          if [ ${#BACKUP_PASSWORD} -lt 12 ]; then echo "Secret BACKUP_PASSWORD is missing or shorter than 12"; exit 1; fi
+          echo "STAMP=$(date -u +%Y-%m-%d)" >> "$GITHUB_ENV"
+          cd "${{ runner.temp }}/guyo"
+          7z a -t7z -mhe=on -p"$BACKUP_PASSWORD" "${{ runner.temp }}/guyo-backup.7z" . > /dev/null
+          ls -la "${{ runner.temp }}/guyo-backup.7z"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: guyo-backup-${{ env.STAMP }}
+          path: ${{ runner.temp }}/guyo-backup.7z
+          retention-days: 90
+          compression-level: 0

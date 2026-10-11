@@ -1471,3 +1471,7 @@ export async function fillMiniPhraseStarter(dictionaryId: number): Promise<MiniP
   const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases/fill-starter`);
   return data;
 }
+
+export async function changeAdminPassword(currentPassword: string, newPassword: string): Promise<void> {
+  await api.post("/auth/admin/password", { current_password: currentPassword, new_password: newPassword });
+}
