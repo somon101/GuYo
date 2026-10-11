@@ -328,7 +328,6 @@
   background-color: var(--card);
   border-radius: 18px;
   box-shadow: var(--shadow-card);
-  animation: card-in 520ms var(--ease-ios) backwards;
 }
 
 @utility card-link {
@@ -491,16 +490,6 @@
   }
 }
 
-/* Cards in the same group arrive one after another, 60 ms apart. */
-.card:nth-child(2) { animation-delay: 60ms; }
-.card:nth-child(3) { animation-delay: 120ms; }
-.card:nth-child(4) { animation-delay: 180ms; }
-.card:nth-child(5) { animation-delay: 240ms; }
-.card:nth-child(6) { animation-delay: 300ms; }
-.card:nth-child(7) { animation-delay: 360ms; }
-.card:nth-child(8) { animation-delay: 420ms; }
-.card:nth-child(9) { animation-delay: 480ms; }
-.card:nth-child(n + 10) { animation-delay: 540ms; }
 
 /* Screen-to-screen: the new screen slides in from the right while the old
    one drifts left and fades -- iOS navigation. Driven by the View
@@ -607,11 +596,7 @@ html[data-vt-dir="back"]::view-transition-new(page) {
    a translate on the page and turn it into the containing block of every
    position:fixed modal inside it. */
 .page-enter {
-  animation: page-new-forward 420ms var(--ease-ios) backwards;
-}
-
-.page-enter[data-dir="back"] {
-  animation-name: page-new-back;
+  animation: fade-in 120ms ease-out backwards;
 }
 
 /* Three soft colour fields drifting behind everything, like wallpaper
