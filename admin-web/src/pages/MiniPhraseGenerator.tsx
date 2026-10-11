@@ -181,7 +181,7 @@ export function MiniPhraseGenerator({ dictionaryId, onSaved }: { dictionaryId: n
                       type="button"
                       onClick={() => toggle(chosenWords, m.text, setChosenWords)}
                       className={`rounded-full px-3 py-1 text-sm transition-colors ${
-                        on ? "bg-indigo-600 text-white" : "bg-[var(--surface,white)] text-slate-700 hover:bg-indigo-50"
+                        on ? "bg-indigo-600 text-white" : "bg-[var(--card)] text-slate-700 hover:bg-indigo-50"
                       }`}
                       title={m.source === "phrases" ? `встречается в ${m.appears} фразах` : "ключевое слово для мини-фраз"}
                     >
@@ -318,13 +318,20 @@ function Section({
 function Card({ item, checked, onToggle }: { item: GeneratedMiniPhrase; checked: boolean; onToggle: () => void }) {
   return (
     <label
-      className={`flex cursor-pointer gap-3 rounded-lg bg-[var(--surface,white)] p-3 ${item.valid ? "" : "cursor-default opacity-60"}`}
+      className={`flex cursor-pointer items-start gap-3 rounded-xl bg-[var(--card)] p-3.5 ${item.valid ? "" : "cursor-default opacity-60"}`}
       translate="no"
     >
-      <input type="checkbox" className="mt-1" checked={checked} disabled={!item.valid} onChange={onToggle} />
+      <input
+        type="checkbox"
+        className="switch mt-0.5"
+        aria-label="Добавить эту мини-фразу"
+        checked={checked}
+        disabled={!item.valid}
+        onChange={onToggle}
+      />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-2">
-          <span className="font-serif text-[17px] font-medium text-slate-900">{item.text}</span>
+          <span className="text-[16px] font-semibold text-slate-900">{item.text}</span>
           <span className="text-sm text-slate-500">{item.translation_tg}</span>
           {item.similarity > 0 && (
             <span
@@ -348,7 +355,7 @@ function Card({ item, checked, onToggle }: { item: GeneratedMiniPhrase; checked:
             </span>
           ))}
         </div>
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1.5 text-xs text-slate-500">
           Шаблон: {item.template_name || "—"}
           {item.template_name && !item.template_exists && " (будет создан)"}
           {item.translation_uz && ` · uz: ${item.translation_uz}`}
