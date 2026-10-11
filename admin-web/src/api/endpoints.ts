@@ -2038,3 +2038,26 @@ export async function cancelMiniPhraseJob(
   const { data } = await api.post(`/admin/mini-phrase-jobs/${jobId}/cancel`);
   return data;
 }
+
+export interface Starter500Report {
+  total: number;
+  created: string[];
+  already: string[];
+  skipped: { text: string; missing_words: string[] }[];
+  forms_added: string[];
+  templates_created: string[];
+  missing_words: { word: string; phrases: number }[];
+}
+
+export async function fillMiniPhraseStarter500(
+  dictionaryId: number,
+): Promise<Starter500Report> {
+  const { data } = await api.post(
+    `/admin/dictionaries/${dictionaryId}/mini-phrases/fill-starter-500`,
+    null,
+    {
+      timeout: 300000,
+    },
+  );
+  return data;
+}

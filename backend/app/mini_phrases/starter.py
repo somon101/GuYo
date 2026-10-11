@@ -202,3 +202,101 @@ def fill_starter(db: Session, dictionary: Dictionary) -> dict:
         existing.add(normalize_answer(text))
         created.append(text)
     return {"created": created, "already": already, "skipped": skipped, "forms_added": forms_added}
+
+
+def fill_phrases(db: Session, dictionary: Dictionary, phrases: list[dict]) -> dict:
+    """Adds hand-written phrases ({text, tg, uz, en, parts}) like fill_starter,
+    but each phrase's template is derived from its roles (the same rule as
+    AI-generated phrases), creating missing templates. The report also lists
+    every missing word with how many phrases it would unlock."""
+    from app.mini_phrases.generate import _template_name, _template_texts
+    from app.mini_phrases.render import DEFAULT_EXPLANATIONS
+
+    templates = {t.name: t for t in db.query(MiniPhraseTemplate).all()}
+    existing = {
+        normalize_answer(t)
+        for (t,) in db.query(MiniPhrase.text).filter(MiniPhrase.dictionary_id == dictionary.id).all()
+    }
+    created: list[str] = []
+    already: list[str] = []
+    skipped: list[dict] = []
+    forms_added: list[str] = []
+    templates_created: list[str] = []
+    missing_count: dict[str, int] = {}
+    found: dict[tuple, Word | None] = {}
+    for item in phrases:
+        text, parts = item["text"], item["parts"]
+        if normalize_answer(text) in existing:
+            already.append(text)
+            continue
+        resolved = []
+        missing = []
+        for _part_text, bases, _role in parts:
+            key = tuple(bases)
+            if key not in found:
+                found[key] = _find_word(db, dictionary.id, bases)
+            if found[key] is None:
+                missing.append(bases[0])
+            resolved.append(found[key])
+        if missing:
+            skipped.append({"text": text, "missing_words": missing})
+            for m in set(missing):
+                missing_count[m] = missing_count.get(m, 0) + 1
+            continue
+
+        roles = [word.role or role for (_t, _b, role), word in zip(parts, resolved)]
+        # A named topic template (general explanation, any length) or one per role pattern.
+        name = item.get("template") or _template_name(roles)
+        texts = (
+            {f"explanation_{lang}": DEFAULT_EXPLANATIONS[lang] for lang in ("ru", "tg", "uz")}
+            if item.get("template")
+            else _template_texts(roles)
+        )
+        template = templates.get(name)
+        if template is None:
+            template = MiniPhraseTemplate(name=name, distractor_count=2, enabled=True, **texts)
+            db.add(template)
+            db.flush()
+            templates[name] = template
+            templates_created.append(name)
+        mp = MiniPhrase(
+            dictionary_id=dictionary.id,
+            template_id=template.id,
+            text=text,
+            translation_tg=item["tg"],
+            translation_uz=item.get("uz"),
+            translation_en=item.get("en"),
+            enabled=True,
+        )
+        for position, ((part_text, _bases, role), word) in enumerate(zip(parts, resolved), start=1):
+            if word.role is None:
+                word.role = role
+            form_id = None
+            if part_text.lower() != word.word.strip().lower():
+                form = next(
+                    (f for f in word.forms if f.language == dictionary.language and f.text.strip().lower() == part_text.lower()),
+                    None,
+                )
+                if form is None:
+                    form = WordForm(word_id=word.id, language=dictionary.language, text=part_text.lower())
+                    db.add(form)
+                    db.flush()
+                    if form not in word.forms:
+                        word.forms.append(form)
+                    forms_added.append(f"{word.word} → {part_text.lower()}")
+                form_id = form.id
+            mp.parts.append(MiniPhrasePart(position=position, text=part_text, word_id=word.id, word_form_id=form_id))
+        db.add(mp)
+        db.flush()
+        existing.add(normalize_answer(text))
+        created.append(text)
+    missing_words = sorted(({"word": w, "phrases": n} for w, n in missing_count.items()), key=lambda m: -m["phrases"])
+    return {
+        "total": len(phrases),
+        "created": created,
+        "already": already,
+        "skipped": skipped,
+        "forms_added": forms_added,
+        "templates_created": templates_created,
+        "missing_words": missing_words,
+    }

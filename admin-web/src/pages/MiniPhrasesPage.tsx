@@ -18,6 +18,7 @@ import {
 import { LanguageSectionTabs } from "../components/LanguageSectionTabs";
 import { MiniPhrasePhonePreview } from "../components/MiniPhrasePhonePreview";
 import { SearchBox, useSearchQuery } from "../components/SearchBox";
+import { Starter500Panel } from "../components/Starter500Panel";
 import { matches } from "../utils/search";
 import type {
   Dictionary,
@@ -78,6 +79,7 @@ export function MiniPhrasesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [report, setReport] = useState<MiniPhraseStarterReport | null>(null);
   const [isFilling, setIsFilling] = useState(false);
+  const [show500, setShow500] = useState(false);
   const [previewId, setPreviewId] = useState<number | null>(null);
   const [query, setQuery] = useSearchQuery();
   const shown = items.filter((mp) =>
@@ -196,6 +198,12 @@ export function MiniPhrasesPage() {
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-2">
           <button
+            onClick={() => setShow500((v) => !v)}
+            className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
+          >
+            {show500 ? "Скрыть «Набор 500»" : "Набор 500"}
+          </button>
+          <button
             onClick={fillStarter}
             disabled={isFilling}
             className="rounded-md bg-[var(--fill)] px-4 py-2 text-sm font-medium text-slate-800 hover:bg-[var(--fill-strong)] disabled:opacity-50"
@@ -212,6 +220,10 @@ export function MiniPhrasesPage() {
           </button>
         </div>
       </div>
+
+      {show500 && (
+        <Starter500Panel dictionaryId={dictionaryId} onFilled={reload} />
+      )}
 
       {report && (
         <div className="card mb-6 p-4 text-sm text-slate-700">

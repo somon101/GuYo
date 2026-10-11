@@ -327,6 +327,19 @@ def fill_starter_set(dictionary_id: int, db: Session = Depends(get_db), _admin=D
     return report
 
 
+@router.post("/dictionaries/{dictionary_id}/mini-phrases/fill-starter-500")
+def fill_starter_500(dictionary_id: int, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    """Adds the hand-written «Набор 500» (see app/mini_phrases/starter_500.py):
+    phrases whose words exist are created, the rest are reported together
+    with the missing words and how many phrases each would unlock."""
+    from app.mini_phrases.starter import fill_phrases
+    from app.mini_phrases.starter_500 import parse
+
+    report = fill_phrases(db, _get_dictionary_or_404(db, dictionary_id), parse())
+    db.commit()
+    return report
+
+
 class GenerateIn(BaseModel):
     count: int = Field(default=20, ge=10, le=50)
     # A word category of this dictionary to keep phrases on one topic; null = all.
