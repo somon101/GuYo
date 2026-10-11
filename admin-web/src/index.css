@@ -1,9 +1,7 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 
 /* ==========================================================================
-   GuYo Admin -- the GuYo app's own world: indigo ink, violet action,
-   gold rewards, pastel tiles, soft white cards on a lavender canvas.
-   Colours mirror mobile/lib/theme/app_colors.dart (light and dark).
+   GuYo Admin -- iOS look.
 
    Every page keeps its ordinary Tailwind classes; what those classes MEAN is
    decided here. slate -> iOS grays, indigo/blue -> systemBlue, red/rose ->
@@ -17,9 +15,7 @@
 :root {
   color-scheme: light dark;
 
-  /* "blue" is the accent slot every page already uses: GuYo's violet. */
   --sys-blue: #007aff;
-  --violet-fill: #007aff;
   --sys-green: #34c759;
   --sys-red: #ff3b30;
   --sys-orange: #ff9500;
@@ -32,50 +28,30 @@
   --sys-orange-ink: #b35900;
   --sys-purple-ink: #8944ab;
 
-  /* The app's indigo: headings, the side rail. */
-  --ink: #000000;
-  --rail: #1c1c1e;
-  --rail-2: #2c2c2e;
-  --rail-text: #c7c7cc;
-  --gold: #ffeb3b;
-  --gold-ink: #7a5600;
-
-  /* Pastel tiles, as in the app's home screen. */
-  --tile-orange: #ffe3b8;
-  --tile-green: #c9efd3;
-  --tile-blue: #d5e4ff;
-  --tile-pink: #f6d6f4;
-  --tile-yellow: #fff6dd;
-  --tile-gold: #ffeb3b;
-
   --bg: #f2f2f7;
   --card: #ffffff;
   --card-hover: #f7f7fa;
   --fill: rgb(118 118 128 / 0.12);
   --fill-strong: rgb(118 118 128 / 0.2);
   --field: rgb(118 118 128 / 0.1);
-  --field-border: transparent;
   --separator: rgb(60 60 67 / 0.16);
   --label: #000000;
   --segment-thumb: #ffffff;
   --switch-off: rgb(120 120 128 / 0.16);
 
   --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 2px 14px rgb(0 0 0 / 0.035);
-  --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.05), 0 10px 26px rgb(0 0 0 / 0.08);
-  --shadow-float: 0 18px 44px -12px rgb(16 27 99 / 0.28), 0 0 0 1px rgb(16 27 99 / 0.05);
-  --shadow-primary: none;
+  --shadow-float: 0 10px 34px rgb(0 0 0 / 0.14), 0 1px 3px rgb(0 0 0 / 0.06);
   --header-glass: rgb(242 242 247 / 0.72);
   --blob-opacity: 0.38;
 
   --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
-  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 
   --gray-50: #f2f2f7;
   --gray-100: #e5e5ea;
   --gray-200: #d1d1d6;
   --gray-300: #c7c7cc;
   --gray-400: #aeaeb2;
-  --gray-500: #6e6e73;
+  --gray-500: #8e8e93;
   --gray-600: #636366;
   --gray-700: #48484a;
   --gray-800: #2c2c2e;
@@ -86,7 +62,6 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --sys-blue: #0a84ff;
-    --violet-fill: #0a84ff;
     --sys-green: #30d158;
     --sys-red: #ff453a;
     --sys-orange: #ff9f0a;
@@ -98,36 +73,20 @@
     --sys-orange-ink: #ffb340;
     --sys-purple-ink: #da8fff;
 
-    --ink: #ffffff;
-    --rail: #1c1c1e;
-    --rail-2: #2c2c2e;
-    --rail-text: #aeaeb2;
-    --gold: #ffd54f;
-    --gold-ink: #ffd54f;
-
-    --tile-orange: #6b4416;
-    --tile-green: #1e5537;
-    --tile-blue: #233f75;
-    --tile-pink: #5c2a5a;
-    --tile-yellow: #4a4017;
-    --tile-gold: #5c4a00;
-
     --bg: #000000;
     --card: #1c1c1e;
     --card-hover: #242426;
     --fill: rgb(118 118 128 / 0.24);
     --fill-strong: rgb(118 118 128 / 0.34);
     --field: rgb(118 118 128 / 0.24);
-    --field-border: transparent;
     --separator: rgb(84 84 88 / 0.65);
     --label: #ffffff;
-    --segment-thumb: #3b4166;
+    --segment-thumb: #636366;
     --switch-off: rgb(120 120 128 / 0.32);
 
+    /* Elevation in dark mode is a lighter surface, not a shadow -- as on iOS. */
     --shadow-card: none;
-    --shadow-lift: none;
-    --shadow-float: 0 20px 48px -12px rgb(0 0 0 / 0.75), 0 0 0 1px #2a2e45;
-    --shadow-primary: none;
+    --shadow-float: 0 10px 34px rgb(0 0 0 / 0.55);
     --header-glass: rgb(22 22 24 / 0.72);
     --blob-opacity: 0.4;
 
@@ -152,12 +111,12 @@
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI Variable Text", "Segoe UI",
     system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-serif: ui-serif, "New York", "Iowan Old Style", Georgia, "Times New Roman", serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 
   --radius-md: 10px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-2xl: 20px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 22px;
 }
 
 @theme inline {
@@ -181,7 +140,7 @@
   --color-indigo-300: color-mix(in srgb, var(--sys-blue) 55%, var(--card));
   --color-indigo-400: color-mix(in srgb, var(--sys-blue) 78%, var(--card));
   --color-indigo-500: var(--sys-blue);
-  --color-indigo-600: var(--violet-fill);
+  --color-indigo-600: var(--sys-blue);
   --color-indigo-700: var(--sys-blue-ink);
   --color-indigo-800: var(--sys-blue-ink);
   --color-indigo-900: var(--sys-blue-ink);
@@ -193,7 +152,7 @@
   --color-blue-300: color-mix(in srgb, var(--sys-blue) 55%, var(--card));
   --color-blue-400: color-mix(in srgb, var(--sys-blue) 78%, var(--card));
   --color-blue-500: var(--sys-blue);
-  --color-blue-600: var(--violet-fill);
+  --color-blue-600: var(--sys-blue);
   --color-blue-700: var(--sys-blue-ink);
   --color-blue-800: var(--sys-blue-ink);
   --color-blue-900: var(--sys-blue-ink);
@@ -312,60 +271,8 @@
     text-rendering: optimizeLegibility;
   }
 
-  h1,
-  h2,
-  h3 {
-    text-wrap: balance;
-    letter-spacing: -0.02em;
-  }
-
-  h1 {
-    color: var(--ink);
-  }
-
-  ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: var(--gray-300);
-    border-radius: 999px;
-    border: 3px solid var(--bg);
-  }
-
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  input,
-  textarea {
-    caret-color: var(--sys-blue);
-  }
-
-  a {
-    text-underline-offset: 3px;
-  }
-
-  /* Numbers line up in every table and counter. */
-  table,
-  .tabular-nums {
-    font-variant-numeric: tabular-nums;
-  }
-
-  thead th {
-    font-weight: 500;
-    letter-spacing: 0.02em;
-  }
-
-  :focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--sys-blue) 70%, transparent);
-    outline-offset: 2px;
-  }
-
   ::selection {
-    background-color: color-mix(in srgb, var(--sys-blue) 24%, transparent);
-    color: inherit;
+    background-color: color-mix(in srgb, var(--sys-blue) 26%, transparent);
   }
 
   input[type="radio"],
@@ -411,7 +318,7 @@
   button:not(:disabled):active,
   a[class*="bg-indigo-600"]:active,
   a[class*="btn-tinted"]:active {
-    scale: 0.98;
+    scale: 0.97;
   }
 }
 
@@ -419,23 +326,19 @@
 
 @utility card {
   background-color: var(--card);
-  border: 1px solid var(--separator);
   border-radius: 18px;
   box-shadow: var(--shadow-card);
+  animation: card-in 520ms var(--ease-ios) backwards;
 }
 
 @utility card-link {
   cursor: pointer;
   transition:
     background-color 160ms ease,
-    box-shadow 260ms var(--ease-out-expo),
-    translate 260ms var(--ease-out-expo),
     scale 200ms var(--ease-ios);
 
   &:hover {
     background-color: var(--card-hover);
-    box-shadow: var(--shadow-lift);
-    translate: 0 -2px;
   }
 
   &:active {
@@ -454,12 +357,12 @@
   box-shadow: var(--shadow-float);
 }
 
-/* The top bar: a plain surface over a hairline. */
+/* The one piece of glass in the whole interface. */
 @utility glass-bar {
   background-color: var(--header-glass);
-  -webkit-backdrop-filter: saturate(160%) blur(14px);
-  backdrop-filter: saturate(160%) blur(14px);
-  border-bottom: 1px solid var(--separator);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  box-shadow: 0 0.5px 0 var(--separator);
 }
 
 /* --- Controls -------------------------------------------------------------- */
@@ -467,8 +370,8 @@
 @utility field {
   background-color: var(--field);
   color: inherit;
-  border: 1px solid var(--field-border);
-  border-radius: 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
   outline: none;
   transition:
     background-color 160ms ease,
@@ -476,16 +379,13 @@
     box-shadow 160ms ease;
 
   &::placeholder {
-    color: var(--gray-500);
-  }
-
-  &:hover:not(:focus):not(:disabled) {
-    border-color: var(--gray-300);
+    color: var(--gray-400);
   }
 
   &:focus {
+    background-color: var(--card);
     border-color: var(--sys-blue);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--sys-blue) 16%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--sys-blue) 22%, transparent);
   }
 
   &:disabled {
@@ -494,24 +394,7 @@
   }
 }
 
-/* Primary buttons are written as bg-indigo-600 across the pages: give
-   them the app's violet glow and a small lift on hover. */
-button[class*="bg-indigo-600"],
-a[class*="bg-indigo-600"] {
-  transition:
-    translate 220ms var(--ease-out-expo),
-    box-shadow 220ms var(--ease-out-expo),
-    background-color 160ms ease,
-    scale 160ms var(--ease-ios);
-}
-
-button[class*="bg-indigo-600"]:hover:not(:disabled),
-a[class*="bg-indigo-600"]:hover {
-  translate: 0 -1px;
-  background-color: var(--sys-blue-ink);
-}
-
-/* Secondary button: violet-tinted fill, violet text. */
+/* Secondary button: grey fill, blue text. */
 @utility btn-tinted {
   background-color: var(--fill);
   color: var(--sys-blue);
@@ -568,7 +451,7 @@ a[class*="bg-indigo-600"]:hover {
   }
 
   &:checked {
-    background-color: var(--sys-blue);
+    background-color: var(--sys-green);
   }
 
   &:checked::before {
@@ -591,7 +474,7 @@ a[class*="bg-indigo-600"]:hover {
 @keyframes card-in {
   from {
     opacity: 0;
-    translate: 0 6px;
+    translate: 0 12px;
   }
 }
 
@@ -608,44 +491,16 @@ a[class*="bg-indigo-600"]:hover {
   }
 }
 
-/* The side rail's active pill: glides to the chosen section. */
-.rail-pill {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  border-radius: 12px;
-  background: var(--violet-fill);
-  transition:
-    translate 520ms var(--ease-out-expo),
-    height 520ms var(--ease-out-expo),
-    opacity 200ms ease;
-  pointer-events: none;
-}
-
-.rail-link .rail-tile {
-  transition: scale 260ms var(--ease-out-expo), rotate 260ms var(--ease-out-expo);
-}
-
-.rail-link:hover .rail-tile {
-  scale: 1.08;
-}
-
-/* The rail keeps every item reachable: a soft fade says there is more. */
-.rail-nav {
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
-}
-
-/* Every page starts at the same edge next to the rail. */
-.page-view > * {
-  margin-inline: 0;
-}
-
-/* One arrival only: the page rise. The horizontal slide is retired. */
-::view-transition-old(page),
-::view-transition-new(page) {
-  animation: none;
-}
+/* Cards in the same group arrive one after another, 60 ms apart. */
+.card:nth-child(2) { animation-delay: 60ms; }
+.card:nth-child(3) { animation-delay: 120ms; }
+.card:nth-child(4) { animation-delay: 180ms; }
+.card:nth-child(5) { animation-delay: 240ms; }
+.card:nth-child(6) { animation-delay: 300ms; }
+.card:nth-child(7) { animation-delay: 360ms; }
+.card:nth-child(8) { animation-delay: 420ms; }
+.card:nth-child(9) { animation-delay: 480ms; }
+.card:nth-child(n + 10) { animation-delay: 540ms; }
 
 /* Screen-to-screen: the new screen slides in from the right while the old
    one drifts left and fades -- iOS navigation. Driven by the View
@@ -752,20 +607,7 @@ html[data-vt-dir="back"]::view-transition-new(page) {
    a translate on the page and turn it into the containing block of every
    position:fixed modal inside it. */
 .page-enter {
-  animation: none;
-}
-
-/* Each page rises in once on arrival (from an already-readable state). */
-.page-view > * {
-  animation: page-rise 560ms var(--ease-out-expo) backwards;
-}
-
-@keyframes page-rise {
-  from {
-    opacity: 0.35;
-    translate: 0 10px;
-    filter: blur(3px);
-  }
+  animation: page-new-forward 420ms var(--ease-ios) backwards;
 }
 
 .page-enter[data-dir="back"] {
