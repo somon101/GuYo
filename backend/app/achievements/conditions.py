@@ -111,6 +111,38 @@ def streak_days_count(db: Session, user: User) -> int:
     return streak_with_freezes(db, user)[0]
 
 
+def points_earned_count(db: Session, user: User) -> int:
+    """The user's CURRENT rating points -- reuses UserRating.total_points,
+    the one row app/rating/service.py ever writes points to (see
+    app/models/rating.py), never a second points tally. Note: a Season
+    reset zeroes total_points, so a new user must reach the threshold
+    within a season; an already-granted achievement is never revoked
+    (UserAchievement is permanent)."""
+    from app.models.rating import UserRating
+
+    row = db.query(UserRating.total_points).filter(UserRating.user_id == user.id).first()
+    return row[0] if row else 0
+
+
+def friends_added_count(db: Session, user: User) -> int:
+    """How many friends this user has -- counts this user's own direction
+    of Friendship (always mutual, written both ways on add; see
+    app/models/friendship.py), never a second definition of "friend"."""
+    from app.models.friendship import Friendship
+
+    return db.query(func.count(Friendship.id)).filter(Friendship.user_id == user.id).scalar() or 0
+
+
+def quest_words_completed_count(db: Session, user: User) -> int:
+    """How many words this user has completed in quests, across all days --
+    counts UserQuestWordDay rows (the proof a word was used in some quest
+    on a day; see app/models/quest.py), never a second quest-progress
+    definition."""
+    from app.models.quest import UserQuestWordDay
+
+    return db.query(func.count(UserQuestWordDay.id)).filter(UserQuestWordDay.user_id == user.id).scalar() or 0
+
+
 # condition_type -> (db, user) -> current value. The one place a new
 # condition_type becomes usable by both the granting service and the
 # "current progress" numbers shown in the Profile screen.
@@ -119,6 +151,9 @@ CONDITION_TYPES = {
     "words_learned": words_learned_count,
     "lessons_completed": lessons_completed_count,
     "streak_days": streak_days_count,
+    "points_earned": points_earned_count,
+    "friends_added": friends_added_count,
+    "quest_words_completed": quest_words_completed_count,
 }
 
 # condition_type -> a human label for Admin Web's picker -- kept alongside
@@ -129,4 +164,7 @@ CONDITION_TYPE_LABELS: dict[str, str] = {
     "words_learned": "Количество изученных слов",
     "lessons_completed": "Количество пройденных уроков",
     "streak_days": "Серия дней активности",
+    "points_earned": "Набрано очков",
+    "friends_added": "Добавлено друзей",
+    "quest_words_completed": "Слова, пройденные в квестах",
 }

@@ -9,10 +9,13 @@ Run with:  python -m app.seed
 """
 from pathlib import Path
 
+from sqlalchemy import func
+
 from app.config import get_settings
 from app.core.security import hash_password
 from app.core.storage import save_bytes
 from app.database import SessionLocal
+from app.models.achievement import Achievement
 from app.models.admin import Admin
 from app.models.rating import Rank
 from app.models.status import StatusEmoji, StatusPhrase
@@ -135,7 +138,103 @@ def seed_statuses() -> None:
         db.close()
 
 
+# A starter catalog of achievements, grouped into chains by condition_type.
+# Each entry: (condition_type, condition_value, title, description, color).
+# Seeded per-row (matched on condition_type + condition_value), so adding
+# new entries in a later deploy creates only the missing ones and never
+# duplicates. Icons are left empty here -- the admin uploads them in Admin
+# Web afterwards; title/slogan/color/icon/order are all editable there, so
+# this is a convenient starting point, not a fixed structure.
+#
+# condition_type must be one of CONDITION_TYPES (app/achievements/
+# conditions.py); points_earned/friends_added/quest_words_completed are the
+# newest measures.
+DEFAULT_ACHIEVEMENTS: list[tuple[str, int, str, str, str]] = [
+    # Открытые фразы
+    ("phrases_opened", 1, "Первая фраза", "Ты открыл свою первую фразу!", "#6366F1"),
+    ("phrases_opened", 10, "Любитель фраз", "Открыто 10 фраз.", "#6366F1"),
+    ("phrases_opened", 50, "Знаток фраз", "Открыто 50 фраз.", "#6366F1"),
+    ("phrases_opened", 100, "Мастер фраз", "Открыто 100 фраз.", "#6366F1"),
+    ("phrases_opened", 250, "Коллекционер фраз", "Открыто 250 фраз.", "#6366F1"),
+    # Изученные слова
+    ("words_learned", 1, "Первое слово", "Начало положено!", "#0EA5E9"),
+    ("words_learned", 25, "Запас растёт", "Изучено 25 слов.", "#0EA5E9"),
+    ("words_learned", 100, "Сто слов", "Изучено 100 слов.", "#0EA5E9"),
+    ("words_learned", 300, "Полиглот", "Изучено 300 слов.", "#0EA5E9"),
+    ("words_learned", 500, "Ходячий словарь", "Изучено 500 слов.", "#0EA5E9"),
+    ("words_learned", 1000, "Легенда словаря", "Изучено 1000 слов.", "#0EA5E9"),
+    # Пройденные уроки
+    ("lessons_completed", 1, "Первый урок", "Первый урок пройден!", "#10B981"),
+    ("lessons_completed", 5, "Входишь во вкус", "Пройдено 5 уроков.", "#10B981"),
+    ("lessons_completed", 25, "Прилежный ученик", "Пройдено 25 уроков.", "#10B981"),
+    ("lessons_completed", 50, "Полсотни уроков", "Пройдено 50 уроков.", "#10B981"),
+    ("lessons_completed", 100, "Стобалльник", "Пройдено 100 уроков.", "#10B981"),
+    ("lessons_completed", 200, "Марафонец", "Пройдено 200 уроков.", "#10B981"),
+    # Серия дней активности
+    ("streak_days", 3, "Три дня подряд", "3 дня активности подряд.", "#F97316"),
+    ("streak_days", 7, "Неделя без пропусков", "7 дней активности подряд.", "#F97316"),
+    ("streak_days", 14, "Две недели", "14 дней активности подряд.", "#F97316"),
+    ("streak_days", 30, "Месяц дисциплины", "30 дней активности подряд.", "#F97316"),
+    ("streak_days", 100, "Сто дней огня", "100 дней активности подряд.", "#F97316"),
+    ("streak_days", 365, "Целый год!", "365 дней активности подряд.", "#F97316"),
+    # Набрано очков
+    ("points_earned", 50, "Первые очки", "Набрано 50 очков.", "#EAB308"),
+    ("points_earned", 250, "Набираешь обороты", "Набрано 250 очков.", "#EAB308"),
+    ("points_earned", 1000, "Тысячник", "Набрано 1000 очков.", "#EAB308"),
+    ("points_earned", 5000, "Очковый магнат", "Набрано 5000 очков.", "#EAB308"),
+    # Добавлено друзей
+    ("friends_added", 1, "Не один", "Добавлен первый друг.", "#EC4899"),
+    ("friends_added", 5, "Компания", "Добавлено 5 друзей.", "#EC4899"),
+    ("friends_added", 10, "Душа компании", "Добавлено 10 друзей.", "#EC4899"),
+    # Слова в квестах
+    ("quest_words_completed", 1, "Первый квест", "Первое слово в квесте пройдено!", "#8B5CF6"),
+    ("quest_words_completed", 10, "Охотник за квестами", "Пройдено 10 слов в квестах.", "#8B5CF6"),
+    ("quest_words_completed", 50, "Квестовый мастер", "Пройдено 50 слов в квестах.", "#8B5CF6"),
+]
+
+
+def seed_achievements() -> None:
+    db = SessionLocal()
+    try:
+        # The largest `order` already in use, so freshly-added entries are
+        # appended after anything the admin already created or reordered,
+        # never renumbering existing rows.
+        max_order = db.query(func.max(Achievement.order)).scalar()
+        next_order = (max_order + 1) if max_order is not None else 0
+        created = 0
+        for condition_type, condition_value, title, description, color in DEFAULT_ACHIEVEMENTS:
+            exists = (
+                db.query(Achievement.id)
+                .filter(
+                    Achievement.condition_type == condition_type,
+                    Achievement.condition_value == condition_value,
+                )
+                .first()
+            )
+            if exists is not None:
+                continue
+            db.add(
+                Achievement(
+                    title=title,
+                    description=description,
+                    icon_key=None,
+                    color=color,
+                    condition_type=condition_type,
+                    condition_value=condition_value,
+                    enabled=True,
+                    order=next_order,
+                )
+            )
+            next_order += 1
+            created += 1
+        db.commit()
+        print(f"[seed] created {created} achievements ({len(DEFAULT_ACHIEVEMENTS) - created} already existed)")
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
     seed_admin()
     seed_ranks()
     seed_statuses()
+    seed_achievements()
