@@ -3,26 +3,27 @@ import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { usePageEnter, usePageTransitions } from "../lib/pageTransitions";
 import { Backdrop } from "./Backdrop";
+import { NavIcon } from "./NavIcon";
 import { ChangePasswordButton } from "./ChangePasswordButton";
 import logoMark from "../assets/logo-mark.png";
 
 const navItems = [
-  { to: "/users", label: "Пользователи" },
-  { to: "/dictionaries", label: "Языки" },
-  { to: "/exercises", label: "Упражнения" },
-  { to: "/achievements", label: "Достижения" },
-  { to: "/rating", label: "Рейтинг" },
-  { to: "/review", label: "Повтори слово" },
-  { to: "/statuses", label: "Статусы" },
-  { to: "/quests", label: "Квесты" },
-  { to: "/slogans", label: "Слоганы" },
-  { to: "/notifications", label: "Уведомления" },
-  { to: "/premium", label: "Premium" },
-  { to: "/promo", label: "Промокоды" },
-  { to: "/retention", label: "Удержание" },
-  { to: "/analytics", label: "Аналитика" },
-  { to: "/translation", label: "ИИ-перевод" },
-  { to: "/client-errors", label: "Ошибки приложения" },
+  { to: "/users", icon: "users", label: "Пользователи" },
+  { to: "/dictionaries", icon: "globe", label: "Языки" },
+  { to: "/exercises", icon: "dumbbell", label: "Упражнения" },
+  { to: "/achievements", icon: "trophy", label: "Достижения" },
+  { to: "/rating", icon: "podium", label: "Рейтинг" },
+  { to: "/review", icon: "repeat", label: "Повтори слово" },
+  { to: "/statuses", icon: "message", label: "Статусы" },
+  { to: "/quests", icon: "target", label: "Квесты" },
+  { to: "/slogans", icon: "quote", label: "Слоганы" },
+  { to: "/notifications", icon: "bell", label: "Уведомления" },
+  { to: "/premium", icon: "crown", label: "Premium" },
+  { to: "/promo", icon: "ticket", label: "Промокоды" },
+  { to: "/retention", icon: "retention", label: "Удержание" },
+  { to: "/analytics", icon: "chart", label: "Аналитика" },
+  { to: "/translation", icon: "sparkles", label: "ИИ-перевод" },
+  { to: "/client-errors", icon: "bug", label: "Ошибки приложения" },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -67,13 +68,14 @@ export function Layout({ children }: { children: ReactNode }) {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors md:rounded-[10px] md:px-3 md:py-[7px] md:text-[15px] ${
+                  `flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors md:rounded-[10px] md:px-3 md:py-[7px] md:text-[15px] ${
                     isActive
                       ? "bg-[var(--sys-blue)] text-white"
                       : "bg-[var(--fill)] text-slate-900 hover:bg-[var(--fill-strong)] md:bg-transparent md:hover:bg-[var(--fill)]"
                   }`
                 }
               >
+                <NavIcon name={item.icon} />
                 {item.label}
               </NavLink>
             ))}
