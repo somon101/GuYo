@@ -232,27 +232,49 @@ export function MiniPhrasesPage() {
         />
       )}
 
-      {items.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+      {items.length > 0 && templateFilter === null && (
+        <div className="grid gap-3 sm:grid-cols-2">
           {[
-            { key: null as number | "none" | null, name: "Все шаблоны", n: items.length },
             ...templates
-              .map((t) => ({ key: t.id as number | "none" | null, name: t.name, n: items.filter((m) => m.template_id === t.id).length }))
-              .filter((t) => t.n > 0),
+              .map((t) => ({
+                key: t.id as number | "none",
+                name: t.name,
+                note: t.explanation_ru ?? "",
+                list: items.filter((m) => m.template_id === t.id),
+              }))
+              .filter((t) => t.list.length > 0),
             ...(items.some((m) => m.template_id === null)
-              ? [{ key: "none" as const, name: "Стандартный", n: items.filter((m) => m.template_id === null).length }]
+              ? [{ key: "none" as const, name: "Стандартный", note: "Без шаблона — общее объяснение", list: items.filter((m) => m.template_id === null) }]
               : []),
           ].map((t) => (
             <button
               key={String(t.key)}
               onClick={() => setTemplateFilter(t.key)}
-              className={`rounded-full px-3 py-1.5 text-sm ${
-                templateFilter === t.key ? "bg-indigo-600 text-white" : "bg-[var(--fill)] text-slate-700 hover:bg-indigo-50"
-              }`}
+              className="card flex flex-col gap-2 p-4 text-left transition hover:ring-2 hover:ring-indigo-300"
             >
-              {t.name} <span className={templateFilter === t.key ? "text-indigo-100" : "text-slate-400"}>{t.n}</span>
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-[16px] font-semibold text-slate-900">{t.name}</span>
+                <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-sm font-semibold text-indigo-700">{t.list.length}</span>
+              </div>
+              <span className="line-clamp-2 text-xs text-slate-500">{t.note}</span>
+              <span className="truncate text-sm text-slate-600" translate="no">
+                {t.list.slice(0, 4).map((m) => m.text).join(" · ")}
+                {t.list.length > 4 && " …"}
+              </span>
             </button>
           ))}
+        </div>
+      )}
+
+      {templateFilter !== null && (
+        <div className="mb-3 flex flex-wrap items-center gap-3">
+          <button onClick={() => setTemplateFilter(null)} className="text-sm font-medium text-indigo-600 hover:underline">
+            ← Все шаблоны
+          </button>
+          <h2 className="text-lg font-semibold text-slate-900">
+            {templateFilter === "none" ? "Стандартный" : templates.find((t) => t.id === templateFilter)?.name} · {shown.length} фраз
+          </h2>
+          <span className="text-xs text-slate-500">Нажмите на фразу — покажу, как она выглядит в телефоне</span>
         </div>
       )}
 
@@ -260,7 +282,7 @@ export function MiniPhrasesPage() {
 
       {items.length === 0 ? (
         <p className="text-sm text-slate-500">Пока нет мини-фраз</p>
-      ) : (
+      ) : templateFilter === null ? null : (
         <ul className="flex flex-col gap-3">
           {shown.map((mp) => (
             <li key={mp.id} className="card flex flex-wrap items-start justify-between gap-3 p-4">
