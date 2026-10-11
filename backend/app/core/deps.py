@@ -10,7 +10,7 @@ from app.core.security import TokenPayload, decode_access_token
 from app.database import get_db
 from app.models.admin import Admin
 from app.models.user import User
-from app.core.content_language import set_content_language_for
+from app.core.content_language import UI_LANGUAGES, set_content_language_for
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -46,16 +46,24 @@ def get_current_admin(
     return admin
 
 
+def _reading_ui_language(user: User, header: str | None) -> str | None:
+    """The app sends the interface language it shows (X-UI-Language), so a
+    language switch is applied at once -- before the profile save lands --
+    and content arrives in the language on screen. Older apps send none."""
+    return header if header in UI_LANGUAGES else user.ui_language
+
+
 def get_current_user(
     payload: TokenPayload = Depends(_get_token_payload),
     db: Session = Depends(get_db),
+    x_ui_language: str | None = Header(default=None),
 ) -> User:
     if payload.role != "user":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User access required")
     user = db.get(User, payload.subject)
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    set_content_language_for(user.ui_language, user.translation_language)
+    set_content_language_for(_reading_ui_language(user, x_ui_language), user.translation_language)
     return user
 
 
@@ -70,6 +78,7 @@ class Principal:
 def get_current_principal(
     payload: TokenPayload = Depends(_get_token_payload),
     db: Session = Depends(get_db),
+    x_ui_language: str | None = Header(default=None),
 ) -> Principal:
     if payload.role == "admin":
         if db.get(Admin, payload.subject) is None:
@@ -78,7 +87,7 @@ def get_current_principal(
         user = db.get(User, payload.subject)
         if user is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-        set_content_language_for(user.ui_language, user.translation_language)
+        set_content_language_for(_reading_ui_language(user, x_ui_language), user.translation_language)
     else:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid role")
     return Principal(role=payload.role, id=payload.subject)

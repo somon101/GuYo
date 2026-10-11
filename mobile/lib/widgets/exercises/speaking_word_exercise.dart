@@ -342,38 +342,34 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
         const SizedBox(height: 12),
         _WordCard(item: widget.item),
         const SizedBox(height: 28),
-        _MicButton(state: _micState, onTap: _onMicTap),
-        const SizedBox(height: 18),
-        _StateLabel(
-          state: _micState,
-          recognizedText: _recognizedText,
-          isCorrect: _isCorrect,
-          target: widget.item.word,
-          attempt: _attempt,
-          maxAttempts: _maxAttempts,
+        // The result replaces the mic, so the verdict sits right under the
+        // word instead of below a greyed-out button.
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          child: _micState == _MicState.result
+              ? _ResultCard(
+                  key: const ValueKey('speaking-word-result'),
+                  correct: _isCorrect ?? false,
+                  heard: _recognizedText,
+                  target: widget.item.word,
+                  onSkip: canRetry ? () => _finish(false) : null,
+                  onRetry: canRetry ? _retry : null,
+                )
+              : Column(
+                  key: const ValueKey('speaking-word-mic'),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _MicButton(state: _micState, onTap: _onMicTap),
+                    const SizedBox(height: 14),
+                    _StateLabel(
+                      state: _micState,
+                      recognizedText: _recognizedText,
+                      attempt: _attempt,
+                      maxAttempts: _maxAttempts,
+                    ),
+                  ],
+                ),
         ),
-        if (canRetry) ...[
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              OutlinedButton(
-                key: const ValueKey('speaking-word-next'),
-                onPressed: () => _finish(false),
-                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12)),
-                child: Text(tr('Дальше')),
-              ),
-              const SizedBox(width: 12),
-              FilledButton.icon(
-                key: const ValueKey('speaking-word-retry'),
-                onPressed: _retry,
-                style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12)),
-                icon: const Icon(Icons.refresh_rounded, size: 20),
-                label: Text(tr('Ещё раз')),
-              ),
-            ],
-          ),
-        ],
       ],
     );
   }
@@ -569,15 +565,11 @@ class _MicButtonState extends State<_MicButton> with SingleTickerProviderStateMi
 class _StateLabel extends StatelessWidget {
   final _MicState state;
   final String recognizedText;
-  final bool? isCorrect;
-  final String target;
   final int attempt;
   final int maxAttempts;
   const _StateLabel({
     required this.state,
     required this.recognizedText,
-    required this.isCorrect,
-    required this.target,
     required this.attempt,
     required this.maxAttempts,
   });
@@ -606,35 +598,126 @@ class _StateLabel extends StatelessWidget {
       case _MicState.processing:
         return Text(tr('Проверяю…'), style: TextStyle(color: AppColors.secondaryText, fontSize: 14));
       case _MicState.result:
-        final correct = isCorrect ?? false;
-        final color = correct ? AppColors.success : AppColors.danger;
-        return Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(correct ? Icons.check_circle_rounded : Icons.cancel_rounded, color: color, size: 20),
-                const SizedBox(width: 6),
-                Text(
-                  correct ? tr('Правильно') : tr('Неправильно'),
-                  style: TextStyle(fontWeight: FontWeight.w800, color: color, fontSize: 15),
-                ),
-              ],
-            ),
-            if (!correct) ...[
-              const SizedBox(height: 4),
-              Text(
-                tr('Услышано: «{0}», нужно: «{1}»', [recognizedText, target]),
-                style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ],
-        );
+        return const SizedBox.shrink(); // shown by _ResultCard
     }
   }
 }
 
+/// The verdict after a try: green «Отлично!», or red «Не совсем так» with
+/// what was heard (crossed out) against what was needed, and -- while
+/// tries are left -- «Пропустить» / «Ещё раз» right inside the card.
+class _ResultCard extends StatelessWidget {
+  final bool correct;
+  final String heard;
+  final String target;
+  final VoidCallback? onSkip;
+  final VoidCallback? onRetry;
+
+  const _ResultCard({
+    super.key,
+    required this.correct,
+    required this.heard,
+    required this.target,
+    this.onSkip,
+    this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = correct ? AppColors.success : AppColors.danger;
+    final fill = correct ? AppColors.successLight : AppColors.dangerLight;
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 340),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(AppShapes.cardRadius),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(correct ? Icons.check_circle_rounded : Icons.cancel_rounded, color: color, size: 26),
+              const SizedBox(width: 8),
+              Text(
+                correct ? tr('Отлично!') : tr('Не совсем так'),
+                style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: color),
+              ),
+            ],
+          ),
+          if (!correct) ...[
+            const SizedBox(height: 12),
+            _line(tr('Вы сказали'), heard, strike: true),
+            const SizedBox(height: 6),
+            _line(tr('Нужно'), target),
+          ],
+          if (onSkip != null && onRetry != null) ...[
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    key: const ValueKey('speaking-word-next'),
+                    onPressed: onSkip,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      side: BorderSide(color: color.withValues(alpha: 0.5)),
+                      foregroundColor: color,
+                    ),
+                    child: Text(tr('Пропустить'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton.icon(
+                    key: const ValueKey('speaking-word-retry'),
+                    onPressed: onRetry,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      backgroundColor: color,
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: const Icon(Icons.mic_rounded, size: 20),
+                    label: Text(tr('Ещё раз'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _line(String label, String value, {bool strike = false}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        SizedBox(
+          width: 96,
+          child: Text(label, style: TextStyle(fontSize: 14, color: AppColors.secondaryText)),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: strike ? FontWeight.w600 : FontWeight.w800,
+              color: strike ? AppColors.secondaryText : AppColors.primaryDark,
+              decoration: strike ? TextDecoration.lineThrough : null,
+              decorationColor: AppColors.danger,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 /// The tries left, as hearts: full ones still to use, empty ones spent.
 class _Hearts extends StatelessWidget {

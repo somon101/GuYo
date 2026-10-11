@@ -68,10 +68,14 @@ class StatusNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bubbleColor = AppColors.surface;
-    final shadow = [
-      BoxShadow(color: AppColors.primaryDark.withValues(alpha: AppColors.dark ? 0.35 : 0.12), blurRadius: 10, offset: const Offset(0, 3)),
-    ];
+    // Light theme: a white note lifted by a soft shadow. Dark theme: no
+    // shadow (it reads as a glow there) -- the note is a step lighter than
+    // the cards instead, so it still stands out cleanly.
+    final dark = AppColors.dark;
+    final bubbleColor = dark ? AppColors.violetSurface : AppColors.surface;
+    final shadow = dark
+        ? const <BoxShadow>[]
+        : [BoxShadow(color: AppColors.primaryDark.withValues(alpha: 0.10), blurRadius: 10, offset: const Offset(0, 3))];
     Widget dot(double size) => Container(
           width: size,
           height: size,
@@ -82,19 +86,19 @@ class StatusNote extends StatelessWidget {
       children: [
         Container(
           constraints: BoxConstraints(maxWidth: maxWidth),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
           decoration: BoxDecoration(
             color: bubbleColor,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.cardBorder),
+            borderRadius: BorderRadius.circular(16),
+            border: dark ? null : Border.all(color: AppColors.cardBorder),
             boxShadow: shadow,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (emojiUrl != null) ...[
-                RemoteImage(key: ValueKey(emojiUrl), url: emojiUrl!, width: 14, height: 14, fallbackBuilder: () => const SizedBox.shrink()),
-                const SizedBox(width: 4),
+                RemoteImage(key: ValueKey(emojiUrl), url: emojiUrl!, width: 16, height: 16, fallbackBuilder: () => const SizedBox.shrink()),
+                const SizedBox(width: 5),
               ],
               Flexible(
                 child: Text(
@@ -102,20 +106,21 @@ class StatusNote extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11, height: 1.25, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
+                  style: TextStyle(fontSize: 12, height: 1.25, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
                 ),
               ),
             ],
           ),
         ),
+        // The thought-bubble tail: two shrinking dots toward the avatar.
         Transform.translate(
-          offset: const Offset(-6, -1),
+          offset: const Offset(-8, 2),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              dot(7),
-              const SizedBox(height: 1),
-              Padding(padding: const EdgeInsets.only(right: 6), child: dot(4)),
+              dot(8),
+              const SizedBox(height: 2),
+              Padding(padding: const EdgeInsets.only(right: 8), child: dot(5)),
             ],
           ),
         ),

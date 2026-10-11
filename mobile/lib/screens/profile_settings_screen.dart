@@ -7,6 +7,7 @@ import '../models/learning_topics.dart';
 import '../models/user_profile.dart';
 import '../services/push_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/in_app_banner.dart';
 import '../widgets/study_times_editor.dart';
 import 'login_screen.dart';
 import 'study_times_screen.dart';
@@ -39,8 +40,12 @@ const List<({String code, String label})> _translationLanguages = [
 class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   late UserProfile _profile;
 
-  /// Null until loaded; the row then shows no value rather than a guess.
-  List<StudyTime>? _studyTimes;
+  /// From the device cache at once, then refreshed quietly; null only on
+  /// the very first open (the row then shows a dash).
+  List<StudyTime>? _studyTimes = ApiClient.instance.cachedStudyTimes();
+
+  /// A just-picked translation language, shown while it is being saved.
+  String? _translationShown;
 
   @override
   void initState() {
@@ -58,11 +63,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     if (saved != null && mounted) setState(() => _studyTimes = saved);
   }
 
-  void _showSnack(String text) {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(SnackBar(content: Text(text)));
-  }
+  /// Only failures speak up: a successful change is already visible in
+  /// its row. Shown as GuYo's own banner, not a grey Android snackbar.
+  void _showError(String text) => InAppBanner.show(body: text);
 
   /// One small dialog per row: the given fields, prefilled, and Save.
   /// Returns only when saved or cancelled; a server error (a taken login,
@@ -148,10 +151,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     for (final c in controllers.values) {
       c.dispose();
     }
-    if (saved != null && mounted) {
-      setState(() => _profile = saved);
-      _showSnack(tr('Сохранено'));
-    }
+    if (saved != null && mounted) setState(() => _profile = saved);
   }
 
   Future<String?> _pickOne(String title, List<({String code, String label})> options, String selected) {
@@ -183,18 +183,23 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     );
   }
 
-  /// Saved to the account first (it decides which translations the
-  /// server sends), then applied here -- the app restarts on its home tab.
+  /// Applied at once (the app restarts on its home tab; every request
+  /// carries the shown language, so content follows immediately) and saved
+  /// to the account in the background. If that save fails, the previous
+  /// language comes back.
   Future<void> _changeLanguage() async {
     final code = await _pickOne(tr('Язык интерфейса'), uiLanguages, appLanguage.value);
     if (code == null || code == appLanguage.value) return;
+    final previous = appLanguage.value;
+    ApiClient.instance.forgetCachedContent(); // kept in the old language
+    await setAppLanguage(code);
     try {
       await ApiClient.instance.updateMyProfile(uiLanguage: code);
     } catch (_) {
-      if (mounted) _showSnack(tr('Не удалось сохранить. Проверьте интернет.'));
-      return;
+      ApiClient.instance.forgetCachedContent();
+      await setAppLanguage(previous);
+      _showError(tr('Не удалось сохранить. Проверьте интернет.'));
     }
-    await setAppLanguage(code);
   }
 
   Future<void> _changeTheme() async {
@@ -209,14 +214,17 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       _translationLanguages,
       _profile.translationLanguage,
     );
-    if (code == null || code == _profile.translationLanguage) return;
+    if (code == null || code == (_translationShown ?? _profile.translationLanguage)) return;
+    // Shown at once; the row only goes back if the save fails.
+    setState(() => _translationShown = code);
     try {
       final saved = await ApiClient.instance.updateMyProfile(translationLanguage: code);
-      if (!mounted) return;
-      setState(() => _profile = saved);
-      _showSnack(tr('Сохранено'));
+      ApiClient.instance.forgetCachedContent(); // words were in the old translation
+      if (mounted) setState(() => _profile = saved);
     } catch (_) {
-      if (mounted) _showSnack(tr('Не удалось сохранить. Проверьте интернет.'));
+      _showError(tr('Не удалось сохранить. Проверьте интернет.'));
+    } finally {
+      if (mounted) setState(() => _translationShown = null);
     }
   }
 
@@ -323,7 +331,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   key: const ValueKey('settings-study-times'),
                   icon: Icons.alarm_rounded,
                   label: tr('Время занятий'),
-                  value: _studyTimes == null ? '' : studyTimesSummary(_studyTimes!),
+                  value: _studyTimes == null ? '—' : studyTimesSummary(_studyTimes!),
                   onTap: _openStudyTimes,
                 ),
                 _Row(
@@ -344,7 +352,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   _Row(
                     icon: Icons.translate_rounded,
                     label: tr('Язык перевода'),
-                    value: labelOf(_translationLanguages, _profile.translationLanguage),
+                    value: labelOf(_translationLanguages, _translationShown ?? _profile.translationLanguage),
                     onTap: _changeTranslationLanguage,
                   ),
               ],

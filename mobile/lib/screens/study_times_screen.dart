@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
 import '../theme/app_colors.dart';
+import '../widgets/in_app_banner.dart';
 import '../widgets/study_times_editor.dart';
 
 /// Settings → «Время занятий». Every change saves on its own, like the
@@ -29,9 +30,7 @@ class _StudyTimesScreenState extends State<StudyTimesScreen> {
     } catch (_) {
       if (!mounted || seq != _saveSeq) return;
       setState(() => _times = previous);
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(tr('Не удалось сохранить. Проверьте интернет.'))));
+      InAppBanner.show(body: tr('Не удалось сохранить. Проверьте интернет.'));
     }
   }
 

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../api/api_client.dart';
 import '../services/session_cache.dart';
@@ -12,6 +13,7 @@ import '../models/status.dart';
 import '../models/user_rating.dart';
 import '../theme/app_colors.dart';
 import '../widgets/achievement_icon.dart';
+import '../widgets/in_app_banner.dart';
 import '../widgets/leaderboard_status.dart';
 import '../widgets/position_change.dart';
 import '../widgets/premium_ui.dart';
@@ -592,9 +594,29 @@ class _ProfileHeader extends StatelessWidget {
               const SizedBox(height: 2),
               // The 9-digit account number -- `id` is internal and never
               // shown.
-              Text(
-                'ID: ${profile.publicId}',
-                style: TextStyle(fontSize: 14, color: AppColors.secondaryText),
+              // Tap to copy -- it is what a friend types to add you.
+              GestureDetector(
+                key: const ValueKey('profile-copy-id'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: '${profile.publicId}'));
+                  HapticFeedback.selectionClick();
+                  InAppBanner.show(body: tr('ID скопирован'));
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'ID: ${profile.publicId}',
+                        style: TextStyle(fontSize: 14, color: AppColors.secondaryText),
+                      ),
+                      const SizedBox(width: 5),
+                      Icon(Icons.copy_rounded, size: 14, color: AppColors.secondaryText),
+                    ],
+                  ),
+                ),
               ),
               if (profile.isPremium) ...[
                 const SizedBox(height: 6),

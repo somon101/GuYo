@@ -157,6 +157,9 @@ class ApiClient {
     return {
       'Content-Type': 'application/json',
       'X-App-Build': '$appBuild',
+      // Content comes in the language on screen right away, even before a
+      // just-changed interface language is saved to the profile.
+      'X-UI-Language': appLanguage.value,
       if (t != null) 'Authorization': 'Bearer $t',
     };
   }
@@ -392,6 +395,19 @@ class ApiClient {
   List<WordLevelSummary>? cachedWordLevels() => _cached('word-levels', _parseWordLevels);
   List<RankSummary>? cachedAllRanks() => _cached('ranks', _parseRanks);
   StreakInfo? cachedMyStreak() => _cached('streak', _parseStreak);
+  List<StudyTime>? cachedStudyTimes() => _cached('study-times', _parseStudyTimes);
+
+  List<StudyTime> _parseStudyTimes(dynamic json) => [
+        for (final t in (json as Map<String, dynamic>)['times'] as List<dynamic>)
+          StudyTime.fromJson(t as Map<String, dynamic>),
+      ];
+
+  /// Drops what was kept for instant screens -- after a language change
+  /// it is all in the old language. Screens then load fresh once.
+  void forgetCachedContent() {
+    SessionCache.clear();
+    DiskCache.clear();
+  }
 
   List<GuyoWord> _parseWords(dynamic json) =>
       (json as List<dynamic>).map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
@@ -984,8 +1000,7 @@ class ApiClient {
   Future<List<StudyTime>> fetchStudyTimes() async {
     final res = await http.get(_uri('/notifications/study-times'), headers: await _authHeaders());
     await _throwWithDetail(res);
-    final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
-    return [for (final t in data['times'] as List<dynamic>) StudyTime.fromJson(t as Map<String, dynamic>)];
+    return _parseStudyTimes(_remember('study-times', res));
   }
 
   /// Replaces the whole list; returns what the server stored.
@@ -996,8 +1011,7 @@ class ApiClient {
       body: jsonEncode({'times': [for (final t in times) t.toJson()]}),
     );
     await _throwWithDetail(res);
-    final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
-    return [for (final t in data['times'] as List<dynamic>) StudyTime.fromJson(t as Map<String, dynamic>)];
+    return _parseStudyTimes(_remember('study-times', res));
   }
 
   Future<void> unregisterPushToken(String pushToken) async {
