@@ -1,5 +1,13 @@
 import '../l10n/l10n.dart';
 class GuyoDictionary {
+  /// The language of the dictionary open on the home screen: what the
+  /// learner is studying. Speech is recognised in it, never in the phone's
+  /// own language.
+  static String studyLanguage = 'ru';
+
+  /// [studyLanguage] as a speech-recognition locale.
+  static String get speechLocale => const {'ru': 'ru_RU', 'en': 'en_US', 'zh': 'zh_CN'}[studyLanguage] ?? 'ru_RU';
+
   final int id;
   final String name;
   final String language; // "en" | "ru" | "zh"

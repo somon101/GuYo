@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+import '../../models/dictionary.dart';
 import '../../models/lesson.dart';
 import '../../services/answer_sound.dart';
 import '../../theme/app_colors.dart';
@@ -221,7 +222,13 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
           setState(() => _recognizedText = result.recognizedWords);
           if (result.finalResult) _handleRecognized(session, result.recognizedWords);
         },
-        listenOptions: SpeechListenOptions(partialResults: true, cancelOnError: true),
+        // The studied language, not the phone's: a phone set to English
+        // otherwise hears Russian words as English ones.
+        listenOptions: SpeechListenOptions(
+          partialResults: true,
+          cancelOnError: true,
+          localeId: GuyoDictionary.speechLocale,
+        ),
       );
     } catch (_) {
       if (!mounted || session != _session || _sessionHandled) return;
