@@ -11,33 +11,21 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.dates import dushanbe_today
-from app.models.dictionary import Dictionary
 from app.models.lesson import Lesson
-from app.models.phrase import Phrase
 from app.models.achievement import UserActivityDay
 from app.models.user import User
 from app.models.word_progress import WordProgress
 
 
 def phrases_opened_count(db: Session, user: User) -> int:
-    """How many phrases (across every dictionary, not just the one the
-    user currently has selected) are available to this user right now --
-    reuses the EXACT same per-dictionary availability logic "Мои фразы"
-    and Admin Web's "Аналитика пользователей" already use (see
-    app/routers/phrases.py's _get_learned_word_tokens/_phrase_is_available)
-    rather than a second definition of "opened phrase"."""
-    from app.routers.phrases import _get_learned_word_tokens, _phrase_is_available
+    """How many phrases this user has actually OPENED (tapped open in "Мои
+    фразы"), across every dictionary -- counts UserPhraseOpen rows (see
+    app/models/phrase.py), recorded once per phrase when the user opens it.
+    Deliberately NOT "how many phrases became available because their words
+    are learned": that needs no action, so it never earned this achievement."""
+    from app.models.phrase import UserPhraseOpen
 
-    dictionary_ids = {row[0] for row in db.query(Phrase.dictionary_id).distinct().all()}
-    total = 0
-    for dictionary_id in dictionary_ids:
-        dictionary = db.get(Dictionary, dictionary_id)
-        if dictionary is None:
-            continue
-        learned_tokens = _get_learned_word_tokens(db, user.id, dictionary)
-        phrases = db.query(Phrase).filter(Phrase.dictionary_id == dictionary_id).all()
-        total += sum(1 for p in phrases if _phrase_is_available(p, learned_tokens))
-    return total
+    return db.query(func.count(UserPhraseOpen.id)).filter(UserPhraseOpen.user_id == user.id).scalar() or 0
 
 
 def words_learned_count(db: Session, user: User) -> int:
@@ -57,13 +45,17 @@ def words_learned_count(db: Session, user: User) -> int:
 
 
 def lessons_completed_count(db: Session, user: User) -> int:
-    """How many Lessons this user has fully completed, across every
-    dictionary -- reuses Lesson.is_completed exactly as the "Уроки" chain
-    screen and lesson-completion logic already set it (see app/routers/
-    lessons.py's _check_and_apply_lesson_completion), never a second
-    "is this lesson done" check."""
+    """How many Lessons this user has actually PLAYED to the end, across
+    every dictionary -- counts Lesson.completed_by_pass, set only when the
+    user finished the lesson's pass (see app/routers/lessons.py's
+    finish_lesson_pass). Deliberately NOT Lesson.is_completed, which also
+    flips the moment every word happens to be at threshold (e.g. words
+    already known), so a lesson that auto-completed without a real
+    playthrough never earns this achievement."""
     return (
-        db.query(func.count(Lesson.id)).filter(Lesson.user_id == user.id, Lesson.is_completed.is_(True)).scalar()
+        db.query(func.count(Lesson.id))
+        .filter(Lesson.user_id == user.id, Lesson.completed_by_pass.is_(True))
+        .scalar()
         or 0
     )
 

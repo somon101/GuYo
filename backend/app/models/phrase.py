@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -73,3 +73,21 @@ class Phrase(Base):
 
     dictionary: Mapped["Dictionary"] = relationship()
     category: Mapped["PhraseCategory | None"] = relationship(back_populates="phrases")
+
+
+class UserPhraseOpen(Base):
+    """Proof a specific user actually OPENED a specific phrase (tapped it
+    open in "Мои фразы"), recorded once per (user, phrase). This is the one
+    source of truth the "phrases_opened" achievement counts -- deliberately
+    NOT "a phrase became available because its words are learned", which
+    needs no action from the user. Idempotent on (user_id, phrase_id),
+    exactly like UserQuestWordDay/UserActivityDay guarantee their own
+    per-pair uniqueness."""
+
+    __tablename__ = "user_phrase_opens"
+    __table_args__ = (UniqueConstraint("user_id", "phrase_id", name="uq_user_phrase_open"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    phrase_id: Mapped[int] = mapped_column(ForeignKey("phrases.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

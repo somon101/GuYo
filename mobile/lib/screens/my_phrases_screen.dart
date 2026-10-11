@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../models/phrase.dart';
+import '../theme/app_colors.dart';
 import '../widgets/audio_button.dart';
 import '../widgets/skeleton.dart';
 
@@ -96,57 +97,102 @@ class _MyPhrasesScreenState extends State<MyPhrasesScreen> {
   }
 }
 
-class _PhraseTile extends StatelessWidget {
+/// A phrase is shown collapsed (just the original + a chevron); tapping it
+/// reveals the translation, transcription and audio. That tap is what
+/// "opening a phrase" means -- reported once to the server (openPhrase) so
+/// the "phrases_opened" achievement rewards a real action, not a phrase
+/// merely becoming available.
+class _PhraseTile extends StatefulWidget {
   final GuyoPhrase phrase;
   const _PhraseTile({required this.phrase});
 
   @override
+  State<_PhraseTile> createState() => _PhraseTileState();
+}
+
+class _PhraseTileState extends State<_PhraseTile> {
+  bool _expanded = false;
+  bool _reported = false;
+
+  void _toggle() {
+    setState(() => _expanded = !_expanded);
+    if (_expanded && !_reported) {
+      _reported = true;
+      // Fire-and-forget: counts once per phrase on the server anyway.
+      ApiClient.instance.openPhrase(widget.phrase.dictionaryId, widget.phrase.id);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final phrase = widget.phrase;
     final hasTranscription = phrase.transcription != null && phrase.transcription!.isNotEmpty;
     final hasOriginalAudio = phrase.originalAudioUrl != null && phrase.originalAudioUrl!.isNotEmpty;
     final hasTranslationAudio = phrase.translationAudioUrl != null && phrase.translationAudioUrl!.isNotEmpty;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  phrase.original,
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-                ),
-              ),
-              if (hasOriginalAudio) ...[
-                const SizedBox(width: 6),
-                AudioButton(url: ApiClient.instance.mediaUrl(phrase.originalAudioUrl!)),
-              ],
-            ],
-          ),
-          if (hasTranscription)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(phrase.transcription!, style: const TextStyle(fontSize: 13, color: Colors.black45)),
-            ),
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Row(
+    return InkWell(
+      onTap: _toggle,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Text(phrase.shownTranslation, style: const TextStyle(fontSize: 15)),
+                  child: Text(
+                    phrase.original,
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                  ),
                 ),
-                if (hasTranslationAudio) ...[
+                if (hasOriginalAudio) ...[
                   const SizedBox(width: 6),
-                  AudioButton(url: ApiClient.instance.mediaUrl(phrase.translationAudioUrl!)),
+                  AudioButton(url: ApiClient.instance.mediaUrl(phrase.originalAudioUrl!)),
                 ],
+                const SizedBox(width: 4),
+                AnimatedRotation(
+                  turns: _expanded ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 180),
+                  child: Icon(Icons.expand_more_rounded, color: AppColors.secondaryText),
+                ),
               ],
             ),
-          ),
-        ],
+            AnimatedCrossFade(
+              duration: const Duration(milliseconds: 180),
+              crossFadeState: _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+              firstChild: const SizedBox(width: double.infinity),
+              secondChild: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (hasTranscription)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        phrase.transcription!,
+                        style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                      ),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(phrase.shownTranslation, style: const TextStyle(fontSize: 15)),
+                        ),
+                        if (hasTranslationAudio) ...[
+                          const SizedBox(width: 6),
+                          AudioButton(url: ApiClient.instance.mediaUrl(phrase.translationAudioUrl!)),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

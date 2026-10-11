@@ -37,6 +37,14 @@ class Lesson(Base):
     )
     number: Mapped[int] = mapped_column(nullable=False)
     is_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # True only once the user actually PLAYED this lesson's pass to the end
+    # (POST /lessons/{id}/pass/finish completed it) -- unlike is_completed,
+    # which also flips the moment every word happens to be at threshold
+    # (e.g. words already known from elsewhere), even mid-pass. Achievements
+    # count this one, so "Первый урок" rewards a real playthrough, never a
+    # lesson that auto-completed from already-learned words. is_completed is
+    # left untouched: lesson-chain progression still depends on it.
+    completed_by_pass: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     # True for a lesson app/priority/ auto-created from 5 accumulated
     # Critical-priority words (see app/priority/lessons.py) -- otherwise
     # identical in every way to a random/manual lesson, same exercises,

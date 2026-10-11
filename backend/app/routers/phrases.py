@@ -10,13 +10,13 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.orm import Session
 
-from app.achievements import record_activity
+from app.achievements import check_and_grant_achievements, record_activity
 from app.core.deps import Principal, get_current_admin, get_current_principal, get_current_user
 from app.core.storage import MEDIA_ROOT, delete_by_key, save_bytes, save_upload, url_for_key
 from app.database import SessionLocal, get_db
 from app.models.dictionary import Dictionary
 from app.models.import_job import ImportJob
-from app.models.phrase import Phrase, PhraseCategory
+from app.models.phrase import Phrase, PhraseCategory, UserPhraseOpen
 from app.models.user import User
 from app.models.word import Word
 from app.models.word_progress import WordProgress
@@ -185,6 +185,38 @@ def list_available_phrases(
     db.commit()
 
     return [phrase_to_out(p) for p in available]
+
+
+@router.post("/dictionaries/{dictionary_id}/phrases/{phrase_id}/open", status_code=status.HTTP_204_NO_CONTENT)
+def open_phrase(
+    dictionary_id: int,
+    phrase_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """The user actually OPENED this phrase (tapped it open in "Мои фразы").
+    Records it once per (user, phrase) -- the one thing the "phrases_opened"
+    achievement counts -- then grants anything now due. Idempotent: opening
+    the same phrase again records nothing new and grants nothing twice."""
+    _get_published_dictionary_or_404(db, dictionary_id)
+    phrase = db.query(Phrase).filter(Phrase.id == phrase_id, Phrase.dictionary_id == dictionary_id).first()
+    if phrase is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Phrase not found")
+
+    already = (
+        db.query(UserPhraseOpen.id)
+        .filter(UserPhraseOpen.user_id == user.id, UserPhraseOpen.phrase_id == phrase_id)
+        .first()
+    )
+    if already is None:
+        db.add(UserPhraseOpen(user_id=user.id, phrase_id=phrase_id))
+        db.flush()  # autoflush is off -- phrases_opened_count below must see this row
+        check_and_grant_achievements(db, user, "phrases_opened")
+
+    # Opening a phrase is real activity, same as fetching the list.
+    record_activity(db, user)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post(

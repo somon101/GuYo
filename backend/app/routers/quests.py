@@ -346,13 +346,13 @@ def submit_quest_answer(
     # common.py's get_threshold (now derived from the WordLevel ladder).
     # When that happens here, it must trigger the exact same downstream
     # effects a Lesson crossing already does (never a quest-only silo):
-    # the "words_learned"/"phrases_opened" achievements and the existing
-    # per-learned-word rating bonus (app/rating/service.py's
-    # award_word_points_if_new) -- both already idempotent per word, so
-    # calling them here is safe even if the word was already learned via
-    # a Lesson earlier.
+    # the "words_learned" achievement and the existing per-learned-word
+    # rating bonus (app/rating/service.py's award_word_points_if_new) --
+    # both already idempotent per word, so calling them here is safe even
+    # if the word was already learned via a Lesson earlier. "phrases_opened"
+    # is NOT granted here: it now counts phrases the user actually opened
+    # (see POST .../phrases/{id}/open), not phrases that became available.
     if new_score >= get_threshold(db):
-        check_and_grant_achievements(db, user, "phrases_opened")
         check_and_grant_achievements(db, user, "words_learned")
         award_word_points_if_new(db, user, word.id)
 

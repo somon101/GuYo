@@ -7,7 +7,7 @@ from app.models.import_job import ImportJob
 from app.models.learning import LearnedWord, LearningSession, LearningSessionItem
 from app.models.learning_settings import LearningSettings
 from app.models.lesson import Lesson, LessonExercise, LessonWord
-from app.models.phrase import Phrase, PhraseCategory
+from app.models.phrase import Phrase, PhraseCategory, UserPhraseOpen
 from app.models.rating import (
     RatingSettings,
     Rank,
@@ -43,6 +43,7 @@ __all__ = [
     "WordTranslation",
     "Phrase",
     "PhraseCategory",
+    "UserPhraseOpen",
     "LearnedWord",
     "LearningSession",
     "LearningSessionItem",

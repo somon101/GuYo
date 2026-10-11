@@ -1229,6 +1229,21 @@ class ApiClient {
     await _throwWithDetail(res);
   }
 
+  /// Marks a phrase as actually OPENED (the "phrases_opened" achievement
+  /// counts these). Fire-and-forget: opening a phrase must never block or
+  /// break the UI, and the server records it only once per phrase, so a
+  /// failed or repeated call is harmless.
+  Future<void> openPhrase(int dictionaryId, int phraseId) async {
+    try {
+      await http.post(
+        _uri('/dictionaries/$dictionaryId/phrases/$phraseId/open'),
+        headers: await _authHeaders(),
+      );
+    } catch (_) {
+      // Ignored on purpose -- a missed open just isn't counted.
+    }
+  }
+
   Future<Leaderboard> fetchGlobalLeaderboard() async {
     final res = await http.get(_uri('/rating/leaderboard/global'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);

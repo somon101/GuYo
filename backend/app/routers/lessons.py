@@ -655,11 +655,14 @@ def finish_lesson_pass(
 
         lesson_completed = _check_and_apply_lesson_completion(db, lesson, threshold)
         if lesson_completed:
+            # Finishing the pass is the one genuine "played to the end"
+            # signal -- the only place completed_by_pass is set, so the
+            # "lessons_completed" achievement rewards a real playthrough.
+            lesson.completed_by_pass = True
             db.flush()
         maybe_create_adaptive_lesson(db, user, lesson.dictionary_id)
         maybe_create_personal_quest(db, user, lesson.dictionary_id)
         if newly_learned:
-            check_and_grant_achievements(db, user, "phrases_opened")
             check_and_grant_achievements(db, user, "words_learned")
             for word_id in newly_learned:
                 award_word_points_if_new(db, user, word_id)
@@ -736,9 +739,13 @@ def submit_answer(
     )
 
     threshold = get_threshold(db)
+    # Keep is_completed (lesson-chain progression) accurate here, but do NOT
+    # set completed_by_pass mid-pass: the "lessons_completed" achievement is
+    # earned only by actually finishing the pass (POST /pass/finish), never
+    # by a lesson auto-completing from already-known words on a single answer.
     lesson_completed = _check_and_apply_lesson_completion(db, lesson, threshold)
     if lesson_completed:
-        db.flush()  # autoflush is off -- lessons_completed_count's query below must see lesson.is_completed
+        db.flush()
     is_learned = progress.score >= threshold
 
     # Priority's one automatic side effect: 5 accumulated Critical words
@@ -757,21 +764,22 @@ def submit_answer(
     # no ordering constraint with the completion check here.
     maybe_create_personal_quest(db, user, lesson.dictionary_id)
 
-    # A word crossing the learned threshold is the one event that can ever
-    # raise phrases_opened_count or words_learned_count (a word becoming
-    # LESS learned never grants anything, so this is skipped otherwise) --
-    # see app/achievements/service.py, the one reusable mechanism every
-    # condition_type shares. Rating points react to the exact same
-    # condition but are a fully separate system (see app/rating/service.py)
-    # -- award_word_points_if_new never grants twice for the same word,
-    # so calling it here on every is_learned=True answer is safe.
+    # A word crossing the learned threshold is the one event that can raise
+    # words_learned_count (a word becoming LESS learned never grants
+    # anything, so this is skipped otherwise) -- see app/achievements/
+    # service.py, the one reusable mechanism every condition_type shares.
+    # phrases_opened is NOT granted here: it now counts phrases the user
+    # actually opened (see POST .../phrases/{id}/open), not phrases that
+    # became available from a newly-learned word. lessons_completed is
+    # granted only in finish_lesson_pass, not mid-pass. Rating points react
+    # to the exact same condition but are a fully separate system (see
+    # app/rating/service.py) -- award_word_points_if_new never grants twice
+    # for the same word, so calling it here on every is_learned=True answer
+    # is safe.
     points_awarded = 0
     if is_learned:
-        check_and_grant_achievements(db, user, "phrases_opened")
         check_and_grant_achievements(db, user, "words_learned")
         points_awarded = award_word_points_if_new(db, user, payload.word_id)
-    if lesson_completed:
-        check_and_grant_achievements(db, user, "lessons_completed")
 
     record_activity(db, user)
 
