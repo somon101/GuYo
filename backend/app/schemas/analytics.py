@@ -1,3 +1,4 @@
+from datetime import datetime
 from datetime import date, datetime
 
 from pydantic import BaseModel
@@ -224,3 +225,37 @@ class RetentionOut(RetentionGroupOut):
     # Newest week first.
     cohorts: list[RetentionCohortOut]
     sources: list[RetentionSourceOut]
+
+
+# --- Mini-phrases (same idea as the phrase report, parts are Word ids) -----
+
+
+class MiniPhraseDoneOut(BaseModel):
+    mini_phrase_id: int
+    text: str
+    translation_tg: str
+    template_name: str | None
+    done_at: datetime
+    points: int | None
+
+
+class MiniPhraseNearOut(BaseModel):
+    mini_phrase_id: int
+    text: str
+    translation_tg: str
+    template_name: str | None
+    learned_count: int
+    total_count: int
+    missing_words: list[MissingWordOut]
+
+
+class UserMiniPhraseAnalyticsOut(BaseModel):
+    total_count: int
+    done_count: int
+    # Every word learned, but not gone through in a lesson yet.
+    available_count: int
+    points_total: int
+    available: list[MiniPhraseNearOut]
+    near: list[MiniPhraseNearOut]
+    done: list[MiniPhraseDoneOut]
+    top_words: list[WordImpactOut]

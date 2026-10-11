@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { UserHistorySection } from "../components/UserHistorySection";
+import { MiniPhraseAnalytics } from "../components/MiniPhraseAnalytics";
 import {
   getUserPhraseAnalytics,
   listAnalyticsDictionaries,
@@ -84,7 +85,7 @@ export function UserAnalyticsPage() {
     <div className="mx-auto max-w-4xl">
       <h1 className="mb-1 text-[26px] font-bold tracking-tight text-slate-900">Аналитика пользователей</h1>
       <p className="mb-6 text-sm text-slate-500">
-        Изучение слов и открытие фраз конкретного пользователя.
+        Изучение слов, открытие фраз и мини-фраз конкретного пользователя.
       </p>
 
       {isLoadingOptions ? (
@@ -144,6 +145,10 @@ export function UserAnalyticsPage() {
               ) : analytics ? (
                 <AnalyticsReport data={analytics} />
               ) : null}
+
+              {selectedUserId != null && selectedDictionaryId != null && (
+                <MiniPhraseAnalytics userId={selectedUserId} dictionaryId={selectedDictionaryId} />
+              )}
             </div>
           )}
         </>

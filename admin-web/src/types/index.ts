@@ -725,3 +725,33 @@ export interface MiniPhraseSettings {
   points_per_correct: number;
   max_per_lesson: number;
 }
+
+export interface MiniPhraseNear {
+  mini_phrase_id: number;
+  text: string;
+  translation_tg: string;
+  template_name: string | null;
+  learned_count: number;
+  total_count: number;
+  missing_words: MissingWord[];
+}
+
+export interface MiniPhraseDone {
+  mini_phrase_id: number;
+  text: string;
+  translation_tg: string;
+  template_name: string | null;
+  done_at: string;
+  points: number | null;
+}
+
+export interface UserMiniPhraseAnalytics {
+  total_count: number;
+  done_count: number;
+  available_count: number;
+  points_total: number;
+  available: MiniPhraseNear[];
+  near: MiniPhraseNear[];
+  done: MiniPhraseDone[];
+  top_words: WordImpact[];
+}
