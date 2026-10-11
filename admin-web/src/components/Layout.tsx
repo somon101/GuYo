@@ -5,6 +5,7 @@ import { usePageEnter, usePageTransitions } from "../lib/pageTransitions";
 import { Backdrop } from "./Backdrop";
 import { NavIcon } from "./NavIcon";
 import { ChangePasswordButton } from "./ChangePasswordButton";
+import { ThemeToggle } from "./ThemeToggle";
 import logoMark from "../assets/logo-mark.png";
 
 // The side menu, grouped by what the admin is looking after.
@@ -75,7 +76,8 @@ export function Layout({ children }: { children: ReactNode }) {
           <div className="hidden min-w-0 flex-1 justify-center md:flex">
             <span className="truncate text-[17px] font-semibold text-slate-900">{section?.label}</span>
           </div>
-          <div className="flex flex-1 justify-end gap-1">
+          <div className="flex flex-1 items-center justify-end gap-1">
+            <ThemeToggle />
             <ChangePasswordButton />
             <button onClick={logout} className="btn-tinted rounded-full px-3.5 py-1.5 text-sm font-medium">
               Выйти
