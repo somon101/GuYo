@@ -16,6 +16,7 @@ from app.routers import (
     mini_phrases,
     admin_memory,
     admin_translation,
+    admin_backup,
     events,
     admin_analytics,
     admin_priority,
@@ -108,6 +109,7 @@ app.include_router(admin_analytics.router)
 app.include_router(admin_priority.router)
 app.include_router(admin_memory.router)
 app.include_router(admin_translation.router)
+app.include_router(admin_backup.router)
 app.include_router(events.router)
 app.include_router(admin_achievements.router)
 app.include_router(admin_mini_phrases.router)
