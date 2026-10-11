@@ -6,8 +6,11 @@ media file (audio, images, avatars) in one ZIP.
       tables/<name>.json   all rows of each table
       media/<key>          every file under MEDIA_ROOT
 
-Made by GET /admin/backup (app/routers/admin_backup.py); restored with
-`python -m app.backup.restore <zip>` into an empty, migrated database.
+Made by GET /admin/backup (app/routers/admin_backup.py). Media can be left
+out (?media=false) and fetched file by file instead -- GET
+/admin/backup/media lists them -- so a large store never has to fit in one
+long download. Restored with `python -m app.backup.restore <zip> [media_dir]`
+into an empty, migrated database.
 Plain JSON, so it does not depend on pg_dump or a Postgres version.
 """
 
@@ -54,7 +57,18 @@ def _decode(obj):
     return obj
 
 
-def make_backup(db: Session) -> Path:
+def media_index() -> list[dict]:
+    """Every stored media file: its key (path under MEDIA_ROOT) and size."""
+    if not MEDIA_ROOT.exists():
+        return []
+    return [
+        {"key": path.relative_to(MEDIA_ROOT).as_posix(), "size": path.stat().st_size}
+        for path in sorted(MEDIA_ROOT.rglob("*"))
+        if path.is_file()
+    ]
+
+
+def make_backup(db: Session, *, include_media: bool = True) -> Path:
     """Writes the backup to a temporary file and returns its path."""
     import app.models  # noqa: F401  -- every table registered on Base
 
@@ -67,7 +81,7 @@ def make_backup(db: Session) -> Path:
             counts[table.name] = len(rows)
             z.writestr(f"tables/{table.name}.json", json.dumps(rows, default=_encode, ensure_ascii=False))
         files = 0
-        if MEDIA_ROOT.exists():
+        if include_media and MEDIA_ROOT.exists():
             for path in MEDIA_ROOT.rglob("*"):
                 if path.is_file():
                     # Already-compressed audio/images: store, don't re-deflate.
@@ -89,9 +103,10 @@ def make_backup(db: Session) -> Path:
     return out
 
 
-def restore_backup(db: Session, zip_path: Path) -> dict:
+def restore_backup(db: Session, zip_path: Path, media_dir: Path | None = None) -> dict:
     """Loads a backup into an EMPTY database already migrated to the same
-    alembic revision, and copies the media files into MEDIA_ROOT."""
+    alembic revision, and copies the media files (from the ZIP, and from
+    `media_dir` when the backup was made without them) into MEDIA_ROOT."""
     import app.models  # noqa: F401
 
     with zipfile.ZipFile(zip_path) as z:
@@ -130,5 +145,12 @@ def restore_backup(db: Session, zip_path: Path) -> dict:
                 target = MEDIA_ROOT / name[len("media/"):]
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(z.read(name))
+                files += 1
+    if media_dir is not None:
+        for path in Path(media_dir).rglob("*"):
+            if path.is_file():
+                target = MEDIA_ROOT / path.relative_to(media_dir)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(path.read_bytes())
                 files += 1
     return {"rows": manifest["rows"], "media_files": files}
