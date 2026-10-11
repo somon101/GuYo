@@ -431,6 +431,33 @@ def _similarity(db: Session, dictionary_id: int):
     return score
 
 
+def _normalize_parts(item: dict, by_text: dict) -> list:
+    """The model's parts in whatever shape it sent them -- [[id, "word"]],
+    ids as strings, {"id":..,"w":..} objects -- as [[int id, "word"]]. When
+    they are missing or unusable but the full phrase `t` is there, the script
+    splits `t` itself and finds every token in the dictionary."""
+    out = []
+    for p in item.get("p") or []:
+        wid, text = None, None
+        if isinstance(p, (list, tuple)) and len(p) == 2:
+            wid, text = p
+        elif isinstance(p, dict):
+            wid = p.get("id", p.get("i"))
+            text = p.get("w", p.get("t", p.get("text")))
+        if isinstance(text, int) and not isinstance(wid, int):
+            wid, text = text, wid  # [["word", id]]
+        if isinstance(wid, str) and wid.strip().isdigit():
+            wid = int(wid.strip())
+        out.append([wid, text])
+    tokens = _TOKEN.findall(str(item.get("t") or ""))
+    usable = out and all(isinstance(w, int) and t for w, t in out)
+    if not usable and tokens:
+        guessed = [[by_text[t.lower()].id if t.lower() in by_text else None, t] for t in tokens]
+        if all(w is not None for w, _ in guessed):
+            return guessed
+    return out
+
+
 def check_candidates(db: Session, dictionary: Dictionary, raw: list[dict], allowed_ids: set[int] | None = None) -> list[dict]:
     """Turns the model's (or the admin's) items into checked preview items."""
     words = {w.id: w for w in _words(db, dictionary.id)}
@@ -448,7 +475,7 @@ def check_candidates(db: Session, dictionary: Dictionary, raw: list[dict], allow
         reason = None
         if item.get("ok") is False:
             reason = "ИИ: из этих слов не получается естественная фраза"
-        parts_in = item.get("p") or []
+        parts_in = _normalize_parts(item, by_text)
         parts = []
         broken = False
         for p in parts_in:
@@ -460,7 +487,7 @@ def check_candidates(db: Session, dictionary: Dictionary, raw: list[dict], allow
             word = words.get(wid) if isinstance(wid, int) else None
             text = str(text).strip()
             if word is None or not text:
-                reason = reason or "Слово не из этого словаря"
+                reason = reason or f"Слова «{text or wid}» нет в словаре"
                 broken = True
                 continue
             known = {word.word.strip().lower()} | {
@@ -496,6 +523,8 @@ def check_candidates(db: Session, dictionary: Dictionary, raw: list[dict], allow
         text = " ".join(p["text"] for p in parts)
         text = text[:1].upper() + text[1:]
         full = str(item.get("t") or "").strip()
+        if broken and full:
+            text = full
         if not reason and full and normalize_answer(full) != normalize_answer(text):
             reason = f"Части «{text}» не совпадают с правильной фразой «{full}» (нужного слова/формы нет в словаре)"
         content = {p["word_id"] for p in parts if p["role"] in ("noun", "verb", "adjective", "adverb")}
