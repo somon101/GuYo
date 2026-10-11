@@ -68,6 +68,7 @@ export function MiniPhraseGenerator({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tokens, setTokens] = useState(0);
+  const [toPhraseKeys, setToPhraseKeys] = useState<Set<string>>(new Set());
   const [screen, setScreen] = useState<Screen>("generate");
   const [aiNeeds, setAiNeeds] = useState<{ text: string; example: string }[]>(
     [],
@@ -177,7 +178,9 @@ export function MiniPhraseGenerator({
     ).length;
     setMessage(
       `Получено ${res.items.length}: готовых ${ready}, похожих ${similarCount}, отклонено ${res.items.length - ready - similarCount}` +
-        (res.auto_fixed ? ` · ИИ сам проверил и исправил: ${res.auto_fixed}` : "") +
+        (res.auto_fixed
+          ? ` · ИИ сам проверил и исправил: ${res.auto_fixed}`
+          : "") +
         (res.suggested_words?.length
           ? ` · ИИ предлагает добавить слов: ${res.suggested_words.length} (вкладка «Слова»)`
           : ""),
@@ -200,40 +203,40 @@ export function MiniPhraseGenerator({
     const chosen = items
       .filter((i) => picked.has(i.key))
       .map((i) => (i.valid ? i : { ...i, force: true }));
-    const res = await run("save", () =>
-      saveGeneratedMiniPhrases(dictionaryId, chosen),
-    );
+    const forPhrases = items.filter((i) => toPhraseKeys.has(i.key));
+    const res = await run("save", async () => ({
+      mini: chosen.length
+        ? await saveGeneratedMiniPhrases(dictionaryId, chosen)
+        : null,
+      phrases: forPhrases.length
+        ? await saveGeneratedAsPhrases(dictionaryId, forPhrases)
+        : null,
+    }));
     if (!res) return;
-    setItems((prev) => prev.filter((i) => !picked.has(i.key)));
+    const done = new Set([...picked, ...toPhraseKeys]);
+    setItems((prev) => prev.filter((i) => !done.has(i.key)));
     setPicked(new Set());
-    setMessage(
-      `Сохранено: ${res.created.length}` +
-        (res.forms_added.length
-          ? ` · добавлено форм: ${res.forms_added.length}`
-          : "") +
-        (res.templates_created.length
-          ? ` · новых шаблонов: ${res.templates_created.length}`
-          : "") +
-        (res.skipped.length ? ` · пропущено: ${res.skipped.length}` : ""),
-    );
+    setToPhraseKeys(new Set());
+    const parts: string[] = [];
+    if (res.mini) {
+      parts.push(`Мини-фраз сохранено: ${res.mini.created.length}`);
+      if (res.mini.forms_added.length)
+        parts.push(`добавлено форм: ${res.mini.forms_added.length}`);
+      if (res.mini.templates_created.length)
+        parts.push(`новых шаблонов: ${res.mini.templates_created.length}`);
+      if (res.mini.skipped.length)
+        parts.push(`мини-фраз пропущено: ${res.mini.skipped.length}`);
+    }
+    if (res.phrases) {
+      parts.push(`во «Фразы» добавлено: ${res.phrases.created.length}`);
+      if (res.phrases.skipped.length)
+        parts.push(
+          `во «Фразы» пропущено: ${res.phrases.skipped.map((x) => `${x.text} (${x.reason})`).join(", ")}`,
+        );
+    }
+    setMessage(parts.join(" · "));
     onSaved();
     loadAnalysis();
-  }
-
-  async function toPhrases() {
-    const chosen = items.filter((i) => picked.has(i.key));
-    const res = await run("phrases", () =>
-      saveGeneratedAsPhrases(dictionaryId, chosen),
-    );
-    if (!res) return;
-    setItems((prev) => prev.filter((i) => !picked.has(i.key)));
-    setPicked(new Set());
-    setMessage(
-      `Добавлено во «Фразы»: ${res.created.length}` +
-        (res.skipped.length
-          ? ` · пропущено: ${res.skipped.map((x) => `${x.text} (${x.reason})`).join(", ")}`
-          : ""),
-    );
   }
 
   function toggle(
@@ -250,7 +253,9 @@ export function MiniPhraseGenerator({
   const similar = items.filter((i) => i.valid && i.too_similar);
   const normal = items.filter((i) => i.valid && !i.too_similar);
   const invalid = items.filter((i) => !i.valid);
-  const toSave = items.filter((i) => picked.has(i.key)).length;
+  const toSave = items.filter(
+    (i) => picked.has(i.key) || toPhraseKeys.has(i.key),
+  ).length;
   const toRephrase = similar.filter((i) => picked.has(i.key)).length;
 
   const saveBar = items.length > 0 && (
@@ -260,17 +265,7 @@ export function MiniPhraseGenerator({
         disabled={toSave === 0 || busy !== null}
         className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
       >
-        {busy === "save"
-          ? "Сохранение…"
-          : `Сохранить как мини-фразы (${toSave})`}
-      </button>
-      <button
-        onClick={toPhrases}
-        disabled={toSave === 0 || busy !== null}
-        title="Только текст и переводы — без разбора на части и шаблонов"
-        className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-      >
-        {busy === "phrases" ? "Отправка…" : `Отправить во «Фразы» (${toSave})`}
+        {busy === "save" ? "Сохранение…" : `Сохранить выбранные (${toSave})`}
       </button>
       <button
         onClick={() => {
@@ -511,6 +506,10 @@ export function MiniPhraseGenerator({
               item={i}
               checked={picked.has(i.key)}
               onToggle={() => toggle(picked, i.key, setPicked)}
+              toPhrase={toPhraseKeys.has(i.key)}
+              onTogglePhrase={() =>
+                toggle(toPhraseKeys, i.key, setToPhraseKeys)
+              }
             />
           ))}
           {similar.length > 0 && (
@@ -541,6 +540,10 @@ export function MiniPhraseGenerator({
               item={i}
               checked={picked.has(i.key)}
               onToggle={() => toggle(picked, i.key, setPicked)}
+              toPhrase={toPhraseKeys.has(i.key)}
+              onTogglePhrase={() =>
+                toggle(toPhraseKeys, i.key, setToPhraseKeys)
+              }
             />
           ))}
         </Section>
@@ -565,6 +568,10 @@ export function MiniPhraseGenerator({
               item={i}
               checked={picked.has(i.key)}
               onToggle={() => toggle(picked, i.key, setPicked)}
+              toPhrase={toPhraseKeys.has(i.key)}
+              onTogglePhrase={() =>
+                toggle(toPhraseKeys, i.key, setToPhraseKeys)
+              }
               manual
             />
           ))}
@@ -635,16 +642,21 @@ function Card({
   checked,
   onToggle,
   manual = false,
+  toPhrase,
+  onTogglePhrase,
 }: {
   item: GeneratedMiniPhrase;
   checked: boolean;
   onToggle: () => void;
   manual?: boolean;
+  toPhrase: boolean;
+  onTogglePhrase: () => void;
 }) {
   const canPick =
     item.valid || (manual && !item.broken && item.parts.length > 0);
   return (
-    <label
+    <div
+      onClick={() => canPick && onToggle()}
       className={`flex cursor-pointer items-start gap-3 rounded-xl bg-[var(--card)] p-3.5 ${canPick ? "" : "cursor-default opacity-60"} ${!item.valid && !checked ? "opacity-75" : ""}`}
       translate="no"
     >
@@ -655,6 +667,7 @@ function Card({
         checked={checked}
         disabled={!canPick}
         onChange={onToggle}
+        onClick={(e) => e.stopPropagation()}
       />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-2">
@@ -714,6 +727,21 @@ function Card({
           <p className="mt-1 text-xs font-medium text-red-600">{item.reason}</p>
         )}
       </div>
-    </label>
+      <label
+        onClick={(e) => e.stopPropagation()}
+        title="При сохранении эта фраза также попадёт в раздел «Фразы» (текст и переводы)"
+        className="flex shrink-0 cursor-pointer flex-col items-center gap-1 text-[11px]"
+      >
+        <input
+          type="checkbox"
+          className="h-5 w-5 cursor-pointer accent-indigo-600"
+          aria-label="Также отправить во «Фразы»"
+          checked={toPhrase}
+          disabled={!item.text || !item.translation_tg}
+          onChange={onTogglePhrase}
+        />
+        <span className="text-slate-500">во «Фразы»</span>
+      </label>
+    </div>
   );
 }
