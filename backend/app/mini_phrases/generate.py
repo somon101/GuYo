@@ -351,15 +351,29 @@ _PRONOUNS = {"я", "ты", "он", "она", "оно", "мы", "вы", "они",
              "мне", "тебе", "ему", "ей", "нам", "вам", "им"}
 
 
+_PRONOUN_CASES = {
+    "я": {"меня", "мне", "мной", "мною"},
+    "ты": {"тебя", "тебе", "тобой", "тобою"},
+    "он": {"его", "него", "ему", "нему", "им", "ним", "нем"},
+    "она": {"ее", "нее", "ей", "ней", "ею", "нею"},
+    "оно": {"его", "него", "ему", "нему", "им", "ним", "нем"},
+    "мы": {"нас", "нам", "нами"},
+    "вы": {"вас", "вам", "вами"},
+    "они": {"их", "них", "им", "ним", "ими", "ними"},
+    "мой": {"моя", "мое", "мои", "моего", "моей", "моему", "моих", "моим", "моими", "моем", "мою"},
+    "твой": {"твоя", "твое", "твои", "твоего", "твоей", "твоему", "твоих", "твоим", "твоими", "твоем", "твою"},
+}
+
+
 def _plausible_form(word: Word, text: str) -> bool:
-    """A new form must look like a form of THIS word: pronouns get no new
-    forms (their cases are separate words in the dictionary), and any other
+    """A new form must look like a form of THIS word: a pronoun only its
+    real cases («ты → тебя», never «мы → я»), and any other
     form starts with the same letter as the word («пить → пью», «идти → иду»),
     so «я» is never taken as a form of «мы»."""
     base = word.word.strip().lower().replace("ё", "е")
     t = text.lower().replace("ё", "е")
-    if role_of(word) == "pronoun":
-        return False
+    if role_of(word) == "pronoun" or base in _PRONOUN_CASES:
+        return t in _PRONOUN_CASES.get(base, set())
     return bool(base) and bool(t) and base[0] == t[0]
 
 
@@ -593,8 +607,78 @@ def generate(db: Session, dictionary: Dictionary, count: int, category_id: int |
     needs = [n for n in needs if n["text"] not in known]
     for i, item in enumerate(raw):
         item.setdefault("key", f"g{i}")
-    items = check_candidates(db, dictionary, raw, {w.id for w in words})
-    return {"items": items, "tokens": tokens, "words_sent": len(words), "suggested_words": needs}
+    allowed = {w.id for w in words}
+    items = check_candidates(db, dictionary, raw, allowed)
+    items, fix_tokens, fixed = self_review(db, dictionary, words, raw, items, allowed)
+    return {
+        "items": items,
+        "tokens": tokens + fix_tokens,
+        "words_sent": len(words),
+        "suggested_words": needs,
+        "auto_fixed": fixed,
+    }
+
+
+_FIX_SYSTEM = (
+    "You are an experienced Russian teacher for adult Tajik/Uzbek beginners reviewing your own draft. Input: "
+    "{\"w\":\"id:word,...\" (the ONLY words allowed),\"have\":[phrases that already exist],\"r\":[{\"k\":key,"
+    "\"was\":\"draft phrase\",\"why\":\"what the automatic check found\"}]}. For each item fix the problem: "
+    "correct the phrase or replace it with a different one. The result must be a 2-5 word phrase really used in "
+    "conversation, 100% correct natural Russian, every word in its exact form a form of the w word whose id you "
+    "give (if a word/form is missing from w, pick another phrase), meaning clearly different from have and from "
+    "each other. Check it yourself before replying. Rate u 1-5. Reply JSON only: {\"r\":[{\"k\":key,\"t\":"
+    "\"full phrase\",\"p\":[[id,\"word exactly as in t\"],...],\"u\":5,\"s\":\"situation\",\"tg\":\"Tajik\","
+    "\"uz\":\"Uzbek (Latin)\",\"en\":\"English\"}]}."
+)
+
+SELF_REVIEW_ROUNDS = 2
+
+
+def self_review(db: Session, dictionary: Dictionary, words: list[Word], raw: list[dict], items: list[dict], allowed: set[int]):
+    """The model checks its own work before the admin sees it: everything the
+    script rejected or found too similar goes back with the exact reason, and
+    the fixed versions are checked again -- up to SELF_REVIEW_ROUNDS times.
+    Only what still fails after that reaches «Отклонённые» / «Похожие»."""
+    tokens, fixed = 0, 0
+    have = [t for (t,) in db.query(MiniPhrase.text).filter(MiniPhrase.dictionary_id == dictionary.id).limit(150)]
+    for _ in range(SELF_REVIEW_ROUNDS):
+        bad = [i for i in items if not i["valid"] or i["too_similar"]]
+        if not bad:
+            break
+        why = {
+            i["key"]: i["reason"] if not i["valid"] else f"слишком похожа на «{i['similar_to']}» ({i['similarity']}%)"
+            for i in bad
+        }
+        good_texts = [i["text"] for i in items if i["valid"] and not i["too_similar"]]
+        payload = [{"k": i["key"], "was": i["text"], "why": why[i["key"]]} for i in bad[:30]]
+        try:
+            data, used = chat(
+                db,
+                _FIX_SYSTEM,
+                {"w": _compact(words), "have": (have + good_texts)[-180:], "r": payload},
+                max_tokens=190 * len(payload) + 300,
+            )
+        except HTTPException:
+            break
+        tokens += used
+        answers = {str(a.get("k")): a for a in data.get("r") or [] if isinstance(a, dict)}
+        if not answers:
+            break
+        # Re-check the whole batch in order so repeats/similarity see the fixes.
+        new_raw = []
+        for item, old in zip(raw, items):
+            fix = answers.get(old["key"]) if old["key"] in why else None
+            if fix is not None:
+                fix = dict(fix, key=old["key"])
+                new_raw.append(fix)
+            else:
+                new_raw.append(item)
+        new_items = check_candidates(db, dictionary, new_raw, allowed)
+        fixed += sum(
+            1 for o, n in zip(items, new_items) if o["key"] in answers and (not o["valid"] or o["too_similar"]) and n["valid"] and not n["too_similar"]
+        )
+        raw, items = new_raw, new_items
+    return items, tokens, fixed
 
 
 _REPHRASE_SYSTEM = (

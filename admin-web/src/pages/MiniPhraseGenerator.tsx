@@ -177,6 +177,7 @@ export function MiniPhraseGenerator({
     ).length;
     setMessage(
       `Получено ${res.items.length}: готовых ${ready}, похожих ${similarCount}, отклонено ${res.items.length - ready - similarCount}` +
+        (res.auto_fixed ? ` · ИИ сам проверил и исправил: ${res.auto_fixed}` : "") +
         (res.suggested_words?.length
           ? ` · ИИ предлагает добавить слов: ${res.suggested_words.length} (вкладка «Слова»)`
           : ""),
@@ -483,7 +484,7 @@ export function MiniPhraseGenerator({
               className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
             >
               {busy === "generate"
-                ? "ИИ составляет фразы… (до минуты)"
+                ? "ИИ составляет и проверяет фразы… (1–2 минуты)"
                 : "Сгенерировать"}
             </button>
           </div>
