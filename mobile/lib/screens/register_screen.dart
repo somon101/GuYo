@@ -3,7 +3,10 @@ import '../widgets/study_times_editor.dart';
 import '../widgets/google_logo.dart';
 import '../l10n/l10n.dart';
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
@@ -11,6 +14,7 @@ import '../theme/app_colors.dart';
 import '../widgets/guyo_ui.dart';
 import 'home_screen.dart';
 import '../models/learning_topics.dart';
+import '../models/login_rules.dart';
 import '../widgets/selectable_card.dart';
 import '../widgets/skeleton.dart';
 
@@ -57,7 +61,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     'language',
     if (appLanguage.value == 'ru') 'translation',
     if (widget.google == null) 'name',
-    'account',
+    // The login gets its own step, checked live; the next step only
+    // opens once it is free.
+    'login',
+    if (widget.google == null) 'password',
     'age',
     'goal',
     'studyTime',
@@ -87,6 +94,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _loginError;
   String? _passwordError;
   String? _confirmError;
+  _LoginState _loginState = _LoginState.empty;
+  Timer? _loginTimer;
 
   // --- Step 2/3/4: single-choice picks --------------------------------------
   String? _ageGroup;
@@ -107,6 +116,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
+    _loginTimer?.cancel();
     _firstNameCtrl.dispose();
     _lastNameCtrl.dispose();
     _loginCtrl.dispose();
@@ -151,8 +161,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       case 'translation':
         return true;
       case 'name':
-      case 'account':
+      case 'password':
         return true; // these steps validate their own fields on Next
+      case 'login':
+        return _loginState == _LoginState.available;
       case 'age':
         return _ageGroup != null;
       case 'goal':
@@ -175,9 +187,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   void _goNext() {
     if (_stepKey == 'name' && !_validateNameStep()) return;
-    if (_stepKey == 'account' && !(widget.google != null ? _validateLoginOnly() : _validateAccountStep())) {
-      return;
-    }
+    if (_stepKey == 'login' && _loginState != _LoginState.available) return;
+    if (_stepKey == 'password' && !_validatePasswordStep()) return;
     if (_step < _steps.length - 1) {
       setState(() => _step += 1);
     } else {
@@ -185,12 +196,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  bool _validateLoginOnly() {
+  /// Runs on every keystroke: the rules at once, then (after a short
+  /// pause in typing) whether the login is free.
+  void _onLoginChanged() {
+    _loginTimer?.cancel();
     final login = _loginCtrl.text.trim();
+    final problem = loginRuleProblem(login);
+    if (problem != null) {
+      setState(() {
+        _loginState = login.isEmpty ? _LoginState.empty : _LoginState.invalid;
+        _loginError = login.isEmpty ? null : problem;
+      });
+      return;
+    }
     setState(() {
-      _loginError = login.isEmpty ? tr('Введите логин') : (login.length < 3 ? tr('Минимум 3 символа') : null);
+      _loginState = _LoginState.checking;
+      _loginError = null;
     });
-    return _loginError == null;
+    _loginTimer = Timer(const Duration(milliseconds: 450), () async {
+      final available = await ApiClient.instance.isLoginAvailable(login);
+      if (!mounted || _loginCtrl.text.trim() != login) return; // typed on since
+      setState(() {
+        if (available == null) {
+          _loginState = _LoginState.offline;
+          _loginError = tr('Не удалось проверить логин. Проверьте интернет.');
+        } else {
+          _loginState = available ? _LoginState.available : _LoginState.taken;
+          _loginError = available ? null : tr('Этот логин уже занят');
+        }
+      });
+    });
   }
 
   bool _validateNameStep() {
@@ -203,18 +238,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return _firstNameError == null && _lastNameError == null;
   }
 
-  bool _validateAccountStep() {
-    final login = _loginCtrl.text.trim();
+  bool _validatePasswordStep() {
     final password = _passwordCtrl.text;
     final confirm = _confirmCtrl.text;
     setState(() {
-      _loginError = login.isEmpty ? tr('Введите логин') : (login.length < 3 ? tr('Минимум 3 символа') : null);
       _passwordError = password.isEmpty ? tr('Введите пароль') : (password.length < 4 ? tr('Минимум 4 символа') : null);
       _confirmError = confirm.isEmpty
           ? tr('Повторите пароль')
           : (confirm != password ? tr('Пароли не совпадают') : null);
     });
-    return _loginError == null && _passwordError == null && _confirmError == null;
+    return _passwordError == null && _confirmError == null;
   }
 
   Future<void> _submit() async {
@@ -395,20 +428,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
           lastNameError: _lastNameError,
           onChanged: () => setState(() {}),
         );
-      case 'account':
-        if (widget.google != null) {
-          return _GoogleLoginStep(
-            email: widget.google!.email,
-            loginCtrl: _loginCtrl,
-            loginError: _loginError,
-            onChanged: () => setState(() {}),
-          );
-        }
-        return _AccountStep(
+      case 'login':
+        return _LoginStep(
+          email: widget.google?.email,
           loginCtrl: _loginCtrl,
+          loginError: _loginError,
+          state: _loginState,
+          onChanged: _onLoginChanged,
+        );
+      case 'password':
+        return _AccountStep(
           passwordCtrl: _passwordCtrl,
           confirmCtrl: _confirmCtrl,
-          loginError: _loginError,
           passwordError: _passwordError,
           confirmError: _confirmError,
           onChanged: () => setState(() {}),
@@ -656,19 +687,15 @@ class _NameStep extends StatelessWidget {
 }
 
 class _AccountStep extends StatelessWidget {
-  final TextEditingController loginCtrl;
   final TextEditingController passwordCtrl;
   final TextEditingController confirmCtrl;
-  final String? loginError;
   final String? passwordError;
   final String? confirmError;
   final VoidCallback onChanged;
 
   const _AccountStep({
-    required this.loginCtrl,
     required this.passwordCtrl,
     required this.confirmCtrl,
-    required this.loginError,
     required this.passwordError,
     required this.confirmError,
     required this.onChanged,
@@ -677,21 +704,10 @@ class _AccountStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _StepScaffold(
-      title: tr('Логин и пароль'),
+      title: tr('Пароль'),
       subtitle: tr('Почта подтянется из Google-аккаунта в конце.'),
       child: Column(
         children: [
-          _FormField(
-            fieldKey: const ValueKey('register-field-login'),
-            label: tr('Логин'),
-            hint: tr('Придумайте логин'),
-            icon: Icons.alternate_email_rounded,
-            controller: loginCtrl,
-            error: loginError,
-            onChanged: onChanged,
-            autocorrect: false,
-          ),
-          const SizedBox(height: 14),
           _FormField(
             fieldKey: const ValueKey('register-field-password'),
             label: tr('Пароль'),
@@ -719,33 +735,76 @@ class _AccountStep extends StatelessWidget {
   }
 }
 
-/// The account step of a Google sign-up: name and email already came from
-/// Google, so only the login (the name shown in the rating) is asked.
-class _GoogleLoginStep extends StatelessWidget {
-  final String email;
+enum _LoginState { empty, invalid, checking, available, taken, offline }
+
+/// The login, on its own step and checked while typing: only English
+/// letters, digits, _ and . can be typed at all (lower-case, up to 13),
+/// and whether it is free shows right under the field. «Далее» only
+/// works once it is free.
+class _LoginStep extends StatelessWidget {
+  /// The Google account's address in a Google sign-up, else null.
+  final String? email;
   final TextEditingController loginCtrl;
   final String? loginError;
+  final _LoginState state;
   final VoidCallback onChanged;
 
-  const _GoogleLoginStep({
+  const _LoginStep({
     required this.email,
     required this.loginCtrl,
     required this.loginError,
+    required this.state,
     required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
+    final Widget? status = switch (state) {
+      _LoginState.checking => Padding(
+          padding: const EdgeInsets.all(14),
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.secondaryText),
+          ),
+        ),
+      _LoginState.available => Icon(Icons.check_circle_rounded, color: AppColors.success, size: 22),
+      _LoginState.taken || _LoginState.invalid => Icon(Icons.cancel_rounded, color: AppColors.danger, size: 22),
+      _ => null,
+    };
     return _StepScaffold(
       title: tr('Придумайте логин'),
-      subtitle: tr('Его увидят другие в рейтинге. Google: {0}', [email]),
-      child: _FormField(
-        fieldKey: const ValueKey('register-field-login'),
-        label: tr('Логин'),
-        controller: loginCtrl,
-        error: loginError,
-        onChanged: onChanged,
-        autocorrect: false,
+      subtitle: email == null
+          ? tr('Его увидят другие в рейтинге.')
+          : tr('Его увидят другие в рейтинге. Google: {0}', [email!]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _FormField(
+            fieldKey: const ValueKey('register-field-login'),
+            label: tr('Логин'),
+            hint: 'somon_01',
+            icon: Icons.alternate_email_rounded,
+            controller: loginCtrl,
+            error: loginError,
+            onChanged: onChanged,
+            autocorrect: false,
+            inputFormatters: loginInputFormatters,
+            suffix: status,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, top: 6),
+            child: state == _LoginState.available
+                ? Text(
+                    tr('Логин свободен'),
+                    style: TextStyle(fontSize: 12.5, color: AppColors.success, fontWeight: FontWeight.w700),
+                  )
+                : Text(
+                    tr('Английские буквы, цифры, _ и . — до 13 символов'),
+                    style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
+                  ),
+          ),
+        ],
       ),
     );
   }
@@ -766,6 +825,9 @@ class _FormField extends StatefulWidget {
   final bool obscure;
   final bool autocorrect;
   final bool capitalize;
+  final List<TextInputFormatter>? inputFormatters;
+  /// Shown at the end of the field (a password's eye takes this place).
+  final Widget? suffix;
 
   const _FormField({
     this.fieldKey,
@@ -778,6 +840,8 @@ class _FormField extends StatefulWidget {
     this.obscure = false,
     this.autocorrect = true,
     this.capitalize = false,
+    this.inputFormatters,
+    this.suffix,
   });
 
   @override
@@ -813,6 +877,8 @@ class _FormFieldState extends State<_FormField> {
           enableSuggestions: widget.autocorrect && !widget.obscure,
           textCapitalization: widget.capitalize ? TextCapitalization.words : TextCapitalization.none,
           textInputAction: TextInputAction.next,
+          inputFormatters: widget.inputFormatters,
+          keyboardType: widget.inputFormatters != null ? TextInputType.visiblePassword : null,
           onChanged: (_) => widget.onChanged(),
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
           decoration: InputDecoration(
@@ -832,7 +898,7 @@ class _FormFieldState extends State<_FormField> {
                       color: AppColors.secondaryText,
                     ),
                   )
-                : null,
+                : widget.suffix,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
             enabledBorder: border,
             border: border,

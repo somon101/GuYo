@@ -4,6 +4,7 @@ import '../theme/app_theme.dart';
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
 import '../models/learning_topics.dart';
+import '../models/login_rules.dart';
 import '../models/user_profile.dart';
 import '../services/push_service.dart';
 import '../theme/app_colors.dart';
@@ -288,7 +289,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   onTap: () => _editFields(
                     title: tr('Логин'),
                     fields: [(key: 'login', label: tr('Логин'), value: _profile.login, keyboard: TextInputType.text)],
-                    validate: (v) => v['login']!.length < 3 ? tr('Логин должен быть не короче 3 символов') : null,
+                    validate: (v) => loginRuleProblem(v['login']!.toLowerCase()),
                   ),
                 ),
                 _Row(
