@@ -10,7 +10,10 @@ import {
   type GeneratedMiniPhrase,
   type MiniPhraseAnalysis,
 } from "../api/endpoints";
+import { SegmentedControl } from "../components/SegmentedControl";
 import type { Category } from "../types";
+
+type Screen = "words" | "generate" | "similar" | "ready" | "rejected";
 
 function errorText(e: unknown, fallback: string): string {
   if (axios.isAxiosError(e) && typeof e.response?.data?.detail === "string") return e.response.data.detail;
@@ -53,6 +56,8 @@ export function MiniPhraseGenerator({ dictionaryId, onSaved }: { dictionaryId: n
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tokens, setTokens] = useState(0);
+  const [screen, setScreen] = useState<Screen>("generate");
+  const [aiNeeds, setAiNeeds] = useState<{ text: string; example: string }[]>([]);
 
   async function loadAnalysis() {
     try {
@@ -87,6 +92,7 @@ export function MiniPhraseGenerator({ dictionaryId, onSaved }: { dictionaryId: n
     if (!res) return;
     setTokens((t) => t + res.tokens);
     setChosenWords(new Set());
+    setAiNeeds((prev) => prev.filter((n) => !chosenWords.has(n.text)));
     setMessage(
       `Добавлено слов: ${res.created.length}` +
         (res.updated.length ? ` · дополнены формами: ${res.updated.length}` : "") +
@@ -120,6 +126,19 @@ export function MiniPhraseGenerator({ dictionaryId, onSaved }: { dictionaryId: n
     if (!res) return;
     setTokens((t) => t + res.tokens);
     accept(res.items);
+    if (res.suggested_words?.length) {
+      setAiNeeds((prev) => {
+        const have = new Set(prev.map((n) => n.text));
+        return [...prev, ...res.suggested_words!.filter((n) => !have.has(n.text))];
+      });
+    }
+    const ready = res.items.filter((i) => i.valid && !i.too_similar).length;
+    const similarCount = res.items.filter((i) => i.valid && i.too_similar).length;
+    setMessage(
+      `Получено ${res.items.length}: готовых ${ready}, похожих ${similarCount}, отклонено ${res.items.length - ready - similarCount}` +
+        (res.suggested_words?.length ? ` · ИИ предлагает добавить слов: ${res.suggested_words.length} (вкладка «Слова»)` : ""),
+    );
+    setScreen(ready > 0 ? "ready" : similarCount > 0 ? "similar" : "rejected");
   }
 
   async function rephrase() {
@@ -160,158 +179,217 @@ export function MiniPhraseGenerator({ dictionaryId, onSaved }: { dictionaryId: n
   const toSave = items.filter((i) => i.valid && picked.has(i.key)).length;
   const toRephrase = similar.filter((i) => picked.has(i.key)).length;
 
+  const saveBar = items.some((i) => i.valid) && (
+    <div className="flex flex-wrap gap-3 border-t border-[var(--separator,rgba(0,0,0,0.08))] pt-3">
+      <button
+        onClick={save}
+        disabled={toSave === 0 || busy !== null}
+        className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+      >
+        {busy === "save" ? "Сохранение…" : `Сохранить выбранные (${toSave})`}
+      </button>
+      <button
+        onClick={() => {
+          setItems([]);
+          setPicked(new Set());
+          setScreen("generate");
+        }}
+        className="rounded-md px-4 py-2 text-sm text-slate-600 hover:bg-[var(--fill)]"
+      >
+        Очистить всё
+      </button>
+    </div>
+  );
+
+  const wordCount = (analysis?.missing_words.length ?? 0) + aiNeeds.length;
+
   return (
-    <div className="card mb-6 flex flex-col gap-5 p-4">
+    <div className="card mb-6 flex flex-col gap-4 p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-lg font-semibold text-slate-900">ИИ-генерация мини-фраз</h2>
         {tokens > 0 && <span className="text-xs text-slate-500">потрачено токенов: {tokens}</span>}
       </div>
 
-      {analysis && (
-        <div className="flex flex-col gap-3">
-          <p className="text-sm text-slate-600">
-            Слов: <b>{analysis.words}</b> · мини-фраз сейчас: <b>{analysis.existing_mini_phrases}</b> · возможных
-            сочетаний: <b>{analysis.possible_combinations}</b>
-            {analysis.phrases_short_of_words > 0 && <> · фраз «Мои фразы» без нужных слов: <b>{analysis.phrases_short_of_words}</b></>}
-          </p>
-          {analysis.missing_words.length > 0 && (
-            <div className="rounded-lg bg-[var(--fill)] p-3">
-              <p className="mb-2 text-sm font-medium text-slate-800">Не хватает слов</p>
-              <div className="flex max-h-44 flex-wrap gap-2 overflow-auto" translate="no">
-                {analysis.missing_words.map((m) => {
-                  const on = chosenWords.has(m.text);
-                  return (
-                    <button
-                      key={m.text}
-                      type="button"
-                      onClick={() => toggle(chosenWords, m.text, setChosenWords)}
-                      className={`rounded-full px-3 py-1 text-sm transition-colors ${
-                        on ? "bg-indigo-600 text-white" : "bg-[var(--card)] text-slate-700 hover:bg-indigo-50"
-                      }`}
-                      title={m.source === "phrases" ? `встречается в ${m.appears} фразах` : "ключевое слово для мини-фраз"}
-                    >
-                      {m.text}{" "}
-                      <span className={on ? "text-indigo-100" : "text-slate-400"}>
-                        {m.source === "phrases"
-                          ? m.unlocks > 0
-                            ? `откроет ${m.unlocks} фраз`
-                            : `в ${m.appears} фразах`
-                          : `+${m.unlocks} сочет.`}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-              <button
-                onClick={addWords}
-                disabled={chosenWords.size === 0 || busy !== null}
-                className="mt-3 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {busy === "words" ? "ИИ создаёт карточки…" : `Добавить слова полной карточкой (${chosenWords.size})`}
-              </button>
-              <p className="mt-1 text-xs text-slate-500">
-                ИИ создаст карточку: переводы, транскрипция, роль, категория, важность и все формы слова.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="text-sm text-slate-700">
-          <span className="mb-1 block text-xs text-slate-500">Сколько фраз (10–50)</span>
-          <input
-            type="number"
-            min={10}
-            max={50}
-            className="field w-24 px-3 py-2 text-sm"
-            value={count}
-            onChange={(e) => setCount(Math.max(10, Math.min(50, Number(e.target.value) || 20)))}
-          />
-        </label>
-        <label className="text-sm text-slate-700">
-          <span className="mb-1 block text-xs text-slate-500">Тема</span>
-          <select
-            className="field px-3 py-2 text-sm"
-            value={categoryId ?? ""}
-            onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
-          >
-            <option value="">Все темы</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          onClick={generate}
-          disabled={busy !== null}
-          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {busy === "generate" ? "ИИ составляет фразы… (до минуты)" : "Сгенерировать"}
-        </button>
+      <div className="overflow-x-auto">
+        <SegmentedControl<Screen>
+          ariaLabel="Экран генерации"
+          value={screen}
+          onChange={setScreen}
+          segments={[
+            { value: "words", label: `Слова${wordCount ? ` (${wordCount})` : ""}` },
+            { value: "generate", label: "Генерация" },
+            { value: "similar", label: `Похожие (${similar.length})` },
+            { value: "ready", label: `Готовые (${normal.length})` },
+            { value: "rejected", label: `Отклонённые (${invalid.length})` },
+          ]}
+        />
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       {message && <p className="text-sm text-emerald-700">{message}</p>}
 
-      {similar.length > 0 && (
+      {screen === "words" && (
+        <div className="flex flex-col gap-3">
+          {analysis && (
+            <p className="text-sm text-slate-600">
+              Слов: <b>{analysis.words}</b> · мини-фраз сейчас: <b>{analysis.existing_mini_phrases}</b>
+              {analysis.phrases_short_of_words > 0 && <> · фраз «Мои фразы» без нужных слов: <b>{analysis.phrases_short_of_words}</b></>}
+            </p>
+          )}
+          {aiNeeds.length > 0 && (
+            <div className="rounded-lg bg-[var(--fill)] p-3">
+              <p className="mb-2 text-sm font-medium text-slate-800">ИИ предлагает добавить — для полезных фраз</p>
+              <div className="flex flex-col gap-1.5" translate="no">
+                {aiNeeds.map((n) => (
+                  <WordChip
+                    key={`ai-${n.text}`}
+                    text={n.text}
+                    note={n.example ? `например: «${n.example}»` : ""}
+                    on={chosenWords.has(n.text)}
+                    onClick={() => toggle(chosenWords, n.text, setChosenWords)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          {analysis && analysis.missing_words.length > 0 && (
+            <div className="rounded-lg bg-[var(--fill)] p-3">
+              <p className="mb-2 text-sm font-medium text-slate-800">Не хватает слов (анализ словаря)</p>
+              <div className="flex max-h-72 flex-wrap gap-2 overflow-auto" translate="no">
+                {analysis.missing_words.map((m) => (
+                  <WordChip
+                    key={m.text}
+                    text={m.text}
+                    note={
+                      m.source === "phrases"
+                        ? m.unlocks > 0
+                          ? `откроет ${m.unlocks} фраз`
+                          : `в ${m.appears} фразах`
+                        : "ключевое слово"
+                    }
+                    on={chosenWords.has(m.text)}
+                    onClick={() => toggle(chosenWords, m.text, setChosenWords)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          <div>
+            <button
+              onClick={addWords}
+              disabled={chosenWords.size === 0 || busy !== null}
+              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {busy === "words" ? "ИИ создаёт карточки…" : `Добавить слова полной карточкой (${chosenWords.size})`}
+            </button>
+            <p className="mt-1 text-xs text-slate-500">
+              ИИ создаст карточку: переводы, транскрипция, роль, категория, важность и все формы слова.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {screen === "generate" && (
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-slate-600">
+            ИИ составит короткие фразы для общения (вопросы, просьбы, ответы, вежливость, планы, чувства) только из слов
+            словаря. Похожесть с уже имеющимися фразами потом проверяет программа.
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="text-sm text-slate-700">
+              <span className="mb-1 block text-xs text-slate-500">Сколько фраз (10–50)</span>
+              <input
+                type="number"
+                min={10}
+                max={50}
+                className="field w-24 px-3 py-2 text-sm"
+                value={count}
+                onChange={(e) => setCount(Math.max(10, Math.min(50, Number(e.target.value) || 20)))}
+              />
+            </label>
+            <label className="text-sm text-slate-700">
+              <span className="mb-1 block text-xs text-slate-500">Тема</span>
+              <select
+                className="field px-3 py-2 text-sm"
+                value={categoryId ?? ""}
+                onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
+              >
+                <option value="">Все темы</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              onClick={generate}
+              disabled={busy !== null}
+              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {busy === "generate" ? "ИИ составляет фразы… (до минуты)" : "Сгенерировать"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {screen === "similar" && (
         <Section
-          title={`Слишком похожие (≥60%) — ${similar.length}`}
-          hint="Отметьте и отправьте на перефразирование, или уберите галочку, чтобы не добавлять."
+          title={similar.length ? `Похожи на уже имеющиеся (≥60%) — ${similar.length}` : "Похожих нет"}
+          hint={
+            similar.length
+              ? "Отметьте и отправьте на перефразирование. Можно и сохранить как есть — тогда отметьте и нажмите «Сохранить»."
+              : undefined
+          }
           tone="amber"
         >
           {similar.map((i) => (
             <Card key={i.key} item={i} checked={picked.has(i.key)} onToggle={() => toggle(picked, i.key, setPicked)} />
           ))}
-          <button
-            onClick={rephrase}
-            disabled={toRephrase === 0 || busy !== null}
-            className="self-start rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-50"
-          >
-            {busy === "rephrase" ? "ИИ перефразирует…" : `Отправить на перефразирование (${toRephrase})`}
-          </button>
+          {similar.length > 0 && (
+            <button
+              onClick={rephrase}
+              disabled={toRephrase === 0 || busy !== null}
+              className="self-start rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-50"
+            >
+              {busy === "rephrase" ? "ИИ перефразирует…" : `Отправить на перефразирование (${toRephrase})`}
+            </button>
+          )}
         </Section>
       )}
 
-      {normal.length > 0 && (
-        <Section title={`Готовы к добавлению — ${normal.length}`}>
+      {screen === "ready" && (
+        <Section title={normal.length ? `Готовы к добавлению — ${normal.length}` : "Пока нет готовых — сгенерируйте фразы"}>
           {normal.map((i) => (
             <Card key={i.key} item={i} checked={picked.has(i.key)} onToggle={() => toggle(picked, i.key, setPicked)} />
           ))}
         </Section>
       )}
 
-      {invalid.length > 0 && (
-        <Section title={`Не прошли проверку — ${invalid.length}`}>
+      {screen === "rejected" && (
+        <Section title={invalid.length ? `Не прошли проверку — ${invalid.length}` : "Отклонённых нет"}>
           {invalid.map((i) => (
             <Card key={i.key} item={i} checked={false} onToggle={() => {}} />
           ))}
         </Section>
       )}
 
-      {items.some((i) => i.valid) && (
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={save}
-            disabled={toSave === 0 || busy !== null}
-            className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-          >
-            {busy === "save" ? "Сохранение…" : `Сохранить выбранные (${toSave})`}
-          </button>
-          <button
-            onClick={() => {
-              setItems([]);
-              setPicked(new Set());
-            }}
-            className="rounded-md px-4 py-2 text-sm text-slate-600 hover:bg-[var(--fill)]"
-          >
-            Очистить
-          </button>
-        </div>
-      )}
+      {(screen === "ready" || screen === "similar") && saveBar}
     </div>
+  );
+}
+
+function WordChip({ text, note, on, onClick }: { text: string; note: string; on: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`self-start rounded-full px-3 py-1 text-left text-sm transition-colors ${
+        on ? "bg-indigo-600 text-white" : "bg-[var(--card)] text-slate-700 hover:bg-indigo-50"
+      }`}
+    >
+      {text} {note && <span className={on ? "text-indigo-100" : "text-slate-400"}>{note}</span>}
+    </button>
   );
 }
 

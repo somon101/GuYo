@@ -1542,7 +1542,7 @@ export async function generateMiniPhrases(
   dictionaryId: number,
   count: number,
   categoryId: number | null = null,
-): Promise<{ items: GeneratedMiniPhrase[]; tokens: number }> {
+): Promise<{ items: GeneratedMiniPhrase[]; tokens: number; suggested_words?: { text: string; example: string }[] }> {
   const { data } = await api.post(
     `/admin/dictionaries/${dictionaryId}/mini-phrases/generate`,
     { count, category_id: categoryId },

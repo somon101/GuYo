@@ -21,7 +21,6 @@ rebuilds a phrase that came out too similar; builds full word cards
 Nothing is saved until the admin picks what to keep.
 """
 
-import difflib
 import json
 import re
 
@@ -234,17 +233,21 @@ def chat(db: Session, system: str, payload: dict, max_tokens: int) -> tuple[dict
 MIN_USEFULNESS = 4
 
 _PHRASE_SYSTEM = (
-    "You are a Russian teacher writing short practice phrases for beginners whose native language is Tajik or "
-    "Uzbek. Input: {\"n\":how many,\"topic\":\"topic or empty\",\"w\":\"id:word,id:word,...\" (the ONLY words "
-    "you may use),\"avoid\":[existing phrases]}. Write n DIFFERENT phrases of 2-4 words that a learner really says "
-    "in everyday life: about themselves and family, food and drink, home, study and work, greetings, simple needs "
-    "and feelings, asking and answering (e.g. «Я пью чай», «Мама готовит обед», «Я не понял», «Где ты живёшь»). "
-    "Every word of a phrase must come from w (any grammatical form of it is fine: падеж, лицо, время). Each phrase "
-    "must make full sense on its own; no odd or absurd combinations; vary the situations and the words; do not "
-    "repeat or closely copy anything in avoid. Rate each: u = how useful for a beginner, 1-5 (5 = said daily). "
-    "Reply JSON only: {\"r\":[{\"p\":[[id,\"word as written in the phrase\"],...],\"u\":5,"
-    "\"s\":\"where it is said, 2-4 Russian words\",\"tg\":\"Tajik\",\"uz\":\"Uzbek (Latin, oʻ gʻ)\","
-    "\"en\":\"English\"}]}. Parts in phrase order; lowercase except the first letter is not needed."
+    "You are an experienced Russian teacher. Your learners are adult beginners (native Tajik or Uzbek) who need "
+    "Russian to COMMUNICATE: talk to people, ask, answer, request, explain. Input: {\"n\":how many,\"topic\":"
+    "\"topic or empty\",\"w\":\"id:word,...\" (the ONLY words you may use),\"avoid\":[phrases that already exist]}. "
+    "Write n short phrases (2-4 words) that are genuinely USEFUL IN CONVERSATION and universal: questions, requests, "
+    "answers, politeness, needs, wishes, plans, feelings, opinions, agreement/disagreement — across all areas of life "
+    "(meeting people, family, work, study, shop, transport, doctor, city, phone, time, home). Good: «Я не понимаю», "
+    "«Где ты живёшь?», «Мне нужна помощь», «Я хочу работать», «Можно спросить?», «Я согласен», «Сколько это стоит?». "
+    "Bad: narrow descriptive scenes nobody says in a talk («Я вижу собаку», «Я пью чай», «Мама готовит обед»), "
+    "odd or absurd combinations, near-duplicates of each other or of avoid. Every word of a phrase must come from w "
+    "(any grammatical form is fine). Rate u = how often a beginner would actually need it in real conversation, 1-5. "
+    "If the given words do not allow enough really useful phrases, list in need up to 10 words to add to the "
+    "dictionary, each with an example phrase it would make possible. "
+    "Reply JSON only: {\"r\":[{\"p\":[[id,\"word as written in the phrase\"],...],\"u\":5,\"s\":\"situation, "
+    "2-4 Russian words\",\"tg\":\"Tajik\",\"uz\":\"Uzbek (Latin, oʻ gʻ)\",\"en\":\"English\"}],"
+    "\"need\":[{\"w\":\"word (base form)\",\"ex\":\"example phrase\"}]}. Parts in phrase order."
 )
 
 
@@ -270,8 +273,9 @@ def _compact(words: list[Word]) -> str:
     return ",".join(f"{w.id}:{w.word.strip().lower()}" for w in words)
 
 
-def ai_phrases(db: Session, words: list[Word], count: int, topic: str, avoid: list[str]) -> tuple[list[dict], int]:
+def ai_phrases(db: Session, words: list[Word], count: int, topic: str, avoid: list[str]) -> tuple[list[dict], list[dict], int]:
     results: list[dict] = []
+    needs: dict[str, dict] = {}
     tokens = 0
     remaining = count
     seen = list(avoid)
@@ -281,14 +285,18 @@ def ai_phrases(db: Session, words: list[Word], count: int, topic: str, avoid: li
             db,
             _PHRASE_SYSTEM,
             {"n": n, "topic": topic, "w": _compact(words), "avoid": seen[-60:]},
-            max_tokens=170 * n + 200,
+            max_tokens=170 * n + 600,
         )
         tokens += used
         got = [i for i in data.get("r") or [] if isinstance(i, dict)]
         results += got
         seen += [" ".join(str(x[1]) for x in i.get("p") or [] if isinstance(x, (list, tuple)) and len(x) == 2) for i in got]
+        for need in data.get("need") or []:
+            if isinstance(need, dict) and str(need.get("w") or "").strip():
+                key = str(need["w"]).strip().lower()[:60]
+                needs.setdefault(key, {"text": key, "example": str(need.get("ex") or "").strip()[:120]})
         remaining -= n
-    return results, tokens
+    return results, list(needs.values()), tokens
 
 
 # --- Checking a candidate (script only) ------------------------------------------
@@ -321,10 +329,48 @@ def _template_texts(roles: list[str]) -> dict:
     }
 
 
+# Words that carry no meaning of their own for similarity: two phrases are
+# not "the same" just because both start with «я» or contain «не».
+_FUNCTION_WORDS = {
+    "я", "ты", "он", "она", "оно", "мы", "вы", "они", "меня", "тебя", "его", "её", "ее", "нас", "вас", "их",
+    "мне", "тебе", "ему", "ей", "нам", "вам", "им", "мой", "моя", "моё", "мое", "мои", "твой", "твоя", "твои",
+    "не", "и", "а", "но", "в", "во", "на", "с", "со", "у", "к", "ко", "по", "о", "об", "от", "до", "из", "за",
+    "для", "это", "то", "да", "нет", "ли", "же", "бы", "уже", "очень", "тоже", "там", "тут", "здесь",
+}
+
+
+def _stem(token: str) -> str:
+    t = token.lower().replace("ё", "е")
+    return t[:5] if len(t) > 5 else t
+
+
 def _similarity(db: Session, dictionary_id: int):
-    """Returns a function scoring a candidate (text, word_ids) against what
-    exists: existing mini-phrases (by word and text), «Мои фразы» (by text)
-    and earlier candidates of the same batch."""
+    """A cold, script-only check -- the model never sees it. Two phrases are
+    similar when they share their MEANING words: function words (pronouns,
+    prepositions, «не»…) are ignored, and every form of one dictionary word
+    counts as that word («пью» = «пьём»). Score = shared / all meaning words,
+    so «Я пью чай» vs «Мы пьём чай» = 100%, «Я хочу чай» vs «Я пью чай» = 33%,
+    «Я иду домой» vs «Я пью чай» = 0%. Compared with existing mini-phrases,
+    «Мои фразы» and the rest of the batch."""
+    words = {w.id: w for w in _words(db, dictionary_id)}
+
+    def ids_key(ids: set[int]) -> set[str]:
+        out = set()
+        for wid in ids:
+            w = words.get(wid)
+            if w is None:
+                continue
+            if role_of(w) in ("pronoun", "preposition") or w.word.strip().lower() in _FUNCTION_WORDS:
+                continue
+            out.add(f"w{wid}")
+        return out
+
+    def text_key(text: str) -> set[str]:
+        return {_stem(t) for t in _TOKEN.findall(text.lower()) if t not in _FUNCTION_WORDS}
+
+    def stems_of_ids(ids: set[int]) -> set[str]:
+        return {_stem(words[i].word.strip()) for i in ids if i in words and f"w{i}" in ids_key({i})}
+
     existing: list[tuple[str, set[int] | None, str]] = []
     parts: dict[int, set[int]] = {}
     texts: dict[int, str] = {}
@@ -342,18 +388,18 @@ def _similarity(db: Session, dictionary_id: int):
         existing.append((original, None, "phrase"))
 
     def score(text: str, word_ids: set[int], batch: list[tuple[str, set[int]]]):
-        a = normalize_answer(text)
-        tokens_a = set(a.split())
+        a_ids = ids_key(word_ids)
+        a_text = text_key(text) | stems_of_ids(word_ids)
         best = (0, None, None)
         for other_text, other_ids, source in existing + [(t, i, "batch") for t, i in batch]:
-            b = normalize_answer(other_text)
-            seq = difflib.SequenceMatcher(None, a, b).ratio()
-            if other_ids is not None:
-                overlap = len(word_ids & other_ids) / max(1, len(word_ids | other_ids))
+            if normalize_answer(other_text) == normalize_answer(text):
+                value = 100
+            elif other_ids is not None:
+                b = ids_key(other_ids)
+                value = round(100 * len(a_ids & b) / len(a_ids | b)) if (a_ids or b) else 0
             else:
-                tb = set(b.split())
-                overlap = len(tokens_a & tb) / max(1, len(tokens_a | tb))
-            value = round(100 * (0.5 * seq + 0.5 * overlap))
+                b = text_key(other_text)
+                value = round(100 * len(a_text & b) / len(a_text | b)) if (a_text and b) else 0
             if value > best[0]:
                 best = (value, other_text, source)
         return best
@@ -463,20 +509,23 @@ def generate(db: Session, dictionary: Dictionary, count: int, category_id: int |
             detail="Слишком мало слов для фраз — добавьте слова (см. «Не хватает слов»)",
         )
     avoid = [t for (t,) in db.query(MiniPhrase.text).filter(MiniPhrase.dictionary_id == dictionary.id).limit(60)]
-    raw, tokens = ai_phrases(db, words, count, topic, avoid)
+    raw, needs, tokens = ai_phrases(db, words, count, topic, avoid)
+    known = _known_tokens(_words(db, dictionary.id), dictionary.language)
+    needs = [n for n in needs if n["text"] not in known]
     for i, item in enumerate(raw):
         item.setdefault("key", f"g{i}")
     items = check_candidates(db, dictionary, raw, {w.id for w in words})
-    return {"items": items, "tokens": tokens, "words_sent": len(words)}
+    return {"items": items, "tokens": tokens, "words_sent": len(words), "suggested_words": needs}
 
 
 _REPHRASE_SYSTEM = (
-    "You rewrite Russian beginner practice phrases that came out too similar to existing ones. Input: "
-    "{\"w\":\"id:word,...\" (the ONLY words allowed),\"r\":[{\"k\":key,\"was\":\"phrase\",\"like\":\"similar existing phrase\"}]}. "
-    "For each, write ONE new natural everyday phrase of 2-4 words from w (any grammatical form), with a clearly "
-    "different meaning or situation from both was and like, that a beginner would really say. Rate u 1-5 usefulness. "
-    "Reply JSON only: {\"r\":[{\"k\":key,\"p\":[[id,\"word as written\"],...],\"u\":5,\"s\":\"where it is said\","
-    "\"tg\":\"Tajik\",\"uz\":\"Uzbek (Latin)\",\"en\":\"English\"}]}."
+    "You are an experienced Russian teacher for adult Tajik/Uzbek beginners. Input: {\"w\":\"id:word,...\" (the ONLY "
+    "words allowed),\"r\":[{\"k\":key,\"was\":\"phrase\",\"like\":\"an existing phrase\"}]}. For each, write ONE "
+    "different short phrase (2-4 words) from w (any grammatical form) that is genuinely useful in real conversation "
+    "(question, request, answer, politeness, need, plan, feeling, opinion) and means something clearly different from "
+    "both was and like. Rate u 1-5 how often a beginner needs it. Reply JSON only: {\"r\":[{\"k\":key,\"p\":[[id,"
+    "\"word as written\"],...],\"u\":5,\"s\":\"situation\",\"tg\":\"Tajik\",\"uz\":\"Uzbek (Latin)\","
+    "\"en\":\"English\"}]}."
 )
 
 
