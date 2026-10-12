@@ -39,6 +39,12 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
   int _randomCount = 5;
   final Set<int> _selectedIds = {};
 
+  /// A lesson needs at least this many words (or every word left, if
+  /// fewer): with one or two words most exercises can't run, so a word
+  /// can't reach "learned" even with no mistakes. Same rule on the server.
+  static const int _minLessonWords = 4;
+  int get _minWords => _candidates.length < _minLessonWords ? _candidates.length : _minLessonWords;
+
   bool _isSubmitting = false;
   String? _submitError;
 
@@ -242,7 +248,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
                     children: [
                       _RoundStepButton(
                         icon: Icons.remove_rounded,
-                        onTap: _randomCount > 1 ? () => setState(() => _randomCount--) : null,
+                        onTap: _randomCount > _minWords ? () => setState(() => _randomCount--) : null,
                       ),
                       SizedBox(
                         width: 96,
@@ -370,7 +376,10 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
   }
 
   Widget _buildSubmitBar() {
-    final canSubmit = !_isSubmitting && (_mode == _Mode.random ? _randomCount >= 1 : _selectedIds.isNotEmpty);
+    final canSubmit = !_isSubmitting &&
+        (_mode == _Mode.random
+            ? _randomCount >= 1 && _randomCount >= _minWords
+            : _selectedIds.isNotEmpty && _selectedIds.length >= _minWords);
     return Container(
       decoration: BoxDecoration(
         color: AppColors.canvas,
@@ -391,7 +400,11 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
               ),
               child: _isSubmitting
                   ? SkeletonPulse(child: Text(tr('Готовим урок…')))
-                  : Text(_mode == _Mode.random ? tr('Начать урок') : tr('Начать урок ({0})', [_selectedIds.length])),
+                  : Text(_mode == _Mode.random
+                      ? tr('Начать урок')
+                      : _selectedIds.length < _minWords
+                          ? tr('Выберите минимум {0} слова', [_minWords])
+                          : tr('Начать урок ({0})', [_selectedIds.length])),
             ),
           ),
         ),

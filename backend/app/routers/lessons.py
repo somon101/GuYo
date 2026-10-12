@@ -440,6 +440,15 @@ def create_lesson(
     threshold = get_threshold(db)
     eligible_words = get_eligible_words(db, user.id, dictionary.id, threshold)
     eligible_ids = {w.id for w in eligible_words}
+    # With one or two words most exercises can't run, so a word can't reach
+    # "learned" in a pass even with no mistakes -- a lesson takes at least
+    # MIN_LESSON_WORDS (or every word left, when fewer remain).
+    min_words = min(MIN_LESSON_WORDS, len(eligible_ids))
+    if payload.word_ids is not None and len(set(payload.word_ids)) < min_words:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Выберите минимум {min_words} слова для урока",
+        )
 
     if payload.word_ids is not None:
         if len(set(payload.word_ids)) != len(payload.word_ids):
@@ -454,13 +463,16 @@ def create_lesson(
     else:
         if not eligible_ids:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Нет доступных слов для нового урока")
-        count = min(payload.random_count, len(eligible_ids))
+        count = min(max(payload.random_count, min_words), len(eligible_ids))
         selected_ids = [w.id for w in prioritized_words(db, user, eligible_words, count=count, dictionary=dictionary)[:count]]
 
     lesson = build_lesson(db, user, dictionary, selected_ids, threshold)
     db.commit()
     db.refresh(lesson)
     return _lesson_to_out(db, lesson, threshold)
+
+
+MIN_LESSON_WORDS = 4
 
 
 def prioritized_words(
