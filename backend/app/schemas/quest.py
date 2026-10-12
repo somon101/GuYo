@@ -142,3 +142,7 @@ class QuestAnswerOut(BaseModel):
     # in some other quest today (a race) -- never negative, never implies
     # a second grant happened.
     reward_granted: int
+    # Set by the call that finished something: True when it lit today's
+    # streak day (the app plays the flame lighting up), and the streak now.
+    streak_lit_now: bool = False
+    streak_days: int = 0

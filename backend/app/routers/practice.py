@@ -274,7 +274,7 @@ def get_review_due(dictionary_id: int, db: Session = Depends(get_db), user: User
     return {"count": len(due), "word_ids": [word_id for _, word_id in due[:ROUND_SIZE]]}
 
 
-@router.post("/finish", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/finish")
 def finish_practice_round(
     dictionary_id: int,
     db: Session = Depends(get_db),
@@ -283,5 +283,8 @@ def finish_practice_round(
     """A Практика round played to the end (any exercise, mini-phrases and
     «Повторить сегодня» included): lights today's streak day."""
     _get_dictionary_or_404(db, dictionary_id)
-    record_activity(db, user)
+    lit_now = record_activity(db, user)
     db.commit()
+    from app.achievements.conditions import streak_days_count
+
+    return {"streak_lit_now": lit_now, "streak_days": streak_days_count(db, user)}

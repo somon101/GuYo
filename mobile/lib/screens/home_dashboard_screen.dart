@@ -1,3 +1,6 @@
+import 'streak_sheet.dart';
+import '../widgets/animated_fire.dart';
+import '../services/streak_state.dart';
 import '../l10n/l10n.dart';
 import '../services/disk_cache.dart';
 import 'package:flutter/material.dart';
@@ -268,7 +271,59 @@ class _Greeting extends StatelessWidget {
             ],
           ),
         ),
+        if (profile != null) ...[
+          const SizedBox(width: 8),
+          _StreakPill(profile: profile!),
+        ],
       ],
+    );
+  }
+}
+
+/// The streak on Главная: the flame (grey until today is earned) and the
+/// day count; tapping opens the streak sheet.
+class _StreakPill extends StatelessWidget {
+  final UserProfile profile;
+  const _StreakPill({required this.profile});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool?>(
+      valueListenable: streakLitToday,
+      builder: (context, litNow, _) {
+        final lit = litNow ?? profile.streakActiveToday;
+        final days = streakDays.value ?? profile.currentStreakDays;
+        return Semantics(
+          button: true,
+          label: lit ? tr('Серия: {0}', [days]) : tr('Сегодня ещё не занимались'),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => showStreakSheet(context, streakDays: days),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(6, 4, 12, 4),
+              decoration: BoxDecoration(
+                color: lit ? const Color(0xFFFFF0E6) : AppColors.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: lit ? const Color(0xFFFFD2B3) : AppColors.cardBorder),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedFire(size: 28, lit: lit),
+                  Text(
+                    '$days',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                      color: lit ? const Color(0xFFFF7A29) : AppColors.secondaryText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

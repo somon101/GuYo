@@ -579,4 +579,7 @@ const Map<String, (String, String)> uiStrings = {
   'Повторите мини-фразы, открытые в уроках': ('Мини-ибораҳои дар дарсҳо кушодашударо такрор кунед', 'Darslarda ochilgan mini-iboralarni takrorlang'),
   'Начните серию сегодня — пройдите урок, практику или квест': ('Силсиларо имрӯз оғоз кунед — дарс, машқ ё квестро анҷом диҳед', 'Seriyani bugun boshlang — dars, mashq yoki kvestni tugating'),
   'Пройдите сегодня урок, практику или квест, чтобы огонь загорелся': ('Имрӯз дарс, машқ ё квестро анҷом диҳед, то оташ фурӯзон шавад', 'Olov yonishi uchun bugun dars, mashq yoki kvestni tugating'),
+  'Серия: {0}': ('Силсила: {0}', 'Seriya: {0}'),
+  'Сегодня засчитано! Возвращайтесь завтра': ('Имрӯз ҳисоб шуд! Пагоҳ баргардед', 'Bugun hisoblandi! Ertaga qayting'),
+  'Сегодня ещё не занимались': ('Имрӯз ҳоло машғул нашудед', 'Bugun hali shugʻullanmadingiz'),
 };

@@ -7,6 +7,7 @@ import math
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.achievements.conditions import streak_days_count
 from app.exercises.verify import judge
 from app.analytics.history import log_event
 from app.achievements import check_and_grant_achievements, record_activity
@@ -380,10 +381,17 @@ def submit_quest_answer(
         check_and_grant_achievements(db, user, "words_learned")
         award_word_points_if_new(db, user, word.id)
 
-    record_activity(db, user)
+    lit_now = record_activity(db, user)
 
     rating_after = get_or_create_user_rating(db, user.id).total_points
     reward_granted = rating_after - rating_before
 
     db.commit()
-    return QuestAnswerOut(word_id=word.id, score=new_score, is_correct=payload.is_correct, reward_granted=reward_granted)
+    return QuestAnswerOut(
+        word_id=word.id,
+        score=new_score,
+        is_correct=payload.is_correct,
+        reward_granted=reward_granted,
+        streak_lit_now=lit_now,
+        streak_days=streak_days_count(db, user),
+    )

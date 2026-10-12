@@ -1,3 +1,4 @@
+import '../services/streak_state.dart';
 import 'dart:async';
 import '../services/google_auth.dart';
 import '../services/disk_cache.dart';
@@ -292,7 +293,8 @@ class ApiClient {
   void finishPractice(int dictionaryId) {
     () async {
       try {
-        await http.post(_uri('/dictionaries/$dictionaryId/practice/finish'), headers: await _authHeaders());
+        final res = await http.post(_uri('/dictionaries/$dictionaryId/practice/finish'), headers: await _authHeaders());
+        if (res.statusCode == 200) reportStreakResult(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
       } catch (_) {}
     }();
   }
@@ -759,6 +761,9 @@ class ApiClient {
     await flushLessonAnswers();
     final res = await http.post(_uri('/lessons/$lessonId/pass/finish'), headers: await _authHeaders());
     await _throwWithDetail(res);
+    try {
+      reportStreakResult(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    } catch (_) {}
   }
 
   Future<Lesson> startLessonPass(int lessonId) async {
@@ -967,7 +972,9 @@ class ApiClient {
   Future<UserProfile> fetchMyProfile() async {
     final res = await http.get(_uri('/users/me/profile'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
-    return UserProfile.fromJson(_remember('profile', res) as Map<String, dynamic>);
+    final profile = UserProfile.fromJson(_remember('profile', res) as Map<String, dynamic>);
+    setStreakState(litToday: profile.streakActiveToday, days: profile.currentStreakDays);
+    return profile;
   }
 
   // --- Слоганы и уведомления ------------------------------------------
@@ -1394,6 +1401,8 @@ class ApiClient {
       body: jsonEncode({...signals, 'word_id': wordId, 'is_correct': isCorrect}),
     );
     await _throwWithDetail(res);
-    return QuestAnswerResult.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    final json = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    reportStreakResult(json);
+    return QuestAnswerResult.fromJson(json);
   }
 }

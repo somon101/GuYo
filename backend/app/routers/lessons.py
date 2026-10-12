@@ -29,6 +29,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.achievements.conditions import streak_days_count
 from app.exercises.verify import judge
 from app.analytics.history import log_event
 from app.core.content_language import primary_translation
@@ -652,7 +653,7 @@ def finish_lesson_pass(
     threshold = get_threshold(db)
     # A lesson (or adaptive lesson, or a repeat) played to the end lights
     # today's streak day.
-    record_activity(db, user)
+    lit_now = record_activity(db, user)
     db.commit()
     pending = lesson.pass_pending_scores or {}
     if pending:
@@ -699,7 +700,10 @@ def finish_lesson_pass(
         check_and_grant_achievements(db, user, "mini_phrases_done")
         db.commit()
         db.refresh(lesson)
-    return _lesson_to_out(db, lesson, threshold)
+    out = _lesson_to_out(db, lesson, threshold)
+    out.streak_lit_now = lit_now
+    out.streak_days = streak_days_count(db, user)
+    return out
 
 
 @router.post("/lessons/{lesson_id}/exercises/{exercise_key}/answers", response_model=SubmitAnswerOut)
