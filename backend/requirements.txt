@@ -14,3 +14,4 @@ google-auth==2.59.0
 requests==2.34.2
 fsrs==6.3.2
 sentry-sdk[fastapi]==2.19.2
+Pillow==11.1.0

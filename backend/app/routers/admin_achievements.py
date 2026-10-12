@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.achievements import CONDITION_TYPE_LABELS, CONDITION_TYPES
 from app.core.deps import get_current_admin
-from app.core.storage import delete_by_key, save_upload, url_for_key
+from app.core.storage import delete_by_key, save_icon_upload, url_for_key
 from app.database import get_db
 from app.models.achievement import VISIBILITY_HIDDEN, VISIBILITY_VISIBLE, Achievement, UserAchievement
 from app.schemas.achievement import AchievementOut, ConditionTypeOut, ReorderIn
@@ -121,7 +121,7 @@ def create_achievement(
     icon_key = None
     if icon is not None and icon.filename:
         _read_validated_icon(icon)
-        icon_key = save_upload(icon, subdir="achievements/icons")
+        icon_key = save_icon_upload(icon, subdir="achievements/icons")
 
     achievement = Achievement(
         title=title.strip(),
@@ -196,7 +196,7 @@ def update_achievement(
     if has_new_icon:
         _read_validated_icon(icon)
         old_key = achievement.icon_key
-        achievement.icon_key = save_upload(icon, subdir="achievements/icons")
+        achievement.icon_key = save_icon_upload(icon, subdir="achievements/icons")
         delete_by_key(old_key)
     elif remove_icon:
         delete_by_key(achievement.icon_key)

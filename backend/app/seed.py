@@ -311,6 +311,45 @@ def seed_starter_500() -> None:
         db.close()
 
 
+def clean_existing_icons() -> None:
+    """Cleans icons uploaded before the cleanup existed (see
+    app/core/icon_cleanup.py): seasons, ranks, achievements. A cleaned icon is
+    saved as a new `...-clean.png` key, so each runs once; the old file is
+    removed only after the new key is committed. One bad file never stops
+    the rest or the server start."""
+    from app.core.icon_cleanup import clean_icon
+    from app.core.storage import MEDIA_ROOT, delete_by_key, save_bytes
+    from app.models.achievement import Achievement
+    from app.models.rating import Rank, Season
+
+    db = SessionLocal()
+    cleaned = 0
+    try:
+        for model in (Season, Rank, Achievement):
+            for row in db.query(model).filter(model.icon_key.isnot(None)).all():
+                key = row.icon_key
+                if key.endswith("-clean.png"):
+                    continue
+                try:
+                    path = MEDIA_ROOT / key
+                    if not path.is_file():
+                        continue
+                    data = clean_icon(path.read_bytes())
+                    if data is None:
+                        continue
+                    subdir = key.rsplit("/", 1)[0]
+                    row.icon_key = save_bytes(data, subdir=subdir, filename_hint="icon.png", suffix="-clean.png")
+                    db.commit()
+                    delete_by_key(key)
+                    cleaned += 1
+                except Exception as e:  # noqa: BLE001 -- never block the server start
+                    db.rollback()
+                    print(f"[seed] icon cleanup failed for {key}: {e}")
+        print(f"[seed] cleaned {cleaned} old icons (transparent background, trimmed)")
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
     seed_admin()
     seed_ranks()
@@ -318,3 +357,4 @@ if __name__ == "__main__":
     seed_achievements()
     seed_mini_phrases()
     seed_starter_500()
+    clean_existing_icons()

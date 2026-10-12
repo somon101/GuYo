@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.dates import as_utc, utc_now
 from app.core.deps import get_current_admin
-from app.core.storage import delete_by_key, save_upload, url_for_key
+from app.core.storage import delete_by_key, save_icon_upload, url_for_key
 from app.database import get_db
 from app.models.rating import SEASON_COMPLETED, SEASON_SCHEDULED, Rank, Season, SeasonHistory
 from app.models.user import User
@@ -145,7 +145,7 @@ def create_rank(
     icon_key = None
     if icon is not None and icon.filename:
         _read_validated_icon(icon)
-        icon_key = save_upload(icon, subdir="ranks/icons")
+        icon_key = save_icon_upload(icon, subdir="ranks/icons")
 
     rank = Rank(
         name=name.strip(),
@@ -221,7 +221,7 @@ def update_rank(
     if has_new_icon:
         _read_validated_icon(icon)
         old_key = rank.icon_key
-        rank.icon_key = save_upload(icon, subdir="ranks/icons")
+        rank.icon_key = save_icon_upload(icon, subdir="ranks/icons")
         delete_by_key(old_key)
     elif remove_icon:
         delete_by_key(rank.icon_key)
@@ -402,7 +402,7 @@ def set_season_icon(
     the season already has one when something does."""
     season = _get_season_or_404(db, season_id)
     _read_validated_icon(icon)
-    new_key = save_upload(icon, subdir="seasons/icons")
+    new_key = save_icon_upload(icon, subdir="seasons/icons")
     old_key = season.icon_key
     season.icon_key = new_key
     db.commit()

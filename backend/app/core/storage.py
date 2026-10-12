@@ -32,14 +32,14 @@ def save_upload(upload: UploadFile | None, *, subdir: str) -> str | None:
     return save_bytes(upload.file.read(), subdir=subdir, filename_hint=upload.filename)
 
 
-def save_bytes(data: bytes, *, subdir: str, filename_hint: str) -> str:
+def save_bytes(data: bytes, *, subdir: str, filename_hint: str, suffix: str | None = None) -> str:
     """Same storage layout/naming as `save_upload` (uuid4 filename, original
     extension kept), for bytes that didn't arrive as a multipart UploadFile
     -- e.g. one audio file read out of an imported ZIP archive."""
     target_dir = MEDIA_ROOT / subdir
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    suffix = Path(filename_hint or "").suffix
+    suffix = suffix if suffix is not None else Path(filename_hint or "").suffix
     filename = f"{uuid.uuid4().hex}{suffix}"
     key = f"{subdir}/{filename}"
     dest = MEDIA_ROOT / key
@@ -66,3 +66,19 @@ def url_for_key(key: str | None) -> str | None:
         return None
     prefix = settings.media_url_prefix.rstrip("/")
     return f"{prefix}/{key}"
+
+
+def save_icon_upload(upload: UploadFile | None, *, subdir: str) -> str | None:
+    """Like `save_upload`, for icons (seasons, ranks, achievements): a flat
+    background is made transparent and the picture trimmed and centred (see
+    app/core/icon_cleanup.py), saved as PNG. Falls back to the original file
+    when the picture can't or shouldn't be cleaned."""
+    if upload is None or not upload.filename:
+        return None
+    from app.core.icon_cleanup import clean_icon
+
+    data = upload.file.read()
+    cleaned = clean_icon(data)
+    if cleaned is not None:
+        return save_bytes(cleaned, subdir=subdir, filename_hint="icon.png", suffix="-clean.png")
+    return save_bytes(data, subdir=subdir, filename_hint=upload.filename)
