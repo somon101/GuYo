@@ -74,6 +74,9 @@ class ReminderSettingsIn(BaseModel):
     streak_risk_hour: int = Field(ge=0, le=23)
     default_hour: int = Field(ge=0, le=23)
     study_followup_minutes: int = Field(default=120, ge=15, le=720)
+    prep_enabled: bool = True
+    prep_delay_minutes: int = Field(default=20, ge=5, le=720)
+    review_push_min_words: int = Field(default=10, ge=1, le=500)
 
 
 class RemindersOut(BaseModel):

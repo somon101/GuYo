@@ -14,9 +14,9 @@ automatic trigger later means calling that function from an event site,
 not reshaping this table.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -133,6 +133,12 @@ class ReminderSettings(Base):
     # How long after the day's last study time the follow-up goes out when
     # the user has answered nothing since.
     study_followup_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=120, server_default="120")
+    # Quiet background preparation (app/priority/background_prep.py): auto
+    # lessons/quests are built a while after the user leaves, then a push.
+    prep_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    prep_delay_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=20, server_default="20")
+    # «Повтори слово» push only when at least this many words are due.
+    review_push_min_words: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -153,3 +159,20 @@ class UserStudyTime(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     minute_of_day: Mapped[int] = mapped_column(Integer, nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+
+
+class UserPrepState(Base):
+    """Per (user, dictionary): when the user last studied and whether that
+    study still has to be analysed. Answers only mark it; the background
+    sweep builds the auto lesson/quest once the user has been away for
+    `prep_delay_minutes`, and sends at most one «Повтори слово» push a day."""
+
+    __tablename__ = "user_prep_states"
+    __table_args__ = (UniqueConstraint("user_id", "dictionary_id", name="uq_user_prep_state"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    dictionary_id: Mapped[int] = mapped_column(ForeignKey("dictionaries.id", ondelete="CASCADE"), nullable=False)
+    last_activity_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    pending: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true", index=True)
+    review_notified_on: Mapped[date | None] = mapped_column(Date, nullable=True)

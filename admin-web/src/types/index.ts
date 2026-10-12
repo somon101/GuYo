@@ -657,6 +657,11 @@ export interface ReminderSettings {
   default_hour: number;
   /** How long after the user's last study time of the day the follow-up goes out. */
   study_followup_minutes: number;
+  /** Auto lessons/quests are prepared quietly after the user leaves, then a push. */
+  prep_enabled: boolean;
+  prep_delay_minutes: number;
+  /** «Повтори слово» push once a day when at least this many words are due. */
+  review_push_min_words: number;
 }
 
 export interface Reminders {

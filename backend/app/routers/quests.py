@@ -33,7 +33,7 @@ from app.quests import (
     quest_completions_today,
 )
 from app.word_attempts import record_word_attempt
-from app.priority import maybe_create_adaptive_lesson, maybe_create_personal_quest
+from app.priority.background_prep import mark_for_prep
 from app.rating import (
     award_word_points_if_new,
     current_rank_for_points,
@@ -364,8 +364,8 @@ def submit_quest_answer(
     # Priority's automatic side effects -- see app/priority/lessons.py and
     # app/priority/quests_auto.py. A quest answer is just as valid a
     # trigger for either as a Lesson one.
-    maybe_create_adaptive_lesson(db, user, dictionary_id)
-    maybe_create_personal_quest(db, user, dictionary_id)
+    # Built quietly later by the background sweep (app/priority/background_prep.py).
+    mark_for_prep(db, user, dictionary_id)
 
     # A quest can push a word's reinforcement score across the SAME
     # learned threshold a Lesson answer would -- see app/exercises/

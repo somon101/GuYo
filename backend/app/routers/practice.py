@@ -245,21 +245,29 @@ def get_review_due(dictionary_id: int, db: Session = Depends(get_db), user: User
     model says are being forgotten right now (recall below the target
     retention) -- the moment a review helps most. `word_ids` are the most
     forgotten first, at most one practice round's worth."""
+    _get_dictionary_or_404(db, dictionary_id)
+    due = review_due_word_ids(db, user.id, dictionary_id)
+    return {"count": len(due), "word_ids": due[:ROUND_SIZE]}
+
+
+def review_due_word_ids(db: Session, user_id: int, dictionary_id: int) -> list[int]:
+    """Learned words of this dictionary whose recall is below the target
+    retention, most forgotten first -- «Повтори слово». Also used by the
+    background sweep for its push (app/priority/background_prep.py)."""
     from app.core.dates import utc_now
     from app.memory.service import recall_probability
     from app.priority.settings import get_priority_settings
 
-    _get_dictionary_or_404(db, dictionary_id)
     settings = get_priority_settings(db)
     if not settings.memory_enabled:
-        return {"count": 0, "word_ids": []}
+        return []
     threshold = get_threshold(db)
     now = utc_now()
     rows = (
         db.query(WordProgress)
         .join(Word, Word.id == WordProgress.word_id)
         .filter(
-            WordProgress.user_id == user.id,
+            WordProgress.user_id == user_id,
             WordProgress.score >= threshold,
             Word.dictionary_id == dictionary_id,
         )
@@ -271,7 +279,8 @@ def get_review_due(dictionary_id: int, db: Session = Depends(get_db), user: User
         if r is not None and r < settings.memory_target_retention:
             due.append((r, p.word_id))
     due.sort()
-    return {"count": len(due), "word_ids": [word_id for _, word_id in due[:ROUND_SIZE]]}
+    return [word_id for _, word_id in due]
+
 
 
 @router.post("/finish")

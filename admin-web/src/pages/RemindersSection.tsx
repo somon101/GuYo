@@ -1,8 +1,19 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
-import { createReminder, deleteReminder, getReminders, updateReminder, updateReminderSettings } from "../api/endpoints";
+import {
+  createReminder,
+  deleteReminder,
+  getReminders,
+  updateReminder,
+  updateReminderSettings,
+} from "../api/endpoints";
 import { InfoTooltip } from "../components/InfoTooltip";
-import type { ReminderKind, ReminderRule, ReminderRuleInput, ReminderSettings } from "../types";
+import type {
+  ReminderKind,
+  ReminderRule,
+  ReminderRuleInput,
+  ReminderSettings,
+} from "../types";
 
 const GROUPS: {
   kind: ReminderKind;
@@ -70,7 +81,9 @@ function minutesLabel(m: number): string {
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 
 function errorText(err: unknown, fallback: string): string {
-  const detail = axios.isAxiosError(err) ? err.response?.data?.detail : undefined;
+  const detail = axios.isAxiosError(err)
+    ? err.response?.data?.detail
+    : undefined;
   return typeof detail === "string" ? detail : fallback;
 }
 
@@ -80,7 +93,9 @@ function errorText(err: unknown, fallback: string): string {
 export function RemindersSection() {
   const [rules, setRules] = useState<ReminderRule[]>([]);
   const [settings, setSettings] = useState<ReminderSettings | null>(null);
-  const [drafts, setDrafts] = useState<{ key: number; kind: ReminderKind }[]>([]);
+  const [drafts, setDrafts] = useState<{ key: number; kind: ReminderKind }[]>(
+    [],
+  );
   const [loadError, setLoadError] = useState<string | null>(null);
   const [settingsStatus, setSettingsStatus] = useState<string | null>(null);
 
@@ -93,10 +108,18 @@ export function RemindersSection() {
       .catch(() => setLoadError("Не удалось загрузить напоминания"));
   }, []);
 
-  async function changeHour(key: keyof ReminderSettings, hour: number) {
+  async function changeHour(
+    key: keyof ReminderSettings,
+    hour: number | boolean,
+  ) {
     if (!settings) return;
     const next = { ...settings, [key]: hour };
-    const saved = key === "study_followup_minutes" ? "Задержка сохранена" : "Время сохранено";
+    const saved =
+      key === "study_followup_minutes" ||
+      key.startsWith("prep") ||
+      key.startsWith("review")
+        ? "Сохранено"
+        : "Время сохранено";
     setSettings(next);
     setSettingsStatus(null);
     try {
@@ -107,18 +130,82 @@ export function RemindersSection() {
     }
   }
 
-  if (loadError) return <p className="mt-8 text-sm text-red-600">{loadError}</p>;
-  if (!settings) return <p className="mt-8 text-sm text-slate-500">Загрузка напоминаний…</p>;
+  if (loadError)
+    return <p className="mt-8 text-sm text-red-600">{loadError}</p>;
+  if (!settings)
+    return <p className="mt-8 text-sm text-slate-500">Загрузка напоминаний…</p>;
 
   return (
     <section className="mt-8">
       <h2 className="text-lg font-semibold text-slate-900">Напоминания</h2>
       <p className="mb-4 mt-1 max-w-2xl text-sm text-slate-500">
-        Отправляются автоматически: push на телефон и сообщение в разделе «Уведомления» в приложении. Если на один срок
-        добавлено несколько текстов, человеку придёт случайный из них. <code>{"{дни}"}</code> в тексте заменяется числом
-        дней, <code>{"{дни+1}"}</code> — числом на один больше.
+        Отправляются автоматически: push на телефон и сообщение в разделе
+        «Уведомления» в приложении. Если на один срок добавлено несколько
+        текстов, человеку придёт случайный из них. <code>{"{дни}"}</code> в
+        тексте заменяется числом дней, <code>{"{дни+1}"}</code> — числом на один
+        больше.
       </p>
-      {settingsStatus && <p className="mb-3 text-sm text-slate-500">{settingsStatus}</p>}
+      {settingsStatus && (
+        <p className="mb-3 text-sm text-slate-500">{settingsStatus}</p>
+      )}
+
+      <div className="card mb-4 flex flex-col gap-3 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-medium text-slate-900">
+              Тихая подготовка уроков и «Повтори слово»
+            </p>
+            <p className="mt-1 max-w-2xl text-sm text-slate-500">
+              Автоурок для закрепления и автоквест не создаются во время
+              занятия. Когда человек выйдет из приложения, через выбранное время
+              сервер подготовит их (максимум один урок, как и раньше) и пришлёт
+              push. Раз в день — push «Пора повторить N слов», если таких слов
+              достаточно. С 23:00 до 08:00 (Душанбе) ничего не отправляется.
+            </p>
+          </div>
+          <input
+            type="checkbox"
+            className="switch mt-1"
+            aria-label="Тихая подготовка включена"
+            checked={settings.prep_enabled}
+            onChange={(e) => changeHour("prep_enabled", e.target.checked)}
+          />
+        </div>
+        <label className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+          Готовить через
+          <select
+            className="field px-2 py-1 text-sm"
+            value={settings.prep_delay_minutes}
+            onChange={(e) =>
+              changeHour("prep_delay_minutes", Number(e.target.value))
+            }
+          >
+            {[10, 15, 20, 30, 45, 60, 90, 120, 180].map((m) => (
+              <option key={m} value={m}>
+                {minutesLabel(m)}
+              </option>
+            ))}
+          </select>
+          после того, как человек перестал заниматься
+        </label>
+        <label className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+          «Повтори слово»: push, если пора повторить не меньше
+          <input
+            type="number"
+            min={1}
+            max={500}
+            className="field w-20 px-2 py-1 text-sm"
+            defaultValue={settings.review_push_min_words}
+            onBlur={(e) =>
+              changeHour(
+                "review_push_min_words",
+                Math.max(1, Number(e.target.value) || 10),
+              )
+            }
+          />
+          слов
+        </label>
+      </div>
 
       <div className="flex flex-col gap-4">
         {GROUPS.map((group) => {
@@ -130,7 +217,9 @@ export function RemindersSection() {
           return (
             <div key={group.kind} className="card p-5">
               <div className="mb-3 flex items-center gap-1.5">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">{group.title}</h3>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                  {group.title}
+                </h3>
                 <InfoTooltip>{group.help}</InfoTooltip>
               </div>
 
@@ -140,7 +229,9 @@ export function RemindersSection() {
                   <select
                     className="field px-2 py-1 text-sm"
                     value={settings[hourSetting]}
-                    onChange={(e) => changeHour(hourSetting, Number(e.target.value))}
+                    onChange={(e) =>
+                      changeHour(hourSetting, Number(e.target.value))
+                    }
                   >
                     {HOURS.map((h) => (
                       <option key={h} value={h}>
@@ -158,7 +249,12 @@ export function RemindersSection() {
                   <select
                     className="field px-2 py-1 text-sm"
                     value={settings.study_followup_minutes}
-                    onChange={(e) => changeHour("study_followup_minutes", Number(e.target.value))}
+                    onChange={(e) =>
+                      changeHour(
+                        "study_followup_minutes",
+                        Number(e.target.value),
+                      )
+                    }
                   >
                     {FOLLOWUP_MINUTES.map((m) => (
                       <option key={m} value={m}>
@@ -178,8 +274,14 @@ export function RemindersSection() {
                     daysLabel={group.daysLabel}
                     noDays={group.noDays}
                     rule={rule}
-                    onSaved={(saved) => setRules((prev) => prev.map((r) => (r.id === saved.id ? saved : r)))}
-                    onDeleted={() => setRules((prev) => prev.filter((r) => r.id !== rule.id))}
+                    onSaved={(saved) =>
+                      setRules((prev) =>
+                        prev.map((r) => (r.id === saved.id ? saved : r)),
+                      )
+                    }
+                    onDeleted={() =>
+                      setRules((prev) => prev.filter((r) => r.id !== rule.id))
+                    }
                   />
                 ))}
                 {groupDrafts.map((draft) => (
@@ -191,19 +293,32 @@ export function RemindersSection() {
                     initialDays={group.newDays}
                     onSaved={(saved) => {
                       setRules((prev) => [...prev, saved]);
-                      setDrafts((prev) => prev.filter((d) => d.key !== draft.key));
+                      setDrafts((prev) =>
+                        prev.filter((d) => d.key !== draft.key),
+                      );
                     }}
-                    onDeleted={() => setDrafts((prev) => prev.filter((d) => d.key !== draft.key))}
+                    onDeleted={() =>
+                      setDrafts((prev) =>
+                        prev.filter((d) => d.key !== draft.key),
+                      )
+                    }
                   />
                 ))}
               </div>
               {groupRules.length === 0 && groupDrafts.length === 0 && (
-                <p className="text-sm text-slate-500">Нет ни одного текста — такие напоминания не отправляются.</p>
+                <p className="text-sm text-slate-500">
+                  Нет ни одного текста — такие напоминания не отправляются.
+                </p>
               )}
 
               <button
                 type="button"
-                onClick={() => setDrafts((prev) => [...prev, { key: Date.now(), kind: group.kind }])}
+                onClick={() =>
+                  setDrafts((prev) => [
+                    ...prev,
+                    { key: Date.now(), kind: group.kind },
+                  ])
+                }
                 className="btn-tinted mt-3 rounded-md px-3 py-1.5 text-sm font-medium"
               >
                 + Добавить текст
@@ -257,11 +372,21 @@ function RuleRow({
       setError("Введите текст");
       return;
     }
-    const input: ReminderRuleInput = { kind, days: daysNumber, title: title.trim() || null, body: body.trim(), enabled };
+    const input: ReminderRuleInput = {
+      kind,
+      days: daysNumber,
+      title: title.trim() || null,
+      body: body.trim(),
+      enabled,
+    };
     setIsBusy(true);
     setError(null);
     try {
-      onSaved(rule ? await updateReminder(rule.id, input) : await createReminder(input));
+      onSaved(
+        rule
+          ? await updateReminder(rule.id, input)
+          : await createReminder(input),
+      );
     } catch (err) {
       setError(errorText(err, "Не удалось сохранить"));
     } finally {
@@ -286,7 +411,9 @@ function RuleRow({
   }
 
   return (
-    <div className={`grid grid-cols-1 gap-3 py-3 first:pt-0 ${noDays ? "" : "sm:grid-cols-[110px_1fr]"}`}>
+    <div
+      className={`grid grid-cols-1 gap-3 py-3 first:pt-0 ${noDays ? "" : "sm:grid-cols-[110px_1fr]"}`}
+    >
       <div className={noDays ? "hidden" : ""}>
         <label className="mb-1 block text-xs text-slate-500">{daysLabel}</label>
         <input
@@ -315,7 +442,12 @@ function RuleRow({
         />
         <div className="flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input type="checkbox" className="switch" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+            <input
+              type="checkbox"
+              className="switch"
+              checked={enabled}
+              onChange={(e) => setEnabled(e.target.checked)}
+            />
             Включено
           </label>
           <div className="ml-auto flex gap-2">

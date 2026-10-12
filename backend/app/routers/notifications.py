@@ -219,6 +219,9 @@ def list_reminders(db: Session = Depends(get_db), _admin=Depends(get_current_adm
             streak_risk_hour=settings.streak_risk_hour,
             default_hour=settings.default_hour,
             study_followup_minutes=settings.study_followup_minutes,
+            prep_enabled=settings.prep_enabled,
+            prep_delay_minutes=settings.prep_delay_minutes,
+            review_push_min_words=settings.review_push_min_words,
         ),
         rules=[_rule_out(r) for r in rules],
     )
@@ -230,6 +233,9 @@ def update_reminder_settings(payload: ReminderSettingsIn, db: Session = Depends(
     settings.streak_risk_hour = payload.streak_risk_hour
     settings.default_hour = payload.default_hour
     settings.study_followup_minutes = payload.study_followup_minutes
+    settings.prep_enabled = payload.prep_enabled
+    settings.prep_delay_minutes = payload.prep_delay_minutes
+    settings.review_push_min_words = payload.review_push_min_words
     db.commit()
     return payload
 

@@ -57,7 +57,7 @@ from app.memory import recall_probability, secured_word_ids
 from app.models.word_attempt import WordAttempt
 from app.models.word_progress import WordProgress
 from app.premium import LessonLimitReached, check_lesson_quota
-from app.priority import maybe_create_adaptive_lesson, maybe_create_personal_quest
+from app.priority.background_prep import mark_for_prep
 from app.routers.words import word_to_out
 from app.word_attempts import record_word_attempt
 from app.word_levels import level_for_score_in, ordered_enabled_levels
@@ -681,8 +681,8 @@ def finish_lesson_pass(
             # "lessons_completed" achievement rewards a real playthrough.
             lesson.completed_by_pass = True
             db.flush()
-        maybe_create_adaptive_lesson(db, user, lesson.dictionary_id)
-        maybe_create_personal_quest(db, user, lesson.dictionary_id)
+        # Auto lesson/quest are built quietly later (app/priority/background_prep.py).
+        mark_for_prep(db, user, lesson.dictionary_id)
         if newly_learned:
             check_and_grant_achievements(db, user, "words_learned")
             for word_id in newly_learned:
@@ -781,21 +781,11 @@ def submit_answer(
         db.flush()
     is_learned = progress.score >= threshold
 
-    # Priority's one automatic side effect: 5 accumulated Critical words
-    # in this dictionary freeze into a new adaptive Lesson, through the
-    # exact same path a manual/random one uses. Checked AFTER the
-    # completion check above (not before it): while THIS lesson is still
-    # active, _get_active_lesson would always find it and correctly
-    # refuse a second one -- only once a slot is actually free (this
-    # answer just finished the lesson, or there never was one) can this
-    # ever create anything. A no-op most of the time (returns None) --
-    # see app/priority/lessons.py for every condition that must hold.
-    maybe_create_adaptive_lesson(db, user, lesson.dictionary_id)
-    # Priority's other automatic side effect -- see
-    # app/priority/quests_auto.py. Independent of the lesson-slot timing
-    # concern above (a personal quest has its own, unrelated guard), so
-    # no ordering constraint with the completion check here.
-    maybe_create_personal_quest(db, user, lesson.dictionary_id)
+    # Auto lesson/quest are no longer built mid-session: the answer only
+    # marks the user, and the background sweep builds them once the user has
+    # left (app/priority/background_prep.py) and sends a push. Same builders,
+    # same rules as before -- see app/priority/lessons.py and quests_auto.py.
+    mark_for_prep(db, user, lesson.dictionary_id)
 
     # A word crossing the learned threshold is the one event that can raise
     # words_learned_count (a word becoming LESS learned never grants

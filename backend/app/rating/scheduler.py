@@ -121,5 +121,9 @@ async def _sweep_forever() -> None:
         if time.monotonic() - last_reminders >= REMINDER_INTERVAL_SECONDS:
             last_reminders = time.monotonic()
             await asyncio.to_thread(run_reminders_once)
+            # Auto lessons/quests + «Повтори слово» push for people who left.
+            from app.priority.background_prep import run_prep_once
+
+            await asyncio.to_thread(run_prep_once)
         await asyncio.to_thread(backfill_memory_once)
         await asyncio.sleep(SEASON_SYNC_INTERVAL_SECONDS)
