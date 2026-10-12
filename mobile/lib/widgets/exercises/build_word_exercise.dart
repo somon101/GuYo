@@ -1,4 +1,6 @@
 import '../../l10n/l10n.dart';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import '../../api/api_client.dart';
 import '../../models/exercise.dart';
@@ -8,6 +10,7 @@ import '../audio_button.dart';
 import '../ios_ui.dart';
 import 'exercise_timer.dart';
 import '../../services/answer_signals.dart';
+import '../../services/build_word_mode.dart';
 
 /// One letter button/slot's contents, with a unique instance id so two
 /// identical letters (e.g. HELLO's two L's) are always distinguishable and
@@ -52,6 +55,8 @@ class _BuildWordExerciseState extends State<BuildWordExercise> {
   List<_Tile?> _slots = [];
   List<Color?> _slotColors = [];
   bool _isLocked = false;
+  // Slots easy mode filled in: fixed, can't be tapped away.
+  Set<int> _hinted = {};
 
   late final AnswerCountdown _countdown = AnswerCountdown(
     seconds: ExerciseTimeLimits.buildWordSeconds,
@@ -75,6 +80,39 @@ class _BuildWordExerciseState extends State<BuildWordExercise> {
     _slots = List<_Tile?>.filled(widget.item.correctWord.length, null);
     _slotColors = List<Color?>.filled(widget.item.correctWord.length, null);
     _countdown.start();
+    _resetBoard();
+    // The saved choice may still be loading on the very first exercise.
+    loadBuildWordMode().then((_) {
+      if (mounted && !_isLocked && _hinted.isEmpty == buildWordEasy.value) setState(_resetBoard);
+    });
+  }
+
+  /// Empty board, then -- in easy mode -- a few correct letters placed at
+  /// random positions (see buildWordHintCount).
+  void _resetBoard() {
+    _available = {for (final t in _tiles) t.id};
+    _slots = List<_Tile?>.filled(widget.item.correctWord.length, null);
+    _slotColors = List<Color?>.filled(widget.item.correctWord.length, null);
+    _hinted = {};
+    if (!buildWordEasy.value) return;
+    final word = widget.item.correctWord;
+    final positions = List<int>.generate(word.length, (i) => i)..shuffle(Random());
+    var left = buildWordHintCount(word.length);
+    for (final i in positions) {
+      if (left == 0) break;
+      final match = _tiles.where((t) => _available.contains(t.id) && t.letter.toLowerCase() == word[i].toLowerCase());
+      if (match.isEmpty) continue;
+      _slots[i] = match.first;
+      _available.remove(match.first.id);
+      _hinted.add(i);
+      left--;
+    }
+  }
+
+  void _setEasy(bool easy) {
+    if (_isLocked || easy == buildWordEasy.value) return;
+    setBuildWordEasy(easy);
+    setState(_resetBoard);
   }
 
   @override
@@ -97,7 +135,7 @@ class _BuildWordExerciseState extends State<BuildWordExercise> {
   void _tapSlot(int index) {
     if (_isLocked) return;
     final tile = _slots[index];
-    if (tile == null) return;
+    if (tile == null || _hinted.contains(index)) return;
     setState(() {
       _slots[index] = null;
       _available.add(tile.id);
@@ -185,7 +223,9 @@ class _BuildWordExerciseState extends State<BuildWordExercise> {
             ),
           ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 14),
+        _ModeSwitch(easy: buildWordEasy.value, onChanged: _setEasy),
+        const SizedBox(height: 14),
         Wrap(
           key: const ValueKey('build-word-slots'),
           alignment: WrapAlignment.center,
@@ -232,6 +272,51 @@ class _BuildWordExerciseState extends State<BuildWordExercise> {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// «Лёгкий / Сложный»: easy places a few letters for you; nothing else changes.
+class _ModeSwitch extends StatelessWidget {
+  final bool easy;
+  final ValueChanged<bool> onChanged;
+  const _ModeSwitch({required this.easy, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget chip(String label, bool value) {
+      final selected = easy == value;
+      return Expanded(
+        child: IosPressable(
+          onTap: () => onChanged(value),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            height: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: selected ? AppColors.surface : Colors.transparent,
+              borderRadius: BorderRadius.circular(9),
+              boxShadow: selected ? AppShapes.cardShadow : null,
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? AppColors.primaryDark : AppColors.secondaryText,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      key: const ValueKey('build-word-mode'),
+      width: 220,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(color: AppColors.violetSurface, borderRadius: BorderRadius.circular(11)),
+      child: Row(children: [chip(tr('Лёгкий'), true), chip(tr('Сложный'), false)]),
     );
   }
 }

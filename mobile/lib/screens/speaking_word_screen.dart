@@ -140,6 +140,17 @@ class _SpeakingWordScreenState extends State<SpeakingWordScreen> with LessonExer
                       ),
                     ),
             ),
+            // Noisy place, no voice right now: skip "Произнеси слово" for the
+            // rest of THIS lesson -- every remaining word at once, no answer
+            // sent (no penalty), no replacement exercise. Next lesson has it again.
+            if (!isRoundComplete)
+              TextButton.icon(
+                key: const ValueKey('speaking-word-cant-speak'),
+                onPressed: () => finishExercise(skippedBecause: tr('«Произнеси слово» пропущено в этом уроке')),
+                icon: const Icon(Icons.mic_off_rounded, size: 18),
+                label: Text(tr('Не могу сейчас говорить')),
+                style: TextButton.styleFrom(foregroundColor: AppColors.secondaryText),
+              ),
           ],
         ),
       ),
