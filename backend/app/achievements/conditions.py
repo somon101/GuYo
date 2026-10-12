@@ -135,6 +135,15 @@ def quest_words_completed_count(db: Session, user: User) -> int:
     return db.query(func.count(UserQuestWordDay.id)).filter(UserQuestWordDay.user_id == user.id).scalar() or 0
 
 
+def mini_phrases_done_count(db: Session, user: User) -> int:
+    """How many mini-phrases this user has gone through -- counts
+    UserMiniPhraseDone rows (written once per mini-phrase when it was
+    worked through in a lesson; see app/mini_phrases/service.py's mark_done)."""
+    from app.models.mini_phrase import UserMiniPhraseDone
+
+    return db.query(func.count(UserMiniPhraseDone.id)).filter(UserMiniPhraseDone.user_id == user.id).scalar() or 0
+
+
 # condition_type -> (db, user) -> current value. The one place a new
 # condition_type becomes usable by both the granting service and the
 # "current progress" numbers shown in the Profile screen.
@@ -146,6 +155,7 @@ CONDITION_TYPES = {
     "points_earned": points_earned_count,
     "friends_added": friends_added_count,
     "quest_words_completed": quest_words_completed_count,
+    "mini_phrases_done": mini_phrases_done_count,
 }
 
 # condition_type -> a human label for Admin Web's picker -- kept alongside
@@ -159,4 +169,5 @@ CONDITION_TYPE_LABELS: dict[str, str] = {
     "points_earned": "Набрано очков",
     "friends_added": "Добавлено друзей",
     "quest_words_completed": "Слова, пройденные в квестах",
+    "mini_phrases_done": "Пройдено мини-фраз",
 }

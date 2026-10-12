@@ -5,6 +5,7 @@ mini-phrases listed in Практика."""
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.achievements import check_and_grant_achievements
 from app.core.deps import get_current_user
 from app.database import get_db
 from app.exercises.common import get_threshold
@@ -77,5 +78,7 @@ def answer_mini_phrase(
         points = award_points_once(db, user, mp.id)
     if in_lesson:
         mark_done(db, user.id, mp.id)
+        db.flush()
+        check_and_grant_achievements(db, user, "mini_phrases_done")
     db.commit()
     return MiniPhraseAnswerOut(correct=correct, points_awarded=points, correct_text=mp.text)

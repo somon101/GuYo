@@ -26,7 +26,7 @@ String _formatEarnedDate(DateTime date) {
 /// backend already decided (GET /users/me/achievements) -- it is handed the
 /// same list the Profile screen already loaded and computes nothing itself.
 /// Same order as Admin Web's groups (backend CONDITION_TYPES).
-const List<String> _typeOrder = ['phrases_opened', 'words_learned', 'lessons_completed', 'streak_days'];
+const List<String> _typeOrder = ['phrases_opened', 'words_learned', 'mini_phrases_done', 'lessons_completed', 'streak_days'];
 
 /// Earned first, then not yet earned, hidden last; within each, grouped by
 /// type and then climbing by goal, so a chain reads like steps.

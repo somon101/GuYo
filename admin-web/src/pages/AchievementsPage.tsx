@@ -22,16 +22,18 @@ function mediaUrl(path: string | null): string | null {
 // is untouched, and any condition_type not listed here still gets its own
 // chain automatically (see conditionGroups below), just with the backend's
 // own generic label instead of one of these shorter ones.
-const GROUP_ORDER = ["words_learned", "phrases_opened", "lessons_completed", "streak_days"];
+const GROUP_ORDER = ["words_learned", "phrases_opened", "mini_phrases_done", "lessons_completed", "streak_days"];
 const GROUP_LABEL_OVERRIDES: Record<string, string> = {
   words_learned: "Изученные слова",
   phrases_opened: "Открытые фразы",
+  mini_phrases_done: "Мини-фразы",
   lessons_completed: "Пройденные уроки",
   streak_days: "Активность",
 };
 const CONDITION_UNIT: Record<string, string> = {
   words_learned: "слов",
   phrases_opened: "фраз",
+  mini_phrases_done: "мини-фраз",
   lessons_completed: "уроков",
   streak_days: "дней",
 };

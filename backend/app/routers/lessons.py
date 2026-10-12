@@ -692,6 +692,8 @@ def finish_lesson_pass(
 
         for (mini_phrase_id,) in db.query(LessonMiniPhrase.mini_phrase_id).filter(LessonMiniPhrase.lesson_id == lesson.id):
             mark_done(db, user.id, mini_phrase_id)
+        db.flush()
+        check_and_grant_achievements(db, user, "mini_phrases_done")
         db.commit()
         db.refresh(lesson)
     return _lesson_to_out(db, lesson, threshold)
