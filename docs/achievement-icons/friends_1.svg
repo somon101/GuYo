@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF7AB6"/><stop offset="1" stop-color="#D61F78"/></linearGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE27A"/><stop offset="1" stop-color="#F5A623"/></linearGradient>
+<clipPath id="c"><circle cx="256" cy="256" r="196"/></clipPath>
+</defs>
+<circle cx="256" cy="256" r="214" fill="#FFD3E7"/>
+<circle cx="256" cy="256" r="196" fill="url(#bg)"/>
+<ellipse cx="200" cy="150" rx="120" ry="60" fill="#FFFFFF" opacity="0.14"/>
+<g clip-path="url(#c)"><path d="M118.0,374.0 C118.0,306.0 150.0,278.0 186,278.0 C222.0,278.0 254.0,306.0 254.0,374.0 Z" fill="#FFE3F0" stroke="#FFFFFF" stroke-width="12.0" stroke-linejoin="round"/><circle cx="186" cy="226.0" r="38.0" fill="#FFE3F0" stroke="#FFFFFF" stroke-width="12.0"/><path d="M258.0,374.0 C258.0,306.0 290.0,278.0 326,278.0 C362.0,278.0 394.0,306.0 394.0,374.0 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="12.0" stroke-linejoin="round"/><circle cx="326" cy="226.0" r="38.0" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="12.0"/><path transform="translate(256,150) scale(1.25)" d="M0,10 C-14,-6 -36,4 -26,22 C-20,33 -6,40 0,48 C6,40 20,33 26,22 C36,4 14,-6 0,10 Z" fill="#FF1F5A" stroke="#FFFFFF" stroke-width="7"/></g>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF7AB6"/><stop offset="1" stop-color="#D61F78"/></linearGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE27A"/><stop offset="1" stop-color="#F5A623"/></linearGradient>
+<clipPath id="c"><circle cx="256" cy="256" r="196"/></clipPath>
+</defs>
+<circle cx="256" cy="256" r="222" fill="url(#gold)"/><circle cx="256" cy="256" r="206" fill="#FFF3D6"/>
+<circle cx="256" cy="256" r="196" fill="url(#bg)"/>
+<ellipse cx="200" cy="150" rx="120" ry="60" fill="#FFFFFF" opacity="0.14"/>
+<g clip-path="url(#c)"><path d="M102.2,388.4 C102.2,330.6 129.4,306.8 160,306.8 C190.6,306.8 217.8,330.6 217.8,388.4 Z" fill="#FFC2DD" stroke="#FFFFFF" stroke-width="10.2" stroke-linejoin="round"/><circle cx="160" cy="262.6" r="32.3" fill="#FFC2DD" stroke="#FFFFFF" stroke-width="10.2"/><path d="M294.2,388.4 C294.2,330.6 321.4,306.8 352,306.8 C382.6,306.8 409.8,330.6 409.8,388.4 Z" fill="#FFC2DD" stroke="#FFFFFF" stroke-width="10.2" stroke-linejoin="round"/><circle cx="352" cy="262.6" r="32.3" fill="#FFC2DD" stroke="#FFFFFF" stroke-width="10.2"/><path d="M188.0,374.0 C188.0,306.0 220.0,278.0 256,278.0 C292.0,278.0 324.0,306.0 324.0,374.0 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="12.0" stroke-linejoin="round"/><circle cx="256" cy="226.0" r="38.0" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="12.0"/><path transform="translate(150,150) scale(1.0)" d="M0,-20 L6,-6 L21,-6 L9,3 L13,18 L0,9 L-13,18 L-9,3 L-21,-6 L-6,-6 Z" fill="#FFE27A"/><path transform="translate(366,140) scale(0.8)" d="M0,-20 L6,-6 L21,-6 L9,3 L13,18 L0,9 L-13,18 L-9,3 L-21,-6 L-6,-6 Z" fill="#FFE27A"/></g>
+</svg>
