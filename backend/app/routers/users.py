@@ -367,8 +367,8 @@ def get_my_achievements(db: Session = Depends(get_db), user: User = Depends(get_
         result.append(
             UserAchievementOut(
                 id=a.id,
-                title=a.title,
-                description=a.description,
+                title=a.localized(user.ui_language)[0],
+                description=a.localized(user.ui_language)[1],
                 icon_url=url_for_key(a.icon_key),
                 color=a.color,
                 condition_type=a.condition_type,

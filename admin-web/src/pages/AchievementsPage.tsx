@@ -1,5 +1,12 @@
 import axios from "axios";
-import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+  type FormEvent,
+} from "react";
 import { API_URL } from "../api/client";
 import {
   createAchievement,
@@ -10,7 +17,11 @@ import {
   updateAchievement,
   type AchievementInput,
 } from "../api/endpoints";
-import type { Achievement, AchievementVisibility, ConditionType } from "../types";
+import type {
+  Achievement,
+  AchievementVisibility,
+  ConditionType,
+} from "../types";
 import { SegmentedControl } from "../components/SegmentedControl";
 
 function mediaUrl(path: string | null): string | null {
@@ -22,7 +33,13 @@ function mediaUrl(path: string | null): string | null {
 // is untouched, and any condition_type not listed here still gets its own
 // chain automatically (see conditionGroups below), just with the backend's
 // own generic label instead of one of these shorter ones.
-const GROUP_ORDER = ["words_learned", "phrases_opened", "mini_phrases_done", "lessons_completed", "streak_days"];
+const GROUP_ORDER = [
+  "words_learned",
+  "phrases_opened",
+  "mini_phrases_done",
+  "lessons_completed",
+  "streak_days",
+];
 const GROUP_LABEL_OVERRIDES: Record<string, string> = {
   words_learned: "Изученные слова",
   phrases_opened: "Открытые фразы",
@@ -53,7 +70,10 @@ export function AchievementsPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const [a, c] = await Promise.all([listAchievements(), listConditionTypes()]);
+      const [a, c] = await Promise.all([
+        listAchievements(),
+        listConditionTypes(),
+      ]);
       setAchievements(a);
       setConditionTypes(c);
     } catch {
@@ -72,14 +92,21 @@ export function AchievementsPage() {
       a.earned_count > 0
         ? `Его получили ${a.earned_count} польз. — у них оно тоже пропадёт.\nЧтобы у них осталось, используйте «В архив».`
         : "Его ещё никто не получил.";
-    if (!confirm(`Удалить достижение «${a.title}» навсегда?\n${who}\n\nОтменить нельзя.`)) return;
+    if (
+      !confirm(
+        `Удалить достижение «${a.title}» навсегда?\n${who}\n\nОтменить нельзя.`,
+      )
+    )
+      return;
     setActionError(null);
     setDeletingId(a.id);
     try {
       await deleteAchievement(a.id);
       setAchievements((prev) => prev.filter((x) => x.id !== a.id));
     } catch (err) {
-      const detail = axios.isAxiosError(err) ? (err.response?.data?.detail as string | undefined) : undefined;
+      const detail = axios.isAxiosError(err)
+        ? (err.response?.data?.detail as string | undefined)
+        : undefined;
       setActionError(detail ?? "Не удалось удалить достижение");
     } finally {
       setDeletingId(null);
@@ -105,7 +132,11 @@ export function AchievementsPage() {
       });
       setAchievements((prev) => prev.map((x) => (x.id === a.id ? saved : x)));
     } catch {
-      setActionError(archive ? "Не удалось отправить в архив" : "Не удалось вернуть из архива");
+      setActionError(
+        archive
+          ? "Не удалось отправить в архив"
+          : "Не удалось вернуть из архива",
+      );
     } finally {
       setDeletingId(null);
     }
@@ -123,7 +154,11 @@ export function AchievementsPage() {
     dragId.current = id;
   }
 
-  function handleDragOver(e: DragEvent<HTMLDivElement>, conditionType: string, overId: number) {
+  function handleDragOver(
+    e: DragEvent<HTMLDivElement>,
+    conditionType: string,
+    overId: number,
+  ) {
     e.preventDefault();
     const draggedId = dragId.current;
     if (draggedId === null || draggedId === overId) return;
@@ -137,7 +172,9 @@ export function AchievementsPage() {
       reordered.splice(toIdx, 0, moved);
 
       let cursor = 0;
-      return prev.map((a) => (a.condition_type === conditionType ? reordered[cursor++] : a));
+      return prev.map((a) =>
+        a.condition_type === conditionType ? reordered[cursor++] : a,
+      );
     });
   }
 
@@ -160,14 +197,22 @@ export function AchievementsPage() {
   // then any the backend knows about that isn't in that fixed list (a
   // future condition_type needs zero changes here to get its own chain).
   const knownIds = conditionTypes.map((c) => c.id);
-  const orderedGroupIds = [...GROUP_ORDER.filter((id) => knownIds.includes(id)), ...knownIds.filter((id) => !GROUP_ORDER.includes(id))];
+  const orderedGroupIds = [
+    ...GROUP_ORDER.filter((id) => knownIds.includes(id)),
+    ...knownIds.filter((id) => !GROUP_ORDER.includes(id)),
+  ];
 
   return (
     <div className="mx-auto max-w-5xl">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-[26px] font-bold tracking-tight text-slate-900">Достижения</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Каждый тип условия — своя цепочка. Перетаскивайте карточки внутри цепочки, чтобы изменить порядок.</p>
+          <h1 className="text-[26px] font-bold tracking-tight text-slate-900">
+            Достижения
+          </h1>
+          <p className="mt-0.5 text-sm text-slate-500">
+            Каждый тип условия — своя цепочка. Перетаскивайте карточки внутри
+            цепочки, чтобы изменить порядок.
+          </p>
         </div>
         <button
           onClick={() => setEditing("new")}
@@ -189,7 +234,9 @@ export function AchievementsPage() {
         />
       )}
 
-      {actionError && <p className="mb-4 text-sm text-red-600">{actionError}</p>}
+      {actionError && (
+        <p className="mb-4 text-sm text-red-600">{actionError}</p>
+      )}
 
       {isLoading ? (
         <p className="text-sm text-slate-500">Загрузка…</p>
@@ -198,13 +245,18 @@ export function AchievementsPage() {
       ) : achievements.length === 0 ? (
         <p className="text-sm text-slate-500">Достижений пока нет</p>
       ) : (
-        <div className={`flex flex-col gap-8 ${isReordering ? "opacity-60" : ""}`}>
+        <div
+          className={`flex flex-col gap-8 ${isReordering ? "opacity-60" : ""}`}
+        >
           {orderedGroupIds.map((conditionType) => {
             const items = achievements
               .filter((a) => a.condition_type === conditionType && a.enabled)
               .sort((a, b) => a.order - b.order);
             if (items.length === 0) return null;
-            const label = GROUP_LABEL_OVERRIDES[conditionType] ?? conditionTypes.find((c) => c.id === conditionType)?.label ?? conditionType;
+            const label =
+              GROUP_LABEL_OVERRIDES[conditionType] ??
+              conditionTypes.find((c) => c.id === conditionType)?.label ??
+              conditionType;
             return (
               <AchievementChain
                 key={conditionType}
@@ -250,7 +302,11 @@ function AchievementChain({
   conditionType: string;
   items: Achievement[];
   onDragStart: (id: number) => void;
-  onDragOver: (e: DragEvent<HTMLDivElement>, conditionType: string, overId: number) => void;
+  onDragOver: (
+    e: DragEvent<HTMLDivElement>,
+    conditionType: string,
+    overId: number,
+  ) => void;
   onDragEnd: () => void;
   onEdit: (a: Achievement) => void;
   onDelete: (a: Achievement) => void;
@@ -260,7 +316,9 @@ function AchievementChain({
   const unit = CONDITION_UNIT[conditionType];
   return (
     <div>
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">{label}</h2>
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </h2>
       <div className="overflow-x-auto pb-2">
         <div className="flex w-max items-start">
           {items.map((a, index) => (
@@ -273,20 +331,34 @@ function AchievementChain({
                 className="group flex w-28 shrink-0 cursor-grab flex-col items-center gap-1.5 rounded-lg p-2 text-center active:cursor-grabbing hover:bg-slate-50"
               >
                 <ChainIcon achievement={a} />
-                <p className={`w-full truncate text-xs font-semibold ${a.enabled ? "text-slate-900" : "text-slate-400"}`} title={a.title}>
+                <p
+                  className={`w-full truncate text-xs font-semibold ${a.enabled ? "text-slate-900" : "text-slate-400"}`}
+                  title={a.title}
+                >
                   {a.title}
                 </p>
-                <p className="text-[11px] font-medium" style={{ color: a.enabled ? a.color : "var(--gray-400)" }}>
+                <p
+                  className="text-[11px] font-medium"
+                  style={{ color: a.enabled ? a.color : "var(--gray-400)" }}
+                >
                   {a.condition_value} {unit}
                 </p>
                 {a.visibility === "hidden" && (
-                  <span className="text-[10px] text-slate-400">{a.show_before_unlock ? "🔒 силуэт" : "🔒 скрыто"}</span>
+                  <span className="text-[10px] text-slate-400">
+                    {a.show_before_unlock ? "🔒 силуэт" : "🔒 скрыто"}
+                  </span>
                 )}
-                <span className="text-[10px] text-slate-400" title="Сколько пользователей получили">
+                <span
+                  className="text-[10px] text-slate-400"
+                  title="Сколько пользователей получили"
+                >
                   получили: {a.earned_count}
                 </span>
                 <div className="mt-0.5 flex flex-wrap justify-center gap-x-2 gap-y-0.5 opacity-0 group-hover:opacity-100">
-                  <button onClick={() => onEdit(a)} className="text-[11px] font-medium text-indigo-600 hover:text-indigo-700">
+                  <button
+                    onClick={() => onEdit(a)}
+                    className="text-[11px] font-medium text-indigo-600 hover:text-indigo-700"
+                  >
                     Изменить
                   </button>
                   <button
@@ -307,7 +379,10 @@ function AchievementChain({
               </div>
 
               {index < items.length - 1 && (
-                <div className="mt-7 h-0.5 w-6 shrink-0" style={{ backgroundColor: a.color, opacity: 0.3 }} />
+                <div
+                  className="mt-7 h-0.5 w-6 shrink-0"
+                  style={{ backgroundColor: a.color, opacity: 0.3 }}
+                />
               )}
             </div>
           ))}
@@ -334,23 +409,34 @@ function ArchiveSection({
 }) {
   return (
     <div>
-      <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-500">Архив</h2>
+      <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        Архив
+      </h2>
       <p className="mb-3 text-xs text-slate-500">
-        Остаются у тех, кто уже получил. Остальные их не видят и получить больше не могут.
+        Остаются у тех, кто уже получил. Остальные их не видят и получить больше
+        не могут.
       </p>
       {items.length === 0 ? (
         <p className="text-sm text-slate-400">В архиве пусто</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {items.map((a) => (
-            <div key={a.id} className="group flex w-28 flex-col items-center gap-1.5 rounded-lg p-2 text-center hover:bg-slate-50">
+            <div
+              key={a.id}
+              className="group flex w-28 flex-col items-center gap-1.5 rounded-lg p-2 text-center hover:bg-slate-50"
+            >
               <div className="opacity-60 grayscale">
                 <ChainIcon achievement={a} />
               </div>
-              <p className="w-full truncate text-xs font-semibold text-slate-500" title={a.title}>
+              <p
+                className="w-full truncate text-xs font-semibold text-slate-500"
+                title={a.title}
+              >
                 {a.title}
               </p>
-              <span className="text-[10px] text-slate-400">получили: {a.earned_count}</span>
+              <span className="text-[10px] text-slate-400">
+                получили: {a.earned_count}
+              </span>
               <div className="mt-0.5 flex flex-wrap justify-center gap-x-2 gap-y-0.5 opacity-0 group-hover:opacity-100">
                 <button
                   onClick={() => onRestore(a)}
@@ -359,7 +445,10 @@ function ArchiveSection({
                 >
                   Из архива
                 </button>
-                <button onClick={() => onEdit(a)} className="text-[11px] text-slate-500 hover:text-slate-700">
+                <button
+                  onClick={() => onEdit(a)}
+                  className="text-[11px] text-slate-500 hover:text-slate-700"
+                >
                   Изменить
                 </button>
                 <button
@@ -382,10 +471,18 @@ function ChainIcon({ achievement }: { achievement: Achievement }) {
   return (
     <div
       className="relative z-10 flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-card"
-      style={{ borderColor: achievement.enabled ? achievement.color : "var(--gray-300)" }}
+      style={{
+        borderColor: achievement.enabled
+          ? achievement.color
+          : "var(--gray-300)",
+      }}
     >
       {achievement.icon_url ? (
-        <img src={mediaUrl(achievement.icon_url)!} alt="" className="h-full w-full object-cover" />
+        <img
+          src={mediaUrl(achievement.icon_url)!}
+          alt=""
+          className="h-full w-full object-cover"
+        />
       ) : (
         <span className="text-lg" style={{ color: achievement.color }}>
           ?
@@ -407,12 +504,30 @@ function AchievementForm({
   onCancel: () => void;
 }) {
   const [title, setTitle] = useState(achievement?.title ?? "");
-  const [description, setDescription] = useState(achievement?.description ?? "");
-  const [conditionType, setConditionType] = useState(achievement?.condition_type ?? conditionTypes[0]?.id ?? "");
-  const [conditionValue, setConditionValue] = useState(achievement?.condition_value ?? 1);
+  const [description, setDescription] = useState(
+    achievement?.description ?? "",
+  );
+  const [titleTg, setTitleTg] = useState(achievement?.title_tg ?? "");
+  const [titleUz, setTitleUz] = useState(achievement?.title_uz ?? "");
+  const [descriptionTg, setDescriptionTg] = useState(
+    achievement?.description_tg ?? "",
+  );
+  const [descriptionUz, setDescriptionUz] = useState(
+    achievement?.description_uz ?? "",
+  );
+  const [conditionType, setConditionType] = useState(
+    achievement?.condition_type ?? conditionTypes[0]?.id ?? "",
+  );
+  const [conditionValue, setConditionValue] = useState(
+    achievement?.condition_value ?? 1,
+  );
   const [color, setColor] = useState(achievement?.color ?? "#6366F1");
-  const [visibility, setVisibility] = useState<AchievementVisibility>(achievement?.visibility ?? "visible");
-  const [showBeforeUnlock, setShowBeforeUnlock] = useState(achievement?.show_before_unlock ?? true);
+  const [visibility, setVisibility] = useState<AchievementVisibility>(
+    achievement?.visibility ?? "visible",
+  );
+  const [showBeforeUnlock, setShowBeforeUnlock] = useState(
+    achievement?.show_before_unlock ?? true,
+  );
   const [enabled, setEnabled] = useState(achievement?.enabled ?? true);
   const [icon, setIcon] = useState<File | null>(null);
   const [removeIcon, setRemoveIcon] = useState(false);
@@ -426,7 +541,13 @@ function AchievementForm({
     const file = e.target.files?.[0] ?? null;
     setIcon(file);
     setRemoveIcon(false);
-    setIconPreview(file ? URL.createObjectURL(file) : achievement?.icon_url ? mediaUrl(achievement.icon_url) : null);
+    setIconPreview(
+      file
+        ? URL.createObjectURL(file)
+        : achievement?.icon_url
+          ? mediaUrl(achievement.icon_url)
+          : null,
+    );
   }
 
   function handleRemoveIcon() {
@@ -449,6 +570,10 @@ function AchievementForm({
     const input: AchievementInput = {
       title: title.trim(),
       description: description.trim(),
+      titleTg: titleTg.trim(),
+      titleUz: titleUz.trim(),
+      descriptionTg: descriptionTg.trim(),
+      descriptionUz: descriptionUz.trim(),
       conditionType,
       conditionValue,
       color,
@@ -477,7 +602,9 @@ function AchievementForm({
   return (
     <form onSubmit={handleSubmit} className="mb-6 flex flex-col gap-4 card p-5">
       <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700">Название</label>
+        <label className="mb-1 block text-sm font-medium text-slate-700">
+          Название
+        </label>
         <input
           className="w-full max-w-sm field px-3 py-2 text-sm"
           value={title}
@@ -488,7 +615,9 @@ function AchievementForm({
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700">Слоган / описание</label>
+        <label className="mb-1 block text-sm font-medium text-slate-700">
+          Слоган / описание
+        </label>
         <input
           className="w-full max-w-sm field px-3 py-2 text-sm"
           value={description}
@@ -497,23 +626,85 @@ function AchievementForm({
         />
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">
+            Название — тоҷикӣ
+          </label>
+          <input
+            className="w-full field px-3 py-2 text-sm"
+            value={titleTg}
+            onChange={(e) => setTitleTg(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">
+            Название — oʻzbek
+          </label>
+          <input
+            className="w-full field px-3 py-2 text-sm"
+            value={titleUz}
+            onChange={(e) => setTitleUz(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">
+            Слоган — тоҷикӣ
+          </label>
+          <input
+            className="w-full field px-3 py-2 text-sm"
+            value={descriptionTg}
+            onChange={(e) => setDescriptionTg(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">
+            Слоган — oʻzbek
+          </label>
+          <input
+            className="w-full field px-3 py-2 text-sm"
+            value={descriptionUz}
+            onChange={(e) => setDescriptionUz(e.target.value)}
+          />
+        </div>
+        <p className="text-xs text-slate-400 sm:col-span-2">
+          Пустое поле — пользователь с этим языком увидит русский текст.
+        </p>
+      </div>
+
       <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700">Иконка</label>
+        <label className="mb-1 block text-sm font-medium text-slate-700">
+          Иконка
+        </label>
         <p className="mb-2 text-xs text-slate-400">
-          Загрузите готовое изображение — оно и будет показано пользователю как иконка достижения.
+          Загрузите готовое изображение — оно и будет показано пользователю как
+          иконка достижения.
         </p>
         <div className="flex items-center gap-3">
           <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-50">
             {iconPreview ? (
-              <img src={iconPreview} alt="" className="h-full w-full object-cover" />
+              <img
+                src={iconPreview}
+                alt=""
+                className="h-full w-full object-cover"
+              />
             ) : (
               <span className="text-xs text-slate-400">нет</span>
             )}
           </div>
           <div className="flex flex-col gap-1">
-            <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleIconChange} className="text-sm" />
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={handleIconChange}
+              className="text-sm"
+            />
             {iconPreview && (
-              <button type="button" onClick={handleRemoveIcon} className="w-fit text-xs text-red-600 hover:underline">
+              <button
+                type="button"
+                onClick={handleRemoveIcon}
+                className="w-fit text-xs text-red-600 hover:underline"
+              >
                 Удалить иконку
               </button>
             )}
@@ -523,7 +714,9 @@ function AchievementForm({
 
       <div className="flex flex-wrap gap-4">
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Условие</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">
+            Условие
+          </label>
           <select
             className="field px-3 py-2 text-sm"
             value={conditionType}
@@ -538,7 +731,9 @@ function AchievementForm({
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Порог</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">
+            Порог
+          </label>
           <input
             type="number"
             min={1}
@@ -549,7 +744,9 @@ function AchievementForm({
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Цвет</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">
+            Цвет
+          </label>
           <div className="flex items-center gap-2">
             <input
               type="color"
@@ -568,7 +765,9 @@ function AchievementForm({
       </div>
 
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">Видимость</label>
+        <label className="mb-1.5 block text-sm font-medium text-slate-700">
+          Видимость
+        </label>
         <SegmentedControl
           ariaLabel="Видимость"
           segments={[
@@ -591,13 +790,19 @@ function AchievementForm({
               onChange={(e) => setShowBeforeUnlock(e.target.checked)}
               className="switch"
             />
-            Показывать силуэт до получения (иначе достижение появится только после получения)
+            Показывать силуэт до получения (иначе достижение появится только
+            после получения)
           </label>
         )}
       </div>
 
       <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-        <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="switch" />
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => setEnabled(e.target.checked)}
+          className="switch"
+        />
         Активно (выключено — в архиве)
       </label>
 

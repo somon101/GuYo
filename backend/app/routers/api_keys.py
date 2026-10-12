@@ -137,6 +137,10 @@ class AchievementCreateIn(BaseModel):
     show_before_unlock: bool = True
     enabled: bool = True
     order: int | None = None
+    title_tg: str | None = Field(default=None, max_length=255)
+    title_uz: str | None = Field(default=None, max_length=255)
+    description_tg: str | None = Field(default=None, max_length=500)
+    description_uz: str | None = Field(default=None, max_length=500)
 
 
 class AchievementPatchIn(BaseModel):
@@ -149,6 +153,10 @@ class AchievementPatchIn(BaseModel):
     show_before_unlock: bool | None = None
     enabled: bool | None = None
     order: int | None = None
+    title_tg: str | None = Field(default=None, max_length=255)
+    title_uz: str | None = Field(default=None, max_length=255)
+    description_tg: str | None = Field(default=None, max_length=500)
+    description_uz: str | None = Field(default=None, max_length=500)
 
 
 class OrderIn(BaseModel):
@@ -201,6 +209,9 @@ def create_achievement(payload: AchievementCreateIn, request: Request, db: Sessi
         title=payload.title.strip(), description=payload.description.strip(), icon_key=None, color=payload.color,
         condition_type=payload.condition_type, condition_value=payload.condition_value, enabled=payload.enabled,
         visibility=payload.visibility, show_before_unlock=payload.show_before_unlock, order=order,
+        title_tg=(payload.title_tg or "").strip() or None, title_uz=(payload.title_uz or "").strip() or None,
+        description_tg=(payload.description_tg or "").strip() or None,
+        description_uz=(payload.description_uz or "").strip() or None,
     )
     db.add(a)
     db.commit()
@@ -220,6 +231,10 @@ def update_achievement(
     if fields.get("visibility") is not None:
         _validate_visibility(fields["visibility"])
     for name, value in fields.items():
+        if name.endswith(("_tg", "_uz")):
+            # "" or null clears a translation (falls back to Russian).
+            setattr(a, name, (value or "").strip() or None)
+            continue
         if value is None:
             continue
         setattr(a, name, value.strip() if isinstance(value, str) and name in ("title", "description") else value)

@@ -293,6 +293,10 @@ export interface Achievement {
   id: number;
   title: string;
   description: string;
+  title_tg?: string | null;
+  title_uz?: string | null;
+  description_tg?: string | null;
+  description_uz?: string | null;
   icon_url: string | null;
   color: string;
   condition_type: string;

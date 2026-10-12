@@ -13,6 +13,10 @@ class AchievementOut(BaseModel):
     id: int
     title: str
     description: str
+    title_tg: str | None = None
+    title_uz: str | None = None
+    description_tg: str | None = None
+    description_uz: str | None = None
     icon_url: str | None
     color: str
     condition_type: str

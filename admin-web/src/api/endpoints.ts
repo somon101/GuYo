@@ -673,6 +673,10 @@ export async function listConditionTypes(): Promise<ConditionType[]> {
 export interface AchievementInput {
   title: string;
   description: string;
+  titleTg?: string;
+  titleUz?: string;
+  descriptionTg?: string;
+  descriptionUz?: string;
   conditionType: string;
   conditionValue: number;
   color: string;
@@ -698,6 +702,10 @@ function achievementForm(input: AchievementInput): FormData {
   form.append("show_before_unlock", String(input.showBeforeUnlock));
   form.append("enabled", String(input.enabled));
   form.append("order", String(input.order));
+  if (input.titleTg !== undefined) form.append("title_tg", input.titleTg);
+  if (input.titleUz !== undefined) form.append("title_uz", input.titleUz);
+  if (input.descriptionTg !== undefined) form.append("description_tg", input.descriptionTg);
+  if (input.descriptionUz !== undefined) form.append("description_uz", input.descriptionUz);
   if (input.icon) form.append("icon", input.icon);
   if (input.removeIcon) form.append("remove_icon", "true");
   return form;

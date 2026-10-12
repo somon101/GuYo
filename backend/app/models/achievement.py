@@ -51,6 +51,17 @@ class Achievement(Base):
     # The short reveal text a user sees once they earn it (spec calls this
     # "слоган" -- same field as before, just now documented under that name).
     description: Mapped[str] = mapped_column(String(500), nullable=False)
+    # Translations for the learner's interface language (ru is title/description).
+    title_tg: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    title_uz: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    description_tg: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    description_uz: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    def localized(self, lang: str | None) -> tuple[str, str]:
+        """(title, description) in `lang` (tg/uz), Russian when missing."""
+        if lang in ("tg", "uz"):
+            return (getattr(self, f"title_{lang}") or self.title, getattr(self, f"description_{lang}") or self.description)
+        return self.title, self.description
     icon_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
     color: Mapped[str] = mapped_column(String(9), nullable=False, default="#6366F1", server_default="#6366F1")
     condition_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)

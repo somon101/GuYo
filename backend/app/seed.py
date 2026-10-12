@@ -241,6 +241,11 @@ def seed_achievements() -> None:
             created += 1
         db.commit()
         print(f"[seed] created {created} achievements ({len(DEFAULT_ACHIEVEMENTS) - created} already existed)")
+        from app.achievements.texts import apply_texts
+
+        updated = apply_texts(db)
+        db.commit()
+        print(f"[seed] achievement slogans/translations updated: {updated}")
     finally:
         db.close()
 

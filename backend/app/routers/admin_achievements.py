@@ -43,6 +43,10 @@ def _achievement_out(a: Achievement, earned_count: int | None = None) -> Achieve
         id=a.id,
         title=a.title,
         description=a.description,
+        title_tg=a.title_tg,
+        title_uz=a.title_uz,
+        description_tg=a.description_tg,
+        description_uz=a.description_uz,
         icon_url=url_for_key(a.icon_key),
         color=a.color,
         condition_type=a.condition_type,
@@ -111,6 +115,10 @@ def create_achievement(
     show_before_unlock: bool = Form(True),
     enabled: bool = Form(True),
     order: int = Form(0),
+    title_tg: str | None = Form(None),
+    title_uz: str | None = Form(None),
+    description_tg: str | None = Form(None),
+    description_uz: str | None = Form(None),
     icon: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     _admin=Depends(get_current_admin),
@@ -134,6 +142,10 @@ def create_achievement(
         visibility=visibility,
         show_before_unlock=show_before_unlock,
         order=order,
+        title_tg=(title_tg or "").strip() or None,
+        title_uz=(title_uz or "").strip() or None,
+        description_tg=(description_tg or "").strip() or None,
+        description_uz=(description_uz or "").strip() or None,
     )
     db.add(achievement)
     db.commit()
@@ -160,6 +172,10 @@ def update_achievement(
     show_before_unlock: bool | None = Form(None),
     enabled: bool | None = Form(None),
     order: int | None = Form(None),
+    title_tg: str | None = Form(None),
+    title_uz: str | None = Form(None),
+    description_tg: str | None = Form(None),
+    description_uz: str | None = Form(None),
     icon: UploadFile | None = File(None),
     remove_icon: bool = Form(False),
     db: Session = Depends(get_db),
@@ -191,6 +207,13 @@ def update_achievement(
         achievement.enabled = enabled
     if order is not None:
         achievement.order = order
+    # Translations: an empty string clears one (falls back to Russian).
+    for name, value in (
+        ("title_tg", title_tg), ("title_uz", title_uz),
+        ("description_tg", description_tg), ("description_uz", description_uz),
+    ):
+        if value is not None:
+            setattr(achievement, name, value.strip() or None)
 
     has_new_icon = icon is not None and icon.filename
     if has_new_icon:
