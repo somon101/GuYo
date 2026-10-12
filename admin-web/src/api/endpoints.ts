@@ -2069,3 +2069,37 @@ export async function fillMiniPhraseStarter500(
   );
   return data;
 }
+
+export interface ApiKeyRow {
+  id: number;
+  name: string;
+  key_prefix: string;
+  scopes: string[];
+  enabled: boolean;
+  created_at: string | null;
+  last_used_at: string | null;
+}
+
+export async function listApiKeys(): Promise<ApiKeyRow[]> {
+  const { data } = await api.get("/admin/api-keys");
+  return data;
+}
+
+export async function createApiKey(
+  name: string,
+): Promise<ApiKeyRow & { key: string }> {
+  const { data } = await api.post("/admin/api-keys", { name });
+  return data;
+}
+
+export async function setApiKeyEnabled(
+  id: number,
+  enabled: boolean,
+): Promise<ApiKeyRow> {
+  const { data } = await api.patch(`/admin/api-keys/${id}`, { enabled });
+  return data;
+}
+
+export async function deleteApiKey(id: number): Promise<void> {
+  await api.delete(`/admin/api-keys/${id}`);
+}

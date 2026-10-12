@@ -32,6 +32,7 @@ import { UserAnalyticsPage } from "./pages/UserAnalyticsPage";
 import { RetentionPage } from "./pages/RetentionPage";
 import { WordDiagnosticsPage } from "./pages/WordDiagnosticsPage";
 import { AchievementsPage } from "./pages/AchievementsPage";
+import { ApiKeysPage } from "./pages/ApiKeysPage";
 import { RatingPage } from "./pages/RatingPage";
 import { ReviewPage } from "./pages/ReviewPage";
 import { AiToolsPage } from "./pages/AiToolsPage";
@@ -357,6 +358,16 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <WordDiagnosticsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/api-keys"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ApiKeysPage />
                 </Layout>
               </ProtectedRoute>
             }

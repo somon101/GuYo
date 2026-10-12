@@ -44,6 +44,7 @@ from app.routers import (
     word_levels,
     words,
 )
+from app.routers import api_keys
 from app.routers import status as status_router
 
 settings = get_settings()
@@ -88,12 +89,38 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def public_api_cors(request, call_next):
+    # The external API (/api/v1) is opened to any origin: access is decided by
+    # the API key, not by where the call comes from. Added after CORSMiddleware,
+    # so it runs first and answers the browser's preflight itself.
+    if not request.url.path.startswith("/api/v1"):
+        return await call_next(request)
+    from fastapi.responses import Response
+
+    headers = {
+        "Access-Control-Allow-Origin": request.headers.get("origin") or "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "X-API-Key, Authorization, Content-Type",
+        "Access-Control-Max-Age": "86400",
+        "Vary": "Origin",
+    }
+    if request.method == "OPTIONS":
+        return Response(status_code=204, headers=headers)
+    response = await call_next(request)
+    for k, v in headers.items():
+        response.headers[k] = v
+    return response
+
+
 app.mount(
     settings.media_url_prefix,
     StaticFiles(directory=settings.media_root),
     name="media",
 )
 
+app.include_router(api_keys.admin_router)
+app.include_router(api_keys.api_router)
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(dictionaries.router)

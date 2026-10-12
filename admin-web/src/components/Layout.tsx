@@ -48,7 +48,10 @@ const navGroups = [
   },
   {
     title: "Система",
-    items: [{ to: "/client-errors", icon: "bug", label: "Ошибки приложения" }],
+    items: [
+      { to: "/client-errors", icon: "bug", label: "Ошибки приложения" },
+      { to: "/api-keys", icon: "key", label: "API-ключи" },
+    ],
   },
 ];
 
@@ -60,7 +63,9 @@ export function Layout({ children }: { children: ReactNode }) {
   usePageTransitions();
   const enterDir = usePageEnter(location.pathname);
   const section = navItems.find(
-    (item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`),
+    (item) =>
+      location.pathname === item.to ||
+      location.pathname.startsWith(`${item.to}/`),
   );
 
   return (
@@ -71,15 +76,22 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="mx-auto flex h-14 max-w-[1440px] items-center gap-3 px-4 sm:px-6">
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <img src={logoMark} alt="" className="h-7 w-7 shrink-0" />
-            <span className="truncate text-[17px] font-semibold tracking-tight text-slate-900">GuYo Admin</span>
+            <span className="truncate text-[17px] font-semibold tracking-tight text-slate-900">
+              GuYo Admin
+            </span>
           </div>
           <div className="hidden min-w-0 flex-1 justify-center md:flex">
-            <span className="truncate text-[17px] font-semibold text-slate-900">{section?.label}</span>
+            <span className="truncate text-[17px] font-semibold text-slate-900">
+              {section?.label}
+            </span>
           </div>
           <div className="flex flex-1 items-center justify-end gap-1">
             <ThemeToggle />
             <ChangePasswordButton />
-            <button onClick={logout} className="btn-tinted rounded-full px-3.5 py-1.5 text-sm font-medium">
+            <button
+              onClick={logout}
+              className="btn-tinted rounded-full px-3.5 py-1.5 text-sm font-medium"
+            >
               Выйти
             </button>
           </div>
@@ -93,7 +105,10 @@ export function Layout({ children }: { children: ReactNode }) {
             className="flex gap-1.5 overflow-x-auto px-4 py-3 [scrollbar-width:none] md:flex-col md:gap-0.5 md:overflow-visible md:p-0"
           >
             {navGroups.map((group) => (
-              <div key={group.title} className="contents md:mb-3 md:flex md:flex-col md:gap-0.5">
+              <div
+                key={group.title}
+                className="contents md:mb-3 md:flex md:flex-col md:gap-0.5"
+              >
                 <p className="hidden px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500 md:block">
                   {group.title}
                 </p>

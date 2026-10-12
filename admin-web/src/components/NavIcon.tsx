@@ -23,6 +23,7 @@ const PATHS: Record<string, string> = {
   speaker: "M4 9h4l5-4v14l-5-4H4V9ZM17 9a4 4 0 0 1 0 6M19.5 6.5a8 8 0 0 1 0 11",
   layers: "M12 3 3 8l9 5 9-5-9-5ZM3 13l9 5 9-5M3 17l9 5 9-5",
   flag: "M5 21V4M5 4h11l-2 4 2 4H5",
+  key: "M14.5 9.5a4 4 0 1 0-3.6 2.4L4 18.8V21h3v-2h2v-2h2l1.9-1.9a4 4 0 0 0 1.6-5.6ZM16 7.5h.01",
   bug:"M8 9a4 4 0 0 1 8 0v5a4 4 0 0 1-8 0V9ZM12 11v7M4 13h4M16 13h4M5 7l3 2M19 7l-3 2M5 19l3-2M19 19l-3-2",
 };
 
