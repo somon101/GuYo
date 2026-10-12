@@ -239,6 +239,8 @@ class UserProfileOut(BaseModel):
     email: str | None
     avatar_url: str | None
     current_streak_days: int
+    # False until a lesson, practice round or quest is finished today.
+    streak_active_today: bool = False
     lessons_completed: int
     words_learned: int
     # Null when the user doesn't have GuYo Premium right now -- see

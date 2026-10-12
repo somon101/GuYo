@@ -55,6 +55,10 @@ class LessonOut(BaseModel):
     # Shown after the word exercises on every pass, until the lesson is
     # completed (chosen when the lesson was created -- see app/mini_phrases).
     mini_phrases: list[MiniPhraseOut] = []
+    # Set by the call that finished something: True when it lit today's
+    # streak day (the app plays the flame lighting up), and the streak now.
+    streak_lit_now: bool = False
+    streak_days: int = 0
 
 
 class PassExerciseStatOut(BaseModel):

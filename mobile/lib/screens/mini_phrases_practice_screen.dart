@@ -31,7 +31,7 @@ class _MiniPhrasesPracticeScreenState extends State<MiniPhrasesPracticeScreen> {
 
   void _practise(List<MiniPhrase> phrases) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => _MiniPhrasePracticeRun(phrases: phrases)),
+      MaterialPageRoute(builder: (_) => _MiniPhrasePracticeRun(dictionaryId: widget.dictionary.id, phrases: phrases)),
     );
   }
 
@@ -135,14 +135,21 @@ class _MiniPhrasesPracticeScreenState extends State<MiniPhrasesPracticeScreen> {
 }
 
 class _MiniPhrasePracticeRun extends StatelessWidget {
+  final int dictionaryId;
   final List<MiniPhrase> phrases;
-  const _MiniPhrasePracticeRun({required this.phrases});
+  const _MiniPhrasePracticeRun({required this.dictionaryId, required this.phrases});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(tr('Мини-фразы'))),
-      body: MiniPhraseSession(phrases: phrases, onDone: () => Navigator.of(context).pop()),
+      body: MiniPhraseSession(
+        phrases: phrases,
+        onDone: () {
+          ApiClient.instance.finishPractice(dictionaryId);
+          Navigator.of(context).pop();
+        },
+      ),
     );
   }
 }

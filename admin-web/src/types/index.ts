@@ -346,6 +346,9 @@ export type SeasonStatus = "scheduled" | "active" | "completed";
 export interface Season {
   id: number;
   name: string;
+  /** The name in the app's Tajik / Uzbek interface; empty = the Russian one. */
+  name_tg: string | null;
+  name_uz: string | null;
   /** ISO datetime. When the season begins. */
   starts_at: string;
   /** ISO datetime, or null for "ends only when an admin ends it". The

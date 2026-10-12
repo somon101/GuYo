@@ -29,6 +29,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.achievements.conditions import streak_days_count
 from app.exercises.verify import judge
 from app.analytics.history import log_event
 from app.core.content_language import primary_translation
@@ -626,7 +627,6 @@ def _hold_answer_for_pass(db: Session, user: User, lesson: Lesson, exercise_key:
         timed_out=payload.timed_out,
         given_answer=payload.given_answer,
     )
-    record_activity(db, user)
     db.commit()
     return SubmitAnswerOut(
         word_id=payload.word_id,
@@ -651,6 +651,10 @@ def finish_lesson_pass(
     nothing the second time."""
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
     threshold = get_threshold(db)
+    # A lesson (or adaptive lesson, or a repeat) played to the end lights
+    # today's streak day.
+    lit_now = record_activity(db, user)
+    db.commit()
     pending = lesson.pass_pending_scores or {}
     if pending:
         newly_learned = []
@@ -696,7 +700,10 @@ def finish_lesson_pass(
         check_and_grant_achievements(db, user, "mini_phrases_done")
         db.commit()
         db.refresh(lesson)
-    return _lesson_to_out(db, lesson, threshold)
+    out = _lesson_to_out(db, lesson, threshold)
+    out.streak_lit_now = lit_now
+    out.streak_days = streak_days_count(db, user)
+    return out
 
 
 @router.post("/lessons/{lesson_id}/exercises/{exercise_key}/answers", response_model=SubmitAnswerOut)
@@ -807,7 +814,6 @@ def submit_answer(
         check_and_grant_achievements(db, user, "words_learned")
         points_awarded = award_word_points_if_new(db, user, payload.word_id)
 
-    record_activity(db, user)
 
     db.commit()
     return SubmitAnswerOut(

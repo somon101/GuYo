@@ -5,6 +5,8 @@ from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.rating.names import season_name
+from app.achievements.streak import active_today
 from app.core.content_language import reading_language
 from app.achievements.conditions import streak_with_freezes
 from app.achievements import CONDITION_TYPES, grant_all_due_achievements, lessons_completed_count, streak_days_count, words_learned_count
@@ -170,6 +172,7 @@ def _profile_out(db: Session, user: User) -> UserProfileOut:
         email=user.email,
         avatar_url=url_for_key(user.avatar_key),
         current_streak_days=streak_days_count(db, user),
+        streak_active_today=active_today(db, user),
         lessons_completed=lessons_completed_count(db, user),
         words_learned=words_learned_count(db, user),
         premium_until=effective_premium_until(db, user),
@@ -199,6 +202,7 @@ def get_my_streak(db: Session = Depends(get_db), user: User = Depends(get_curren
     streak, frozen = streak_with_freezes(db, user)
     return {
         "current_streak_days": streak,
+        "active_today": today in active,
         "today": today.isoformat(),
         "active_dates": [d.isoformat() for d in active],
         # Missed days a weekly freeze covered (see streak_with_freezes).
@@ -443,7 +447,7 @@ def get_my_rating(db: Session = Depends(get_db), user: User = Depends(get_curren
     history = [
         SeasonHistoryOut(
             season_id=row.season_id,
-            season_name=row.season.name if row.season else "",
+            season_name=season_name(row.season) if row.season else "",
             points=row.points,
             rank=rank_public_out(row.rank) if row.rank_id else None,
             ended_at=row.ended_at,

@@ -1,3 +1,4 @@
+import '../services/streak_state.dart';
 import '../l10n/l10n.dart';
 import 'dart:async';
 import 'dart:typed_data';
@@ -368,15 +369,23 @@ class ProfileScreenState extends State<ProfileScreen> {
         Row(
           children: [
             Expanded(
-              child: _StatCard(
-                key: const ValueKey('profile-streak'),
-                icon: Icons.local_fire_department_rounded,
-                iconColor: const Color(0xFFFF7A29),
-                iconBackground: AppColors.tile(const Color(0xFFFFF0E6)),
-                leading: const AnimatedFire(size: 30),
-                label: tr('Серия'),
-                value: '${profile.currentStreakDays} ${_dayWord(profile.currentStreakDays)}',
-                onTap: () => showStreakSheet(context, streakDays: profile.currentStreakDays),
+              child: ValueListenableBuilder<bool?>(
+                valueListenable: streakLitToday,
+                builder: (context, litNow, _) {
+                  final lit = litNow ?? profile.streakActiveToday;
+                  final days = streakDays.value ?? profile.currentStreakDays;
+                  return _StatCard(
+                    key: const ValueKey('profile-streak'),
+                    icon: Icons.local_fire_department_rounded,
+                    iconColor: const Color(0xFFFF7A29),
+                    iconBackground: AppColors.tile(const Color(0xFFFFF0E6)),
+                    leading: AnimatedFire(size: 30, lit: lit),
+                    label: tr('Серия'),
+                    value: '$days ${_dayWord(days)}',
+                    note: lit ? null : tr('Сегодня ещё не занимались'),
+                    onTap: () => showStreakSheet(context, streakDays: days),
+                  );
+                },
               ),
             ),
             const SizedBox(width: 10),
@@ -762,9 +771,13 @@ class _StatCard extends StatelessWidget {
   /// Drawn instead of the round icon, e.g. the burning 🔥.
   final Widget? leading;
 
+  /// A small hint under the value, e.g. "Сегодня ещё не занимались".
+  final String? note;
+
   const _StatCard({
     super.key,
     this.leading,
+    this.note,
     required this.icon,
     required this.iconColor,
     required this.iconBackground,
@@ -833,6 +846,16 @@ class _StatCard extends StatelessWidget {
                     maxLines: 1,
                   ),
                 ),
+                if (note != null)
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      note!,
+                      style: TextStyle(fontSize: 10.5, color: AppColors.secondaryText, fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                    ),
+                  ),
               ],
             ),
           ),

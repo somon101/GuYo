@@ -29,7 +29,6 @@ def list_dictionaries(db: Session = Depends(get_db), principal: Principal = Depe
     if principal.role == "user":
         user = db.get(User, principal.id)
         if user is not None:
-            record_activity(db, user)
             db.commit()  # this is otherwise a read-only endpoint that never commits
 
     query = db.query(Dictionary, func.count(Word.id)).outerjoin(Word, Word.dictionary_id == Dictionary.id)

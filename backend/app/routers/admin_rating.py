@@ -275,6 +275,8 @@ def _season_out(s: Season) -> SeasonOut:
     return SeasonOut(
         id=s.id,
         name=s.name,
+        name_tg=s.name_tg,
+        name_uz=s.name_uz,
         starts_at=s.starts_at,
         ends_at=s.ends_at,
         ended_at=s.ended_at,
@@ -320,7 +322,14 @@ def create_season(payload: SeasonCreateIn, db: Session = Depends(get_db), _admin
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
-    season = Season(name=payload.name.strip(), starts_at=starts_at, ends_at=ends_at, status=SEASON_SCHEDULED)
+    season = Season(
+        name=payload.name.strip(),
+        name_tg=(payload.name_tg or '').strip() or None,
+        name_uz=(payload.name_uz or '').strip() or None,
+        starts_at=starts_at,
+        ends_at=ends_at,
+        status=SEASON_SCHEDULED,
+    )
     db.add(season)
     db.commit()
     sync_season_states(db)
@@ -365,6 +374,10 @@ def update_season(
 
     if payload.name is not None:
         season.name = payload.name.strip()
+    if payload.name_tg is not None:
+        season.name_tg = payload.name_tg.strip() or None
+    if payload.name_uz is not None:
+        season.name_uz = payload.name_uz.strip() or None
     season.starts_at = starts_at
     season.ends_at = ends_at
     db.commit()

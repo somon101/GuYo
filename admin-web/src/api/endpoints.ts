@@ -836,6 +836,8 @@ export interface SeasonInput {
   startsAt?: string;
   /** ISO datetime. Omitted means "no scheduled end" -- only an admin ends it. */
   endsAt?: string;
+  nameTg?: string;
+  nameUz?: string;
 }
 
 // Several seasons may exist at once as long as their periods don't collide.
@@ -844,6 +846,8 @@ export interface SeasonInput {
 export async function createSeason(input: SeasonInput): Promise<Season> {
   const { data } = await api.post("/admin/rating/seasons", {
     name: input.name,
+    name_tg: input.nameTg,
+    name_uz: input.nameUz,
     starts_at: input.startsAt,
     ends_at: input.endsAt,
   });
@@ -852,6 +856,8 @@ export async function createSeason(input: SeasonInput): Promise<Season> {
 
 export interface SeasonUpdateInput {
   name?: string;
+  nameTg?: string;
+  nameUz?: string;
   startsAt?: string;
   endsAt?: string;
   /** Turns a scheduled end back into "manual only" -- distinct from simply
@@ -867,6 +873,8 @@ export async function updateSeason(
 ): Promise<Season> {
   const { data } = await api.patch(`/admin/rating/seasons/${id}`, {
     name: input.name,
+    name_tg: input.nameTg,
+    name_uz: input.nameUz,
     starts_at: input.startsAt,
     ends_at: input.endsAt,
     clear_ends_at: input.clearEndsAt,

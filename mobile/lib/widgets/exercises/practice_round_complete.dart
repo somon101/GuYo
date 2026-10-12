@@ -1,3 +1,4 @@
+import '../../api/api_client.dart';
 import '../../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
@@ -6,9 +7,10 @@ import '../guyo_ui.dart';
 /// The one "round over" screen every Practice exercise ends on, in the
 /// style of the lesson results but simpler: one ring that fills up to the
 /// share of right answers, a one-word verdict, "N из M правильно", and the
-/// two ways on -- another round, or back. Practice keeps no score of its
-/// own, so this is purely feedback for the player, never sent anywhere.
-class PracticeRoundComplete extends StatelessWidget {
+/// two ways on -- another round, or back. Reaching it tells the server the
+/// round was finished, which lights today's streak day.
+class PracticeRoundComplete extends StatefulWidget {
+  final int dictionaryId;
   final int correctCount;
   final int total;
   final VoidCallback onPlayAgain;
@@ -16,6 +18,7 @@ class PracticeRoundComplete extends StatelessWidget {
 
   const PracticeRoundComplete({
     super.key,
+    required this.dictionaryId,
     required this.correctCount,
     required this.total,
     required this.onPlayAgain,
@@ -23,7 +26,22 @@ class PracticeRoundComplete extends StatelessWidget {
   });
 
   @override
+  State<PracticeRoundComplete> createState() => _PracticeRoundCompleteState();
+}
+
+class _PracticeRoundCompleteState extends State<PracticeRoundComplete> {
+  @override
+  void initState() {
+    super.initState();
+    ApiClient.instance.finishPractice(widget.dictionaryId);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final correctCount = widget.correctCount;
+    final total = widget.total;
+    final onPlayAgain = widget.onPlayAgain;
+    final onBack = widget.onBack;
     final share = total == 0 ? 0.0 : correctCount / total;
     final (String verdict, Color tone) = switch (share) {
       >= 1.0 => (tr('Идеально!'), AppColors.success),

@@ -243,6 +243,7 @@ class _BuildPhraseByEarScreenState extends State<BuildPhraseByEarScreen> {
 
     if (_index >= _tasks.length) {
       return PracticeRoundComplete(
+        dictionaryId: widget.dictionary.id,
         correctCount: _correctCount,
         total: _tasks.length,
         onPlayAgain: _load,

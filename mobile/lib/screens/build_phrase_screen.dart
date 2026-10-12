@@ -240,6 +240,7 @@ class _BuildPhraseScreenState extends State<BuildPhraseScreen> {
 
     if (_index >= _tasks.length) {
       return PracticeRoundComplete(
+        dictionaryId: widget.dictionary.id,
         correctCount: _correctCount,
         total: _tasks.length,
         onPlayAgain: _load,

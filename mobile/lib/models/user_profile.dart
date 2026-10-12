@@ -23,6 +23,8 @@ class UserProfile {
 
   final String? avatarUrl;
   final int currentStreakDays;
+  /// Today's streak day already earned (lesson, practice round or quest finished).
+  final bool streakActiveToday;
   // The same counters the "Уроки"/"Слова" achievement condition_types are
   // measured against (app/achievements/conditions.py) -- never a second,
   // profile-only way of counting either one.
@@ -51,6 +53,7 @@ class UserProfile {
     required this.email,
     required this.avatarUrl,
     required this.currentStreakDays,
+    this.streakActiveToday = false,
     required this.lessonsCompleted,
     required this.wordsLearned,
     this.premiumUntil,
@@ -69,6 +72,7 @@ class UserProfile {
       email: json['email'] as String?,
       avatarUrl: json['avatar_url'] as String?,
       currentStreakDays: json['current_streak_days'] as int,
+      streakActiveToday: json['streak_active_today'] as bool? ?? false,
       lessonsCompleted: json['lessons_completed'] as int,
       wordsLearned: json['words_learned'] as int,
       premiumUntil: json['premium_until'] == null ? null : DateTime.parse(json['premium_until'] as String).toLocal(),
