@@ -455,7 +455,7 @@ def create_lesson(
         if not eligible_ids:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Нет доступных слов для нового урока")
         count = min(payload.random_count, len(eligible_ids))
-        selected_ids = [w.id for w in prioritized_words(db, user, eligible_words)[:count]]
+        selected_ids = [w.id for w in prioritized_words(db, user, eligible_words, count=count, dictionary=dictionary)[:count]]
 
     lesson = build_lesson(db, user, dictionary, selected_ids, threshold)
     db.commit()
@@ -463,7 +463,9 @@ def create_lesson(
     return _lesson_to_out(db, lesson, threshold)
 
 
-def prioritized_words(db: Session, user: User, words: list[Word]) -> list[Word]:
+def prioritized_words(
+    db: Session, user: User, words: list[Word], *, count: int | None = None, dictionary: Dictionary | None = None
+) -> list[Word]:
     """The order a random lesson draws from: words in the user's own topics
     first, then the rest; within each, the most important first; words of
     equal standing shuffled, so two lessons are never the same list."""
@@ -486,10 +488,30 @@ def prioritized_words(db: Session, user: User, words: list[Word]) -> list[Word]:
             .filter(WordTopic.word_id.in_([w.id for w in words]), WordTopic.topic.in_(topics))
             .all()
         }
-    return sorted(
+    ordered = sorted(
         words,
         key=lambda w: (w.id not in due, due.get(w.id, 1.0), w.id not in in_topic, -w.importance, random.random()),
     )
+    if not count or dictionary is None:
+        return ordered
+    # About a third of the slots after the words being forgotten go to the
+    # words that open the most phrases right away (app/priority/
+    # phrase_unlock.py) -- the learner starts talking sooner; the rest keep
+    # the goal/importance order above.
+    from app.priority.phrase_unlock import PHRASE_UNLOCK_SHARE, phrase_unlock_scores
+
+    forgotten = [w for w in ordered if w.id in due][:count]
+    free = count - len(forgotten)
+    unlock_slots = int(free * PHRASE_UNLOCK_SHARE + 0.5) if free > 0 else 0
+    if unlock_slots <= 0:
+        return ordered
+    scores = phrase_unlock_scores(db, user, dictionary)
+    openers = sorted(
+        (w for w in ordered if w.id not in due and scores.get(w.id, 0) > 0),
+        key=lambda w: (-scores[w.id], w.id not in in_topic, -w.importance),
+    )[:unlock_slots]
+    taken = {w.id for w in forgotten} | {w.id for w in openers}
+    return forgotten + openers + [w for w in ordered if w.id not in taken]
 
 
 def build_lesson(
