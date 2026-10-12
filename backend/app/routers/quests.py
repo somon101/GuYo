@@ -7,6 +7,7 @@ import math
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.rating.names import season_name
 from app.achievements.conditions import streak_days_count
 from app.exercises.verify import judge
 from app.analytics.history import log_event
@@ -66,7 +67,7 @@ def _season_out(season: Season) -> SeasonOut:
     by this screen."""
     return SeasonOut(
         id=season.id,
-        name=season.name,
+        name=season_name(season),
         starts_at=season.starts_at,
         ends_at=season.ends_at,
         ended_at=season.ended_at,

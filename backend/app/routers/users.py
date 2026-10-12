@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.rating.names import season_name
 from app.achievements.streak import active_today
 from app.core.content_language import reading_language
 from app.achievements.conditions import streak_with_freezes
@@ -446,7 +447,7 @@ def get_my_rating(db: Session = Depends(get_db), user: User = Depends(get_curren
     history = [
         SeasonHistoryOut(
             season_id=row.season_id,
-            season_name=row.season.name if row.season else "",
+            season_name=season_name(row.season) if row.season else "",
             points=row.points,
             rank=rank_public_out(row.rank) if row.rank_id else None,
             ended_at=row.ended_at,

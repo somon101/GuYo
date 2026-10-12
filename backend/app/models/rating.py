@@ -140,6 +140,10 @@ class Season(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    # The name in the app's Tajik and Uzbek interface (app/rating/names.py);
+    # empty means the Russian `name` is shown.
+    name_tg: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    name_uz: Mapped[str | None] = mapped_column(String(255), nullable=True)
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

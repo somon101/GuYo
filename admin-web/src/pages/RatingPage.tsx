@@ -784,6 +784,8 @@ function SeasonForm({
   onCancel: () => void;
 }) {
   const [name, setName] = useState(season?.name ?? "");
+  const [nameTg, setNameTg] = useState(season?.name_tg ?? "");
+  const [nameUz, setNameUz] = useState(season?.name_uz ?? "");
   const [startsAt, setStartsAt] = useState(toLocalInput(season?.starts_at ?? null));
   const [hasEnd, setHasEnd] = useState(season ? season.ends_at !== null : false);
   const [endsAt, setEndsAt] = useState(toLocalInput(season?.ends_at ?? null));
@@ -806,6 +808,8 @@ function SeasonForm({
       if (season) {
         await updateSeason(season.id, {
           name: name.trim(),
+          nameTg: nameTg.trim(),
+          nameUz: nameUz.trim(),
           startsAt: fromLocalInput(startsAt),
           endsAt: hasEnd ? fromLocalInput(endsAt) : undefined,
           clearEndsAt: !hasEnd,
@@ -813,6 +817,8 @@ function SeasonForm({
       } else {
         await createSeason({
           name: name.trim(),
+          nameTg: nameTg.trim() || undefined,
+          nameUz: nameUz.trim() || undefined,
           startsAt: fromLocalInput(startsAt),
           endsAt: hasEnd ? fromLocalInput(endsAt) : undefined,
         });
@@ -836,6 +842,24 @@ function SeasonForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Сезон 3"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Название (Тоҷикӣ)</label>
+          <input
+            className="w-56 field px-3 py-2 text-sm"
+            value={nameTg}
+            onChange={(e) => setNameTg(e.target.value)}
+            placeholder="Пусто — как по-русски"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Название (Oʻzbekcha)</label>
+          <input
+            className="w-56 field px-3 py-2 text-sm"
+            value={nameUz}
+            onChange={(e) => setNameUz(e.target.value)}
+            placeholder="Пусто — как по-русски"
           />
         </div>
         <div>

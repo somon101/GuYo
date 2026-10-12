@@ -98,6 +98,8 @@ class SeasonOut(BaseModel):
     ended_at: datetime | None
     status: str
     icon_url: str | None = None
+    name_tg: str | None = None
+    name_uz: str | None = None
 
 
 class SeasonCreateIn(BaseModel):
@@ -108,6 +110,8 @@ class SeasonCreateIn(BaseModel):
     as their periods don't collide."""
 
     name: str = Field(min_length=1, max_length=255)
+    name_tg: str | None = Field(default=None, max_length=255)
+    name_uz: str | None = Field(default=None, max_length=255)
     starts_at: datetime | None = None
     ends_at: datetime | None = None
 
@@ -119,6 +123,8 @@ class SeasonUpdateIn(BaseModel):
     "manual only", which is why it can't just be `ends_at: None`."""
 
     name: str | None = Field(default=None, min_length=1, max_length=255)
+    name_tg: str | None = Field(default=None, max_length=255)
+    name_uz: str | None = Field(default=None, max_length=255)
     starts_at: datetime | None = None
     ends_at: datetime | None = None
     clear_ends_at: bool = False
