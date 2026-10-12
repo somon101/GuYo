@@ -99,7 +99,10 @@ class _PracticeMatchingScreenState extends State<PracticeMatchingScreen> {
           child: MatchingBoard(
             key: ValueKey(_roundToken),
             words: words,
-            onComplete: () => setState(() => _isComplete = true),
+            onComplete: () {
+              setState(() => _isComplete = true);
+              ApiClient.instance.finishPractice(widget.dictionary.id);
+            },
           ),
         ),
         if (_isComplete) ...[

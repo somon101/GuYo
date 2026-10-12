@@ -47,6 +47,7 @@ from app.schemas.exercise import BuildWordRoundOut, ExerciseWordsOut, TrueOrFals
 from app.schemas.lesson import ListenWordRoundOut, SpeakingWordRoundOut
 from app.models.word_progress import WordProgress
 from app.word_attempts import record_word_attempt
+from app.achievements.streak import record_activity
 from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/dictionaries/{dictionary_id}/practice", tags=["practice"])
@@ -271,3 +272,16 @@ def get_review_due(dictionary_id: int, db: Session = Depends(get_db), user: User
             due.append((r, p.word_id))
     due.sort()
     return {"count": len(due), "word_ids": [word_id for _, word_id in due[:ROUND_SIZE]]}
+
+
+@router.post("/finish", status_code=status.HTTP_204_NO_CONTENT)
+def finish_practice_round(
+    dictionary_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """A Практика round played to the end (any exercise, mini-phrases and
+    «Повторить сегодня» included): lights today's streak day."""
+    _get_dictionary_or_404(db, dictionary_id)
+    record_activity(db, user)
+    db.commit()

@@ -180,8 +180,6 @@ def list_available_phrases(
 
     # Fires from both Practice and "Мои фразы" -- another natural,
     # already-existing activity signal for the streak. This is otherwise a
-    # read-only endpoint that never commits.
-    record_activity(db, user)
     db.commit()
 
     return [phrase_to_out(p) for p in available]
@@ -213,8 +211,6 @@ def open_phrase(
         db.flush()  # autoflush is off -- phrases_opened_count below must see this row
         check_and_grant_achievements(db, user, "phrases_opened")
 
-    # Opening a phrase is real activity, same as fetching the list.
-    record_activity(db, user)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

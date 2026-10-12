@@ -1,4 +1,4 @@
-"""Records that a user did SOMETHING in the app today -- the one source of
+"""Records that a user really studied today -- the one source of
 truth `streak_days` (see conditions.py's streak_days_count) is computed
 from. Called from a small set of already-existing endpoints that fire on
 real user activity (opening the dictionary list, answering a lesson
@@ -37,3 +37,13 @@ def record_activity(db: Session, user: User) -> None:
     from app.notifications.reminders import congratulate_streak  # app.notifications imports this package
 
     congratulate_streak(db, user)
+
+
+def active_today(db: Session, user: User) -> bool:
+    """Whether today's streak day is already lit (the 🔥 is bright)."""
+    return (
+        db.query(UserActivityDay.id)
+        .filter(UserActivityDay.user_id == user.id, UserActivityDay.activity_date == dushanbe_today())
+        .first()
+        is not None
+    )

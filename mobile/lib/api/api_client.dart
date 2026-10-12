@@ -287,6 +287,16 @@ class ApiClient {
     await _saveToken(data['access_token'] as String);
   }
 
+  /// A Практика round played to the end: lights today's streak day
+  /// (backend POST .../practice/finish). Fire-and-forget.
+  void finishPractice(int dictionaryId) {
+    () async {
+      try {
+        await http.post(_uri('/dictionaries/$dictionaryId/practice/finish'), headers: await _authHeaders());
+      } catch (_) {}
+    }();
+  }
+
   Future<void> logout() async {
     SessionCache.clear();
     await DiskCache.clear();

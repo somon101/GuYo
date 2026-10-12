@@ -373,7 +373,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                 icon: Icons.local_fire_department_rounded,
                 iconColor: const Color(0xFFFF7A29),
                 iconBackground: AppColors.tile(const Color(0xFFFFF0E6)),
-                leading: const AnimatedFire(size: 30),
+                leading: AnimatedFire(size: 30, lit: profile.streakActiveToday),
                 label: tr('Серия'),
                 value: '${profile.currentStreakDays} ${_dayWord(profile.currentStreakDays)}',
                 onTap: () => showStreakSheet(context, streakDays: profile.currentStreakDays),

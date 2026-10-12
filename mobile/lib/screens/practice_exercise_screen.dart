@@ -175,6 +175,7 @@ class _PracticeExerciseScreenState extends State<PracticeExerciseScreen> {
     }
     if (_index >= total) {
       return PracticeRoundComplete(
+        dictionaryId: widget.dictionary.id,
         correctCount: _correctCount,
         total: total,
         onPlayAgain: _load,

@@ -72,11 +72,11 @@ class _StreakSheetState extends State<_StreakSheet> {
     final activeToday = _today != null && _active.contains(_today);
     final String message;
     if (_streak == 0) {
-      message = tr('Начните серию сегодня — выучите хотя бы одно слово');
+      message = tr('Начните серию сегодня — пройдите урок, практику или квест');
     } else if (activeToday) {
       message = tr('Вы в ударе! Возвращайтесь завтра, чтобы огонь не погас');
     } else {
-      message = tr('Позанимайтесь сегодня, чтобы не потерять серию');
+      message = tr('Пройдите сегодня урок, практику или квест, чтобы огонь загорелся');
     }
 
     return SafeArea(
@@ -104,7 +104,7 @@ class _StreakSheetState extends State<_StreakSheet> {
                   icon: Icon(Icons.close_rounded, color: Colors.white.withValues(alpha: 0.6)),
                 ),
               ),
-              const AnimatedFire(size: 120),
+              AnimatedFire(size: 120, lit: activeToday),
               const SizedBox(height: 4),
               ShaderMask(
                 shaderCallback: (r) => const LinearGradient(

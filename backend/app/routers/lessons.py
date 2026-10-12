@@ -626,7 +626,6 @@ def _hold_answer_for_pass(db: Session, user: User, lesson: Lesson, exercise_key:
         timed_out=payload.timed_out,
         given_answer=payload.given_answer,
     )
-    record_activity(db, user)
     db.commit()
     return SubmitAnswerOut(
         word_id=payload.word_id,
@@ -651,6 +650,10 @@ def finish_lesson_pass(
     nothing the second time."""
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
     threshold = get_threshold(db)
+    # A lesson (or adaptive lesson, or a repeat) played to the end lights
+    # today's streak day.
+    record_activity(db, user)
+    db.commit()
     pending = lesson.pass_pending_scores or {}
     if pending:
         newly_learned = []
@@ -807,7 +810,6 @@ def submit_answer(
         check_and_grant_achievements(db, user, "words_learned")
         points_awarded = award_word_points_if_new(db, user, payload.word_id)
 
-    record_activity(db, user)
 
     db.commit()
     return SubmitAnswerOut(
