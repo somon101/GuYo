@@ -188,17 +188,9 @@ class SeasonIconPlate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppShapes.cardRadius),
-        boxShadow: [
-          BoxShadow(color: AppColors.primary.withValues(alpha: 0.08), blurRadius: 14, offset: const Offset(0, 4)),
-        ],
-      ),
-      child: SeasonIcon(iconUrl: iconUrl, size: iconSize),
-    );
+    // The season artwork is a finished badge (often round, with its own
+    // glow): shown as-is over the whole plate area, no white square behind.
+    return SeasonIcon(iconUrl: iconUrl, size: iconSize + padding.horizontal / 2 + padding.vertical / 2);
   }
 }
 

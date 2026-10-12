@@ -120,7 +120,7 @@ def clean_icon(data: bytes) -> bytes | None:
         img = Image.open(io.BytesIO(data))
         img.load()
         if _has_real_transparency(img):
-            rgba = img.convert("RGBA")
+            return None  # already a proper cut-out: keep exactly as the admin made it
         else:
             rgb = img.convert("RGB")
             if not _border_is_flat(rgb):
