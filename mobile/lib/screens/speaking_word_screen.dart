@@ -129,29 +129,72 @@ class _SpeakingWordScreenState extends State<SpeakingWordScreen> with LessonExer
                   ? const LessonExerciseHandoff()
                   : Center(
                       child: SingleChildScrollView(
-                        child: SpeakingWordExercise(
-                          key: ValueKey(round.items[_index].wordId),
-                          item: round.items[_index],
-                          matchThreshold: round.matchThreshold,
-                          onAnswer: _onAnswer,
-                          onUnavailable: () =>
-                              finishExercise(skippedBecause: tr('Произнеси слово пропущено: распознавание речи недоступно')),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SpeakingWordExercise(
+                              key: ValueKey(round.items[_index].wordId),
+                              item: round.items[_index],
+                              matchThreshold: round.matchThreshold,
+                              onAnswer: _onAnswer,
+                              onUnavailable: () => finishExercise(
+                                  skippedBecause: tr('Произнеси слово пропущено: распознавание речи недоступно'),
+                                  skippedIcon: Icons.mic_off_rounded),
+                            ),
+                            // Noisy place, no voice right now: skip "Произнеси
+                            // слово" for the rest of THIS lesson -- every
+                            // remaining word at once, no answer sent (no
+                            // penalty), no replacement exercise. Next lesson
+                            // has it again. The escape sits in the exercise's
+                            // own flow, right under the mic, instead of hugging
+                            // the system gesture bar.
+                            if (!isRoundComplete) ...[
+                              const SizedBox(height: 20),
+                              _CantSpeakChip(
+                                onTap: () => finishExercise(
+                                    skippedBecause: tr('«Произнеси слово» пропущено в этом уроке'),
+                                    skippedIcon: Icons.mic_off_rounded),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     ),
             ),
-            // Noisy place, no voice right now: skip "Произнеси слово" for the
-            // rest of THIS lesson -- every remaining word at once, no answer
-            // sent (no penalty), no replacement exercise. Next lesson has it again.
-            if (!isRoundComplete)
-              TextButton.icon(
-                key: const ValueKey('speaking-word-cant-speak'),
-                onPressed: () => finishExercise(skippedBecause: tr('«Произнеси слово» пропущено в этом уроке')),
-                icon: const Icon(Icons.mic_off_rounded, size: 18),
-                label: Text(tr('Не могу сейчас говорить')),
-                style: TextButton.styleFrom(foregroundColor: AppColors.secondaryText),
-              ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// «Не могу сейчас говорить» — the quiet escape for this exercise.
+/// A soft violet pill from the app's own palette (secondary, never a loud
+/// button), the same max width as the exercise's cards, and tall enough to
+/// press reliably. Lives in the exercise's flow so it never sits against
+/// the phone's gesture bar.
+class _CantSpeakChip extends StatelessWidget {
+  final VoidCallback onTap;
+  const _CantSpeakChip({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 340),
+      child: SizedBox(
+        width: double.infinity,
+        height: 48,
+        child: TextButton.icon(
+          key: const ValueKey('speaking-word-cant-speak'),
+          onPressed: onTap,
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.secondaryText,
+            backgroundColor: AppColors.violetSurface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppShapes.pillRadius)),
+          ),
+          icon: const Icon(Icons.mic_off_rounded, size: 18),
+          label: Text(tr('Не могу сейчас говорить')),
         ),
       ),
     );

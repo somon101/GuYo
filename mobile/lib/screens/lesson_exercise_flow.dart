@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/in_app_banner.dart';
 import '../widgets/skeleton.dart';
 
 /// What every exercise inside a lesson does when its round is over: hand
@@ -33,19 +34,28 @@ mixin LessonExerciseFlow<T extends StatefulWidget> on State<T> {
   /// as a route of its own) it pops, as before.
   ///
   /// [skippedBecause] is for an exercise that could not run at all (a
-  /// device with no speech recognition, say). The lesson still moves on --
-  /// a blocked exercise must never stall the run -- but the user is told
-  /// why in passing, rather than being left wondering why a step flashed
-  /// by. A message, never a screen or a button.
-  void finishExercise({String? skippedBecause}) {
+  /// device with no speech recognition, say) or that the user chose to skip
+  /// ("Не могу сейчас говорить"). The lesson still moves on -- a blocked
+  /// exercise must never stall the run -- but the user is told why in
+  /// passing, rather than being left wondering why a step flashed by.
+  ///
+  /// It arrives as the app's own animated notice ([InAppBanner]): a card
+  /// that springs down from the top with its own icon, says what happened in
+  /// plain words and leaves on its own. Never a screen, a dialog or a button
+  /// -- and never a bar at the very bottom, against the phone's gesture area.
+  ///
+  /// [skippedIcon] is the icon that notice shows; the skipped exercise's own
+  /// icon is the readable choice (a microphone for «Произнеси слово»).
+  void finishExercise({String? skippedBecause, IconData? skippedIcon}) {
     if (_finished || !mounted) return;
     _finished = true;
 
     if (skippedBecause != null) {
-      final messenger = ScaffoldMessenger.of(context);
-      messenger.hideCurrentSnackBar();
-      messenger.showSnackBar(
-        SnackBar(content: Text(skippedBecause), duration: const Duration(milliseconds: 2200)),
+      InAppBanner.show(
+        title: skippedBecause,
+        icon: skippedIcon ?? Icons.fast_forward_rounded,
+        visibleFor: InAppBanner.skipVisibleFor,
+        opensInbox: false,
       );
     }
 
