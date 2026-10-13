@@ -109,6 +109,11 @@ class AppColors {
   /// The Premium and promo banners' fill, fading into [gold].
   static const List<Color> premiumGradient = [Color(0xFFFFF59D), gold];
 
+  /// The brand's own indigo-to-violet: the "GuYo" wordmark, and the icon of
+  /// anything whose subject is the AI (see «Проверка текста») -- so "this is
+  /// the app's own AI" reads the same everywhere.
+  static const List<Color> brandGradient = [Color(0xFF5862DD), Color(0xFF8B5CF6)];
+
   /// The "квест дня" highlight -- the one warm accent in an otherwise cool
   /// palette, so the single featured quest stands out from the list below.
   static const List<Color> dailyQuestGradient = [Color(0xFFF74D8F), Color(0xFFB434C8)];

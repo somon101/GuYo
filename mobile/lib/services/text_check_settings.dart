@@ -81,7 +81,9 @@ class TextCheckSettings {
       final punctuation = json['check_punctuation'];
       return TextCheckSettings(
         userGender: gender == 'female' ? 'female' : 'male',
-        formality: (formality == 'formal' || formality == 'informal') ? formality as String : '',
+        // Only "formal" or off: 🎩 is a single switch now, so anything else
+        // that might have been stored (an older "informal", say) reads as off.
+        formality: formality == 'formal' ? 'formal' : '',
         explanationLanguage:
             textCheckLanguages.any((l) => l.code == language) ? language as String : fallback.explanationLanguage,
         checkPunctuation: punctuation is bool ? punctuation : true,

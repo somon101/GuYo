@@ -172,10 +172,18 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         const SizedBox(height: 14),
         // Words being forgotten right now; hides itself when none are.
         ReviewDueCard(key: _reviewKey, dictionary: widget.dictionary),
+        const SizedBox(height: 14),
+        // The AI text checker, deliberately ABOVE the season block: it is a
+        // tool the user opens on purpose, while the season block is something
+        // to read. It depends on none of the season's own data, so it sits
+        // outside the loading/error branches below -- and stays reachable even
+        // when that block failed to load.
+        const TextCheckCard(),
         if (_isLoading)
           const Skeleton(
             child: Column(
               children: [
+                SizedBox(height: 14),
                 SkeletonBox(height: 150, radius: AppShapes.cardRadius),
                 SizedBox(height: 14),
                 SkeletonBox(height: 110, radius: AppShapes.cardRadius),
@@ -201,13 +209,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             onOpenLessons: widget.onOpenLessons,
             onOpenRating: widget.onOpenRating,
           ),
-        // The AI text checker. A utility, deliberately at the end of the
-        // page and outside the loading/error branches: it is a writing aid,
-        // not part of the lesson flow, so it must never compete with the
-        // season block above -- and must stay reachable even when that
-        // block failed to load.
-        const SizedBox(height: 14),
-        const TextCheckCard(),
       ],
     );
   }
@@ -597,44 +598,116 @@ class DailyQuestCard extends StatelessWidget {
   }
 }
 
-/// The way into «Проверка текста» from Главная: the same card shape as the
-/// other rows here (icon chip, title, one calm line, chevron), so a new
-/// entry point needs no new design.
+/// The way into «Проверка текста» from Главная.
+///
+/// Deliberately louder than an ordinary row: a violet gradient card with the
+/// AI's own sparkle on the brand's gradient, an "AI" chip beside the title and
+/// a bigger icon -- so "the app has an AI that checks my Russian" is obvious
+/// at a glance rather than hidden among list rows.
 class TextCheckCard extends StatelessWidget {
   const TextCheckCard({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return GuyoCard(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const TextCheckScreen()),
-      ),
-      child: Row(
-        children: [
-          const RoundIconChip(icon: Icons.spellcheck_rounded, size: 44),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  tr('Проверка текста'),
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  tr('Проверьте грамматику и стиль сообщения'),
-                  style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(AppShapes.cardRadius),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppShapes.cardRadius),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const TextCheckScreen()),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppShapes.cardRadius),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppColors.violetSurface, AppColors.primary.withValues(alpha: 0.16)],
             ),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.18)),
+            boxShadow: AppShapes.cardShadow,
           ),
-          const SizedBox(width: 8),
-          Icon(Icons.chevron_right_rounded, color: AppColors.muted),
-        ],
+          child: Row(
+            children: [
+              // The one place in the app that uses the brand gradient for an
+              // icon: this is the AI feature, and it should read as GuYo's own.
+              Container(
+                width: 52,
+                height: 52,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: AppColors.brandGradient,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.auto_awesome_rounded, size: 26, color: Colors.white),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            tr('Проверка текста'),
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primaryDark,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(AppShapes.pillRadius),
+                          ),
+                          child: const Text(
+                            'AI',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.5,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      tr('Проверьте грамматику и стиль сообщения'),
+                      style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.chevron_right_rounded, color: AppColors.primary),
+            ],
+          ),
+        ),
       ),
     );
   }

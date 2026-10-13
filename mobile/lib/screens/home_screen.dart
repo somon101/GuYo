@@ -333,7 +333,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         titleSpacing: 16,
-        title: const _GuyoWordmark(),
+        title: const GuyoWordmark(),
         actions: [
           if (isProfileTab)
             IconButton(
@@ -497,36 +497,6 @@ class _NotificationsButtonState extends State<_NotificationsButton> with Widgets
     );
   }
 }
-
-/// The "GuYo" wordmark: the same text as before, just painted with the
-/// brand's own indigo-to-violet gradient instead of a flat color, so the
-/// app bar reads as a logo rather than a plain title. Shown on every tab.
-class _GuyoWordmark extends StatelessWidget {
-  const _GuyoWordmark();
-
-  @override
-  Widget build(BuildContext context) {
-    return ShaderMask(
-      shaderCallback: (bounds) => LinearGradient(
-        colors: [AppColors.primary, Color(0xFF8B5CF6)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ).createShader(bounds),
-      child: const Text(
-        'GuYo',
-        style: TextStyle(
-          fontSize: 26,
-          fontWeight: FontWeight.w900,
-          letterSpacing: -0.5,
-          // Painted over by the shader above -- must stay opaque white for
-          // the gradient to show through at full strength.
-          color: Colors.white,
-        ),
-      ),
-    );
-  }
-}
-
 
 /// The learning-language switcher in the app bar: a soft pill with the
 /// language's short code in a tinted badge, its name and a small chevron;

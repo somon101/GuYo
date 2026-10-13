@@ -1412,10 +1412,19 @@ class ApiClient {
   // returns the mistakes, the summary and the corrected text; nothing here is
   // stored, scored or remembered -- this is a writing aid, not an exercise.
 
+  /// GET /text-check/info: whether the checker is on, how long a message may
+  /// be, and how many checks are left today -- everything the screen needs
+  /// BEFORE the first message is typed.
+  Future<TextCheckInfo> fetchTextCheckInfo() async {
+    final res = await http.get(_uri('/text-check/info'), headers: await _authHeaders());
+    await _throwWithDetail(res);
+    return TextCheckInfo.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
   /// POST /text-check: checks one Russian message the user is about to send.
   ///
-  /// [formality] may be null ("not chosen"): the backend then only looks for
-  /// mixed register instead of checking ты/Вы against a choice.
+  /// [formality] is either "formal" or null: null means "do not check
+  /// formality at all", which is what the app's 🎩 switch off means.
   Future<TextCheckResult> checkText({
     required String text,
     required String userGender,

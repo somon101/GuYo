@@ -11,11 +11,26 @@ class TextCheckResult {
   /// explanation language was picked.
   final String correctedText;
 
+  /// True when the backend answered from its own cache instead of asking
+  /// DeepSeek again: nothing was spent, so the daily limit did NOT move -- and
+  /// the screen says so, because a counter that refuses to change otherwise
+  /// reads as a bug.
+  final bool cached;
+
+  /// Checks left today, or null when no limit applies.
+  final int? remaining;
+  final int? dailyLimit;
+  final bool unlimited;
+
   const TextCheckResult({
     required this.ok,
     required this.summary,
     required this.errors,
     required this.correctedText,
+    this.cached = false,
+    this.remaining,
+    this.dailyLimit,
+    this.unlimited = false,
   });
 
   /// The one thing the screen asks: are there mistakes to show? (`ok` alone
@@ -34,6 +49,55 @@ class TextCheckResult {
               .toList(growable: false)
           : const [],
       correctedText: json['corrected_text'] as String? ?? '',
+      cached: json['cached'] as bool? ?? false,
+      remaining: json['remaining'] as int?,
+      dailyLimit: json['daily_limit'] as int?,
+      unlimited: json['unlimited'] as bool? ?? false,
+    );
+  }
+}
+
+/// GET /text-check/info: what the screen needs before the first message is
+/// typed -- whether the checker is on, how long a message may be, and how many
+/// checks are left today.
+///
+/// A separate call on purpose: the field's own limit and the counter must be
+/// right BEFORE the user writes anything, and the admin can change both here
+/// without a new app build.
+class TextCheckInfo {
+  final bool enabled;
+  final int maxChars;
+  final int? remaining;
+  final int? dailyLimit;
+  final bool unlimited;
+
+  const TextCheckInfo({
+    required this.enabled,
+    required this.maxChars,
+    this.remaining,
+    this.dailyLimit,
+    this.unlimited = false,
+  });
+
+  factory TextCheckInfo.fromJson(Map<String, dynamic> json) {
+    return TextCheckInfo(
+      enabled: json['enabled'] as bool? ?? false,
+      maxChars: json['max_chars'] as int? ?? 500,
+      remaining: json['remaining'] as int?,
+      dailyLimit: json['daily_limit'] as int?,
+      unlimited: json['unlimited'] as bool? ?? false,
+    );
+  }
+
+  /// The counter as it stands after one check, taken from that check's own
+  /// answer -- so the screen never needs a second request to stay honest.
+  TextCheckInfo afterCheck(TextCheckResult result) {
+    return TextCheckInfo(
+      enabled: enabled,
+      maxChars: maxChars,
+      remaining: result.remaining,
+      dailyLimit: result.dailyLimit,
+      unlimited: result.unlimited,
     );
   }
 }

@@ -57,6 +57,43 @@ class GuyoCard extends StatelessWidget {
   }
 }
 
+/// The "GuYo" wordmark: the app's name painted with the brand's own
+/// indigo-to-violet gradient, so an app bar reads as a logo rather than a
+/// plain title.
+///
+/// Exists once here so Главная and «Проверка текста» show the exact same
+/// mark -- the second screen's own top bar is deliberately the same bar,
+/// minus the tabs.
+class GuyoWordmark extends StatelessWidget {
+  /// The mark's size; a screen that has less room in its bar can ask for a
+  /// smaller one (see [TextCheckScreen]'s own header).
+  final double fontSize;
+
+  const GuyoWordmark({super.key, this.fontSize = 26});
+
+  @override
+  Widget build(BuildContext context) {
+    return ShaderMask(
+      shaderCallback: (bounds) => LinearGradient(
+        colors: AppColors.brandGradient,
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ).createShader(bounds),
+      child: Text(
+        'GuYo',
+        style: TextStyle(
+          fontSize: fontSize,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -0.5,
+          // Painted over by the shader above -- must stay opaque white for
+          // the gradient to show through at full strength.
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+}
+
 /// A soft violet rounded square holding one icon -- the shape in front of
 /// every quest row and every stat in this section.
 class RoundIconChip extends StatelessWidget {
