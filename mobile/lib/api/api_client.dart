@@ -24,6 +24,7 @@ import '../models/mini_phrase.dart';
 import '../models/phrase.dart';
 import '../models/premium.dart';
 import '../models/quest.dart';
+import '../models/text_check.dart';
 import '../models/user_profile.dart';
 import '../models/user_rating.dart';
 import '../models/word.dart';
@@ -1404,5 +1405,38 @@ class ApiClient {
     final json = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
     reportStreakResult(json);
     return QuestAnswerResult.fromJson(json);
+  }
+
+  // --- Проверка текста -----------------------------------------------------
+  // One AI call per message. The backend does the whole check (DeepSeek) and
+  // returns the mistakes, the summary and the corrected text; nothing here is
+  // stored, scored or remembered -- this is a writing aid, not an exercise.
+
+  /// POST /text-check: checks one Russian message the user is about to send.
+  ///
+  /// [formality] may be null ("not chosen"): the backend then only looks for
+  /// mixed register instead of checking ты/Вы against a choice.
+  Future<TextCheckResult> checkText({
+    required String text,
+    required String userGender,
+    required String addresseeGender,
+    String? formality,
+    required bool checkPunctuation,
+    required String explanationLanguage,
+  }) async {
+    final res = await http.post(
+      _uri('/text-check'),
+      headers: await _authHeaders(),
+      body: jsonEncode({
+        'text': text,
+        'user_gender': userGender,
+        'addressee_gender': addresseeGender,
+        if (formality != null && formality.isNotEmpty) 'formality': formality,
+        'check_punctuation': checkPunctuation,
+        'explanation_language': explanationLanguage,
+      }),
+    );
+    await _throwWithDetail(res);
+    return TextCheckResult.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 }

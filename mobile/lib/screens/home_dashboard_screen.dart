@@ -20,6 +20,7 @@ import '../widgets/user_avatar.dart';
 import '../widgets/user_name.dart';
 import 'season_quests_screen.dart';
 import '../widgets/skeleton.dart';
+import 'text_check_screen.dart';
 
 /// The app's own slogan fetch, as a plain function so the default
 /// [BackendSloganSource] can be a const value.
@@ -200,6 +201,13 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             onOpenLessons: widget.onOpenLessons,
             onOpenRating: widget.onOpenRating,
           ),
+        // The AI text checker. A utility, deliberately at the end of the
+        // page and outside the loading/error branches: it is a writing aid,
+        // not part of the lesson flow, so it must never compete with the
+        // season block above -- and must stay reachable even when that
+        // block failed to load.
+        const SizedBox(height: 14),
+        const TextCheckCard(),
       ],
     );
   }
@@ -583,6 +591,49 @@ class DailyQuestCard extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           RewardBadge(points: pointsPerLearnedWord),
+        ],
+      ),
+    );
+  }
+}
+
+/// The way into «Проверка текста» from Главная: the same card shape as the
+/// other rows here (icon chip, title, one calm line, chevron), so a new
+/// entry point needs no new design.
+class TextCheckCard extends StatelessWidget {
+  const TextCheckCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return GuyoCard(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const TextCheckScreen()),
+      ),
+      child: Row(
+        children: [
+          const RoundIconChip(icon: Icons.spellcheck_rounded, size: 44),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  tr('Проверка текста'),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  tr('Проверьте грамматику и стиль сообщения'),
+                  style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(Icons.chevron_right_rounded, color: AppColors.muted),
         ],
       ),
     );

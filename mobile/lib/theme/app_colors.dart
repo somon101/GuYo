@@ -34,6 +34,12 @@ class AppColors {
   static Color get danger => dark ? const Color(0xFFFF6B70) : const Color(0xFFE0454B);
   static Color get dangerLight => dark ? const Color(0xFF3A1D22) : const Color(0xFFFCEAEA);
 
+  /// The warm "attention" pair -- advice rather than a mistake, and the one
+  /// place a register is called out instead of an error: «Стиль» in
+  /// «Проверка текста» and the informal choice in its own top bar.
+  static Color get warning => dark ? const Color(0xFFFFB74D) : const Color(0xFFF59E0B);
+  static Color get warningLight => dark ? const Color(0xFF3E2E14) : const Color(0xFFFFF4E0);
+
   // --- Surfaces -------------------------------------------------------------
 
   /// The app background behind every card: barely-there lavender, so white

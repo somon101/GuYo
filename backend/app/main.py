@@ -40,6 +40,7 @@ from app.routers import (
     quests,
     rating,
     slogans,
+    text_check,
     users,
     word_levels,
     words,
@@ -158,6 +159,7 @@ app.include_router(premium.admin_router)
 app.include_router(promo.router)
 app.include_router(promo.admin_router)
 app.include_router(client_errors.router)
+app.include_router(text_check.router)
 
 
 @app.get("/health")
