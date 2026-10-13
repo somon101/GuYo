@@ -31,6 +31,7 @@ from app.models.slogan import Slogan, UserDailySlogan
 from app.models.status import StatusEmoji, StatusPhrase
 from app.models.premium import PremiumGrant, PremiumSettings
 from app.models.promo import PromoActivation, PromoCode, PromoLink
+from app.models.text_check import TextCheckCache, TextCheckRun, TextCheckSettings
 
 __all__ = [
     "StatusEmoji",
@@ -89,6 +90,9 @@ __all__ = [
     "PromoCode",
     "PromoLink",
     "UserQuestWordDay",
+    "TextCheckSettings",
+    "TextCheckRun",
+    "TextCheckCache",
 ]
 from app.models.user_event import UserEvent
 from app.models.client_error import ClientError

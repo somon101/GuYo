@@ -1,8 +1,7 @@
 import axios from "axios";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import {
   getTranslationState,
-  setTranslationKey,
   startTranslation,
   stopTranslation,
   type TranslationState,
@@ -32,7 +31,6 @@ function errorText(e: unknown): string {
  * once and stay editable on the word and phrase pages. */
 export function TranslationPage() {
   const [state, setState] = useState<TranslationState | null>(null);
-  const [key, setKey] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [language, setLanguage] = useState<TranslatorLanguage>("uz");
@@ -67,12 +65,6 @@ export function TranslationPage() {
     }
   }
 
-  function saveKey(e: FormEvent) {
-    e.preventDefault();
-    if (!key.trim()) return;
-    act(() => setTranslationKey(key)).then(() => setKey(""));
-  }
-
   if (!state) return <p className="text-sm text-slate-500">{error ?? "Загрузка…"}</p>;
 
   const percent = state.total ? Math.round((state.done / state.total) * 100) : 0;
@@ -95,25 +87,12 @@ export function TranslationPage() {
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <section className="card p-4 space-y-3">
-        <h2 className="font-medium">Ключ DeepSeek</h2>
-        <p className="text-sm">
-          {state.key_set ? <>Сохранён: <code>{state.key_masked}</code></> : "Ключ ещё не сохранён"}
+      {!state.key_set && (
+        <p className="text-sm text-amber-600">
+          Ключ DeepSeek не сохранён — перевести не получится. Он общий для всех ИИ-инструментов и сохраняется выше, на
+          вкладке «ИИ».
         </p>
-        <form onSubmit={saveKey} className="flex gap-2">
-          <input
-            type="password"
-            className="flex-1 field px-3 py-2 text-sm"
-            placeholder={state.key_set ? "Новый ключ, чтобы заменить" : "sk-…"}
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-            autoComplete="off"
-          />
-          <button type="submit" className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60" disabled={busy || !key.trim()}>
-            Сохранить
-          </button>
-        </form>
-      </section>
+      )}
 
       <section className="card p-4 space-y-3">
         <h2 className="font-medium">Перевод</h2>

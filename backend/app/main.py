@@ -12,6 +12,7 @@ from app.core.content_language import begin_request
 from app.rating.scheduler import run_season_scheduler
 from app.routers import (
     admin_achievements,
+    admin_ai,
     admin_mini_phrases,
     mini_phrases,
     admin_memory,
@@ -160,6 +161,7 @@ app.include_router(promo.router)
 app.include_router(promo.admin_router)
 app.include_router(client_errors.router)
 app.include_router(text_check.router)
+app.include_router(admin_ai.router)
 
 
 @app.get("/health")

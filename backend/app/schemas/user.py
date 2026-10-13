@@ -209,6 +209,10 @@ class UserOut(BaseModel):
     created_at: datetime
     # True for accounts created with "Войти через Google".
     google: bool = False
+    # «Проверка текста» without the daily limit, set person by person in Admin
+    # Web's «ИИ» section (see app/models/text_check.py). Independent of
+    # Premium on purpose: it exists for testers and the team.
+    text_check_unlimited: bool = False
 
 
 class UserProfileOut(BaseModel):

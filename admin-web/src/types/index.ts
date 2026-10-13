@@ -35,6 +35,8 @@ export interface AdminUser {
   last_name: string | null;
   email: string | null;
   created_at: string;
+  /** «Проверка текста» without the daily limit, set person by person. */
+  text_check_unlimited: boolean;
 }
 
 export interface Dictionary {

@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { isAxiosError } from "axios";
-import { createUser, deleteUser, listUsers } from "../api/endpoints";
+import { createUser, deleteUser, listUsers, setUserTextCheckUnlimited } from "../api/endpoints";
 import type { AdminUser } from "../types";
 
 function formatDate(iso: string): string {
@@ -33,6 +33,22 @@ export function UsersPage() {
   }, []);
 
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [togglingLimitId, setTogglingLimitId] = useState<number | null>(null);
+
+  /** «Проверка текста» without the daily limit for one person -- for a tester
+   * or a team member. Deliberately independent of Premium. */
+  async function handleUnlimitedToggle(user: AdminUser) {
+    const next = !user.text_check_unlimited;
+    setTogglingLimitId(user.id);
+    try {
+      await setUserTextCheckUnlimited(user.id, next);
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, text_check_unlimited: next } : u)));
+    } catch {
+      window.alert("Не удалось изменить лимит проверок текста");
+    } finally {
+      setTogglingLimitId(null);
+    }
+  }
 
   // Irreversible (progress, rating, purchases go with it), so the admin
   // types the login to confirm instead of clicking through a yes/no.
@@ -94,6 +110,9 @@ export function UsersPage() {
                 <th className="px-4 py-3 font-medium">Имя</th>
                 <th className="px-4 py-3 font-medium">Почта</th>
                 <th className="whitespace-nowrap px-4 py-3 font-medium">Дата создания</th>
+                <th className="whitespace-nowrap px-4 py-3 font-medium" title="Безлимит проверок текста">
+                  Проверка текста
+                </th>
                 <th className="px-4 py-3" aria-label="Действия" />
               </tr>
             </thead>
@@ -108,6 +127,21 @@ export function UsersPage() {
                   </td>
                   <td className="px-4 py-3 text-slate-500" translate="no">{u.email ?? "—"}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-slate-500">{formatDate(u.created_at)}</td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    <label
+                      className="flex cursor-pointer items-center gap-2 text-xs text-slate-500"
+                      title="Проверка текста без дневного лимита"
+                    >
+                      <input
+                        type="checkbox"
+                        className="switch"
+                        checked={u.text_check_unlimited}
+                        disabled={togglingLimitId === u.id}
+                        onChange={() => handleUnlimitedToggle(u)}
+                      />
+                      безлимит
+                    </label>
+                  </td>
                   <td className="px-4 py-3 text-right">
                     <button
                       type="button"

@@ -4,8 +4,13 @@ user is about to send, and returns the breakdown the app renders directly.
 Deliberately built exactly like the AI translator (app/translation/
 deepseek.py): same API, same model, same JSON-only answer. THE KEY IS NOT
 NEW AND NOT HARDCODED -- it is read from the one LearningSettings row that
-Admin Web's «ИИ-перевод» section already manages (see `api_key` below), so
-one key serves both features and the admin keeps ONE place to change it.
+Admin Web's «ИИ-перевод» section already manages (see
+app/text_check/service.py's `api_key`), so one key serves both features and
+the admin keeps ONE place to change it.
+
+Formality is a single on/off switch, not a three-way choice: the app sends
+"formal" or nothing at all, and "nothing" means "do not comment on ты/Вы in
+any way" -- not "guess the register".
 
 Language rule (the thing the original prototype did not spell out):
 - `summary` and every `explanation` are written in the EXPLANATION language
@@ -18,11 +23,11 @@ Language rule (the thing the original prototype did not spell out):
 answer that lists errors is never "all correct", whatever the model wrote.
 """
 
+import hashlib
 import json
 import logging
 
 import requests
-from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
 
@@ -46,7 +51,11 @@ EXPLANATION_LANGUAGES = {
 
 _GENDERS = {"male": "мужчина", "female": "женщина"}
 _ADDRESSEES = {**_GENDERS, "unknown": "не выбран (не знаю)"}
-_FORMALITY = {None: "не указана", "formal": "формально (Вы)", "informal": "неформально (ты)"}
+_FORMALITY = {
+    None: "НЕ ПРОВЕРЯЕТСЯ (замечаний про ты/Вы и регистр не делай вообще)",
+    "formal": "формально (Вы)",
+    "informal": "неформально (ты)",
+}
 
 SYSTEM_PROMPT = """Ты — строгий, но понятный преподаватель русского языка.
 Твоя задача — проверить текст пользователя и вернуть разбор в СТРОГОМ JSON-формате.
@@ -63,8 +72,12 @@ SYSTEM_PROMPT = """Ты — строгий, но понятный препода
 2. Род глаголов от первого лица должен соответствовать полу автора.
 3. Формы обращения должны соответствовать полу собеседника. Если пол собеседника не выбран,
    не считай ошибкой ни одну из форм, но отметь в объяснении, если выбор формы зависит от него.
-4. Если выбрана формальность — проверяй соответствие (ты/Вы, привет/здравствуйте, сорри/извините).
-   Если формальность не выбрана — проверяй только отсутствие смешения стилей.
+4. Формальность — это выключатель, а не выбор из двух:
+   - если формальность = формально (Вы): проверяй, что обращение выдержано формально
+     (Вы, здравствуйте, извините вместо привет, сорри), и показывай отступления группой "formality";
+   - если формальность = НЕ ПРОВЕРЯЕТСЯ: не делай НИ ОДНОГО замечания про ты/Вы и регистр —
+     ни группой "formality", ни группой "style". Даже если в одном сообщении смешаны
+     "ты" и "Вы", ошибкой это не считай.
 5. Пунктуацию проверяй ТОЛЬКО если проверять пунктуацию = true. Если знаков нет вообще — сообщи об этом.
 6. Регистр (большая/маленькая буква) НЕ проверяй.
 7. Орфографию и опечатки объединяй в одну группу "orthography".
@@ -107,6 +120,13 @@ SYSTEM_PROMPT = """Ты — строгий, но понятный препода
 """
 
 
+# The hash of the prompt above, and part of every cache fingerprint (see
+# app/text_check/service.py): editing the prompt, or changing the model,
+# retires every cached answer by itself -- an old verdict can never be served
+# under new rules, and nothing has to be remembered or cleaned by hand.
+PROMPT_VERSION = hashlib.sha256(SYSTEM_PROMPT.encode("utf-8")).hexdigest()[:12]
+
+
 class CheckUnavailable(RuntimeError):
     """DeepSeek could not answer at all -- a rejected key, no balance, a
     network failure, or an answer that isn't the JSON we asked for. The
@@ -129,7 +149,7 @@ def _prompt(
     context = SYSTEM_PROMPT.format(
         user_gender=_GENDERS.get(user_gender, user_gender),
         addressee_gender=_ADDRESSEES.get(addressee_gender, addressee_gender),
-        formality=_FORMALITY.get(formality, formality or "не указана"),
+        formality=_FORMALITY.get(formality, "НЕ ПРОВЕРЯЕТСЯ (замечаний про ты/Вы и регистр не делай вообще)"),
         check_punctuation="да" if check_punctuation else "нет",
         explanation_language=EXPLANATION_LANGUAGES.get(explanation_language, explanation_language),
     )
@@ -225,13 +245,3 @@ def check_text(
         len(raw.get("errors") or []),
     )
     return _normalize(raw, text)
-
-
-def api_key(db: Session) -> str:
-    """The DeepSeek key, from the SAME settings row Admin Web's «ИИ-перевод»
-    section writes (LearningSettings.deepseek_api_key) -- the one key this
-    project already uses for AI translation. Imported locally so this module
-    stays independent of the translator's own code."""
-    from app.translation.deepseek import settings_row
-
-    return (settings_row(db).deepseek_api_key or "").strip()

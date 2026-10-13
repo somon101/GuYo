@@ -1622,6 +1622,102 @@ export async function stopTranslation(): Promise<TranslationState> {
   return data;
 }
 
+// --- «ИИ»: one key for every AI feature, and the text checker's own row ---
+// The key below is the SAME field the translator writes (one DeepSeek
+// account, one place to change it); everything else is «Проверка текста»:
+// its switches, its numbers and its answer cache (backend
+// app/routers/admin_ai.py).
+
+export interface AiKeyState {
+  key_set: boolean;
+  key_masked: string | null;
+}
+
+export interface TextCheckSettings {
+  enabled: boolean;
+  max_chars: number;
+  /** null = без лимита; 0 = проверять нельзя никому. */
+  free_daily_limit: number | null;
+  premium_daily_limit: number | null;
+}
+
+export interface TextCheckStats {
+  /** Checks that really went to DeepSeek and were charged. */
+  today_checks: number;
+  total_checks: number;
+  /** Answered from the cache: instant and free. */
+  today_cached: number;
+  total_cached: number;
+  /** DeepSeek could not answer (never charged). */
+  today_failed: number;
+  cache_entries: number;
+  cache_hits: number;
+}
+
+export interface AiState {
+  key: AiKeyState;
+  text_check: TextCheckSettings;
+  stats: TextCheckStats;
+}
+
+export interface TextCheckCacheEntry {
+  id: number;
+  text: string;
+  hits: number;
+  created_at: string;
+  params: Record<string, string | boolean | null>;
+  errors: number;
+  ok: boolean;
+}
+
+export async function getAiState(): Promise<AiState> {
+  const { data } = await api.get("/admin/ai");
+  return data;
+}
+
+export async function setAiKey(apiKey: string): Promise<AiKeyState> {
+  const { data } = await api.put("/admin/ai/key", { api_key: apiKey });
+  return data;
+}
+
+export async function setTextCheckSettings(
+  input: TextCheckSettings,
+): Promise<{ text_check: TextCheckSettings; stats: TextCheckStats }> {
+  const { data } = await api.put("/admin/ai/text-check", input);
+  return data;
+}
+
+export async function listTextCheckCache(
+  limit = 50,
+  offset = 0,
+): Promise<{ total: number; entries: TextCheckCacheEntry[] }> {
+  const { data } = await api.get("/admin/ai/text-check/cache", {
+    params: { limit, offset },
+  });
+  return data;
+}
+
+/** Forgets ONE cached answer, so the next identical text is asked afresh. */
+export async function deleteTextCheckCacheEntry(id: number): Promise<void> {
+  await api.delete(`/admin/ai/text-check/cache/${id}`);
+}
+
+/** Empties the whole cache (worth doing after the prompt changes). */
+export async function clearTextCheckCache(): Promise<void> {
+  await api.delete("/admin/ai/text-check/cache");
+}
+
+/** «Проверка текста» without the daily limit for one person. */
+export async function setUserTextCheckUnlimited(
+  userId: number,
+  value: boolean,
+): Promise<{ id: number; text_check_unlimited: boolean }> {
+  const { data } = await api.put(`/users/${userId}/text-check-unlimited`, {
+    text_check_unlimited: value,
+  });
+  return data;
+}
+
 export interface UserHistoryItem {
   at: string;
   kind: string;

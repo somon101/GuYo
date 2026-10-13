@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -86,6 +86,13 @@ class User(Base):
     # Which translations a Russian-interface user reads ("tg", "uz" or "en"); a
     # Tajik or Uzbek interface always reads its own language.
     translation_language: Mapped[str] = mapped_column(String(8), nullable=False, default="tg", server_default="tg")
+    # «Проверка текста» without the daily limit, set by the admin person by
+    # person (see app/models/text_check.py). Deliberately independent of
+    # Premium: it exists so a tester or a team member can use the checker
+    # freely, not as something a learner buys.
+    text_check_unlimited: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     # The leaderboard status the user picked (app/models/status.py); either
     # can be unset. Deleting an emoji or phrase just clears it here.
     status_emoji_id: Mapped[int | None] = mapped_column(

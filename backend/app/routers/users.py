@@ -162,6 +162,30 @@ def delete_user(user_id: int, db: Session = Depends(get_db), _admin: Admin = Dep
     delete_by_key(avatar_key)
 
 
+class TextCheckUnlimitedIn(BaseModel):
+    text_check_unlimited: bool
+
+
+@router.put("/{user_id}/text-check-unlimited")
+def set_text_check_unlimited(
+    user_id: int,
+    payload: TextCheckUnlimitedIn,
+    db: Session = Depends(get_db),
+    _admin: Admin = Depends(get_current_admin),
+):
+    """«Проверка текста» without the daily limit for ONE person (Admin Web's
+    «ИИ» -> «Проверка текста» -> пользователи, or the user's own card).
+
+    Deliberately not Premium: this is for a tester or a team member who must
+    be able to check texts freely, so it is granted by hand and never sold."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    user.text_check_unlimited = payload.text_check_unlimited
+    db.commit()
+    return {"id": user.id, "text_check_unlimited": user.text_check_unlimited}
+
+
 def _profile_out(db: Session, user: User) -> UserProfileOut:
     return UserProfileOut(
         id=user.id,
