@@ -668,6 +668,12 @@ export interface ReminderSettings {
   prep_delay_minutes: number;
   /** «Повтори слово» push once a day when at least this many words are due. */
   review_push_min_words: number;
+  /**
+   * «banner» — уведомление показывается плавающим экраном приложения (карточка
+   * сверху), «system» — обычным уведомлением телефона. Касается только случая,
+   * когда приложение открыто: свёрнутое/закрытое всегда рисует система.
+   */
+  foreground_style: "banner" | "system";
 }
 
 export interface Reminders {

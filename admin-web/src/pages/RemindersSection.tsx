@@ -130,6 +130,21 @@ export function RemindersSection() {
     }
   }
 
+  /** «Как показывать уведомление, когда приложение открыто» — свой обработчик,
+   * потому что changeHour принимает только числа и переключатели. */
+  async function changeStyle(style: ReminderSettings["foreground_style"]) {
+    if (!settings) return;
+    const next: ReminderSettings = { ...settings, foreground_style: style };
+    setSettings(next);
+    setSettingsStatus(null);
+    try {
+      await updateReminderSettings(next);
+      setSettingsStatus("Сохранено");
+    } catch (err) {
+      setSettingsStatus(errorText(err, "Не удалось сохранить"));
+    }
+  }
+
   if (loadError)
     return <p className="mt-8 text-sm text-red-600">{loadError}</p>;
   if (!settings)
@@ -148,6 +163,52 @@ export function RemindersSection() {
       {settingsStatus && (
         <p className="mb-3 text-sm text-slate-500">{settingsStatus}</p>
       )}
+
+      <div className="card mb-4 p-4">
+        <p className="font-medium text-slate-900">
+          Как показывать уведомление, когда приложение открыто
+        </p>
+        <p className="mt-1 max-w-2xl text-sm text-slate-500">
+          Когда приложение свёрнуто или закрыто, уведомление показывает сам
+          телефон — на это настройка не влияет. Выбор ниже — только для случая,
+          когда человек внутри приложения.
+        </p>
+        <div className="mt-3 flex flex-col gap-2">
+          <label className="flex items-start gap-2 text-sm text-slate-700">
+            <input
+              type="radio"
+              name="foreground-style"
+              className="mt-0.5"
+              checked={settings.foreground_style === "banner"}
+              onChange={() => changeStyle("banner")}
+            />
+            <span>
+              <b>Плавающий экран GuYo</b> — карточка выезжает сверху, как при
+              копировании текста: с логотипом, текстом и тапом в уведомления. В
+              шторке телефона не остаётся.
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm text-slate-700">
+            <input
+              type="radio"
+              name="foreground-style"
+              className="mt-0.5"
+              checked={settings.foreground_style === "system"}
+              onChange={() => changeStyle("system")}
+            />
+            <span>
+              <b>Системное уведомление</b> — обычное уведомление телефона: со
+              звуком, в шторке и с иконкой приложения — как будто приложение было
+              закрыто.
+            </span>
+          </label>
+        </div>
+        <p className="mt-3 text-xs text-slate-400">
+          Работает без обновления приложения: выбор передаётся вместе с
+          уведомлением. На сборках старше этой настройки второй способ будет
+          выглядеть как первый.
+        </p>
+      </div>
 
       <div className="card mb-4 flex flex-col gap-3 p-4">
         <div className="flex items-start justify-between gap-3">

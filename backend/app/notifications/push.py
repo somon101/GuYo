@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.core.dates import DUSHANBE_TZ, dushanbe_today
-from app.models.notification import Notification, PushToken
+from app.models.notification import Notification, PushToken, ReminderSettings
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +105,15 @@ def _deliver(pending: list[tuple[int, str | None, str, str]]) -> None:
 
     db = SessionLocal()
     try:
+        # How the app should announce a message while it is OPEN: the admin
+        # chooses "banner" (the app's own card from the top) or "system" (a
+        # real Android notification). Read once per batch and carried on every
+        # message, so switching it takes effect on the next push -- no new app
+        # build, no extra request from the app. Backgrounded/closed always goes
+        # through Android itself, which is why only this case is choosable.
+        settings_row = db.get(ReminderSettings, 1)
+        foreground_style = settings_row.foreground_style if settings_row else "banner"
+
         for user_id, title, body, source in pending:
             if source in DAILY_CAPPED_SOURCES and _already_pushed_today(db, user_id, source):
                 continue
@@ -112,7 +121,7 @@ def _deliver(pending: list[tuple[int, str | None, str, str]]) -> None:
                 message = {
                     "token": push_token.token,
                     "notification": {"title": title or "GuYo", "body": body},
-                    "data": {"source": source},
+                    "data": {"source": source, "style": foreground_style},
                     "android": {"priority": "high"},
                 }
                 try:

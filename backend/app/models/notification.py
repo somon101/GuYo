@@ -139,6 +139,19 @@ class ReminderSettings(Base):
     prep_delay_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=20, server_default="20")
     # «Повтори слово» push only when at least this many words are due.
     review_push_min_words: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
+    # How a notification is announced while the app is OPEN, chosen in Admin
+    # Web: "banner" (the app's own card sliding down from the top, the default)
+    # or "system" (a real Android notification, exactly as if the app were in
+    # the background). Only the foreground case is choosable: with the app
+    # closed or in the background Android draws the notification itself and
+    # nothing in the app can change that.
+    #
+    # The value travels to the app INSIDE each push (app/notifications/push.py),
+    # so switching it takes effect on the very next message with no new build
+    # and no extra request.
+    foreground_style: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="banner", server_default="banner"
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
