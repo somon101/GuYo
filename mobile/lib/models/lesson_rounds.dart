@@ -82,8 +82,14 @@ class LessonRounds {
   /// media they use. Call right after the pass is started (its word set is
   /// frozen for the whole pass, so rounds fetched now are the ones each
   /// exercise would have fetched itself).
-  static Future<LessonRounds> prepare(int lessonId, List<String> exerciseKeys) async {
+  /// [onRound] reports how many have landed, for the preparation screen.
+  static Future<LessonRounds> prepare(
+    int lessonId,
+    List<String> exerciseKeys, {
+    void Function(int done, int total)? onRound,
+  }) async {
     final api = ApiClient.instance;
+    var landed = 0;
     Future<Object?> fetch(String key) async {
       try {
         return switch (key) {
@@ -96,6 +102,9 @@ class LessonRounds {
         };
       } catch (_) {
         return null;
+      } finally {
+        landed++;
+        onRound?.call(landed, exerciseKeys.length);
       }
     }
 
@@ -103,8 +112,24 @@ class LessonRounds {
     final rounds = LessonRounds({for (var i = 0; i < exerciseKeys.length; i++) exerciseKeys[i]: results[i]});
     // Pictures and sounds keep downloading in the background; the lesson
     // doesn't wait for them (a picture still loading just appears a moment
-    // later).
+    // later). Lesson preparation waits for them itself -- see
+    // services/lesson_preparation.dart.
     unawaited(MediaCache.instance.prefetch(rounds.mediaUrls));
     return rounds;
+  }
+
+  /// The rounds this lesson already has on the DEVICE, or null when even one is
+  /// missing (a partial set would still show a skeleton for the rest).
+  ///
+  /// This is what makes a prepared lesson open instantly -- and what lets it be
+  /// played with no network at all.
+  static LessonRounds? fromCache(int lessonId, List<String> exerciseKeys) {
+    final rounds = <String, Object?>{};
+    for (final key in exerciseKeys) {
+      final round = ApiClient.instance.cachedLessonRound(lessonId, key);
+      if (round == null) return null;
+      rounds[key] = round;
+    }
+    return LessonRounds(rounds);
   }
 }

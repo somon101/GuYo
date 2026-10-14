@@ -44,6 +44,27 @@ class ExerciseSettingsIn(BaseModel):
     speech_match_threshold: int | None = Field(default=None, ge=0, le=100)
 
 
+class ExercisePointsOut(BaseModel):
+    """What one right or wrong answer does to a word's score in this exercise."""
+
+    correct: int
+    incorrect: int
+
+
+class ExerciseScoringOut(BaseModel):
+    """The scoring rules the phone mirrors to score a lesson by itself when
+    there is no network -- downloaded when the lesson is prepared.
+
+    These numbers only decide what the user SEES immediately. The server still
+    recomputes every score from the answers it is sent, and its result is the
+    one that counts (app/routers/lessons.py): a phone claiming more than it
+    answered changes nothing."""
+
+    points: dict[str, ExercisePointsOut]
+    # The score a word needs to count as learned (the top enabled level).
+    threshold: int
+
+
 class TrueOrFalseItemOut(BaseModel):
     word_id: int
     original: str

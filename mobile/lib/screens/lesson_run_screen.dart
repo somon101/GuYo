@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
+import '../services/lesson_preparation.dart';
 import '../services/session_cache.dart';
 import '../models/lesson.dart';
 import '../models/lesson_rounds.dart';
@@ -129,14 +130,19 @@ class ApiLessonRunDriver implements LessonRunDriver {
 /// Where rounds prepared ahead for a lesson wait for its first pass.
 String lessonRoundsCacheKey(int lessonId) => 'lesson-rounds-$lessonId';
 
-/// Prepares [lesson]'s rounds (and their pictures and sounds) in the
-/// background, so opening it starts instantly. Does nothing if they're
-/// already waiting.
+/// Prepares [lesson] in the background, so opening it starts instantly AND
+/// works with no network. Does nothing if it is already prepared.
+///
+/// "Prepared" means everything: the rounds of every exercise, the pictures and
+/// recordings they use, and the scoring rules -- not merely that the lesson
+/// opens quickly (see services/lesson_preparation.dart).
 Future<void> prepareLessonAhead(Lesson lesson) async {
+  if (LessonPreparation.isReady(lesson.id, lesson.exerciseKeys)) return;
   final key = lessonRoundsCacheKey(lesson.id);
-  if (SessionCache.get<LessonRounds>(key) != null) return;
   try {
-    SessionCache.put(key, await LessonRounds.prepare(lesson.id, lesson.exerciseKeys));
+    final rounds = SessionCache.get<LessonRounds>(key) ?? await LessonRounds.prepare(lesson.id, lesson.exerciseKeys);
+    SessionCache.put(key, rounds);
+    await LessonPreparation.finish(rounds);
   } catch (_) {
     // Best effort -- the lesson simply prepares itself when opened.
   }
@@ -187,6 +193,14 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
   LessonRounds _rounds = const LessonRounds({});
   bool _reachedResults = false;
 
+  /// Lesson preparation (see services/lesson_preparation.dart): shown while a
+  /// lesson that has never been prepared on this device is made ready -- its
+  /// exercises, pictures, recordings and scoring rules -- so that it then runs
+  /// with no network at all. A lesson prepared earlier never sees this.
+  bool _preparing = false;
+  PrepStep _prepStep = const PrepStep(PrepStage.rounds, 0);
+  String? _prepError;
+
   @override
   void initState() {
     super.initState();
@@ -215,6 +229,7 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
       _index = 0;
       _showingExercise = false;
       _failed = false;
+      _prepError = null;
     });
     // Rounds prepared ahead of time (the Уроки list prepares the next
     // lesson in the background) start the first pass with no wait at all;
@@ -235,16 +250,51 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
     }
 
     LessonRounds rounds;
-    if (ahead != null) {
-      rounds = ahead;
-    } else {
+    // A repeat pass re-tests only the words still short of their level, so its
+    // word set is a NEW one -- fetched fresh, exactly as before. Its pictures,
+    // recordings and rules are already on the device from the first pass.
+    final ready = _pass == 1 ? (ahead ?? LessonRounds.fromCache(widget.lessonId, widget.exerciseKeys)) : null;
+    if (_pass > 1) {
       try {
         rounds = await driver.prepareRounds(widget.lessonId, widget.exerciseKeys);
       } catch (_) {
-        // Preparing failed as a whole (a network blip) -- that shouldn't drop
-        // real rounds: every exercise runs and loads its own, as before.
         rounds = LessonRounds({for (final key in widget.exerciseKeys) key: null});
       }
+    } else if (ready != null) {
+      // Prepared on this device some time ago (or a moment ago in the Уроки
+      // list): the pass starts at once -- no preparation screen, no skeleton --
+      // and its recordings play from the downloaded files.
+      rounds = ready;
+      LessonPreparation.warmMedia(rounds);
+    } else {
+      // Never prepared here: fetch everything the lesson needs, behind a
+      // progress screen, so that from now on it runs offline.
+      if (mounted) setState(() => _preparing = true);
+      try {
+        if (mounted) setState(() => _prepStep = const PrepStep(PrepStage.rounds, 0.03));
+        rounds = await driver.prepareRounds(widget.lessonId, widget.exerciseKeys);
+        // Then the pictures, the recordings and the scoring rules -- the parts
+        // a pass would otherwise load lazily, which is exactly what must not
+        // happen once the lesson is meant to run offline.
+        await LessonPreparation.finish(
+          rounds,
+          onProgress: (step) {
+            if (mounted) setState(() => _prepStep = step);
+          },
+        );
+      } catch (_) {
+        // No network (a lesson is created online, so this is the "not
+        // prepared yet and can't be now" case): say so plainly and let the
+        // user retry rather than dropping into exercises that would each fail.
+        if (mounted) {
+          setState(() {
+            _preparing = false;
+            _prepError = tr('Не удалось подготовить урок. Проверьте интернет.');
+          });
+        }
+        return;
+      }
+      if (mounted) setState(() => _preparing = false);
     }
     _rounds = rounds;
 
@@ -337,13 +387,21 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
   Widget build(BuildContext context) {
     final keys = widget.exerciseKeys;
     final key = keys.isEmpty ? null : keys[_index];
-    final title = _showingMiniPhrases
-        ? tr('Мини-фразы')
-        : key == null
-            ? tr('Урок {0}', [widget.lessonNumber])
-            : (lessonExerciseLabels[key] ?? key);
-    final progress =
-        _showingMiniPhrases ? 1.0 : keys.isEmpty ? 0.0 : (_index + (_showingExercise ? 0 : 1)) / keys.length;
+    final preparing = _preparing || _prepError != null;
+    final title = preparing
+        ? tr('Подготавливаем урок')
+        : _showingMiniPhrases
+            ? tr('Мини-фразы')
+            : key == null
+                ? tr('Урок {0}', [widget.lessonNumber])
+                : (lessonExerciseLabels[key] ?? key);
+    final progress = preparing
+        ? _prepStep.progress
+        : _showingMiniPhrases
+            ? 1.0
+            : keys.isEmpty
+                ? 0.0
+                : (_index + (_showingExercise ? 0 : 1)) / keys.length;
 
     return PopScope(
       canPop: false,
@@ -357,7 +415,12 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(title),
-              if (_showingMiniPhrases)
+              if (preparing)
+                Text(
+                  tr('Готовим для работы без интернета'),
+                  style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
+                )
+              else if (_showingMiniPhrases)
                 Text(
                   tr('Урок {0} · закрепление', [widget.lessonNumber]),
                   style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
@@ -385,6 +448,8 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
   }
 
   Widget _buildBody(String? key) {
+    if (_prepError != null) return _preparationFailed();
+    if (_preparing) return _PreparationView(step: _prepStep);
     if (_failed) {
       return Center(
         child: Padding(
@@ -425,6 +490,125 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
       child: KeyedSubtree(
         key: ValueKey('$_pass-$_index'),
         child: widget.driver.buildExercise(widget.lessonId, widget.lessonNumber, key, _rounds),
+      ),
+    );
+  }
+
+  /// Preparation could not finish, which means there was no network: a lesson
+  /// is created and prepared online, and only then runs without it. Says so
+  /// plainly, with a way to try again -- rather than dropping into exercises
+  /// that would each fail on their own.
+  Widget _preparationFailed() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.wifi_off_rounded, size: 44, color: AppColors.muted),
+            const SizedBox(height: 16),
+            Text(
+              _prepError!,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              tr('Урок создаётся и подготавливается с интернетом, а потом проходится без него.'),
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13.5, height: 1.45, color: AppColors.secondaryText),
+            ),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: _run,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              ),
+              child: Text(tr('Повторить')),
+            ),
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(tr('Выйти'))),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// «Подготавливаем урок»: what the runner shows while a lesson that has never
+/// been prepared on this device is being made ready to run offline -- its
+/// exercises, pictures, recordings and scoring rules. A lesson prepared earlier
+/// never shows this: it opens straight into the first exercise.
+class _PreparationView extends StatelessWidget {
+  final PrepStep step;
+
+  const _PreparationView({required this.step});
+
+  String get _label => switch (step.stage) {
+        PrepStage.rounds => tr('Готовим упражнения'),
+        PrepStage.media => tr('Скачиваем озвучку и картинки'),
+        PrepStage.rules => tr('Правила начисления'),
+        PrepStage.done => tr('Урок готов'),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final value = step.progress.clamp(0.0, 1.0);
+    // The rounds step is five requests of unknown length, so it spins instead of
+    // pretending to know how far along it is; everything after it is counted.
+    final indeterminate = step.stage == PrepStage.rounds;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 124,
+              height: 124,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  SizedBox(
+                    width: 124,
+                    height: 124,
+                    child: CircularProgressIndicator(
+                      value: indeterminate ? null : value,
+                      strokeWidth: 7,
+                      strokeCap: StrokeCap.round,
+                      backgroundColor: AppColors.progressTrack,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  if (!indeterminate)
+                    Text(
+                      '${(value * 100).round()}%',
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.primaryDark),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 26),
+            Text(
+              tr('Готовим урок для офлайна'),
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _label,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primary),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              tr('После этого урок открывается мгновенно и работает без интернета.'),
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12.5, height: 1.45, color: AppColors.muted),
+            ),
+          ],
+        ),
       ),
     );
   }

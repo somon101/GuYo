@@ -22,6 +22,7 @@ from app.core.storage import url_for_key
 from app.database import get_db
 from app.exercises.build_word import build_item as _build_word_item
 from app.exercises.build_word import get_build_word_settings as _get_build_word_settings
+from app.exercises.common import get_points, get_threshold
 from app.models.dictionary import Dictionary
 from app.models.exercise import ExerciseSettings
 from app.models.learning import LearnedWord
@@ -30,6 +31,8 @@ from app.models.word import Word
 from app.routers.words import word_to_out
 from app.schemas.exercise import (
     BuildWordRoundOut,
+    ExercisePointsOut,
+    ExerciseScoringOut,
     ExerciseSettingsIn,
     ExerciseSettingsOut,
     ExerciseWordsOut,
@@ -43,6 +46,11 @@ TRUE_OR_FALSE_KEY = "true_or_false"
 MATCHING_KEY = "matching"
 BUILD_WORD_KEY = "build_word"
 DEFAULT_WORD_COUNT = 10
+
+# Every exercise key a lesson can walk, in the order the runner uses them.
+# The scoring endpoint below covers all of them, so the phone has rules for an
+# exercise even if no lesson has asked for it yet.
+LESSON_EXERCISE_KEYS = ("true_or_false", "matching", "build_word", "speaking_word", "listen_word")
 
 
 def _get_published_dictionary_or_404(db: Session, dictionary_id: int) -> Dictionary:
@@ -140,6 +148,27 @@ def set_exercise_settings(
         option_count=payload.option_count,
         speech_match_threshold=payload.speech_match_threshold,
     )
+
+
+@router.get("/exercises/scoring", response_model=ExerciseScoringOut)
+def get_exercise_scoring(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """The rules behind every score the app shows, for scoring a lesson on the
+    phone with no network: how much a right and a wrong answer move a word's
+    score in each exercise, and the score that counts as learned.
+
+    Downloaded when a lesson is prepared (so the rules are always the ones in
+    force then) and mirrored on-device. Nothing here is trusted: the server
+    recomputes every score from the answers it receives (see
+    submit_answer/finish_lesson_pass), so a tampered app can only lie to
+    itself."""
+    points: dict[str, ExercisePointsOut] = {}
+    for key in LESSON_EXERCISE_KEYS:
+        correct, incorrect = get_points(db, key)
+        points[key] = ExercisePointsOut(correct=correct, incorrect=incorrect)
+    return ExerciseScoringOut(points=points, threshold=get_threshold(db))
 
 
 @router.get("/dictionaries/{dictionary_id}/exercises/true-or-false", response_model=TrueOrFalseRoundOut)

@@ -17,6 +17,7 @@ import '../config.dart';
 import '../models/status.dart';
 import '../models/dictionary.dart';
 import '../models/exercise.dart';
+import '../models/exercise_scoring.dart';
 import '../models/learning.dart';
 import '../models/lesson.dart';
 import '../models/notification.dart';
@@ -374,6 +375,10 @@ class ApiClient {
 
   List<GuyoDictionary> _parseDictionaries(dynamic json) =>
       (json as List<dynamic>).map((e) => GuyoDictionary.fromJson(e as Map<String, dynamic>)).toList();
+
+  List<GuyoWord> _parseMatchingWords(dynamic json) => ((json as Map<String, dynamic>)['words'] as List<dynamic>)
+      .map((e) => GuyoWord.fromJson(e as Map<String, dynamic>))
+      .toList();
 
   // --- Last answers kept on the device (DiskCache) ---------------------
   // Each main screen opens on these and refreshes in the background.
@@ -828,7 +833,9 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return TrueOrFalseRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    // Kept on the device as well: a prepared lesson reopens instantly (and
+    // works with no network) instead of asking for the same round again.
+    return TrueOrFalseRound.fromJson(_remember('lesson-round-$lessonId-true_or_false', res) as Map<String, dynamic>);
   }
 
   /// Same generic shape as [fetchExerciseLearnedWords], sourced from this
@@ -839,9 +846,7 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
-    final list = body['words'] as List<dynamic>;
-    return list.map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
+    return _parseMatchingWords(_remember('lesson-round-$lessonId-matching', res));
   }
 
   Future<BuildWordRound> fetchLessonBuildWordRound(int lessonId) async {
@@ -850,7 +855,7 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return BuildWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return BuildWordRound.fromJson(_remember('lesson-round-$lessonId-build_word', res) as Map<String, dynamic>);
   }
 
   Future<SpeakingWordRound> fetchLessonSpeakingWordRound(int lessonId) async {
@@ -859,7 +864,7 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return SpeakingWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return SpeakingWordRound.fromJson(_remember('lesson-round-$lessonId-speaking_word', res) as Map<String, dynamic>);
   }
 
   Future<ListenWordRound> fetchLessonListenWordRound(int lessonId) async {
@@ -868,8 +873,39 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return ListenWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return ListenWordRound.fromJson(_remember('lesson-round-$lessonId-listen_word', res) as Map<String, dynamic>);
   }
+
+  // --- Подготовка урока (офлайн) -------------------------------------------
+  // What lesson preparation reads back off the device: the rounds of every
+  // exercise and the scoring rules. Everything here was stored by an earlier
+  // fetch, so it costs nothing and works with no network.
+
+  /// The device's copy of one exercise's prepared round, or null.
+  Object? cachedLessonRound(int lessonId, String exerciseKey) => switch (exerciseKey) {
+        'true_or_false' => _cached(
+            'lesson-round-$lessonId-true_or_false', (j) => TrueOrFalseRound.fromJson(j as Map<String, dynamic>)),
+        'matching' => _cached('lesson-round-$lessonId-matching', _parseMatchingWords),
+        'build_word' => _cached(
+            'lesson-round-$lessonId-build_word', (j) => BuildWordRound.fromJson(j as Map<String, dynamic>)),
+        'speaking_word' => _cached(
+            'lesson-round-$lessonId-speaking_word', (j) => SpeakingWordRound.fromJson(j as Map<String, dynamic>)),
+        'listen_word' => _cached(
+            'lesson-round-$lessonId-listen_word', (j) => ListenWordRound.fromJson(j as Map<String, dynamic>)),
+        _ => null,
+      };
+
+  /// Scoring rules for every exercise (GET /exercises/scoring) -- what the
+  /// phone mirrors to score a lesson with no network. Stored on the device
+  /// when a lesson is prepared; the server still recomputes everything.
+  Future<ExerciseScoring> fetchExerciseScoring() async {
+    final res = await http.get(_uri('/exercises/scoring'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    return ExerciseScoring.fromJson(_remember('exercise-scoring', res) as Map<String, dynamic>);
+  }
+
+  ExerciseScoring? cachedExerciseScoring() =>
+      _cached('exercise-scoring', (j) => ExerciseScoring.fromJson(j as Map<String, dynamic>));
 
   // --- Практика ------------------------------------------------------------
   // Self-directed rounds over "Мои изученные слова" for the same 5 exercise
