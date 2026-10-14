@@ -409,9 +409,9 @@ class ApiClient {
   UserRating? cachedMyRating() => _cached('rating', (j) => UserRating.fromJson(j as Map<String, dynamic>));
   List<LessonSummary>? cachedLessons(int dictionaryId) => _cached(
       'lessons-$dictionaryId',
-      (j) => ((j as Map<String, dynamic>)['lessons'] as List<dynamic>)
+      (j) => _withLocalProgress(((j as Map<String, dynamic>)['lessons'] as List<dynamic>)
           .map((e) => LessonSummary.fromJson(e as Map<String, dynamic>))
-          .toList());
+          .toList()));
   Leaderboard? cachedMyRankLeaderboard() =>
       _cached('leaderboard', (j) => Leaderboard.fromJson(j as Map<String, dynamic>));
   List<GuyoWord>? cachedLearnedWords(int dictionaryId, {bool includeInProgress = false}) =>
@@ -718,7 +718,40 @@ class ApiClient {
     await _throwIfUnauthorized(res);
     final body = _remember('lessons-$dictionaryId', res) as Map<String, dynamic>;
     final list = body['lessons'] as List<dynamic>;
-    return list.map((e) => LessonSummary.fromJson(e as Map<String, dynamic>)).toList();
+    return _withLocalProgress(list.map((e) => LessonSummary.fromJson(e as Map<String, dynamic>)).toList());
+  }
+
+  /// Lesson summaries with the passes this device played but the server has not
+  /// confirmed yet folded in.
+  ///
+  /// A lesson finished with no network must not look unfinished the moment the
+  /// user leaves it -- and its words must not look untouched -- just because the
+  /// server has not heard about the pass yet. The local scores are exactly what
+  /// the results screen showed, so the two agree; the server's own numbers
+  /// replace them after the pass goes over (ApiClient.flushPendingAnswers).
+  List<LessonSummary> _withLocalProgress(List<LessonSummary> lessons) {
+    if (lessons.isEmpty) return lessons;
+    final threshold = (cachedExerciseScoring() ?? ExerciseScoring.fallback).threshold;
+    final result = <LessonSummary>[];
+    for (final lesson in lessons) {
+      final scores = LessonScoreOverlay.scoresFor(lesson.id);
+      if (scores.isEmpty) {
+        result.add(lesson);
+        continue;
+      }
+      final total = lesson.wordCount == 0 ? scores.length : lesson.wordCount;
+      final learned = scores.values.where((score) => score >= threshold).length;
+      result.add(
+        LessonSummary(
+          id: lesson.id,
+          number: lesson.number,
+          isCompleted: lesson.isCompleted || (total > 0 && learned >= total),
+          wordCount: lesson.wordCount,
+          learnedCount: learned > total ? total : learned,
+        ),
+      );
+    }
+    return result;
   }
 
   Future<LessonCandidateWords> fetchLessonCandidateWords(int dictionaryId) async {
@@ -783,7 +816,10 @@ class ApiClient {
     final body = utf8.decode(res.bodyBytes);
     final lesson = Lesson.fromJson(jsonDecode(body) as Map<String, dynamic>);
     DiskCache.put('lesson-${lesson.id}', body);
-    return lesson;
+    // What the user is shown carries the passes this device already played
+    // offline; the raw body above is the server's own copy, kept clean for
+    // exactly that reason (see cachedLesson).
+    return LessonScoreOverlay.applied(lesson, cachedExerciseScoring() ?? ExerciseScoring.fallback);
   }
 
   /// The device's copy of this lesson, without a request. Null until it has
@@ -1142,6 +1178,22 @@ class ApiClient {
       }());
     }
   }
+
+  /// Retries the device's pending lesson work every so often while the app is
+  /// running.
+  ///
+  /// A pass played with no network has to reach the server as soon as there IS
+  /// one: without this, the work would sit on the phone until the app was
+  /// reopened, and the lesson would look unplayed (and its words untouched) in
+  /// the meantime.
+  void startPendingFlush({Duration every = const Duration(seconds: 30)}) {
+    if (_pendingFlushTimer != null) return;
+    _pendingFlushTimer = Timer.periodic(every, (_) async {
+      if (await PendingAnswers.hasWork()) await flushPendingAnswers();
+    });
+  }
+
+  Timer? _pendingFlushTimer;
 
   /// Waits for the answers that are on their way right now (they are sent in the
   /// background so an exercise never waits on the network). Called before a pass

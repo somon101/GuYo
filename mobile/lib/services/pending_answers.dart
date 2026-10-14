@@ -50,6 +50,13 @@ class PendingAnswers {
 
   static bool get isEmpty => _items.isEmpty;
 
+  /// Whether anything is still waiting, after making sure the device's list is
+  /// loaded -- what the background retry checks before spending a request.
+  static Future<bool> hasWork() async {
+    await load();
+    return _items.isNotEmpty;
+  }
+
   static Future<int> add(Map<String, dynamic> answer) async {
     await load();
     final id = _nextId++;

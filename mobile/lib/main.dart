@@ -28,6 +28,9 @@ Future<void> main() async {
   await loadAppLanguage();
   await loadAppTheme();
   await DiskCache.load();
+  // Work done offline (a whole lesson pass) reaches the server as soon as there
+  // is a connection again -- no reopening the app, no repeating the lesson.
+  ApiClient.instance.startPendingFlush();
   runApp(const GuyoApp());
 }
 

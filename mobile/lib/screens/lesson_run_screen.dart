@@ -427,6 +427,9 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
     // 2. The results. The server's copy of the lesson when it can be fetched;
     // otherwise scored on the phone by the same rules -- never an error screen
     // for a lesson that was actually played to the end.
+    // The server's own numbers are the ones that last from here: drop this
+    // device's local version FIRST, so what is fetched below is the server's.
+    if (synced) LessonScoreOverlay.forget(widget.lessonId);
     Lesson? fromServer;
     if (synced) {
       try {
@@ -440,8 +443,6 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
     LessonPassStats? stats;
     if (fromServer != null) {
       shown = fromServer;
-      // The server's copy is the truth now: nothing remains to be corrected.
-      LessonScoreOverlay.forget(widget.lessonId);
     } else {
       final scored = _scoreHere();
       if (scored == null) {
