@@ -152,6 +152,14 @@ class ReminderSettings(Base):
     foreground_style: Mapped[str] = mapped_column(
         String(16), nullable=False, default="banner", server_default="banner"
     )
+    # How the app's OWN confirmations are shown while it is open -- "text
+    # copied", "setting changed": "banner" (the floating card from the top, the
+    # default, visually the same as a notification) or "pill" (the quiet pill
+    # above the input bar, the way it was before). Read by the app from
+    # GET /text-check/info, since a tap on a setting pushes nothing.
+    confirmation_style: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="banner", server_default="banner"
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

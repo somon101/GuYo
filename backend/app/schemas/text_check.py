@@ -77,3 +77,9 @@ class CheckInfoOut(BaseModel):
     remaining: int | None
     daily_limit: int | None
     unlimited: bool
+    # How this screen's own confirmations are shown ("text copied", "a setting
+    # changed"). An admin choice that lives with the notification settings
+    # (Admin Web -> Уведомления) and rides along here so the app needs no extra
+    # request to know it: "banner" is the floating card from the top, "pill" is
+    # the quiet pill above the input bar.
+    confirmation_style: Literal["banner", "pill"] = "banner"

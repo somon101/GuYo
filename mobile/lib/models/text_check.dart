@@ -71,12 +71,20 @@ class TextCheckInfo {
   final int? dailyLimit;
   final bool unlimited;
 
+  /// How this screen's own confirmations are shown ("text copied", "a setting
+  /// changed"): `banner` is the floating card sliding down from the top,
+  /// `pill` is the quiet pill above the input bar. An admin choice made in
+  /// Admin Web -> Уведомления, delivered with these very settings so the app
+  /// needs no second request.
+  final String confirmationStyle;
+
   const TextCheckInfo({
     required this.enabled,
     required this.maxChars,
     this.remaining,
     this.dailyLimit,
     this.unlimited = false,
+    this.confirmationStyle = 'banner',
   });
 
   factory TextCheckInfo.fromJson(Map<String, dynamic> json) {
@@ -86,6 +94,7 @@ class TextCheckInfo {
       remaining: json['remaining'] as int?,
       dailyLimit: json['daily_limit'] as int?,
       unlimited: json['unlimited'] as bool? ?? false,
+      confirmationStyle: json['confirmation_style'] as String? ?? 'banner',
     );
   }
 
@@ -98,6 +107,9 @@ class TextCheckInfo {
       remaining: result.remaining,
       dailyLimit: result.dailyLimit,
       unlimited: result.unlimited,
+      // Not a per-check number: this one is the admin's choice and must survive
+      // the refresh that follows every check.
+      confirmationStyle: confirmationStyle,
     );
   }
 }

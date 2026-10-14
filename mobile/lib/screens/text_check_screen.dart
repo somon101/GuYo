@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -66,6 +68,11 @@ class _TextCheckScreenState extends State<TextCheckScreen> {
   String? _errorMessage;
   bool _explanationsOpen = false;
 
+  /// The quiet pill's text, when the admin chose that style (see [_confirm]).
+  /// Bumped per tap so a second tap restarts it instead of being swallowed.
+  String? _pill;
+  int _pillRevision = 0;
+
   @override
   void initState() {
     super.initState();
@@ -107,16 +114,28 @@ class _TextCheckScreenState extends State<TextCheckScreen> {
 
   /// Saves a setting and acknowledges the tap.
   ///
-  /// The acknowledgement is the app's own floating notice sliding down from the
-  /// TOP -- the very same one «Текст скопирован» uses, so every tap on this
-  /// screen is answered by the same thing in the same place.
+  /// Every tap on this screen -- a setting here, «Текст скопирован» below --
+  /// is acknowledged the same way, in the place the admin chose: the app's own
+  /// floating card sliding down from the top, or the quiet pill above the
+  /// input bar.
   void _updateSettings(TextCheckSettings next, String confirmation) {
     setState(() => _settings = next);
     next.save();
     _confirm(confirmation);
   }
 
+  /// How this screen acknowledges a tap. `pill` is the quiet one that sits
+  /// inside the layout, just above the input bar -- it reads as part of the
+  /// screen rather than as a notification; `banner` (the default) is the
+  /// floating card from the top, the same one push messages use.
   void _confirm(String message) {
+    if (_info?.confirmationStyle == 'pill') {
+      setState(() {
+        _pill = message;
+        _pillRevision++;
+      });
+      return;
+    }
     InAppBanner.show(
       body: message,
       visibleFor: InAppBanner.confirmationVisibleFor,
@@ -260,6 +279,7 @@ class _TextCheckScreenState extends State<TextCheckScreen> {
   @override
   Widget build(BuildContext context) {
     final formality = _settings.formality;
+    final hint = _hintPill();
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
@@ -300,6 +320,10 @@ class _TextCheckScreenState extends State<TextCheckScreen> {
         child: Column(
           children: [
             Expanded(child: _buildContent()),
+            // The quiet acknowledgement, inside the layout rather than on top
+            // of it -- right where the eye already is after tapping a setting.
+            // Only ever built when the admin picked the pill style.
+            ?hint,
             _remainingLine(),
             _inputBar(),
           ],
@@ -409,6 +433,27 @@ class _TextCheckScreenState extends State<TextCheckScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// The quiet acknowledgement pill, or null when there is nothing to say or
+  /// the admin chose the banner style instead.
+  ///
+  /// Keyed by the revision so a second tap restarts the animation and its
+  /// timer, rather than the old one being reused and finishing early -- the
+  /// pill must answer every tap, including two in a row.
+  Widget? _hintPill() {
+    final text = _pill;
+    if (text == null) return null;
+    final revision = _pillRevision;
+    return _HintPill(
+      key: ValueKey('text-check-hint-$revision'),
+      text: text,
+      onDone: () {
+        // A newer tap has taken over: that pill owns the message now.
+        if (!mounted || _pillRevision != revision) return;
+        setState(() => _pill = null);
+      },
     );
   }
 
@@ -1132,6 +1177,88 @@ class _TypingCardState extends State<_TypingCard> with SingleTickerProviderState
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// The quiet acknowledgement of a tap: a small violet pill that belongs to the
+/// screen's own layout (it sits between the content and the input bar) rather
+/// than floating over it. Deliberately not a card, not full width, no icon and
+/// no shadow -- it must not read as a notification.
+///
+/// Shown only when the admin picks this style (Admin Web -> Уведомления); the
+/// default is the floating card from the top.
+class _HintPill extends StatefulWidget {
+  final String text;
+  final VoidCallback onDone;
+
+  const _HintPill({super.key, required this.text, required this.onDone});
+
+  @override
+  State<_HintPill> createState() => _HintPillState();
+}
+
+class _HintPillState extends State<_HintPill> with SingleTickerProviderStateMixin {
+  static const Duration _visibleFor = Duration(milliseconds: 1900);
+
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 220),
+    reverseDuration: const Duration(milliseconds: 200),
+  );
+  late final Animation<double> _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+  late final Animation<Offset> _slide = Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero)
+      .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+  Timer? _timer;
+  bool _leaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.forward();
+    _timer = Timer(_visibleFor, _hide);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _hide() async {
+    if (_leaving || !mounted) return;
+    _leaving = true;
+    _timer?.cancel();
+    await _controller.reverse();
+    if (!mounted) return;
+    widget.onDone();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(
+        position: _slide,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.violetSurface,
+                borderRadius: BorderRadius.circular(AppShapes.pillRadius),
+              ),
+              child: Text(
+                widget.text,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -81,6 +81,13 @@ class ReminderSettingsIn(BaseModel):
     # banner from the top, or a real system notification. Chosen here, carried
     # by every push, so it needs no new app build to change.
     foreground_style: Literal["banner", "system"] = "banner"
+    # How the app's OWN confirmations are shown (text copied, a setting
+    # changed): "banner" is the floating card from the top -- visually the same
+    # as a notification -- and "pill" is the quiet pill at the bottom, the way
+    # it was before. Unlike foreground_style this one is read by the app from
+    # GET /text-check/info, because nothing is pushed when the user taps a
+    # setting.
+    confirmation_style: Literal["banner", "pill"] = "banner"
 
 
 class RemindersOut(BaseModel):

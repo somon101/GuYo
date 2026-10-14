@@ -35,14 +35,21 @@ router = APIRouter(prefix="/text-check", tags=["text-check"])
 
 
 def _info(db: Session, user: User) -> CheckInfoOut:
+    from app.models.notification import ReminderSettings
+
     settings = service.get_settings(db)
     quota = service.text_check_quota(db, user)
+    # How the screen's own confirmations are shown is an admin choice made in
+    # Admin Web -> Уведомления; it rides along with the checker's own settings
+    # so the app needs no second request to learn it.
+    reminders = db.query(ReminderSettings).first()
     return CheckInfoOut(
         enabled=settings.enabled,
         max_chars=settings.max_chars,
         remaining=quota.remaining,
         daily_limit=quota.daily_limit,
         unlimited=quota.unlimited,
+        confirmation_style=reminders.confirmation_style if reminders else "banner",
     )
 
 
