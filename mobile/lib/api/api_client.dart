@@ -711,6 +711,10 @@ class ApiClient {
   /// this never means "not found", an empty list is a normal response for
   /// a user with no lessons yet.
   Future<List<LessonSummary>> fetchLessons(int dictionaryId) async {
+    // Opening (or refreshing) the Уроки list is exactly when a pass played
+    // offline should be handed over: whatever is still on the device goes first,
+    // so the list that follows already reflects it on the server too.
+    if (await PendingAnswers.hasWork()) unawaited(flushPendingAnswers());
     final res = await http.get(
       _uri('/dictionaries/$dictionaryId/lessons'),
       headers: await _authHeaders(),
