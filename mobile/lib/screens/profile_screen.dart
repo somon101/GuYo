@@ -27,7 +27,6 @@ import 'all_ranks_screen.dart';
 import 'learned_words_screen.dart';
 import 'profile_qr_sheet.dart';
 import 'profile_settings_screen.dart';
-import '../widgets/achievement_celebration.dart';
 import 'streak_sheet.dart';
 import 'stats_screen.dart';
 import 'status_picker_sheet.dart';
@@ -146,14 +145,10 @@ class ProfileScreenState extends State<ProfileScreen> {
       });
       SessionCache.put(_cacheKey, (_profile!, _achievements, _rating!));
       unawaited(_loadMyStatus());
-      // Deliberately NOT awaited: this is called from RefreshIndicator's
-      // onRefresh, which only finishes spinning once this Future
-      // completes -- if the celebration dialog (which itself resolves
-      // only once the user dismisses it) were awaited here, the pull-to-
-      // refresh spinner would stay stuck "in progress" for as long as the
-      // dialog stayed open. The achievement list itself is already up to
-      // date by this point regardless.
-      unawaited(_celebrateNewlyEarned());
+      // Achievements are no longer celebrated from here (or from anywhere
+      // else but the end of a lesson, see LessonResultsScreen): showing them
+      // wherever the user happened to be is exactly what made the popup feel
+      // random.
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -162,10 +157,6 @@ class ProfileScreenState extends State<ProfileScreen> {
       });
     }
   }
-
-  /// Celebrates anything earned but not yet shown to this account -- the
-  /// server remembers what was shown, so each one appears exactly once.
-  Future<void> _celebrateNewlyEarned() => celebrateNewAchievements(context);
 
   Future<UserProfile?> _pickAndUploadAvatar() async {
     final picker = ImagePicker();

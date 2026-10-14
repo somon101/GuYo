@@ -14,7 +14,6 @@ import 'rating_screen.dart';
 import '../services/push_service.dart';
 import 'topics_screen.dart';
 import '../widgets/skeleton.dart';
-import '../widgets/achievement_celebration.dart';
 
 /// The app's main hub, reached right after login.
 ///
@@ -75,10 +74,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // lands here, so this is the one place the phone is registered.
     PushService.instance.registerCurrentUser();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Achievements are deliberately NOT celebrated here any more: the
+      // celebration belongs to the end of a lesson, right after its results
+      // (see LessonResultsScreen). Popping up on the home screen is what made
+      // it appear "everywhere", out of context.
       await _askTopicsOnce();
-      // Anything earned but not yet celebrated -- including achievements
-      // already due on this login -- is shown once, right away.
-      if (mounted) await celebrateNewAchievements(context);
     });
   }
 

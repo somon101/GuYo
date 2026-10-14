@@ -1,13 +1,15 @@
 import '../l10n/l10n.dart';
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/lesson.dart';
+import '../models/user_profile.dart';
 import '../models/word.dart';
 import '../theme/app_colors.dart';
 import '../widgets/word_card.dart';
 import 'lesson_run_screen.dart' show lessonExerciseLabels;
-import '../widgets/achievement_celebration.dart';
+import 'achievement_celebration_screen.dart';
 
 /// Shown once a "Начать урок" run has walked every available exercise type
 /// (see LessonRunScreen) -- the ONE place a lesson's
@@ -36,16 +38,17 @@ class LessonResultsScreen extends StatefulWidget {
 class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTickerProviderStateMixin {
   late Future<List<WordLevelSummary>> _levelsFuture;
 
+  /// Achievements this lesson earned, fetched WHILE the results are on screen
+  /// so the celebration can be shown the instant the user leaves -- never as a
+  /// dialog on top of the results themselves.
+  Future<List<UserAchievement>>? _newAchievements;
+
   /// The opening sequence: the centre ring, then the rings around it one
   /// by one, then the cards below one by one, each bar filling as its card
-  /// appears.
+  /// appears. Kept short on purpose: the numbers are the point, and nobody
+  /// should sit through an animation to read them.
   late final AnimationController _intro =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 3000))
-        // Achievements this lesson earned are celebrated right here, once
-        // the results have played in.
-        ..forward().whenComplete(() {
-          if (mounted) celebrateNewAchievements(context);
-        });
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 1800))..forward();
 
   Animation<double> _at(double begin, double end) =>
       CurvedAnimation(parent: _intro, curve: Interval(begin, end.clamp(0.0, 1.0), curve: Curves.easeOutCubic));
@@ -63,6 +66,31 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTi
     // top of the always-shown score/progress bar, never required to
     // render the pass/fail outcome itself.
     _levelsFuture = ApiClient.instance.fetchWordLevels().catchError((_) => <WordLevelSummary>[]);
+    // Started here, awaited only when the user leaves: the celebration is the
+    // LAST thing this lesson shows, exactly as asked.
+    _newAchievements = takeNewAchievements();
+  }
+
+  /// Leaves the results: any achievement earned this lesson is celebrated
+  /// first, on a screen of its own, and only then does the lesson flow
+  /// continue (repeat, or back to the lesson list).
+  Future<void> _leave({required bool repeat}) async {
+    final pending = _newAchievements;
+    if (pending != null) {
+      // Already on its way; the timeout only stops a very slow network from
+      // making the button feel stuck.
+      final achievements = await pending.timeout(
+        const Duration(seconds: 2),
+        onTimeout: () => const <UserAchievement>[],
+      );
+      if (achievements.isNotEmpty && mounted) {
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => AchievementCelebrationScreen(achievements: achievements)),
+        );
+      }
+    }
+    if (!mounted) return;
+    Navigator.of(context).pop(repeat);
   }
 
   @override
@@ -75,30 +103,65 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTi
     final hasStats = stats != null && stats.totalAnswers > 0;
 
     return PopScope(
-      // Leaving via the system back gesture must mean the same thing as
-      // tapping the primary button below -- never strand the user with an
-      // ambiguous "which action did that count as" state.
+      // Leaving via the system back gesture must mean the same thing as the
+      // «Далее» action in the bar -- never strand the user with an ambiguous
+      // "which action did that count as" state.
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) Navigator.of(context).pop(false);
+        if (!didPop) unawaited(_leave(repeat: false));
       },
       child: Scaffold(
         backgroundColor: AppColors.canvas,
+        appBar: AppBar(
+          backgroundColor: AppColors.canvas,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          titleSpacing: 16,
+          title: Text(
+            tr('Урок {0}', [lesson.number]),
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+          ),
+          // Both actions live UP HERE, compact and within reach the moment the
+          // page opens: the results are long, and having to scroll to the very
+          // end just to leave (or to repeat) was the complaint.
+          actions: [
+            if (!allLearned)
+              TextButton(
+                key: const ValueKey('lesson-results-repeat'),
+                onPressed: () => _leave(repeat: true),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  minimumSize: const Size(0, 36),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(tr('Повторить'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+              ),
+            Padding(
+              padding: const EdgeInsets.only(left: 2, right: 14),
+              child: FilledButton(
+                key: const ValueKey('lesson-results-next'),
+                onPressed: () => _leave(repeat: false),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  minimumSize: const Size(0, 36),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+                child: Text(tr('Далее'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ],
+        ),
         body: SafeArea(
           child: FutureBuilder<List<WordLevelSummary>>(
             future: _levelsFuture,
             builder: (context, snapshot) {
               final levels = snapshot.data ?? const [];
               return ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                 children: [
-                  Center(
-                    child: Text(
-                      tr('Урок {0}', [lesson.number]),
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
                   _ScoreOrbit(
                     intro: _intro,
                     value: hasStats ? stats.accuracy : (total == 0 ? 0 : (learnedCount * 100 / total).round()),
@@ -182,28 +245,7 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTi
                       animation: _at(0.85, 1.0),
                       child: _WordProgressRow(word: word, levels: levels, gained: stats?.forWord(word.wordId)?.gained),
                     ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: FilledButton.icon(
-                      onPressed: () => Navigator.of(context).pop(!allLearned),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                      ),
-                      icon: Icon(allLearned ? Icons.check_rounded : Icons.refresh_rounded),
-                      label: Text(
-                        allLearned ? tr('Готово') : tr('Повторить урок'),
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-                  if (!allLearned)
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: Text(tr('Закончить'), style: TextStyle(color: AppColors.secondaryText)),
-                    ),
+                  const SizedBox(height: 8),
                 ],
               );
             },
