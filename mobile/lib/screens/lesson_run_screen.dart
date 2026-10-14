@@ -159,6 +159,14 @@ class LessonRunScreen extends StatefulWidget {
   final int lessonNumber;
   final List<String> exerciseKeys;
 
+  /// The lesson as its caller has it, when it has one.
+  ///
+  /// Used as the fallback "before" for scoring a pass offline: the device's own
+  /// copy is the first choice (it carries anything this phone already scored),
+  /// but a lesson opened straight from a card must be scorable even if that copy
+  /// is missing.
+  final Lesson? lesson;
+
   /// Explained and assembled after the word exercises, before the results,
   /// on every pass (chosen by the backend when the lesson was created).
   final List<MiniPhrase> miniPhrases;
@@ -169,6 +177,7 @@ class LessonRunScreen extends StatefulWidget {
     required this.lessonId,
     required this.lessonNumber,
     required this.exerciseKeys,
+    this.lesson,
     this.miniPhrases = const [],
     this.driver = const ApiLessonRunDriver(),
   });
@@ -179,6 +188,7 @@ class LessonRunScreen extends StatefulWidget {
           lessonId: lesson.id,
           lessonNumber: lesson.number,
           exerciseKeys: lesson.exerciseKeys,
+          lesson: lesson,
           miniPhrases: lesson.miniPhrases,
           driver: driver,
         );
@@ -256,14 +266,13 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
     _passStartedAt = DateTime.now();
     // The lesson as it stands right now -- with anything this device already
     // scored but the server has not confirmed yet (LessonScoreOverlay) -- is
-    // what an offline pass is scored against.
-    final cachedLesson = ApiClient.instance.cachedLesson(widget.lessonId);
-    _before = cachedLesson == null
-        ? null
-        : LessonScoreOverlay.applied(
-            cachedLesson,
-            ApiClient.instance.cachedExerciseScoring() ?? ExerciseScoring.fallback,
-          );
+    // what an offline pass is scored against. The device's own copy first, then
+    // whatever the screen that opened this lesson was holding.
+    final cachedLesson = ApiClient.instance.cachedLesson(widget.lessonId) ?? widget.lesson;
+    final rules = ApiClient.instance.cachedExerciseScoring() ?? ExerciseScoring.fallback;
+    _before = cachedLesson == null ? null : LessonScoreOverlay.applied(cachedLesson, rules);
+    debugPrint('[guyo] pass ${widget.lessonId} starts: scoring rules ${rules.points.length}, '
+        'lesson copy ${cachedLesson == null ? 'MISSING' : 'ok'}');
 
     ApiClient.instance.deferredLessonId = null;
     try {
@@ -445,6 +454,9 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
     }
     _miniPhrases = shown.miniPhrases;
     if (!mounted) return;
+    debugPrint('[guyo] pass ${widget.lessonId}: ${synced ? 'counted by the server' : 'scored on the phone'}'
+        '${stats == null ? '' : ', ${stats.totalAnswers} answers, ${stats.scoreGained} points, '
+            '${stats.newlyLearned} newly learned'}');
     final repeat = await widget.driver.showResults(context, shown, stats);
     if (!mounted) return;
     if (repeat == true) {
@@ -462,8 +474,11 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
   /// exactly the way the backend measures its own pass from the moment it
   /// started.
   ScoredPass? _scoreHere() {
-    final before = _before ?? ApiClient.instance.cachedLesson(widget.lessonId);
-    if (before == null) return null;
+    final before = _before ?? ApiClient.instance.cachedLesson(widget.lessonId) ?? widget.lesson;
+    if (before == null) {
+      debugPrint('[guyo] pass ${widget.lessonId}: NO lesson copy -- cannot score it on the phone');
+      return null;
+    }
     final startedAt = _passStartedAt;
     final mine = [
       for (final answer in PendingAnswers.answersFor(widget.lessonId))

@@ -764,16 +764,26 @@ class ApiClient {
     );
     if (res.statusCode == 404) return null;
     await _throwIfUnauthorized(res);
-    return Lesson.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return _rememberLesson(res);
   }
 
   Future<Lesson> fetchLesson(int lessonId) async {
     final res = await http.get(_uri('/lessons/$lessonId'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
-    // Remembered on the device: the lesson as it was BEFORE a pass is what the
-    // phone scores an offline pass against, and the last copy fetched when the
-    // lesson was prepared is exactly that.
-    return Lesson.fromJson(_remember('lesson-$lessonId', res) as Map<String, dynamic>);
+    return _rememberLesson(res);
+  }
+
+  /// Parses a lesson and keeps the raw body on the device under its id.
+  ///
+  /// EVERY path that returns a lesson goes through here, because the lesson as
+  /// it was BEFORE a pass is what the phone scores an offline pass against (see
+  /// ApiClient.cachedLesson and services/lesson_scoring.dart). A single path
+  /// that forgot to leave a copy was enough to break offline results entirely.
+  Lesson _rememberLesson(http.Response res) {
+    final body = utf8.decode(res.bodyBytes);
+    final lesson = Lesson.fromJson(jsonDecode(body) as Map<String, dynamic>);
+    DiskCache.put('lesson-${lesson.id}', body);
+    return lesson;
   }
 
   /// The device's copy of this lesson, without a request. Null until it has
@@ -812,7 +822,9 @@ class ApiClient {
   Future<Lesson> startLessonPass(int lessonId) async {
     final res = await http.post(_uri('/lessons/$lessonId/pass'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
-    return Lesson.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    // The pass's own starting point: exactly the "before" an offline pass is
+    // scored against.
+    return _rememberLesson(res);
   }
 
   /// Pass exactly one of [wordIds] (ручной выбор, max 15) or [randomCount]
@@ -832,7 +844,7 @@ class ApiClient {
     );
     await _throwWithDetail(res);
     lessonQuotaRevision.value++;
-    return Lesson.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return _rememberLesson(res);
   }
 
   Future<TrueOrFalseRound> fetchLessonTrueOrFalseRound(int lessonId) async {
