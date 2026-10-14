@@ -2,18 +2,20 @@ import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-/// Lesson answers the phone has already judged but the server has not accepted
-/// yet.
+/// Lesson work the phone has already done but the server has not accepted yet.
 ///
-/// Each one is written to the device BEFORE its request goes out, and removed
-/// only once the server has taken it. So a killed app, a dead network or a
-/// phone switched off mid-lesson can never lose a pass's progress: whatever is
-/// still here is resent -- see ApiClient.flushPendingAnswers, called after
-/// login and whenever the app comes back to the front.
+/// Three kinds of entry live here, in the order they happened: `start` (the
+/// server freezes the pass's words), `answer` (this word, right or wrong) and
+/// `finish` (the pass was played to the end, so its scores count). Each is
+/// written to the device BEFORE its request goes out and removed only once the
+/// server has taken it, so a killed app, a dead network or a phone switched off
+/// mid-lesson can never lose a pass's progress: whatever is still here is
+/// resent, in order -- see ApiClient.flushPendingAnswers.
 ///
-/// The pass itself lives on the server (`Lesson.pass_pending_scores`), so a
-/// late answer still lands in the same pass: it is counted exactly as if it had
-/// arrived on time.
+/// The order matters: an answer must never reach the server before the pass it
+/// belongs to was started, nor before the answer that came before it (the pass's
+/// own counters depend on that), which is why a failed entry stops the flush
+/// instead of being skipped.
 class PendingAnswers {
   PendingAnswers._();
 
@@ -51,10 +53,45 @@ class PendingAnswers {
   static Future<int> add(Map<String, dynamic> answer) async {
     await load();
     final id = _nextId++;
-    _items.add({'id': id, ...answer});
+    _items.add({'id': id, 'kind': 'answer', ...answer});
     await _save();
     return id;
   }
+
+  /// The pass itself has to be started on the server before its answers mean
+  /// anything; queued here when there was no network to start it with.
+  ///
+  /// At most one start per lesson: starting twice would make the server drop
+  /// what the first pass held, so a second offline pass reuses the queued start
+  /// that is already waiting.
+  static Future<int> addStart(int lessonId) async {
+    await load();
+    for (final entry in _items) {
+      if (entry['kind'] == 'start' && entry['lesson_id'] == lessonId && entry['id'] is int) {
+        return entry['id'] as int;
+      }
+    }
+    final id = _nextId++;
+    _items.add({'id': id, 'kind': 'start', 'lesson_id': lessonId});
+    await _save();
+    return id;
+  }
+
+  /// The pass was played to the end: this is what makes its scores count.
+  static Future<int> addFinish(int lessonId) async {
+    await load();
+    final id = _nextId++;
+    _items.add({'id': id, 'kind': 'finish', 'lesson_id': lessonId});
+    await _save();
+    return id;
+  }
+
+  /// The answers of [lessonId] still waiting here, oldest first -- what the
+  /// phone scores the pass with while the server has not seen them.
+  static List<Map<String, dynamic>> answersFor(int lessonId) => [
+        for (final entry in _items)
+          if ((entry['kind'] ?? 'answer') == 'answer' && entry['lesson_id'] == lessonId) entry,
+      ];
 
   static Future<void> remove(int id) async {
     await load();

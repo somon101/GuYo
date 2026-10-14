@@ -61,9 +61,12 @@ class LessonPreparation {
   /// never block a whole lesson.
   static Future<PreparedLesson> finish(
     LessonRounds rounds, {
+    Iterable<String> extraMedia = const [],
     void Function(PrepStep)? onProgress,
   }) async {
-    final urls = rounds.mediaUrls.toList();
+    // The mini-phrases played after the words are part of the lesson too, so
+    // their recordings are downloaded along with the exercises'.
+    final urls = [...rounds.mediaUrls, ...extraMedia].toList();
     onProgress?.call(const PrepStep(PrepStage.media, 0.5));
     final missing = await MediaCache.instance.downloadAll(
       urls,

@@ -5,7 +5,6 @@ import '../exercises/exercise_type.dart';
 import '../l10n/l10n.dart';
 import '../models/dictionary.dart';
 import '../screens/practice_exercise_screen.dart';
-import '../theme/app_colors.dart';
 
 /// "Повторить сегодня" on Главная: learned words the memory model says are
 /// being forgotten right now (GET .../practice/review-due). Tapping runs a

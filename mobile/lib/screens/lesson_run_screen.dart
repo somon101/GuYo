@@ -4,7 +4,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
+import '../models/exercise_scoring.dart';
 import '../services/lesson_preparation.dart';
+import '../services/lesson_scoring.dart';
+import '../services/pending_answers.dart';
 import '../services/session_cache.dart';
 import '../models/lesson.dart';
 import '../models/lesson_rounds.dart';
@@ -142,7 +145,10 @@ Future<void> prepareLessonAhead(Lesson lesson) async {
   try {
     final rounds = SessionCache.get<LessonRounds>(key) ?? await LessonRounds.prepare(lesson.id, lesson.exerciseKeys);
     SessionCache.put(key, rounds);
-    await LessonPreparation.finish(rounds);
+    await LessonPreparation.finish(
+      rounds,
+      extraMedia: [for (final phrase in lesson.miniPhrases) if (phrase.audioUrl != null) phrase.audioUrl!],
+    );
   } catch (_) {
     // Best effort -- the lesson simply prepares itself when opened.
   }
@@ -201,6 +207,11 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
   PrepStep _prepStep = const PrepStep(PrepStage.rounds, 0);
   String? _prepError;
 
+  /// The lesson as it was when this pass started, and when that was: what an
+  /// offline pass is scored against (see services/lesson_scoring.dart).
+  Lesson? _before;
+  DateTime? _passStartedAt;
+
   @override
   void initState() {
     super.initState();
@@ -239,15 +250,29 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
 
     // Answers only count once the pass is played to the end -- but only
     // when the server really started this pass (it also drops whatever an
-    // earlier unfinished pass held). If starting failed, answers count one
-    // by one as before rather than risk being lost.
+    // earlier unfinished pass held). If starting failed, the start is QUEUED
+    // instead: the pass then runs here and the server is told to open it the
+    // moment there is a connection, before any of its answers.
+    _passStartedAt = DateTime.now();
+    // The lesson as it stands right now -- with anything this device already
+    // scored but the server has not confirmed yet (LessonScoreOverlay) -- is
+    // what an offline pass is scored against.
+    final cachedLesson = ApiClient.instance.cachedLesson(widget.lessonId);
+    _before = cachedLesson == null
+        ? null
+        : LessonScoreOverlay.applied(
+            cachedLesson,
+            ApiClient.instance.cachedExerciseScoring() ?? ExerciseScoring.fallback,
+          );
+
     ApiClient.instance.deferredLessonId = null;
     try {
       await driver.startPass(widget.lessonId);
-      ApiClient.instance.deferredLessonId = widget.lessonId;
     } catch (_) {
-      // Runs anyway, on the live set -- see the class comment.
+      // No network: queued, in order, ahead of this pass's answers.
+      await PendingAnswers.addStart(widget.lessonId);
     }
+    ApiClient.instance.deferredLessonId = widget.lessonId;
 
     LessonRounds rounds;
     // A repeat pass re-tests only the words still short of their level, so its
@@ -258,7 +283,12 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
       try {
         rounds = await driver.prepareRounds(widget.lessonId, widget.exerciseKeys);
       } catch (_) {
-        rounds = LessonRounds({for (final key in widget.exerciseKeys) key: null});
+        // No network for a repeat: the rounds prepared for the first pass are
+        // still on the device, and re-testing the same words is exactly what a
+        // repeat is. The server still decides what its own pass covers when the
+        // answers reach it.
+        rounds = LessonRounds.fromCache(widget.lessonId, widget.exerciseKeys) ??
+            LessonRounds({for (final key in widget.exerciseKeys) key: null});
       }
     } else if (ready != null) {
       // Prepared on this device some time ago (or a moment ago in the Уроки
@@ -278,6 +308,7 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
         // happen once the lesson is meant to run offline.
         await LessonPreparation.finish(
           rounds,
+          extraMedia: [for (final phrase in _miniPhrases) if (phrase.audioUrl != null) phrase.audioUrl!],
           onProgress: (step) {
             if (mounted) setState(() => _prepStep = step);
           },
@@ -330,36 +361,87 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
 
   Future<void> _showResults() async {
     _reachedResults = true;
-    // Played to the end: the pass's answers count now -- before the
-    // results are read, so they show the real new scores.
+
+    // 1. The pass is handed over: its opening, its answers and its ending, in
+    // that order. Online the server counts it right here; offline all three stay
+    // queued on the device and go over the moment there is a connection again
+    // (ApiClient.flushPendingAnswers), after which the server's own numbers are
+    // the ones that last.
+    var synced = false;
     if (ApiClient.instance.deferredLessonId == widget.lessonId) {
       try {
         await widget.driver.finishPass(widget.lessonId);
-        ApiClient.instance.deferredLessonId = null;
+        synced = true;
       } catch (_) {
+        await PendingAnswers.addFinish(widget.lessonId);
+      }
+      ApiClient.instance.deferredLessonId = null;
+    } else {
+      synced = true;
+    }
+
+    // 2. The results. The server's copy of the lesson when it can be fetched;
+    // otherwise scored on the phone by the same rules -- never an error screen
+    // for a lesson that was actually played to the end.
+    Lesson? fromServer;
+    if (synced) {
+      try {
+        fromServer = await widget.driver.fetchLesson(widget.lessonId);
+      } catch (_) {
+        fromServer = null;
+      }
+    }
+
+    final Lesson shown;
+    LessonPassStats? stats;
+    if (fromServer != null) {
+      shown = fromServer;
+      // The server's copy is the truth now: nothing remains to be corrected.
+      LessonScoreOverlay.forget(widget.lessonId);
+    } else {
+      final scored = _scoreHere();
+      if (scored == null) {
         if (mounted) setState(() => _failed = true);
         return;
       }
+      shown = scored.lesson;
+      stats = scored.stats;
+      unawaited(_syncInBackground());
     }
-    // Only the fresh lesson is waited for here: the pass's own numbers are
-    // fetched by the results screen itself (see LessonResultsScreen._loadStats),
-    // so the results open a whole round trip earlier and their tiles fill in a
-    // beat later, in place.
-    final Lesson fresh;
-    try {
-      fresh = await widget.driver.fetchLesson(widget.lessonId);
-    } catch (_) {
-      if (mounted) setState(() => _failed = true);
-      return;
-    }
-    _miniPhrases = fresh.miniPhrases;
+    _miniPhrases = shown.miniPhrases;
     if (!mounted) return;
-    final repeat = await widget.driver.showResults(context, fresh, null);
+    final repeat = await widget.driver.showResults(context, shown, stats);
     if (!mounted) return;
     if (repeat == true) {
       unawaited(_run());
     } else {
       Navigator.of(context).pop();
+    }
+  }
+
+  /// The pass scored on the phone, or null when this lesson was never fetched
+  /// (so there is nothing to score against).
+  ScoredPass? _scoreHere() {
+    final before = _before ?? ApiClient.instance.cachedLesson(widget.lessonId);
+    if (before == null) return null;
+    return LessonScoring.score(
+      before: before,
+      answers: PendingAnswers.answersFor(widget.lessonId),
+      rules: ApiClient.instance.cachedExerciseScoring() ?? ExerciseScoring.fallback,
+      startedAt: _passStartedAt,
+    );
+  }
+
+  /// Hands an offline pass to the server as soon as it can go. Silent: the
+  /// screen the user is reading keeps the numbers it already showed, exactly as
+  /// if the pass had been sent on time -- the server's own numbers are simply
+  /// what the next screen reads (see ApiClient.flushPendingAnswers, which also
+  /// drops this device's version of the lesson and fetches the server's).
+  Future<void> _syncInBackground() async {
+    try {
+      await ApiClient.instance.flushPendingAnswers();
+    } catch (_) {
+      // Still offline: it stays queued for the next flush.
     }
   }
 
