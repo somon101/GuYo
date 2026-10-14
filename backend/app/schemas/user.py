@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 # client's own concern (see mobile/lib/screens/register_screen.dart).
 AgeGroup = Literal["12-17", "18-24", "25+"]
 LearningGoal = Literal["study", "work", "communication", "travel", "relocation", "personal", "other"]
-UiLanguage = Literal["ru", "tg", "uz"]
+UiLanguage = Literal["ru", "tg", "uz", "en"]
 TranslationLanguage = Literal["tg", "uz", "en"]
 ReferralSource = Literal["social", "youtube", "telegram", "search", "friends", "ads", "other"]
 

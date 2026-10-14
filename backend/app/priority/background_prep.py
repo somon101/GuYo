@@ -32,22 +32,25 @@ _TEXTS = {
         "ru": ("Урок для закрепления готов", "Мы подготовили урок на {words} слов, которые стоит закрепить."),
         "tg": ("Дарси мустаҳкамкунӣ омода аст", "Мо барои {words} калимае, ки бояд мустаҳкам шаванд, дарс омода кардем."),
         "uz": ("Mustahkamlash darsi tayyor", "Mustahkamlash kerak boʻlgan {words} ta soʻz uchun dars tayyorladik."),
+        "en": ("Your review lesson is ready", "We have put together a lesson with the {words} words worth reinforcing."),
     },
     "quest": {
         "ru": ("Новый квест готов", "Мы подготовили для тебя персональный квест."),
         "tg": ("Квести нав омода аст", "Мо барои ту квести шахсӣ омода кардем."),
         "uz": ("Yangi kvest tayyor", "Siz uchun shaxsiy kvest tayyorladik."),
+        "en": ("A new quest is ready", "We have prepared a personal quest for you."),
     },
     "review": {
         "ru": ("Пора повторить слова", "{words} слов начинают забываться — повтори их за пару минут."),
         "tg": ("Вақти такрори калимаҳо", "{words} калима фаромӯш шуда истодаанд — онҳоро дар чанд дақиқа такрор кун."),
         "uz": ("Soʻzlarni takrorlash vaqti", "{words} ta soʻz unutilyapti — ularni bir necha daqiqada takrorlang."),
+        "en": ("Time to review your words", "{words} words are starting to fade — review them in a couple of minutes."),
     },
 }
 
 
 def _text(kind: str, user: User, words: int) -> tuple[str, str]:
-    lang = user.ui_language if user.ui_language in ("ru", "tg", "uz") else "ru"
+    lang = user.ui_language if user.ui_language in ("ru", "tg", "uz", "en") else "ru"
     title, body = _TEXTS[kind][lang]
     return title, body.replace("{words}", str(words))
 

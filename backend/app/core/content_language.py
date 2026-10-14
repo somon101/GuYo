@@ -15,7 +15,7 @@ never breaks mid-way.
 
 from contextvars import ContextVar
 
-UI_LANGUAGES = ("ru", "tg", "uz")
+UI_LANGUAGES = ("ru", "tg", "uz", "en")
 
 # A mutable holder, not the language itself: FastAPI runs sync dependencies
 # and endpoints in separate threads, each with its own copy of the context,

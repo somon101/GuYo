@@ -2,11 +2,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'strings.dart';
+import 'strings_en.dart';
 
-/// The interface language: "ru", "tg" or "uz". Every interface string is
+/// The interface language: "ru", "tg", "uz" or "en". Every interface string is
 /// written in Russian in the code and wrapped in [tr], which looks up its
-/// Tajik or Uzbek version in [uiStrings]. The app root rebuilds from
-/// scratch when this changes (see main.dart), so no screen keeps old text.
+/// Tajik or Uzbek version in [uiStrings], or its English one in [enStrings].
+/// The app root rebuilds from scratch when this changes (see main.dart), so no
+/// screen keeps old text.
 ///
 /// The server keeps the same choice on the user (`ui_language`); it decides
 /// which word translations the user is served.
@@ -16,6 +18,7 @@ const List<({String code, String label})> uiLanguages = [
   (code: 'ru', label: 'Русский'),
   (code: 'tg', label: 'Тоҷикӣ'),
   (code: 'uz', label: 'Oʻzbekcha'),
+  (code: 'en', label: 'English'),
 ];
 
 /// Whether this device has a language the user picked here; if not, the
@@ -49,9 +52,14 @@ Future<void> setAppLanguage(String code) async {
 String tr(String ru, [List<Object?> args = const []]) {
   var text = ru;
   final lang = appLanguage.value;
-  if (lang != 'ru') {
+  if (lang == 'tg' || lang == 'uz') {
     final row = uiStrings[ru];
     if (row != null) text = lang == 'tg' ? row.$1 : row.$2;
+  } else if (lang == 'en') {
+    // English has its own table, so the Tajik/Uzbek rows stay untouched; a
+    // string it does not have yet falls back to Russian, never to another
+    // language -- the interface stays in one language at a time.
+    text = enStrings[ru] ?? ru;
   }
   for (var i = 0; i < args.length; i++) {
     text = text.replaceAll('{$i}', '${args[i]}');

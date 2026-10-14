@@ -157,7 +157,10 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTi
                   minimumSize: const Size(0, 36),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: Text(tr('Повторить'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                // «Повторить урок», not «Повторить»: the shared key means
+                // "try again" everywhere else in the app (a failed load), and
+                // a lesson repeat is not that.
+                child: Text(tr('Повторить урок'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
               ),
             Padding(
               padding: const EdgeInsets.only(left: 2, right: 14),
