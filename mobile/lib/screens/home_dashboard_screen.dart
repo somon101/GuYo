@@ -600,10 +600,13 @@ class DailyQuestCard extends StatelessWidget {
 
 /// The way into «Проверка текста» from Главная.
 ///
-/// Deliberately louder than an ordinary row: a violet gradient card with the
-/// AI's own sparkle on the brand's gradient, an "AI" chip beside the title and
-/// a bigger icon -- so "the app has an AI that checks my Russian" is obvious
-/// at a glance rather than hidden among list rows.
+/// A FILLED card, deliberately unlike the season block below it: the season
+/// block is pale violet -- something to read -- while this one carries the
+/// brand's own saturated indigo-to-violet with white text, the way the Premium
+/// banner is filled. Two pale cards next to each other read as one block; a
+/// filled card next to a pale one reads as an action. That is the whole point:
+/// "the app has an AI that checks my Russian" must be obvious at a glance, and
+/// must not look like part of the season card.
 class TextCheckCard extends StatelessWidget {
   const TextCheckCard({super.key});
 
@@ -621,36 +624,31 @@ class TextCheckCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppShapes.cardRadius),
-            gradient: LinearGradient(
+            gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [AppColors.violetSurface, AppColors.primary.withValues(alpha: 0.16)],
+              colors: AppColors.brandGradient,
             ),
-            border: Border.all(color: AppColors.primary.withValues(alpha: 0.18)),
-            boxShadow: AppShapes.cardShadow,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.32),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: Row(
             children: [
-              // The one place in the app that uses the brand gradient for an
-              // icon: this is the AI feature, and it should read as GuYo's own.
+              // A frosted chip rather than a coloured one: on a filled card the
+              // icon needs to sit ON the gradient, not compete with it.
               Container(
                 width: 52,
                 height: 52,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: AppColors.brandGradient,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.3),
-                      blurRadius: 14,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
+                  color: Colors.white.withValues(alpha: 0.18),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
                 ),
                 child: const Icon(Icons.auto_awesome_rounded, size: 26, color: Colors.white),
               ),
@@ -665,10 +663,10 @@ class TextCheckCard extends StatelessWidget {
                         Flexible(
                           child: Text(
                             tr('Проверка текста'),
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.primaryDark,
+                              color: Colors.white,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -678,16 +676,16 @@ class TextCheckCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
-                            color: AppColors.primary,
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(AppShapes.pillRadius),
                           ),
-                          child: const Text(
+                          child: Text(
                             'AI',
                             style: TextStyle(
                               fontSize: 10.5,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 0.5,
-                              color: Colors.white,
+                              color: AppColors.primary,
                             ),
                           ),
                         ),
@@ -696,7 +694,7 @@ class TextCheckCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       tr('Проверьте грамматику и стиль сообщения'),
-                      style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                      style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.88)),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -704,7 +702,7 @@ class TextCheckCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Icon(Icons.chevron_right_rounded, color: AppColors.primary),
+              Icon(Icons.chevron_right_rounded, color: Colors.white.withValues(alpha: 0.9)),
             ],
           ),
         ),

@@ -386,32 +386,15 @@ class _TextCheckScreenState extends State<TextCheckScreen> {
             tr('Проверьте грамматику, стиль и ошибки в вашем сообщении.'),
             style: TextStyle(fontSize: 14, height: 1.45, color: AppColors.secondaryText),
           ),
-          const SizedBox(height: 48),
+          const SizedBox(height: 40),
           Center(
             child: Column(
               children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: AppColors.brandGradient,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.28),
-                        blurRadius: 22,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(Icons.auto_awesome_rounded, size: 38, color: Colors.white),
-                ),
-                const SizedBox(height: 16),
+                // The app's own mark, plainly -- no frame, no plate, no
+                // gradient behind it: this is GuYo's feature, not some
+                // third-party "AI" badge.
+                Image.asset('assets/icon/guyo_icon_foreground.png', width: 104, height: 104),
+                const SizedBox(height: 14),
                 Text(
                   tr('Напишите сообщение — я проверю его\nи объясню ошибки.'),
                   textAlign: TextAlign.center,
@@ -841,21 +824,33 @@ class _TextCheckScreenState extends State<TextCheckScreen> {
 
   Widget _addresseeChip(String value, String glyph, String label) {
     final active = _addressee == value;
+    // ON is a FILLED indigo pill with a check inside it, OFF is a quiet grey
+    // one: a pale tint was too easy to miss, and "did my tap register?" is
+    // exactly the question this row must answer at a glance.
     return Material(
-      color: active ? AppColors.violetSurface : AppColors.softFill,
+      color: active ? AppColors.primary : AppColors.softFill,
       borderRadius: BorderRadius.circular(AppShapes.pillRadius),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppShapes.pillRadius),
         onTap: () => _chooseAddressee(value),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          child: Text(
-            '$glyph $label',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: active ? AppColors.primary : AppColors.secondaryText,
-            ),
+          padding: const EdgeInsets.fromLTRB(10, 7, 12, 7),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (active) ...[
+                const Icon(Icons.check_rounded, size: 15, color: Colors.white),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                '$glyph $label',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: active ? Colors.white : AppColors.secondaryText,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -864,19 +859,28 @@ class _TextCheckScreenState extends State<TextCheckScreen> {
 
   Widget _genderToggle() {
     final female = _settings.userGender == 'female';
+    // A ring in the chosen gender's own colour: the circle is always "one of
+    // the two", so the ring is what makes the current choice read as chosen.
+    final accent = female ? const Color(0xFFE85A94) : AppColors.primary;
     return Tooltip(
       message: female ? tr('Я — женщина') : tr('Я — мужчина'),
-      child: Material(
-        color: female ? AppColors.tile(const Color(0xFFFFE4EE)) : AppColors.violetSurface,
-        shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: _toggleUserGender,
-          child: Container(
-            width: 32,
-            height: 32,
-            alignment: Alignment.center,
-            child: Text(female ? '👩' : '👨', style: const TextStyle(fontSize: 15)),
+      child: Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: accent, width: 2),
+        ),
+        child: Material(
+          color: female ? AppColors.tile(const Color(0xFFFFE4EE)) : AppColors.violetSurface,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: _toggleUserGender,
+            child: Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              child: Text(female ? '👩' : '👨', style: const TextStyle(fontSize: 15)),
+            ),
           ),
         ),
       ),
@@ -937,9 +941,13 @@ class _TopPill extends StatelessWidget {
         width: 36,
         height: 32,
         decoration: BoxDecoration(
-          color: active ? AppColors.violetSurface : AppColors.surface,
+          color: active ? AppColors.violetSurface : AppColors.softFill,
           borderRadius: BorderRadius.circular(AppShapes.pillRadius),
-          boxShadow: AppShapes.cardShadow,
+          // ON is a violet pill with a solid indigo rim, OFF is a dimmed grey
+          // one: "did my tap turn it on?" must never be a question the bar
+          // leaves open, and the emoji inside stays readable either way.
+          border: active ? Border.all(color: AppColors.primary, width: 1.5) : null,
+          boxShadow: active ? AppShapes.cardShadow : null,
         ),
         child: Material(
           color: Colors.transparent,
@@ -947,13 +955,16 @@ class _TopPill extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppShapes.pillRadius),
             onTap: onTap,
             child: Center(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.3,
-                  color: active ? AppColors.primary : AppColors.secondaryText,
+              child: Opacity(
+                opacity: active ? 1 : 0.45,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.3,
+                    color: active ? AppColors.primary : AppColors.secondaryText,
+                  ),
                 ),
               ),
             ),
