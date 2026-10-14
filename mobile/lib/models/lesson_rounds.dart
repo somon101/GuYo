@@ -30,6 +30,24 @@ class LessonRounds {
     return round is T ? round : null;
   }
 
+  /// Nothing at all came back for this lesson: every exercise's round is
+  /// missing, which in practice means "no network". A lesson in this state has
+  /// nothing to run -- the caller must say so rather than walk into exercises
+  /// that would each sit waiting for their own round.
+  bool get hasNothing => _rounds.values.every((round) => round == null);
+
+  /// At least one exercise's round is missing. A prepared lesson has to work
+  /// with no connection at all, so a missing round is worth one more try --
+  /// see [mergedWith].
+  bool get hasMissing => _rounds.values.any((round) => round == null);
+
+  /// The keys whose round is still missing.
+  List<String> get missingKeys => [for (final entry in _rounds.entries) if (entry.value == null) entry.key];
+
+  /// These rounds with [other]'s on top: how a missing round is fetched again
+  /// without asking for the ones that already came back.
+  LessonRounds mergedWith(LessonRounds other) => LessonRounds({..._rounds, ...other._rounds});
+
   /// Whether exercise [key] has anything to test in this pass. Сопоставление
   /// alone needs at least 2 words to form a board; every other type works
   /// with 1.

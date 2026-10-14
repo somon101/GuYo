@@ -303,6 +303,28 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
       try {
         if (mounted) setState(() => _prepStep = const PrepStep(PrepStage.rounds, 0.03));
         rounds = await driver.prepareRounds(widget.lessonId, widget.exerciseKeys);
+        // One more try for whatever did not come back. A lesson is prepared ONCE
+        // and then has to work with no connection, so a round missing now is a
+        // round that would hang on its own skeleton later -- offline, in the
+        // middle of the lesson, which is exactly what this must prevent.
+        if (rounds.hasMissing) {
+          rounds = rounds.mergedWith(
+            await LessonRounds.prepare(widget.lessonId, rounds.missingKeys),
+          );
+        }
+        // Still nothing (or nothing at all): there is no lesson to run, whatever
+        // the separate failures looked like. Saying so is what keeps the user out
+        // of exercises that would wait for a round that cannot come -- a lesson is
+        // prepared online, before it is played.
+        if (rounds.hasNothing || rounds.hasMissing) {
+          if (mounted) {
+            setState(() {
+              _preparing = false;
+              _prepError = tr('Не удалось подготовить урок. Проверьте интернет.');
+            });
+          }
+          return;
+        }
         // Then the pictures, the recordings and the scoring rules -- the parts
         // a pass would otherwise load lazily, which is exactly what must not
         // happen once the lesson is meant to run offline.
@@ -370,8 +392,21 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
     var synced = false;
     if (ApiClient.instance.deferredLessonId == widget.lessonId) {
       try {
-        await widget.driver.finishPass(widget.lessonId);
-        synced = true;
+        // FIRST everything this pass did, in order: the pass opening (if it
+        // could not be started at the time), then every answer still on the
+        // device. The server must have all of them BEFORE it counts the pass --
+        // otherwise it counts a pass it only half-heard, which shows up as
+        // answers missing and words that barely moved.
+        await ApiClient.instance.flushPendingAnswers();
+        if (PendingAnswers.forLesson(widget.lessonId).isNotEmpty) {
+          // Not everything could be handed over: the pass is NOT counted now.
+          // The phone scores it instead, and the whole pass goes over later, in
+          // order, starting with the answers that are still waiting.
+          await PendingAnswers.addFinish(widget.lessonId);
+        } else {
+          await widget.driver.finishPass(widget.lessonId);
+          synced = true;
+        }
       } catch (_) {
         await PendingAnswers.addFinish(widget.lessonId);
       }
@@ -421,14 +456,26 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
 
   /// The pass scored on the phone, or null when this lesson was never fetched
   /// (so there is nothing to score against).
+  ///
+  /// Only THIS pass's answers count: the queue is per lesson, so an earlier
+  /// abandoned pass of the same lesson must not be folded into these numbers --
+  /// exactly the way the backend measures its own pass from the moment it
+  /// started.
   ScoredPass? _scoreHere() {
     final before = _before ?? ApiClient.instance.cachedLesson(widget.lessonId);
     if (before == null) return null;
+    final startedAt = _passStartedAt;
+    final mine = [
+      for (final answer in PendingAnswers.answersFor(widget.lessonId))
+        if (startedAt == null ||
+            (answer['at'] is int && (answer['at'] as int) >= startedAt.millisecondsSinceEpoch))
+          answer,
+    ];
     return LessonScoring.score(
       before: before,
-      answers: PendingAnswers.answersFor(widget.lessonId),
+      answers: mine,
       rules: ApiClient.instance.cachedExerciseScoring() ?? ExerciseScoring.fallback,
-      startedAt: _passStartedAt,
+      startedAt: startedAt,
     );
   }
 

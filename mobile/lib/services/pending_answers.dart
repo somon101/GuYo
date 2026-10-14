@@ -93,6 +93,13 @@ class PendingAnswers {
           if ((entry['kind'] ?? 'answer') == 'answer' && entry['lesson_id'] == lessonId) entry,
       ];
 
+  /// Everything still waiting for [lessonId], whatever kind -- the pass is only
+  /// counted once this is empty.
+  static List<Map<String, dynamic>> forLesson(int lessonId) => [
+        for (final entry in _items)
+          if (entry['lesson_id'] == lessonId) entry,
+      ];
+
   static Future<void> remove(int id) async {
     await load();
     final before = _items.length;
