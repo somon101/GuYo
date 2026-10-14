@@ -38,6 +38,10 @@ class LessonResultsScreen extends StatefulWidget {
 class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTickerProviderStateMixin {
   late Future<List<WordLevelSummary>> _levelsFuture;
 
+  /// The pass's own numbers. Starts as whatever the runner had (usually null:
+  /// see [_loadStats]) and fills in a moment later, in place.
+  LessonPassStats? _stats;
+
   /// Achievements this lesson earned, fetched WHILE the results are on screen
   /// so the celebration can be shown the instant the user leaves -- never as a
   /// dialog on top of the results themselves.
@@ -62,6 +66,7 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTi
   @override
   void initState() {
     super.initState();
+    _stats = widget.stats;
     // Best-effort only -- the per-word level BADGE is a nice-to-have on
     // top of the always-shown score/progress bar, never required to
     // render the pass/fail outcome itself.
@@ -69,6 +74,23 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTi
     // Started here, awaited only when the user leaves: the celebration is the
     // LAST thing this lesson shows, exactly as asked.
     _newAchievements = takeNewAchievements();
+    // The pass numbers are fetched HERE, by the screen itself, rather than
+    // before it opens: the results appear the moment the lesson runner has the
+    // fresh lesson, and the tiles and gains fill in a beat later instead of
+    // holding the whole screen back.
+    _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    if (_stats != null) return;
+    try {
+      final stats = await ApiClient.instance.fetchLessonPassStats(widget.lesson.id);
+      if (!mounted) return;
+      setState(() => _stats = stats);
+    } catch (_) {
+      // The screen already works without them: it falls back to the words'
+      // own learned/not-learned state (see `hasStats`).
+    }
   }
 
   /// Leaves the results: any achievement earned this lesson is celebrated
@@ -96,7 +118,7 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTi
   @override
   Widget build(BuildContext context) {
     final lesson = widget.lesson;
-    final stats = widget.stats;
+    final stats = _stats;
     final learnedCount = lesson.words.where((w) => w.isLearned).length;
     final total = lesson.words.length;
     final allLearned = lesson.isCompleted || (total > 0 && learnedCount == total);

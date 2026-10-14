@@ -98,26 +98,40 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
   }
 
   Future<void> _load() async {
+    // The pool is normally already on the device -- prefetched right after
+    // login (see ApiClient.prefetchLessonWords) -- so the screen opens on real
+    // words at once with no loading state at all, and the refresh below quietly
+    // replaces them if the server has something newer.
+    final cached = ApiClient.instance.cachedLessonCandidateWords(widget.dictionary.id);
     setState(() {
-      _isLoading = true;
+      _isLoading = cached == null;
       _loadError = null;
+      if (cached != null) {
+        _candidates = cached.words;
+        _randomCount = _defaultRandomCount(cached.words.length);
+      }
     });
     try {
       final result = await ApiClient.instance.fetchLessonCandidateWords(widget.dictionary.id);
       if (!mounted) return;
       setState(() {
         _candidates = result.words;
-        _randomCount = result.words.isEmpty ? 0 : (result.words.length < _maxLessonWords ? result.words.length : _maxLessonWords).clamp(1, _maxLessonWords);
+        _randomCount = _defaultRandomCount(result.words.length);
         _isLoading = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = tr('Не удалось загрузить доступные слова');
+        // With words already on screen from the device, a failed refresh is
+        // not an error the user needs to see.
+        if (_candidates.isEmpty) _loadError = tr('Не удалось загрузить доступные слова');
       });
     }
   }
+
+  int _defaultRandomCount(int available) =>
+      available == 0 ? 0 : (available < _maxLessonWords ? available : _maxLessonWords).clamp(1, _maxLessonWords);
 
   Future<void> _submit() async {
     setState(() {

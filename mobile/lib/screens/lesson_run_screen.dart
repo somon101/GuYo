@@ -291,8 +291,10 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
         return;
       }
     }
-    // Both at once: the wait before the results is one round trip, not two.
-    final statsFuture = widget.driver.fetchPassStats(widget.lessonId);
+    // Only the fresh lesson is waited for here: the pass's own numbers are
+    // fetched by the results screen itself (see LessonResultsScreen._loadStats),
+    // so the results open a whole round trip earlier and their tiles fill in a
+    // beat later, in place.
     final Lesson fresh;
     try {
       fresh = await widget.driver.fetchLesson(widget.lessonId);
@@ -301,9 +303,8 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
       return;
     }
     _miniPhrases = fresh.miniPhrases;
-    final stats = await statsFuture;
     if (!mounted) return;
-    final repeat = await widget.driver.showResults(context, fresh, stats);
+    final repeat = await widget.driver.showResults(context, fresh, null);
     if (!mounted) return;
     if (repeat == true) {
       unawaited(_run());

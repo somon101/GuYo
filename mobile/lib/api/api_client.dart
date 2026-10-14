@@ -29,6 +29,7 @@ import '../models/user_profile.dart';
 import '../models/user_rating.dart';
 import '../models/word.dart';
 import '../services/answer_signals.dart';
+import '../services/pending_answers.dart';
 
 /// package:http's MultipartFile.fromBytes defaults to
 /// application/octet-stream when no contentType is given -- the backend's
@@ -145,10 +146,14 @@ class ApiClient {
   }
 
   Future<void> clearToken() async {
+    // Last chance to deliver answers judged on this device: they belong to the
+    // account that is about to leave, and nothing else would ever resend them.
+    await flushPendingAnswers();
     _cachedToken = null;
     // Whatever was kept belongs to the account that just left.
     SessionCache.clear();
     await DiskCache.clear();
+    await PendingAnswers.clear();
     await _storage.delete(key: _tokenKey);
   }
 
@@ -716,7 +721,31 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return LessonCandidateWords.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    // Remembered on the device as well: "Создать урок" opens on the pool it
+    // already has and refreshes quietly, instead of a loader.
+    return LessonCandidateWords.fromJson(_remember('lesson-words-$dictionaryId', res) as Map<String, dynamic>);
+  }
+
+  /// The word pool «Создать урок» last saw, straight off the device -- no
+  /// network and no waiting. Null until [prefetchLessonWords] (or a real
+  /// fetch) has stored one for this dictionary.
+  LessonCandidateWords? cachedLessonCandidateWords(int dictionaryId) =>
+      _cached('lesson-words-$dictionaryId', (j) => LessonCandidateWords.fromJson(j as Map<String, dynamic>));
+
+  /// Warms «Создать урок» in the background: the candidate words and their
+  /// translations are fetched once and kept on the device, so opening the
+  /// screen later needs no loading state at all. Called right after login and
+  /// whenever the chosen dictionary changes.
+  ///
+  /// Silent and best-effort by design: it is an optimisation, never a step
+  /// anybody waits on. Photos and audio are deliberately NOT prefetched --
+  /// those are large and are still fetched the moment they are shown.
+  Future<void> prefetchLessonWords(int dictionaryId) async {
+    try {
+      await fetchLessonCandidateWords(dictionaryId);
+    } catch (_) {
+      // Offline, or nothing to offer yet: the screen fetches for itself.
+    }
   }
 
   /// Returns the current active (not-yet-completed) lesson for this
@@ -938,29 +967,85 @@ class ApiClient {
 
   final Set<Future<void>> _pendingLessonAnswers = {};
 
-  /// Sends a lesson answer in the background: the exercise moves on at
-  /// once (it already judged the answer itself) and the server gets it a
-  /// moment later -- tried twice, then given up on. [flushLessonAnswers]
-  /// waits for whatever is still on its way.
+  /// Sends a lesson answer in the background: the exercise moves on at once
+  /// (it already judged the answer itself) and the server gets it a moment
+  /// later.
+  ///
+  /// The answer is written to the DEVICE first -- see [PendingAnswers] -- and
+  /// only forgotten once the server has taken it. So a killed app, a dead
+  /// network or a phone switched off mid-lesson never loses a pass's progress:
+  /// [flushPendingAnswers] resends whatever is left. [flushLessonAnswers] waits
+  /// for what is still on its way right now.
   void queueLessonAnswer(int lessonId, String exerciseKey, {required int wordId, required bool isCorrect}) {
     // Taken now, before the next question resets them.
     final signals = AnswerSignals.take();
-    final deferred = deferredLessonId == lessonId;
-    Future<void> send() async {
-      final res = await http.post(
-        _uri('/lessons/$lessonId/exercises/$exerciseKey/answers'),
-        headers: await _authHeaders(),
-        body: jsonEncode({...signals, 'word_id': wordId, 'is_correct': isCorrect, if (deferred) 'deferred': true}),
-      );
-      await _throwWithDetail(res);
-    }
+    final answer = <String, dynamic>{
+      'lesson_id': lessonId,
+      'exercise_key': exerciseKey,
+      'word_id': wordId,
+      'is_correct': isCorrect,
+      // Whether the server should hold this score until the pass is finished:
+      // recorded per answer, because a resend after a restart has no way to
+      // know how the lesson was being run.
+      'deferred': deferredLessonId == lessonId,
+      ...signals,
+    };
 
     late final Future<void> job;
-    job = send()
-        .catchError((_) => Future<void>.delayed(const Duration(seconds: 1), send))
-        .catchError((_) {})
-        .whenComplete(() => _pendingLessonAnswers.remove(job));
+    job = _storeThenSend(answer).whenComplete(() => _pendingLessonAnswers.remove(job));
     _pendingLessonAnswers.add(job);
+  }
+
+  /// Writes the answer down, then tries to deliver it -- twice, a second
+  /// apart. If it still will not go, it stays on the device for
+  /// [flushPendingAnswers] rather than being silently dropped.
+  Future<void> _storeThenSend(Map<String, dynamic> answer) async {
+    final id = await PendingAnswers.add(answer);
+    try {
+      await _postLessonAnswer(answer);
+    } catch (_) {
+      try {
+        await Future<void>.delayed(const Duration(seconds: 1));
+        await _postLessonAnswer(answer);
+      } catch (_) {
+        return; // Kept on the device; the next flush picks it up.
+      }
+    }
+    await PendingAnswers.remove(id);
+  }
+
+  Future<void> _postLessonAnswer(Map<String, dynamic> answer) async {
+    final res = await http.post(
+      _uri('/lessons/${answer['lesson_id']}/exercises/${answer['exercise_key']}/answers'),
+      headers: await _authHeaders(),
+      body: jsonEncode({
+        for (final entry in answer.entries)
+          if (entry.key != 'id' && entry.key != 'lesson_id' && entry.key != 'exercise_key') entry.key: entry.value,
+      }),
+    );
+    await _throwWithDetail(res);
+  }
+
+  /// Resends everything this device is still holding back. Called once the user
+  /// is logged in, and again whenever the app opens: an answer judged offline
+  /// is worth exactly as much as one sent on time, because the pass it belongs
+  /// to lives on the server and is still open.
+  ///
+  /// Stops at the first failure -- the queue is in lesson order, and a later
+  /// answer arriving before an earlier one would confuse the pass's own
+  /// counters for no benefit.
+  Future<void> flushPendingAnswers() async {
+    await PendingAnswers.load();
+    for (final answer in PendingAnswers.all) {
+      final id = answer['id'];
+      if (id is! int) continue;
+      try {
+        await _postLessonAnswer(answer);
+      } catch (_) {
+        return; // Still no luck: it stays, for the next attempt.
+      }
+      await PendingAnswers.remove(id);
+    }
   }
 
   Future<void> flushLessonAnswers() => Future.wait(List<Future<void>>.of(_pendingLessonAnswers));

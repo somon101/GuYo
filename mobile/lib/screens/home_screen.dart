@@ -1,4 +1,5 @@
 import '../l10n/l10n.dart';
+import 'dart:async';
 import '../widgets/guyo_ui.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
@@ -73,6 +74,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // Every way into the app (login, sign-up, an already-saved session)
     // lands here, so this is the one place the phone is registered.
     PushService.instance.registerCurrentUser();
+    // Anything a previous run judged but never managed to send (offline, or the
+    // app was killed mid-lesson) goes now, while we know the account is live.
+    unawaited(ApiClient.instance.flushPendingAnswers());
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // Achievements are deliberately NOT celebrated here any more: the
       // celebration belongs to the end of a lesson, right after its results
@@ -139,6 +143,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// Used for the initial load and for the explicit "Повторить"/"Проверить
   /// снова" retry buttons, both cases where there is no tab content mounted
   /// yet to lose anyway.
+  /// Dictionaries whose lesson word pool has already been warmed in this app
+  /// run -- the fetch happens once per language, not on every rebuild.
+  static final Set<int> _warmedDictionaries = {};
+
+  void _warmLessonWords(int dictionaryId) {
+    if (!_warmedDictionaries.add(dictionaryId)) return;
+    unawaited(ApiClient.instance.prefetchLessonWords(dictionaryId));
+  }
+
   Future<void> _loadDictionaries() async {
     // Last launch's list: open on it at once and refresh quietly.
     final kept = _dictionaries.isEmpty ? ApiClient.instance.cachedDictionaries() : null;
@@ -276,6 +289,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     _selectedDictionary = selected;
     GuyoDictionary.studyLanguage = selected.language;
+    // Warm «Создать урок» for the language on screen: its word pool (words and
+    // their translations) is fetched once, quietly, and kept on the device --
+    // so that screen later opens on real words with no loading state.
+    //
+    // Once per dictionary per app run, and never awaited: it must not delay or
+    // interrupt anything the user is doing.
+    _warmLessonWords(selected.id);
 
     // Keying by dictionary id makes each tab's content rebuild fresh
     // whenever the selected language changes. IndexedStack (not a simple
