@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -19,9 +17,9 @@ import '../widgets/in_app_banner.dart';
 /// - the top bar is the app's own bar (the same "GuYo" wordmark as Главная),
 ///   with this screen's three settings beside it: formality, the language the
 ///   explanations come in, and whether punctuation is checked;
-/// - every setting change is confirmed by a short floating hint just above the
-///   input, so the user sees what they just turned on -- and, for the two
-///   gender controls, what the checker will now assume;
+/// - every setting change is answered by the app's floating notice sliding down
+///   from the TOP -- the same one «Текст скопирован» uses -- so the user sees
+///   what they just turned on, and what the checker will now assume;
 /// - the intro and the empty state disappear after the first message;
 /// - the history is deliberately NOT kept: every send wipes the screen and
 ///   shows exactly one message and its answer;
@@ -68,12 +66,6 @@ class _TextCheckScreenState extends State<TextCheckScreen> {
   String? _errorMessage;
   bool _explanationsOpen = false;
 
-  /// The floating confirmation above the input, and a counter that makes every
-  /// new hint a NEW widget -- so its animation always plays from the start
-  /// instead of a second hint silently reusing the first one's state.
-  String? _hint;
-  int _hintRevision = 0;
-
   @override
   void initState() {
     super.initState();
@@ -113,13 +105,24 @@ class _TextCheckScreenState extends State<TextCheckScreen> {
     }
   }
 
-  void _updateSettings(TextCheckSettings next, String hint) {
-    setState(() {
-      _settings = next;
-      _hint = hint;
-      _hintRevision++;
-    });
+  /// Saves a setting and acknowledges the tap.
+  ///
+  /// The acknowledgement is the app's own floating notice sliding down from the
+  /// TOP -- the very same one «Текст скопирован» uses, so every tap on this
+  /// screen is answered by the same thing in the same place.
+  void _updateSettings(TextCheckSettings next, String confirmation) {
+    setState(() => _settings = next);
     next.save();
+    _confirm(confirmation);
+  }
+
+  void _confirm(String message) {
+    InAppBanner.show(
+      body: message,
+      visibleFor: InAppBanner.confirmationVisibleFor,
+      // Nothing to open: this only acknowledges what the user just did.
+      opensInbox: false,
+    );
   }
 
   int get _maxChars => _info?.maxChars ?? _fallbackMaxChars;
@@ -239,30 +242,24 @@ class _TextCheckScreenState extends State<TextCheckScreen> {
   /// "not chosen" is a state the user can always get back to.
   void _chooseAddressee(String value) {
     final wasActive = _addressee == value;
-    setState(() {
-      _addressee = wasActive ? null : value;
-      _hint = wasActive
+    setState(() => _addressee = wasActive ? null : value);
+    _confirm(
+      wasActive
           ? tr('Обращение не указано')
-          : (value == 'female' ? tr('Учту: обращение к женщине') : tr('Учту: обращение к мужчине'));
-      _hintRevision++;
-    });
+          : (value == 'female' ? tr('Учту: обращение к женщине') : tr('Учту: обращение к мужчине')),
+    );
   }
 
   Future<void> _copyCorrected(String text) async {
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
-    // The app's own floating notice, exactly like the profile's "ID скопирован"
-    // -- purely on screen: nothing is written to the notifications inbox.
-    InAppBanner.show(body: tr('Текст скопирован'));
+    // Purely on screen: nothing is written to the notifications inbox.
+    _confirm(tr('Текст скопирован'));
   }
 
   @override
   Widget build(BuildContext context) {
     final formality = _settings.formality;
-    // Captured per build so a hint that has already been replaced cannot clear
-    // its successor when its own animation finishes.
-    final hint = _hint;
-    final hintRevision = _hintRevision;
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
@@ -303,17 +300,6 @@ class _TextCheckScreenState extends State<TextCheckScreen> {
         child: Column(
           children: [
             Expanded(child: _buildContent()),
-            // The confirmation of the setting just changed, right above the
-            // input the finger is at -- and the counter, which is always there.
-            if (hint != null)
-              _HintPill(
-                key: ValueKey('text-check-hint-$hintRevision'),
-                text: hint,
-                onDone: () {
-                  if (!mounted || _hintRevision != hintRevision) return;
-                  setState(() => _hint = null);
-                },
-              ),
             _remainingLine(),
             _inputBar(),
           ],
@@ -1064,86 +1050,6 @@ class _LanguagePill extends StatelessWidget {
             const SizedBox(width: 1),
             Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppColors.secondaryText),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The short confirmation of the setting just changed: it slides up just above
-/// the input, stays a moment and fades away on its own.
-///
-/// Purely on screen -- no request, no notification, nothing stored. It exists
-/// because the two gender controls and the two switches are quiet by nature,
-/// and a colour change alone never says what the checker will now assume.
-class _HintPill extends StatefulWidget {
-  final String text;
-  final VoidCallback onDone;
-
-  const _HintPill({super.key, required this.text, required this.onDone});
-
-  @override
-  State<_HintPill> createState() => _HintPillState();
-}
-
-class _HintPillState extends State<_HintPill> with SingleTickerProviderStateMixin {
-  static const Duration _visibleFor = Duration(milliseconds: 1900);
-
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 220),
-    reverseDuration: const Duration(milliseconds: 200),
-  );
-  late final Animation<double> _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
-  late final Animation<Offset> _slide = Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero)
-      .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
-  Timer? _timer;
-  bool _leaving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller.forward();
-    _timer = Timer(_visibleFor, _hide);
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _hide() async {
-    if (_leaving || !mounted) return;
-    _leaving = true;
-    _timer?.cancel();
-    await _controller.reverse();
-    widget.onDone();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _fade,
-      child: SlideTransition(
-        position: _slide,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.violetSurface,
-                borderRadius: BorderRadius.circular(AppShapes.pillRadius),
-              ),
-              child: Text(
-                widget.text,
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary),
-              ),
-            ),
-          ),
         ),
       ),
     );

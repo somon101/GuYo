@@ -179,11 +179,13 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         // outside the loading/error branches below -- and stays reachable even
         // when that block failed to load.
         const TextCheckCard(),
+        // The gap belongs HERE, after the card: without it the two blocks sit
+        // flush against each other and read as one shape.
+        const SizedBox(height: 14),
         if (_isLoading)
           const Skeleton(
             child: Column(
               children: [
-                SizedBox(height: 14),
                 SkeletonBox(height: 150, radius: AppShapes.cardRadius),
                 SizedBox(height: 14),
                 SkeletonBox(height: 110, radius: AppShapes.cardRadius),

@@ -31,6 +31,11 @@ class InAppBanner {
   /// confirms that the run moved on, so it needs less time than a push.
   static const Duration skipVisibleFor = Duration(milliseconds: 2600);
 
+  /// How long a quick acknowledgement of something the user just did stays --
+  /// «Текст скопирован», or a setting they just changed. There is nothing to
+  /// act on, so it is gone sooner than a push or a skip notice.
+  static const Duration confirmationVisibleFor = Duration(milliseconds: 2000);
+
   static OverlayEntry? _current;
 
   static void show({
