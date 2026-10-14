@@ -379,7 +379,25 @@ class _TextCheckScreenState extends State<TextCheckScreen> {
                 // The app's own mark, plainly -- no frame, no plate, no
                 // gradient behind it: this is GuYo's feature, not some
                 // third-party "AI" badge.
-                Image.asset('assets/icon/guyo_icon_foreground.png', width: 104, height: 104),
+                // The app's own logo, WHOLE -- the mark and the wordmark, on a
+                // transparent background and cropped so it sits centred.
+                //
+                // The light theme has no plate under it, as asked: it sits
+                // straight on the canvas. The dark theme is the one exception --
+                // the wordmark is a very dark navy that would vanish against the
+                // dark canvas, so there it gets a plain white plate to stay
+                // readable.
+                Container(
+                  padding: AppColors.dark ? const EdgeInsets.symmetric(horizontal: 20, vertical: 16) : EdgeInsets.zero,
+                  decoration: AppColors.dark
+                      ? BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: AppShapes.cardShadow,
+                        )
+                      : null,
+                  child: Image.asset('assets/icon/guyo_logo_full.png', height: 150),
+                ),
                 const SizedBox(height: 14),
                 Text(
                   tr('Напишите сообщение — я проверю его\nи объясню ошибки.'),

@@ -281,7 +281,13 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
     // Otherwise: wrong with tries left -- "Ещё раз" / "Дальше" decide.
   }
 
-  void _retry() {
+  /// «Ещё раз»: one tap, and the word is listening for immediately.
+  ///
+  /// It used to only reset the card back to "mic ready", so a retry took TWO
+  /// taps -- «Ещё раз», then the microphone -- which read as the button not
+  /// working. The state is cleared first so [startListening]'s own guard lets
+  /// this through.
+  Future<void> _retry() async {
     if (_answered) return;
     setState(() {
       _attempt++;
@@ -289,6 +295,7 @@ class _SpeakingWordExerciseState extends State<SpeakingWordExercise> {
       _recognizedText = '';
       _isCorrect = null;
     });
+    await _startListening();
   }
 
   /// Reports this word exactly once.
