@@ -936,7 +936,18 @@ class ApiClient {
     );
     await _throwWithDetail(res);
     lessonQuotaRevision.value++;
-    return _rememberLesson(res);
+    final lesson = _rememberLesson(res);
+    // And the device's own LIST of this dictionary is refreshed while we are
+    // online. That list is what «Уроки» shows when there is no network, and it
+    // was written BEFORE this lesson existed -- so a lesson created here and then
+    // played offline (or simply reopened offline) was missing from it: the screen
+    // offered to create it again, and the server, which already had it, refused.
+    try {
+      await fetchLessons(lesson.dictionaryId);
+    } catch (_) {
+      // The list refreshes the next time «Уроки» is opened with a connection.
+    }
+    return lesson;
   }
 
   Future<TrueOrFalseRound> fetchLessonTrueOrFalseRound(int lessonId) async {
