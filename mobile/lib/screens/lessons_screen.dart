@@ -468,9 +468,25 @@ class _LessonCard extends StatelessWidget {
                             ),
                           ],
                         )
+                      else if (subtitle == tr('Синхронизируется с сервером…'))
+                        // Waiting for the server: a spinner and the note, nothing
+                        // else. A percentage here would be the DEVICE's own count
+                        // dressed up as the server's, and a button would invite the
+                        // user to redo a pass that is already done.
+                        Row(
+                          children: [
+                            SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(subtitle, style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
+                          ],
+                        )
                       else
                         Text(subtitle, style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
-                      if (isActive) ...[
+                      if (isActive && subtitle != tr('Синхронизируется с сервером…')) ...[
                         const SizedBox(height: 10),
                         Row(
                           children: [
