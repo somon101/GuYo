@@ -179,8 +179,16 @@ class _LessonsScreenState extends State<LessonsScreen> {
   /// The hand-over happens by itself (every 30 seconds, and whenever this list is
   /// loaded), so the state is short-lived.
   int? get _awaitingCheckLessonId {
+    // The QUEUE first, and by its own lesson id: it knows which lesson its work
+    // belongs to, while the list on screen may be older than that lesson. This is
+    // exactly how "Доступен для создания Урок 31" appeared for a lesson that
+    // already existed and was half-played: the cached list was taken before it was
+    // created, so the loop below never saw it.
+    for (final action in PendingAnswers.all) {
+      final id = action['lesson_id'];
+      if (id is int) return id;
+    }
     for (final lesson in _lessons) {
-      if (PendingAnswers.forLesson(lesson.id).isNotEmpty) return lesson.id;
       if (LessonScoreOverlay.scoresFor(lesson.id).isNotEmpty) return lesson.id;
     }
     return null;
