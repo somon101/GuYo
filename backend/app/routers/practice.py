@@ -247,14 +247,27 @@ def get_review_due(dictionary_id: int, db: Session = Depends(get_db), user: User
     forgotten first, at most one practice round's worth."""
     _get_dictionary_or_404(db, dictionary_id)
     due = review_due_word_ids(db, user.id, dictionary_id)
-    # The same accumulation threshold as the push: below it the card stays away,
-    # so «Повторить сегодня» does not pop up for a single forgotten word (that
-    # is what felt like the old auto-created version). One admin number
-    # (review_push_min_words) drives both the list and the push.
+    # Two gates, and the card opens only when BOTH pass.
+    # 1. The same accumulation threshold as the push: below it the card stays
+    #    away, so «Повторить сегодня» does not pop up for one forgotten word
+    #    (that felt like the old auto-created version).
+    # 2. The push has actually gone out today: the push IS the "now is the time"
+    #    signal, and the card is what the user sees when they come back after it.
+    #    Before the push, the list stays empty -- so the card never precedes the
+    #    push, exactly as asked.
+    from app.core.dates import dushanbe_today
+    from app.models.notification import UserPrepState
     from app.notifications.reminders import get_reminder_settings
 
     minimum = get_reminder_settings(db).review_push_min_words
     if len(due) < minimum:
+        return {"count": 0, "word_ids": []}
+    state = (
+        db.query(UserPrepState)
+        .filter(UserPrepState.user_id == user.id, UserPrepState.dictionary_id == dictionary_id)
+        .first()
+    )
+    if state is None or state.review_notified_on != dushanbe_today():
         return {"count": 0, "word_ids": []}
     return {"count": len(due), "word_ids": due[:ROUND_SIZE]}
 
