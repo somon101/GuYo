@@ -24,6 +24,7 @@ file only does Lesson-specific bookkeeping (which lesson, which words,
 whether it's complete) and dispatches to that module by exercise_key.
 """
 import random
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
@@ -653,6 +654,26 @@ def _pass_too_fast(db: Session, user_id: int, lesson: Lesson) -> bool:
     return max(durations) < IMPLAUSIBLE_PASS_MS
 
 
+def _answered_at(lesson: Lesson, payload) -> "datetime | None":
+    """WHEN the answer was really given, or None when the app did not say (an
+    older version) -- then the server's own clock is used, exactly as before.
+
+    Clamped, because this is client-supplied time: never in the future, never
+    before this pass began. The memory model reads DAYS (app/memory/service.py),
+    so recording an offline answer at the moment it happened is what keeps a
+    week of practice from collapsing into a single day."""
+    ms = getattr(payload, "answered_at_ms", None)
+    if ms is None:
+        return None
+    moment = datetime.fromtimestamp(ms / 1000, tz=timezone.utc)
+    now = utc_now()
+    if moment > now:
+        return now
+    if lesson.pass_started_at is not None and moment < lesson.pass_started_at:
+        return lesson.pass_started_at
+    return moment
+
+
 def _hold_answer_for_pass(db: Session, user: User, lesson: Lesson, exercise_key: str, payload, delta: int):
     """A deferred answer: moves the word's score only inside this pass
     (Lesson.pass_pending_scores), never its real WordProgress -- so no
@@ -682,6 +703,7 @@ def _hold_answer_for_pass(db: Session, user: User, lesson: Lesson, exercise_key:
         duration_ms=payload.duration_ms,
         timed_out=payload.timed_out,
         given_answer=payload.given_answer,
+        answered_at=_answered_at(lesson, payload),
     )
     db.commit()
     return SubmitAnswerOut(
@@ -851,6 +873,7 @@ def submit_answer(
         duration_ms=payload.duration_ms,
         timed_out=payload.timed_out,
         given_answer=payload.given_answer,
+        answered_at=_answered_at(lesson, payload),
     )
 
     threshold = get_threshold(db)

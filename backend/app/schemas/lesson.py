@@ -137,6 +137,11 @@ class SubmitAnswerIn(BaseModel):
     # What the learner actually did, for the server's own verdict (see
     # app/exercises/verify.py). Older apps don't send it.
     answer: dict | None = None
+    # When the answer was really given (ms since the epoch). An answer made with
+    # no network arrives much later, and the memory model reads days -- so the
+    # real moment is what gets recorded, clamped by the server (see
+    # app/routers/lessons.py): never in the future, never before the pass began.
+    answered_at_ms: int | None = Field(default=None, ge=0)
 
 
 class SubmitAnswerOut(BaseModel):

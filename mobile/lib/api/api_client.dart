@@ -1100,18 +1100,32 @@ class ApiClient {
   /// [flushPendingAnswers] rather than being silently dropped.
   Future<void> _storeThenSend(Map<String, dynamic> answer) async {
     final id = await PendingAnswers.add(answer);
+    _answersInFlight.add(id);
+    var delivered = false;
     try {
-      await _postLessonAnswer(answer);
-    } catch (_) {
       try {
-        await Future<void>.delayed(const Duration(seconds: 1));
         await _postLessonAnswer(answer);
+        delivered = true;
       } catch (_) {
-        return; // Kept on the device; the next flush picks it up.
+        try {
+          await Future<void>.delayed(const Duration(seconds: 1));
+          await _postLessonAnswer(answer);
+          delivered = true;
+        } catch (_) {
+          // Kept on the device; the next flush picks it up.
+        }
       }
+    } finally {
+      _answersInFlight.remove(id);
     }
-    await PendingAnswers.remove(id);
+    if (delivered) await PendingAnswers.remove(id);
   }
+
+  /// Entries whose request is in the air right now: the queue must leave them
+  /// alone (see [_storeThenSend]). Without this the same answer reached the
+  /// server twice -- two identical rows in its history, and, before the server's
+  /// own guard, the word's score moved twice.
+  final Set<int> _answersInFlight = {};
 
   Future<void> _postLessonAnswer(Map<String, dynamic> answer) async {
     final res = await http.post(
@@ -1119,12 +1133,16 @@ class ApiClient {
       headers: await _authHeaders(),
       body: jsonEncode({
         for (final entry in answer.entries)
-          if (entry.key != 'id' &&
+          // The moment the answer was really given. An answer made with no
+          // network reaches the server much later, and the memory model reads
+          // DAYS -- so this is what the server records as its time (clamped on
+          // its side: never in the future, never before the pass began).
+          if (entry.key == 'at')
+            'answered_at_ms': entry.value
+          else if (entry.key != 'id' &&
               entry.key != 'kind' &&
               entry.key != 'lesson_id' &&
-              entry.key != 'exercise_key' &&
-              // Local bookkeeping only -- the server has its own clock.
-              entry.key != 'at')
+              entry.key != 'exercise_key')
             entry.key: entry.value,
       }),
     );
@@ -1163,6 +1181,9 @@ class ApiClient {
     for (final action in PendingAnswers.all) {
       final id = action['id'];
       if (id is! int) continue;
+      // Already on its way: sending it from here as well is exactly how the same
+      // answer used to reach the server twice (see _storeThenSend).
+      if (_answersInFlight.contains(id)) continue;
       try {
         await _postAction(action);
       } catch (_) {

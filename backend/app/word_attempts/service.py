@@ -5,6 +5,8 @@ attempt is recorded once, from the same call that already computed the
 new score, never re-derived or duplicated anywhere else.
 """
 
+from datetime import datetime
+
 from sqlalchemy.orm import Session
 
 from app.models.word_attempt import WordAttempt
@@ -23,6 +25,7 @@ def record_word_attempt(
     duration_ms: int | None = None,
     timed_out: bool = False,
     given_answer: str | None = None,
+    answered_at: datetime | None = None,
 ) -> None:
     """Logs one real answer for Admin Web's «Аналитика» -- purely additive
     bookkeeping alongside whatever the caller already did to WordProgress/
@@ -31,20 +34,27 @@ def record_word_attempt(
     decision). Deliberately does NOT commit: the caller owns the
     transaction, same contract as achievements/rating's own service
     functions."""
-    db.add(
-        WordAttempt(
-            user_id=user_id,
-            word_id=word_id,
-            exercise_key=exercise_key,
-            is_correct=is_correct,
-            score_after=score_after,
-            lesson_id=lesson_id,
-            source=source,
-            duration_ms=duration_ms,
-            timed_out=timed_out,
-            given_answer=(given_answer or None) and given_answer[:255],
-        )
+    fields = dict(
+        user_id=user_id,
+        word_id=word_id,
+        exercise_key=exercise_key,
+        is_correct=is_correct,
+        score_after=score_after,
+        lesson_id=lesson_id,
+        source=source,
+        duration_ms=duration_ms,
+        timed_out=timed_out,
+        given_answer=(given_answer or None) and given_answer[:255],
     )
+    # WHEN the answer was really given, when the caller knows it. An answer made
+    # with no network reaches the server days later, and the memory model reads
+    # DAYS (app/memory/service.py groups the history by date): without this, a
+    # week of offline practice collapses into one day and the intervals it
+    # computes are simply wrong. The caller clamps it (never in the future, never
+    # before the pass began).
+    if answered_at is not None:
+        fields["created_at"] = answered_at
+    db.add(WordAttempt(**fields))
     db.flush()
 
     # Keep the memory model current (app/memory/) -- rebuilt from history.
