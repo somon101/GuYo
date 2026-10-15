@@ -2,6 +2,7 @@ import 'dart:async';
 import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
+import '../services/lesson_scoring.dart';
 import '../services/pending_answers.dart';
 import '../services/session_cache.dart';
 import '../models/dictionary.dart';
@@ -149,17 +150,24 @@ class _LessonsScreenState extends State<LessonsScreen> {
     await _runLesson(lesson);
   }
 
-  /// The lesson whose pass the device is still holding -- queued to be handed
-  /// over and checked -- or null when everything has gone over.
+  /// The lesson whose pass this device scored for itself and the server has not
+  /// confirmed -- or null when everything is settled.
   ///
-  /// A lesson played with no network already looks finished here (its own local
-  /// numbers say so), but the server has not confirmed it yet, so creating the
-  /// NEXT lesson stays closed until it does. The hand-over happens by itself
-  /// (every 30 seconds, and whenever this list is loaded), so the state is
-  /// short-lived -- and the way forward meanwhile is to play that lesson again.
+  /// Two things count, and BOTH matter for the card that offers to create the
+  /// next lesson:
+  ///  * work still queued to be handed over ([PendingAnswers]);
+  ///  * a pass that went over but whose result the device has not had confirmed
+  ///    yet (the local score copy in [LessonScoreOverlay]). Without this one, the
+  ///    cached list -- taken before the pass, so it still shows the PREVIOUS
+  ///    lesson as the newest -- offered "Создать урок 21" for a lesson the server
+  ///    already had, and the lesson the user had just finished looked unpassed.
+  ///
+  /// The hand-over happens by itself (every 30 seconds, and whenever this list is
+  /// loaded), so the state is short-lived.
   int? get _awaitingCheckLessonId {
     for (final lesson in _lessons) {
       if (PendingAnswers.forLesson(lesson.id).isNotEmpty) return lesson.id;
+      if (LessonScoreOverlay.scoresFor(lesson.id).isNotEmpty) return lesson.id;
     }
     return null;
   }
