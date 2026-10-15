@@ -139,6 +139,13 @@ class ReminderSettings(Base):
     prep_delay_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=20, server_default="20")
     # «Повтори слово» push only when at least this many words are due.
     review_push_min_words: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
+    # The daily quiet window: no background preparation (auto lessons/quests and
+    # the «Повтори слово» push) goes out inside it, so people are not woken at
+    # night. Hours are Asia/Dushanbe wall-clock, 0-23. `quiet_from_hour` is the
+    # start (inclusive) and `quiet_to_hour` the end (exclusive); a window that
+    # crosses midnight (e.g. 23 -> 8) is expressed exactly like that.
+    quiet_from_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=23, server_default="23")
+    quiet_to_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=8, server_default="8")
     # How a notification is announced while the app is OPEN, chosen in Admin
     # Web: "banner" (the app's own card sliding down from the top, the default)
     # or "system" (a real Android notification, exactly as if the app were in

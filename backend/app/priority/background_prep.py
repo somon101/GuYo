@@ -70,9 +70,17 @@ def mark_for_prep(db: Session, user: User, dictionary_id: int) -> None:
         state.pending = True
 
 
-def _quiet_now() -> bool:
+def _quiet_now(settings) -> bool:
+    """The admin's own quiet window (Admin Web -> Напоминания): no background
+    preparation goes out inside it. Reads the settings rather than the old
+    hardcoded 23:00-08:00, so the window can be moved or turned off entirely
+    (a window from==to means "never quiet")."""
     hour = utc_now().astimezone(DUSHANBE_TZ).hour
-    return hour >= QUIET_FROM_HOUR or hour < QUIET_TO_HOUR
+    if settings.quiet_from_hour == settings.quiet_to_hour:
+        return False
+    if settings.quiet_from_hour < settings.quiet_to_hour:
+        return settings.quiet_from_hour <= hour < settings.quiet_to_hour
+    return hour >= settings.quiet_from_hour or hour < settings.quiet_to_hour
 
 
 def run_prep(db: Session) -> int:
@@ -83,7 +91,7 @@ def run_prep(db: Session) -> int:
     from app.routers.practice import review_due_word_ids
 
     settings = get_reminder_settings(db)
-    if not settings.prep_enabled or _quiet_now():
+    if not settings.prep_enabled or _quiet_now(settings):
         return 0
     cutoff = utc_now() - timedelta(minutes=settings.prep_delay_minutes)
     today = dushanbe_today()

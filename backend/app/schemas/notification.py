@@ -77,6 +77,10 @@ class ReminderSettingsIn(BaseModel):
     prep_enabled: bool = True
     prep_delay_minutes: int = Field(default=20, ge=5, le=720)
     review_push_min_words: int = Field(default=10, ge=1, le=500)
+    # The daily quiet window (Dushanbe hours): no background preparation goes out
+    # inside it. from==to means "never quiet".
+    quiet_from_hour: int = Field(default=23, ge=0, le=23)
+    quiet_to_hour: int = Field(default=8, ge=0, le=23)
     # How a notification is shown while the app is open: the app's own floating
     # banner from the top, or a real system notification. Chosen here, carried
     # by every push, so it needs no new app build to change.
