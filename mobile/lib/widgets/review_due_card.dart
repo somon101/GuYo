@@ -5,6 +5,8 @@ import '../exercises/exercise_type.dart';
 import '../l10n/l10n.dart';
 import '../models/dictionary.dart';
 import '../screens/practice_exercise_screen.dart';
+import '../services/disk_cache.dart';
+import 'in_app_banner.dart';
 
 /// "Повторить сегодня" on Главная: learned words the memory model says are
 /// being forgotten right now (GET .../practice/review-due). Tapping runs a
@@ -36,10 +38,28 @@ class ReviewDueCardState extends State<ReviewDueCard> {
           _count = due.$1;
           _wordIds = due.$2;
         });
+        _announceIfNeeded(due.$1);
       }
     } catch (_) {
       // Best effort only.
     }
+  }
+
+  /// The same nudge as the push, but inside the app: a floating banner the first
+  /// time today that there really is something to review. Once a day, so it never
+  /// flashes on every visit.
+  Future<void> _announceIfNeeded(int count) async {
+    if (count <= 0) return;
+    final now = DateTime.now();
+    final key = 'review-banner-${widget.dictionary.id}-${now.year}-${now.month}-${now.day}';
+    if (DiskCache.get(key) != null) return;
+    DiskCache.put(key, 'shown');
+    if (!mounted) return;
+    InAppBanner.show(
+      body: tr('{0} слов начинают забываться', [count]),
+      visibleFor: InAppBanner.confirmationVisibleFor,
+      opensInbox: false,
+    );
   }
 
   Future<void> _open() async {
