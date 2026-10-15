@@ -247,27 +247,15 @@ def get_review_due(dictionary_id: int, db: Session = Depends(get_db), user: User
     forgotten first, at most one practice round's worth."""
     _get_dictionary_or_404(db, dictionary_id)
     due = review_due_word_ids(db, user.id, dictionary_id)
-    # Two gates, and the card opens only when BOTH pass.
-    # 1. The same accumulation threshold as the push: below it the card stays
-    #    away, so «Повторить сегодня» does not pop up for one forgotten word
-    #    (that felt like the old auto-created version).
-    # 2. The push has actually gone out today: the push IS the "now is the time"
-    #    signal, and the card is what the user sees when they come back after it.
-    #    Before the push, the list stays empty -- so the card never precedes the
-    #    push, exactly as asked.
-    from app.core.dates import dushanbe_today
-    from app.models.notification import UserPrepState
+    # The card appears by RULE at the next entry: at least the admin's threshold
+    # of words are due. It is NOT gated on the push having been delivered -- the
+    # push is the away-time nudge, while the card is what anyone who opens the
+    # app sees when there really is something worth reviewing. This keeps the
+    # feature alive even when notifications are turned off.
     from app.notifications.reminders import get_reminder_settings
 
     minimum = get_reminder_settings(db).review_push_min_words
     if len(due) < minimum:
-        return {"count": 0, "word_ids": []}
-    state = (
-        db.query(UserPrepState)
-        .filter(UserPrepState.user_id == user.id, UserPrepState.dictionary_id == dictionary_id)
-        .first()
-    )
-    if state is None or state.review_notified_on != dushanbe_today():
         return {"count": 0, "word_ids": []}
     return {"count": len(due), "word_ids": due[:ROUND_SIZE]}
 
