@@ -339,7 +339,17 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
         // happen once the lesson is meant to run offline.
         await LessonPreparation.finish(
           rounds,
-          extraMedia: [for (final phrase in _miniPhrases) if (phrase.audioUrl != null) phrase.audioUrl!],
+          // Everything this lesson may show or play, not just what the exercises
+          // use: the results screen plays each word's own recording and shows
+          // its picture, and that has to work with no network as well.
+          extraMedia: [
+            for (final phrase in _miniPhrases) if (phrase.audioUrl != null) phrase.audioUrl!,
+            for (final word in (widget.lesson ?? _before)?.words ?? const <LessonWord>[]) ...[
+              if (word.wordAudioUrl != null) word.wordAudioUrl!,
+              if (word.translationAudioUrl != null) word.translationAudioUrl!,
+              if (word.imageUrl != null) word.imageUrl!,
+            ],
+          ],
           onProgress: (step) {
             if (mounted) setState(() => _prepStep = step);
           },

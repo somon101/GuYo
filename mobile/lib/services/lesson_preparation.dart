@@ -75,9 +75,15 @@ class LessonPreparation {
     );
 
     // Rules last: they are small, and a lesson cannot be scored offline
-    // without them.
+    // without them. The word-level ladder rides along: the results screen shows
+    // a level badge per word, and that has to work with no network too.
     onProgress?.call(const PrepStep(PrepStage.rules, 0.95));
     final scoring = await ApiClient.instance.fetchExerciseScoring();
+    try {
+      await ApiClient.instance.fetchWordLevels();
+    } catch (_) {
+      // Badges are a nicety: a lesson never fails to prepare over them.
+    }
     onProgress?.call(const PrepStep(PrepStage.done, 1));
     return PreparedLesson(rounds: rounds, scoring: scoring, missingMedia: missing);
   }

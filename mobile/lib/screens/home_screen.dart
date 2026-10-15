@@ -150,6 +150,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _warmLessonWords(int dictionaryId) {
     if (!_warmedDictionaries.add(dictionaryId)) return;
     unawaited(ApiClient.instance.prefetchLessonWords(dictionaryId));
+    // "Мои слова" as well: the word list is what an offline lesson draws its
+    // wrong options from, and it must be there without waiting for the screen
+    // to be opened once. Best effort -- the screens fetch for themselves.
+    unawaited(() async {
+      try {
+        await ApiClient.instance.fetchLearnedWords(dictionaryId);
+        await ApiClient.instance.fetchLearnedCategories(dictionaryId);
+      } catch (_) {
+        // Offline, or nothing learned yet.
+      }
+    }());
   }
 
   Future<void> _loadDictionaries() async {
