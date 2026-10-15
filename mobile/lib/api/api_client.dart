@@ -882,6 +882,43 @@ class ApiClient {
     return _rememberLesson(res);
   }
 
+  /// Opens this pass on the server BEHIND the lesson that is already running
+  /// (see LessonRunScreen): every word the pass covers is on the device, so the
+  /// first exercise is playable at once and this goes on behind it. With no
+  /// network, waiting for it in front of the lesson used to mean five seconds of
+  /// breathing logo before the first card appeared.
+  ///
+  /// The order is what this method is for. An answer must never reach the server
+  /// before the pass it belongs to, or the server records a score for a pass it
+  /// has not opened (and drops it again the moment one is). So nothing this pass
+  /// does goes out until [open] has concluded: an answer given meanwhile waits on
+  /// the gate below, and if [open] fails the opening is written to the device's
+  /// queue first, ahead of the answers waiting behind that gate.
+  ///
+  /// [open] is the request itself (LessonRunDriver.startPass), so the caller
+  /// keeps owning how a pass is opened.
+  Future<void> openLessonPass(int lessonId, Future<void> Function() open) async {
+    // Two passes of one lesson at once would be a bug, and a gate left closed by
+    // one of them must never hold the other's answers back forever.
+    final stale = _passOpening;
+    if (stale != null && !stale.isCompleted) stale.complete();
+    final gate = _passOpening = Completer<void>();
+    try {
+      await open();
+    } catch (_) {
+      // No network: the opening waits on the device, in its own place ahead of
+      // this pass's answers (see PendingAnswers.addStart).
+      await PendingAnswers.addStart(lessonId);
+    } finally {
+      _passOpening = null;
+      gate.complete();
+    }
+  }
+
+  /// The pass being opened on the server right now, if any: answers written while
+  /// it is closed wait behind it (see [openLessonPass]).
+  Completer<void>? _passOpening;
+
   /// Pass exactly one of [wordIds] (ручной выбор, max 15) or [randomCount]
   /// (случайный выбор, 1-15) -- the backend rejects both/neither, same rule
   /// CreateLessonIn enforces. Fails with a 409 (surfaced via [ApiException.
@@ -1114,6 +1151,10 @@ class ApiClient {
   /// apart. If it still will not go, it stays on the device for
   /// [flushPendingAnswers] rather than being silently dropped.
   Future<void> _storeThenSend(Map<String, dynamic> answer) async {
+    // Nothing of a pass may reach the server before the pass itself: an answer
+    // given while its pass was still opening waits here, and is written down
+    // after that opening has concluded (see [openLessonPass]).
+    await _passOpening?.future;
     final id = await PendingAnswers.add(answer);
     _answersInFlight.add(id);
     var delivered = false;

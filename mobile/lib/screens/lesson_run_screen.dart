@@ -56,7 +56,17 @@ abstract class LessonRunDriver {
   Future<LessonPassStats?> fetchPassStats(int lessonId);
 
   /// Shows the one results screen; true means "Повторить урок".
-  Future<bool?> showResults(BuildContext context, Lesson lesson, LessonPassStats? stats);
+  ///
+  /// [refresh] is the server's own version of the pass, when it is still on its
+  /// way (see LessonResultsRefresh): the screen opens on the numbers the phone
+  /// worked out and swaps these in when they arrive, so this never waits for
+  /// the network to show a result the device already knows.
+  Future<bool?> showResults(
+    BuildContext context,
+    Lesson lesson,
+    LessonPassStats? stats, {
+    Future<LessonResultsRefresh?>? refresh,
+  });
 }
 
 class ApiLessonRunDriver implements LessonRunDriver {
@@ -101,9 +111,14 @@ class ApiLessonRunDriver implements LessonRunDriver {
   }
 
   @override
-  Future<bool?> showResults(BuildContext context, Lesson lesson, LessonPassStats? stats) {
+  Future<bool?> showResults(
+    BuildContext context,
+    Lesson lesson,
+    LessonPassStats? stats, {
+    Future<LessonResultsRefresh?>? refresh,
+  }) {
     return Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => LessonResultsScreen(lesson: lesson, stats: stats)),
+      MaterialPageRoute(builder: (_) => LessonResultsScreen(lesson: lesson, stats: stats, refresh: refresh)),
     );
   }
 }
@@ -222,6 +237,12 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
   Lesson? _before;
   DateTime? _passStartedAt;
 
+  /// The pass being handed over to the server right now, if any: the next pass
+  /// of the same lesson waits for it before opening (see [_openPass]), because
+  /// the server would otherwise hold the new pass's answers against the pass
+  /// whose ending has not landed yet.
+  Future<void>? _handingOver;
+
   @override
   void initState() {
     super.initState();
@@ -274,14 +295,15 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
     debugPrint('[guyo] pass ${widget.lessonId} starts: scoring rules ${rules.points.length}, '
         'lesson copy ${cachedLesson == null ? 'MISSING' : 'ok'}');
 
-    ApiClient.instance.deferredLessonId = null;
-    try {
-      await driver.startPass(widget.lessonId);
-    } catch (_) {
-      // No network: queued, in order, ahead of this pass's answers.
-      await PendingAnswers.addStart(widget.lessonId);
-    }
+    // From here on everything this lesson answers is held on the server until
+    // the pass is finished -- whether the pass has actually opened yet or is
+    // still on its way there (see _openPass, which keeps that order).
     ApiClient.instance.deferredLessonId = widget.lessonId;
+    // The pass opens BEHIND the first exercise rather than in front of it: every
+    // word of it is already on the device, so there is nothing to wait for --
+    // and with no network this used to be a five-second wait on a breathing logo
+    // before the first card appeared.
+    unawaited(_openPass());
 
     LessonRounds rounds;
     // A repeat pass re-tests only the words still short of their level, so its
@@ -418,89 +440,165 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
     await _showResults();
   }
 
+  /// Opens this pass on the server, behind the first exercise (see [_run]).
+  ///
+  /// The lesson never waits for it: every word of the pass is already on the
+  /// device, so the first card is playable at once. What does wait is the
+  /// network -- [ApiClient.openLessonPass] holds this pass's answers back until
+  /// the opening has gone over (or has been queued, with no network), because an
+  /// answer must never reach the server before the pass it belongs to.
+  Future<void> _openPass() async {
+    await ApiClient.instance.openLessonPass(
+      widget.lessonId,
+      () async {
+        // Whatever the previous pass still owes the server goes first: its
+        // ending must land before this pass opens, or the server would hold this
+        // pass's answers against the pass that is still open.
+        final previous = _handingOver;
+        if (previous != null) {
+          try {
+            await previous;
+          } catch (_) {
+            // The previous pass's own hand-over never throws (it queues what is
+            // left); and nothing about it can stop this pass from opening.
+          }
+        }
+        await widget.driver.startPass(widget.lessonId);
+      },
+    );
+  }
+
+  /// The results, the moment the lesson is over.
+  ///
+  /// Nothing here waits for the network: the pass is scored on the device by the
+  /// server's own rules ([_scoreHere]) and the screen opens on those numbers at
+  /// once, while [_handOverPass] puts the pass on the server BEHIND it -- the
+  /// server's own version then replaces what is on screen
+  /// (see LessonResultsRefresh). Only a lesson this device has no copy of at all
+  /// has to wait to be told anything.
   Future<void> _showResults() async {
     _reachedResults = true;
 
-    // 1. The pass is handed over: its opening, its answers and its ending, in
-    // that order. Online the server counts it right here; offline all three stay
-    // queued on the device and go over the moment there is a connection again
-    // (ApiClient.flushPendingAnswers), after which the server's own numbers are
-    // the ones that last.
-    var synced = false;
-    if (ApiClient.instance.deferredLessonId == widget.lessonId) {
-      try {
-        // FIRST everything this pass did, in order: the pass opening (if it
-        // could not be started at the time), then every answer still on the
-        // device. The server must have all of them BEFORE it counts the pass --
-        // otherwise it counts a pass it only half-heard, which shows up as
-        // answers missing and words that barely moved.
-        //
-        // BOUNDED: with no network every single answer would sit there timing out
-        // one after another, and the results -- which the phone can already work
-        // out for itself -- would wait for all of them. Three seconds is enough
-        // for a real hand-over; whatever is left keeps going in the background
-        // and the pass is scored on the device meanwhile.
-        await ApiClient.instance
-            .flushPendingAnswers()
-            .timeout(const Duration(seconds: 3), onTimeout: () {});
-        if (PendingAnswers.forLesson(widget.lessonId).isNotEmpty) {
-          // Not everything could be handed over: the pass is NOT counted now.
-          // The phone scores it instead, and the whole pass goes over later, in
-          // order, starting with the answers that are still waiting.
-          await PendingAnswers.addFinish(widget.lessonId);
-        } else {
-          await widget.driver.finishPass(widget.lessonId);
-          synced = true;
-        }
-      } catch (_) {
-        await PendingAnswers.addFinish(widget.lessonId);
-      }
-      ApiClient.instance.deferredLessonId = null;
-    } else {
-      synced = true;
-    }
+    // The pass scored HERE, out of the answers this device gave -- no request,
+    // no waiting, works with no network at all.
+    final scored = _scoreHere();
+    // And the hand-over, which runs behind the screen below. The pass ITSELF goes
+    // over first: the next pass of this lesson waits for that and nothing else
+    // (see _openPass), never for the numbers fetched after it.
+    final handedOver = _pushPassToServer();
+    _handingOver = handedOver;
+    final refresh = _handOverPass(handedOver);
 
-    // 2. The results. The server's copy of the lesson when it can be fetched;
-    // otherwise scored on the phone by the same rules -- never an error screen
-    // for a lesson that was actually played to the end.
-    // The server's own numbers are the ones that last from here: drop this
-    // device's local version FIRST, so what is fetched below is the server's.
-    if (synced) LessonScoreOverlay.forget(widget.lessonId);
-    Lesson? fromServer;
-    if (synced) {
-      try {
-        fromServer = await widget.driver.fetchLesson(widget.lessonId);
-      } catch (_) {
-        fromServer = null;
-      }
-    }
+    LessonPassStats? stats = scored?.stats;
+    Lesson? shown = scored?.lesson ?? widget.lesson;
 
-    final Lesson shown;
-    LessonPassStats? stats;
-    if (fromServer != null) {
-      shown = fromServer;
-    } else {
-      final scored = _scoreHere();
-      if (scored == null) {
-        if (mounted) setState(() => _failed = true);
+    if (shown == null) {
+      // No copy of this lesson to score against (it was never fetched on this
+      // device): the server's version is the only one there is, so this -- and
+      // only this -- case waits for it.
+      final incoming = await refresh;
+      if (!mounted) return;
+      if (incoming == null) {
+        setState(() => _failed = true);
         return;
       }
-      shown = scored.lesson;
-      stats = scored.stats;
-      unawaited(_syncInBackground());
+      shown = incoming.lesson;
+      stats = incoming.stats;
     }
+
     _miniPhrases = shown.miniPhrases;
     if (!mounted) return;
-    debugPrint('[guyo] pass ${widget.lessonId}: ${synced ? 'counted by the server' : 'scored on the phone'}'
-        '${stats == null ? '' : ', ${stats.totalAnswers} answers, ${stats.scoreGained} points, '
-            '${stats.newlyLearned} newly learned'}');
-    final repeat = await widget.driver.showResults(context, shown, stats);
+    debugPrint('[guyo] pass ${widget.lessonId}: results open on '
+        '${scored == null ? 'the lesson the caller had' : 'this device\'s own score'}'
+        '${stats == null ? '' : ' (${stats.totalAnswers} answers, ${stats.scoreGained} points, '
+            '${stats.newlyLearned} newly learned)'}, the server\'s own numbers follow');
+    final repeat = await widget.driver.showResults(context, shown, stats, refresh: refresh);
     if (!mounted) return;
     if (repeat == true) {
       unawaited(_run());
     } else {
       Navigator.of(context).pop();
     }
+  }
+
+  /// Hands this pass over to the server and comes back with the server's own
+  /// version of the lesson and of its statistics.
+  ///
+  /// Runs BEHIND the results screen (see [_showResults]): online this is the
+  /// server counting the pass, offline the whole pass stays queued on the device
+  /// and goes over the moment there is a connection again
+  /// (ApiClient.flushPendingAnswers). Null means the server's numbers are not
+  /// there yet; the screen then keeps the ones the phone worked out.
+  ///
+  /// [pushed] is the pass going over -- already on its way; this only reads what
+  /// came of it and then fetches the server's own version.
+  Future<LessonResultsRefresh?> _handOverPass(Future<bool> pushed) async {
+    if (!await pushed) {
+      // Still on the device: whatever is left keeps going in the background.
+      unawaited(_syncInBackground());
+      return null;
+    }
+    // The server's own numbers are the ones that last from here: drop this
+    // device's local version FIRST, so what is fetched below is the server's.
+    LessonScoreOverlay.forget(widget.lessonId);
+    Lesson? fromServer;
+    try {
+      fromServer = await widget.driver.fetchLesson(widget.lessonId);
+    } catch (_) {
+      fromServer = null;
+    }
+    if (fromServer == null) {
+      unawaited(_syncInBackground());
+      return null;
+    }
+    LessonPassStats? stats;
+    try {
+      stats = await widget.driver.fetchPassStats(widget.lessonId);
+    } catch (_) {
+      stats = null;
+    }
+    return LessonResultsRefresh(fromServer, stats);
+  }
+
+  /// Puts this pass on the server -- its opening (when it could not be started
+  /// at the time), every answer still on the device, and its ending, in that
+  /// order -- and says whether the server counted it. False means the pass is
+  /// still on the device, in order, waiting for a connection.
+  Future<bool> _pushPassToServer() async {
+    if (ApiClient.instance.deferredLessonId != widget.lessonId) return true;
+    var synced = false;
+    try {
+      // FIRST everything this pass did, in order: the pass opening (if it
+      // could not be started at the time), then every answer still on the
+      // device. The server must have all of them BEFORE it counts the pass --
+      // otherwise it counts a pass it only half-heard, which shows up as
+      // answers missing and words that barely moved.
+      //
+      // BOUNDED: with no network every single answer would sit there timing out
+      // one after another, and the results -- which the phone can already work
+      // out for itself -- would wait for all of them. Three seconds is enough
+      // for a real hand-over; whatever is left keeps going in the background
+      // and the pass is scored on the device meanwhile.
+      await ApiClient.instance
+          .flushPendingAnswers()
+          .timeout(const Duration(seconds: 3), onTimeout: () {});
+      if (PendingAnswers.forLesson(widget.lessonId).isNotEmpty) {
+        // Not everything could be handed over: the pass is NOT counted now.
+        // The phone scores it instead, and the whole pass goes over later, in
+        // order, starting with the answers that are still waiting.
+        await PendingAnswers.addFinish(widget.lessonId);
+      } else {
+        await widget.driver.finishPass(widget.lessonId);
+        synced = true;
+      }
+    } catch (_) {
+      await PendingAnswers.addFinish(widget.lessonId);
+    }
+    // Only if this lesson is still the one being played: a lesson opened while
+    // this pass was being handed over has its own id by now, and clearing that
+    // would let its answers move scores outside its pass (see queueLessonAnswer).
+    if (ApiClient.instance.deferredLessonId == widget.lessonId) ApiClient.instance.deferredLessonId = null;
+    return synced;
   }
 
   /// The pass scored on the phone, or null when this lesson was never fetched

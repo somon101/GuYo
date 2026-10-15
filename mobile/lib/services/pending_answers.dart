@@ -15,7 +15,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 /// The order matters: an answer must never reach the server before the pass it
 /// belongs to was started, nor before the answer that came before it (the pass's
 /// own counters depend on that), which is why a failed entry stops the flush
-/// instead of being skipped.
+/// instead of being skipped -- and why a pass opening is put in its own place in
+/// the queue rather than simply at its end (see [addStart]).
 class PendingAnswers {
   PendingAnswers._();
 
@@ -79,9 +80,29 @@ class PendingAnswers {
       }
     }
     final id = _nextId++;
-    _items.add({'id': id, 'kind': 'start', 'lesson_id': lessonId});
+    _items.insert(_openingAt(lessonId), {'id': id, 'kind': 'start', 'lesson_id': lessonId});
     await _save();
     return id;
+  }
+
+  /// Where this lesson's pass opening belongs in the queue: after the previous
+  /// pass's ending -- which is what makes that pass count at all -- and BEFORE
+  /// any of this pass's own answers.
+  ///
+  /// The position is not a formality. With no network a lesson starts answering
+  /// before its opening has even been written down here (the opening is a request
+  /// that has to fail first), so a plain append would send the answers ahead of
+  /// the pass they belong to: the server would score them outside any pass and
+  /// then drop whatever the delayed opening had held.
+  static int _openingAt(int lessonId) {
+    var at = _items.length;
+    for (var i = _items.length - 1; i >= 0; i--) {
+      final entry = _items[i];
+      if (entry['lesson_id'] != lessonId) continue;
+      if (entry['kind'] == 'finish') break; // the previous pass counts first
+      at = i; // still this lesson's own, unclaimed tail
+    }
+    return at;
   }
 
   /// The pass was played to the end: this is what makes its scores count.
