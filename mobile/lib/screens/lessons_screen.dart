@@ -263,8 +263,17 @@ class _LessonsScreenState extends State<LessonsScreen> {
             state: _LessonCardState.inProgress,
             number: awaitingLesson.number,
             title: tr('Урок {0}', [awaitingLesson.number]),
-            subtitle: tr('Синхронизируется с сервером…'),
-            progress: null,
+            // Passed by the app's own count: all that is missing is the server's
+            // confirmation, so say so instead of leaving the user wondering
+            // whether the pass was lost. NOT passed (the words are not there
+            // yet): the ordinary "continue and earn the points" card, exactly as
+            // if nothing had happened.
+            subtitle: awaitingLesson.isCompleted
+                ? tr('Синхронизируется с сервером…')
+                : tr('Изучено {0} из {1} слов', [awaitingLesson.learnedCount, awaitingLesson.wordCount]),
+            progress: awaitingLesson.isCompleted || awaitingLesson.wordCount == 0
+                ? null
+                : awaitingLesson.learnedCount / awaitingLesson.wordCount,
             onTap: () => _continueLesson(awaitingLesson.id),
             onContinue: () => _continueLesson(awaitingLesson.id),
           ),
