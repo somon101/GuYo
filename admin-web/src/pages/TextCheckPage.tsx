@@ -9,6 +9,7 @@ import {
   type AiState,
   type TextCheckCacheEntry,
 } from "../api/endpoints";
+import { TextCheckHistory } from "./TextCheckHistory";
 
 function errorText(e: unknown): string {
   if (axios.isAxiosError(e) && typeof e.response?.data?.detail === "string") return e.response.data.detail;
@@ -300,6 +301,11 @@ export function TextCheckPage() {
           </div>
         )}
       </section>
+
+      {/* Every check itself, as cards: what people actually ask, and what the model
+          answered them (plus the prompt it judged by). Below the switches and the
+          cache, because it is the record, not a setting. */}
+      <TextCheckHistory />
     </div>
   );
 }

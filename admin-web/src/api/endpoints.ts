@@ -1707,6 +1707,62 @@ export async function clearTextCheckCache(): Promise<void> {
   await api.delete("/admin/ai/text-check/cache");
 }
 
+/** One check as a card shows it: who, when, and enough text to recognise it. */
+export interface TextCheckRun {
+  id: number;
+  user_id: number | null;
+  user_login: string;
+  created_at: string;
+  chars: number;
+  cached: boolean;
+  succeeded: boolean;
+  preview: string;
+  /** False for a check recorded before the text itself was kept. */
+  has_text: boolean;
+}
+
+/** One check in full -- what the card opens on. */
+export interface TextCheckRunDetail extends TextCheckRun {
+  text: string | null;
+  /** The exact prompt the model was given. */
+  prompt: string | null;
+  /** The whole answer it returned. */
+  answer: string | null;
+  params: Record<string, string | boolean | null>;
+  model: string | null;
+}
+
+export interface TextCheckRunFilters {
+  userId?: number;
+  onlyErrors?: boolean;
+  onlyCached?: boolean;
+  query?: string;
+}
+
+export async function listTextCheckRuns(
+  filters: TextCheckRunFilters = {},
+  limit = 30,
+  offset = 0,
+): Promise<{ total: number; runs: TextCheckRun[] }> {
+  const { data } = await api.get("/admin/ai/text-check/runs", {
+    params: {
+      limit,
+      offset,
+      ...(filters.userId !== undefined ? { user_id: filters.userId } : {}),
+      ...(filters.onlyErrors ? { only_errors: true } : {}),
+      ...(filters.onlyCached ? { only_cached: true } : {}),
+      ...(filters.query ? { q: filters.query } : {}),
+    },
+  });
+  return data;
+}
+
+/** One check in full: the text, the prompt and the whole answer. */
+export async function getTextCheckRun(id: number): Promise<TextCheckRunDetail> {
+  const { data } = await api.get(`/admin/ai/text-check/runs/${id}`);
+  return data;
+}
+
 /** «Проверка текста» without the daily limit for one person. */
 export async function setUserTextCheckUnlimited(
   userId: number,
