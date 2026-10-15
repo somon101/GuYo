@@ -97,10 +97,13 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTi
   void initState() {
     super.initState();
     _stats = widget.stats;
-    // Best-effort only -- the per-word level BADGE is a nice-to-have on
-    // top of the always-shown score/progress bar, never required to
-    // render the pass/fail outcome itself.
-    _levelsFuture = ApiClient.instance.fetchWordLevels().catchError((_) => <WordLevelSummary>[]);
+    // Best-effort -- but the DEVICE's own ladder is the fallback, never an empty
+    // one: with no network the fetch fails, and an empty ladder meant each word's
+    // level fell back to the value the server last stored for it -- "0 — новое"
+    // next to a "+85" gain this very pass had just earned.
+    _levelsFuture = ApiClient.instance
+        .fetchWordLevels()
+        .catchError((_) => ApiClient.instance.cachedWordLevels() ?? <WordLevelSummary>[]);
     // Started here, awaited only when the user leaves: the celebration is the
     // LAST thing this lesson shows, exactly as asked.
     _newAchievements = takeNewAchievements();
