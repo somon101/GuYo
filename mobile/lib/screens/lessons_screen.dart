@@ -194,6 +194,20 @@ class _LessonsScreenState extends State<LessonsScreen> {
     return null;
   }
 
+  /// How many of this lesson's words are at their level once the pass THIS device
+  /// scored for itself is counted -- or null when there is nothing local to add.
+  ///
+  /// The server's own list is short by exactly that work, so a lesson played with
+  /// no network read "Изучено 0 из 5" with its words already learned, right next
+  /// to a note saying the pass was done.
+  int? _locallyLearned(int lessonId) {
+    if (LessonScoreOverlay.scoresFor(lessonId).isEmpty) return null;
+    final full = ApiClient.instance.cachedLesson(lessonId);
+    final rules = ApiClient.instance.cachedExerciseScoring();
+    if (full == null || rules == null) return null;
+    return LessonScoreOverlay.applied(full, rules).words.where((w) => w.isLearned).length;
+  }
+
   /// Word selection, then -- when "Начать урок" there creates the lesson
   /// -- straight into it.
   Future<void> _createNextLesson() async {
@@ -314,10 +328,15 @@ class _LessonsScreenState extends State<LessonsScreen> {
             // carry on made a finished lesson look unfinished.
             subtitle: lesson.id == awaitingLesson?.id && lesson.isCompleted
                 ? tr('Синхронизируется с сервером…')
-                : tr('Изучено {0} из {1} слов', [lesson.learnedCount, lesson.wordCount]),
+                : tr('Изучено {0} из {1} слов', [
+                    _locallyLearned(lesson.id) ?? lesson.learnedCount,
+                    lesson.wordCount,
+                  ]),
             progress: lesson.id == awaitingLesson?.id && lesson.isCompleted
                 ? null
-                : (lesson.wordCount == 0 ? 0.0 : lesson.learnedCount / lesson.wordCount),
+                : (lesson.wordCount == 0
+                    ? 0.0
+                    : ((_locallyLearned(lesson.id) ?? lesson.learnedCount) / lesson.wordCount).clamp(0.0, 1.0)),
             onTap: () => _openLesson(lesson.id),
             // Points NOT earned: the ordinary "continue and earn them" card.
             // Confirmed complete: no button either. Only the still-unconfirmed
