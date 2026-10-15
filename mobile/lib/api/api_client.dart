@@ -1245,6 +1245,10 @@ class ApiClient {
       for (final action in PendingAnswers.all)
         if (action['lesson_id'] is int) action['lesson_id'] as int,
     };
+    // Whatever happens below, the retry loop runs from here on: this is the one
+    // place that knows the device has something to hand over, so nothing has to
+    // remember to start it at app launch (and nothing did -- see startPendingFlush).
+    _ensurePendingFlush();
     for (final action in PendingAnswers.all) {
       final id = action['id'];
       if (id is! int) continue;
@@ -1294,19 +1298,28 @@ class ApiClient {
   /// for the truth to arrive.
   final ValueNotifier<int> syncTick = ValueNotifier<int>(0);
 
-  /// Retries the device's pending lesson work every so often while the app is
+  /// Retries the device's pending lesson work every few seconds while the app is
   /// running.
   ///
   /// A pass played with no network has to reach the server as soon as there IS
   /// one: without this, the work would sit on the phone until the app was
   /// reopened, and the lesson would look unplayed (and its words untouched) in
   /// the meantime.
-  void startPendingFlush({Duration every = const Duration(seconds: 30)}) {
+  ///
+  /// FIVE seconds, and it starts ITSELF the first time anything is queued (see
+  /// [_ensurePendingFlush]) -- it used to be thirty and, worse, nothing ever called
+  /// it, so a finished pass could sit on the device indefinitely: the user waited
+  /// for a sync that was never scheduled.
+  void startPendingFlush({Duration every = const Duration(seconds: 5)}) {
     if (_pendingFlushTimer != null) return;
     _pendingFlushTimer = Timer.periodic(every, (_) async {
       if (await PendingAnswers.hasWork()) await flushPendingAnswers();
     });
   }
+
+  /// Starts the retry loop if it is not running: called from the one place that
+  /// knows there is something to hand over.
+  void _ensurePendingFlush() => startPendingFlush();
 
   Timer? _pendingFlushTimer;
 
