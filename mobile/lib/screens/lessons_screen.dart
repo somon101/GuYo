@@ -266,25 +266,6 @@ class _LessonsScreenState extends State<LessonsScreen> {
           style: TextStyle(color: AppColors.secondaryText, fontSize: 14),
         ),
         const SizedBox(height: 22),
-        if (awaitingLesson != null)
-          _LessonCard(
-            state: _LessonCardState.inProgress,
-            number: awaitingLesson.number,
-            title: tr('Урок {0}', [awaitingLesson.number]),
-            // Passed by the app's own count: all that is missing is the server's
-            // confirmation, so say so instead of leaving the user wondering
-            // whether the pass was lost. NOT passed (the words are not there
-            // yet): the ordinary "continue and earn the points" card, exactly as
-            // if nothing had happened.
-            subtitle: awaitingLesson.isCompleted
-                ? tr('Синхронизируется с сервером…')
-                : tr('Изучено {0} из {1} слов', [awaitingLesson.learnedCount, awaitingLesson.wordCount]),
-            progress: awaitingLesson.isCompleted || awaitingLesson.wordCount == 0
-                ? null
-                : awaitingLesson.learnedCount / awaitingLesson.wordCount,
-            onTap: () => _continueLesson(awaitingLesson.id),
-            onContinue: () => _continueLesson(awaitingLesson.id),
-          ),
         if (canCreateNext)
           _LessonCard(
             state: _LessonCardState.unlocked,
@@ -294,15 +275,27 @@ class _LessonsScreenState extends State<LessonsScreen> {
             progress: null,
             onTap: _createNextLesson,
           ),
+        // ONE card per lesson, always -- the lesson whose pass is still waiting
+        // to be confirmed gets no card of its own, or the same lesson shows up
+        // twice (which is exactly what happened). Only what its own card says
+        // changes: passed by the app's own count, all that is missing is the
+        // server's confirmation and it says so; not passed, the ordinary
+        // "continue and earn the points" card.
         for (final lesson in reversedLessons)
           _LessonCard(
             state: lesson.isCompleted ? _LessonCardState.completed : _LessonCardState.inProgress,
             number: lesson.number,
             title: tr('Урок {0}', [lesson.number]),
-            subtitle: tr('Изучено {0} из {1} слов', [lesson.learnedCount, lesson.wordCount]),
+            subtitle: lesson.id == awaitingLesson?.id && lesson.isCompleted
+                ? tr('Синхронизируется с сервером…')
+                : tr('Изучено {0} из {1} слов', [lesson.learnedCount, lesson.wordCount]),
             progress: lesson.wordCount == 0 ? 0.0 : lesson.learnedCount / lesson.wordCount,
             onTap: () => _openLesson(lesson.id),
-            onContinue: lesson.isCompleted ? null : () => _continueLesson(lesson.id),
+            // A confirmed-complete lesson needs no "continue" -- but the one
+            // still being confirmed does, so it can be played again meanwhile.
+            onContinue: lesson.isCompleted && lesson.id != awaitingLesson?.id
+                ? null
+                : () => _continueLesson(lesson.id),
           ),
       ],
     );
