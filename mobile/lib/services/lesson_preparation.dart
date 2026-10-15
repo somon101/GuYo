@@ -84,6 +84,17 @@ class LessonPreparation {
     } catch (_) {
       // Badges are a nicety: a lesson never fails to prepare over them.
     }
+    // The achievements themselves and the profile's counters are what the
+    // results screen works out the lesson's own achievements from when there is
+    // no network to ask the server (see services/local_achievements.dart). They
+    // must be FRESH at that moment: a stale list simply has nothing to open.
+    // Best effort -- an offline lesson never fails to prepare over them.
+    try {
+      await ApiClient.instance.fetchMyAchievements();
+      await ApiClient.instance.fetchMyProfile();
+    } catch (_) {
+      // The device's own copies are used instead.
+    }
     onProgress?.call(const PrepStep(PrepStage.done, 1));
     return PreparedLesson(rounds: rounds, scoring: scoring, missingMedia: missing);
   }
