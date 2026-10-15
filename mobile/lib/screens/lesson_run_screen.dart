@@ -434,7 +434,15 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
         // device. The server must have all of them BEFORE it counts the pass --
         // otherwise it counts a pass it only half-heard, which shows up as
         // answers missing and words that barely moved.
-        await ApiClient.instance.flushPendingAnswers();
+        //
+        // BOUNDED: with no network every single answer would sit there timing out
+        // one after another, and the results -- which the phone can already work
+        // out for itself -- would wait for all of them. Three seconds is enough
+        // for a real hand-over; whatever is left keeps going in the background
+        // and the pass is scored on the device meanwhile.
+        await ApiClient.instance
+            .flushPendingAnswers()
+            .timeout(const Duration(seconds: 3), onTimeout: () {});
         if (PendingAnswers.forLesson(widget.lessonId).isNotEmpty) {
           // Not everything could be handed over: the pass is NOT counted now.
           // The phone scores it instead, and the whole pass goes over later, in
