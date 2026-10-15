@@ -154,9 +154,28 @@ class _LessonsScreenState extends State<LessonsScreen> {
     }
   }
 
+  /// True while a lesson is being opened. A card tapped several times in quick
+  /// succession used to push a SEPARATE copy of the lesson screen for every tap:
+  /// the first one appeared, and behind it sat the others -- so "Выйти" closed one
+  /// and showed another, over and over, and the only way out was to press it as
+  /// many times as the user had managed to tap.
+  static bool _openingLesson = false;
+
   /// "Продолжить" on the in-progress card: straight into the exercises,
   /// with no stop at the lesson's own screen.
   Future<void> _continueLesson(int lessonId) async {
+    if (_openingLesson) return;
+    _openingLesson = true;
+    try {
+      await _continueLessonNow(lessonId);
+    } finally {
+      // Set free when the lesson screen closes: the list is not tappable while it
+      // is up, so one lesson at a time is exactly right.
+      _openingLesson = false;
+    }
+  }
+
+  Future<void> _continueLessonNow(int lessonId) async {
     Lesson? lesson = SessionCache.take<Lesson>('lesson-$lessonId');
     // A network blip shouldn't stop the lesson: one quiet second try.
     for (var attempt = 0; lesson == null && attempt < 2; attempt++) {
