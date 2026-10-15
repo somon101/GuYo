@@ -410,6 +410,8 @@ export interface PrioritySettings {
   personal_quest_min_words: number;
   personal_quest_max_words: number;
   personal_quest_reward_points: number;
+  /** How many "critical" words must accumulate before an adaptive lesson is built automatically. */
+  adaptive_lesson_min_words: number;
   memory_enabled: boolean;
   memory_target_retention: number;
   memory_critical_below: number;

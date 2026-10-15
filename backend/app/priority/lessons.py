@@ -15,12 +15,12 @@ from app.models.word import Word
 from app.models.word_progress import WordProgress
 from app.premium import FEATURE_ADAPTIVE_LESSONS, automatic_feature_allowed
 from app.priority.calculate import PriorityResult, calculate_priorities
-from app.priority.settings import priority_role_bands
+from app.priority.settings import get_priority_settings, priority_role_bands
 
-# How many Critical words trigger an adaptive lesson -- fixed at 5 by the
-# spec's own wording ("когда накопилось 5 слов"), not an admin knob (the
-# spec lists this as the one concrete number it does treat as final,
-# unlike every band/weight around it).
+# The spec's own example, and the shipped default for
+# PrioritySettings.adaptive_lesson_min_words (Admin Web -> Приоритет): how many
+# Critical words trigger an adaptive lesson. An ADMIN number now, not a
+# constant -- this is only the fallback for a settings row that predates it.
 ADAPTIVE_LESSON_BATCH_SIZE = 5
 
 
@@ -112,13 +112,14 @@ def maybe_create_adaptive_lesson(db: Session, user: User, dictionary_id: int) ->
 
     threshold = get_threshold(db)
     candidates = pending_critical_words(db, user.id, dictionary_id, threshold)
-    if len(candidates) < ADAPTIVE_LESSON_BATCH_SIZE:
+    batch = get_priority_settings(db).adaptive_lesson_min_words or ADAPTIVE_LESSON_BATCH_SIZE
+    if len(candidates) < batch:
         return None
 
-    # Most urgent first -- if more than 5 qualify at once, the batch takes
+    # Most urgent first -- if more than the batch qualify at once, it takes
     # the highest Priority Scores among them.
     candidates.sort(key=lambda pair: -pair[1].score)
-    word_ids = [word.id for word, _ in candidates[:ADAPTIVE_LESSON_BATCH_SIZE]]
+    word_ids = [word.id for word, _ in candidates[:batch]]
 
     dictionary = db.get(Dictionary, dictionary_id)
     return build_lesson(db, user, dictionary, word_ids, threshold, is_adaptive=True)

@@ -305,6 +305,19 @@ function WeightsSection() {
           </div>
           <div className="border-t border-slate-100 pt-4">
             <p className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-400">
+              Авто-уроки
+              <InfoTooltip label="Что такое авто-урок">
+                Урок, который сервер собирает сам из слов с самым высоким приоритетом («критические»: начатые, но ещё
+                не выученные). Создаётся тихо, уже после того как человек вышел из программы. Число ниже — сколько
+                таких слов должно накопиться, прежде чем урок появится: больше — реже, меньше — чаще.
+              </InfoTooltip>
+            </p>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              {field("adaptive_lesson_min_words", "Критических слов для авто-урока")}
+            </div>
+          </div>
+          <div className="border-t border-slate-100 pt-4">
+            <p className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-400">
               Модель памяти
               <InfoTooltip label="Что такое модель памяти">
                 Для каждого слова считается R — вероятность, что человек вспомнит его сейчас. Она растёт от правильных

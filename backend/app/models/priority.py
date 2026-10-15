@@ -65,6 +65,13 @@ class PrioritySettings(Base):
     # no admin-authored Quest row of its own to read it from.
     personal_quest_reward_points: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
 
+    # Adaptive lessons (app/priority/lessons.py): how many words whose Priority
+    # role is "critical" must accumulate before one is built automatically.
+    # Was hardcoded at 5 (the spec's own example); an admin number now, so it
+    # can be raised to make auto lessons rarer or lowered to make them appear
+    # sooner.
+    adaptive_lesson_min_words: Mapped[int] = mapped_column(Integer, nullable=False, default=5, server_default="5")
+
     # The memory model (app/memory/). When on, a word's Priority level comes
     # from its recall probability R instead of the four-factor score, and a
     # learned word whose R fell below the target needs review again.

@@ -16,6 +16,9 @@ class PrioritySettingsOut(BaseModel):
     personal_quest_min_words: int
     personal_quest_max_words: int
     personal_quest_reward_points: int
+    # How many "critical" words must accumulate before an adaptive lesson is
+    # built automatically (see app/priority/lessons.py).
+    adaptive_lesson_min_words: int
     memory_enabled: bool
     memory_target_retention: float
     memory_critical_below: float
@@ -37,6 +40,7 @@ class PrioritySettingsIn(BaseModel):
     personal_quest_min_words: int = Field(ge=1)
     personal_quest_max_words: int = Field(ge=1)
     personal_quest_reward_points: int = Field(ge=0)
+    adaptive_lesson_min_words: int = Field(default=5, ge=1, le=50)
     memory_enabled: bool = True
     memory_target_retention: float = Field(default=0.9, gt=0, lt=1)
     memory_critical_below: float = Field(default=0.7, gt=0, lt=1)
