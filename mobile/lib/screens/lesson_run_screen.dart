@@ -320,7 +320,15 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
       // so rather than hanging.
       LessonRounds? fresh;
       try {
-        fresh = await driver.prepareRounds(widget.lessonId, widget.exerciseKeys);
+        // BOUNDED: with no network each round request would wait on the operating
+        // system's own timeout one after another, and «Продолжить» after a lesson
+        // short of its points looked like a dead button for that whole time. Three
+        // seconds is enough for a real answer; after that the prepared set is used
+        // (see below) and the lesson starts.
+        fresh = await driver
+            .prepareRounds(widget.lessonId, widget.exerciseKeys)
+            .then<LessonRounds?>((r) => r)
+            .timeout(const Duration(seconds: 3), onTimeout: () => null);
       } catch (_) {
         fresh = null;
       }
