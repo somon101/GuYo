@@ -473,6 +473,13 @@ def create_lesson(
 
 
 MIN_LESSON_WORDS = 4
+# An answer arriving faster than this cannot have been read, let alone thought
+# about: it is counted as wrong (see submit_answer). Below simple human reaction
+# time, so an honest quick tap on a word the user knows is never touched.
+MIN_ANSWER_MS = 300
+# And a whole pass whose SLOWEST answer beat this is a script, not a learner:
+# its words count, its rating points do not (see _pass_too_fast).
+IMPLAUSIBLE_PASS_MS = 1000
 
 
 def prioritized_words(
@@ -631,6 +638,21 @@ def get_lesson_listen_word_round(
     return listen_word.build_round(db, lesson, get_threshold(db))
 
 
+def _pass_too_fast(db: Session, user_id: int, lesson: Lesson) -> bool:
+    """True when EVERY answer of the current pass came back faster than a person
+    could read it (see MIN_ANSWER_MS for the single-answer rule). Fewer than five
+    answers is never judged: there is not enough to tell speed from luck."""
+    query = db.query(WordAttempt.duration_ms).filter(
+        WordAttempt.user_id == user_id, WordAttempt.lesson_id == lesson.id
+    )
+    if lesson.pass_started_at is not None:
+        query = query.filter(WordAttempt.created_at >= lesson.pass_started_at)
+    durations = [d for (d,) in query.all() if d is not None]
+    if len(durations) < 5:
+        return False
+    return max(durations) < IMPLAUSIBLE_PASS_MS
+
+
 def _hold_answer_for_pass(db: Session, user: User, lesson: Lesson, exercise_key: str, payload, delta: int):
     """A deferred answer: moves the word's score only inside this pass
     (Lesson.pass_pending_scores), never its real WordProgress -- so no
@@ -719,8 +741,12 @@ def finish_lesson_pass(
         mark_for_prep(db, user, lesson.dictionary_id)
         if newly_learned:
             check_and_grant_achievements(db, user, "words_learned")
-            for word_id in newly_learned:
-                award_word_points_if_new(db, user, word_id)
+            # A pass where every single answer came back faster than a person can
+            # read earns no rating points: the words still count, so an honest
+            # fast player loses nothing, while a script gains no rank.
+            if not _pass_too_fast(db, user.id, lesson):
+                for word_id in newly_learned:
+                    award_word_points_if_new(db, user, word_id)
         if lesson_completed:
             check_and_grant_achievements(db, user, "lessons_completed")
         # The lesson's mini-phrases were gone through on this pass: they're
@@ -771,8 +797,30 @@ def submit_answer(
     if verdict is not None:
         payload.is_correct = verdict
 
+    # --- Anti-farming --------------------------------------------------------
+    # An answer that comes back faster than anyone could read the options is not
+    # an answer: it counts as WRONG (like a timeout) rather than being ignored,
+    # so spamming gains nothing. A single quick tap is left alone -- knowing the
+    # word and tapping it at once is normal.
+    if not payload.timed_out and payload.duration_ms is not None and payload.duration_ms < MIN_ANSWER_MS:
+        payload.is_correct = False
+
+    # One COUNTED answer per (pass, word, exercise). The app may legitimately
+    # resend an answer whose response was lost -- that must not move the score a
+    # second time -- and a modified app cannot farm one word by repeating the
+    # same answer. The attempt is still recorded below: analytics sees repeats.
+    repeats = db.query(WordAttempt.id).filter(
+        WordAttempt.user_id == user.id,
+        WordAttempt.lesson_id == lesson.id,
+        WordAttempt.word_id == payload.word_id,
+        WordAttempt.exercise_key == exercise_key,
+    )
+    if lesson.pass_started_at is not None:
+        repeats = repeats.filter(WordAttempt.created_at >= lesson.pass_started_at)
+    already_answered = repeats.first() is not None
+
     correct_points, incorrect_points = get_points(db, exercise_key)
-    delta = correct_points if payload.is_correct else -incorrect_points
+    delta = 0 if already_answered else (correct_points if payload.is_correct else -incorrect_points)
 
     if payload.deferred:
         return _hold_answer_for_pass(db, user, lesson, exercise_key, payload, delta)
