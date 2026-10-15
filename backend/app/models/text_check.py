@@ -33,7 +33,7 @@ Three pieces, each with one job:
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, func
+from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -78,8 +78,15 @@ class TextCheckSettings(Base):
 
 
 class TextCheckRun(Base):
-    """One check a user asked for -- the limit's counter and the admin's
-    statistics, never a copy of the answer (that lives in the cache)."""
+    """One check a user asked for -- the limit's counter, the admin's statistics,
+    AND the check itself: the text as written, the prompt the model was given and
+    the whole answer it gave.
+
+    The text/prompt/answer are kept HERE rather than only in TextCheckCache
+    because the cache is keyed by the normalized text: it can say "this text was
+    checked", but never "this user checked it, on this day, and this is what came
+    back". Admin Web lists these as cards -- who wrote it, what was asked, what
+    was answered -- which is exactly what the cache cannot show."""
 
     __tablename__ = "text_check_runs"
     __table_args__ = (
@@ -103,6 +110,22 @@ class TextCheckRun(Base):
     # False when DeepSeek could not answer at all. Kept for the statistics;
     # like a cache hit, it never counts against the limit.
     succeeded: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+
+    # --- the check itself ---------------------------------------------------
+    # NULL on rows written before these columns existed: the older checks only
+    # have a length, and Admin Web says so instead of showing an empty card.
+    text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # The exact prompt sent to the model, and the exact answer it returned.
+    prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    answer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # The settings this check ran with (user_gender, addressee_gender, formality,
+    # check_punctuation, explanation_language): the answer only means anything
+    # next to the settings that produced it.
+    params: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    model: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # The account's own name at the time, so a card stays readable (and a check
+    # stays attributable) even if the account is later removed.
+    user_login: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
 
 
 class TextCheckCache(Base):
