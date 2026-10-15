@@ -197,10 +197,23 @@ void main() {
       await tester.fling(find.byType(ListView), const Offset(0, 300), 1000);
       await tester.pumpAndSettle(const Duration(seconds: 2));
 
+      // The celebration now opens on a SHUT geode: the badge is inside it,
+      // dimmed, and four taps crack the glass before the reward itself becomes
+      // readable. Its own light keeps breathing, so the frames are pumped
+      // explicitly -- pumpAndSettle would never return on this screen.
+      expect(find.byKey(const ValueKey('achievement-geode')), findsOneWidget, reason: 'the celebration shows a shut geode first');
+      for (var i = 0; i < 4; i++) {
+        await tester.tap(find.byKey(const ValueKey('achievement-geode')));
+        await tester.pump(const Duration(milliseconds: 260));
+      }
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 2000));
+
       expect(find.text('Достижение получено!'), findsOneWidget, reason: 'first time seeing this earned achievement');
-      expect(find.text('Первая фраза'), findsWidgets, reason: 'shown in the celebration dialog');
+      expect(find.text('Первая фраза'), findsWidgets, reason: 'named by the reward');
       await tester.tap(find.widgetWithText(FilledButton, 'Отлично!'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 800));
 
       expect(find.text('1 / 1'), findsOneWidget, reason: 'the profile count now reads as earned');
       await tester.tap(find.text('Достижения'));
