@@ -118,6 +118,17 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
+/// How long an action that decides whether a pass can be played at all (opening
+/// a pass, closing one) waits for the network before giving up and being queued
+/// on the device instead.
+///
+/// It MUST be short: with no network the request would otherwise sit on the
+/// operating system's own timeout for tens of seconds, and the user pressing
+/// «Продолжить» on a lesson they prepared earlier would watch a frozen screen
+/// instead of the lesson. Everything these calls do is queued and retried when
+/// there is a connection, so giving up early costs nothing.
+const Duration kOfflineActionTimeout = Duration(seconds: 5);
+
 /// Thin wrapper around the GuYo backend REST API. Holds the JWT in secure
 /// storage (Android Keystore-backed) rather than plain SharedPreferences.
 class ApiClient {
@@ -852,7 +863,9 @@ class ApiClient {
   Future<void> finishLessonPass(int lessonId) async {
     // Every answer of the pass must be on the server before it counts.
     await flushLessonAnswers();
-    final res = await http.post(_uri('/lessons/$lessonId/pass/finish'), headers: await _authHeaders());
+    final res = await http
+        .post(_uri('/lessons/$lessonId/pass/finish'), headers: await _authHeaders())
+        .timeout(kOfflineActionTimeout);
     await _throwWithDetail(res);
     try {
       reportStreakResult(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
@@ -860,7 +873,9 @@ class ApiClient {
   }
 
   Future<Lesson> startLessonPass(int lessonId) async {
-    final res = await http.post(_uri('/lessons/$lessonId/pass'), headers: await _authHeaders());
+    final res = await http
+        .post(_uri('/lessons/$lessonId/pass'), headers: await _authHeaders())
+        .timeout(kOfflineActionTimeout);
     await _throwIfUnauthorized(res);
     // The pass's own starting point: exactly the "before" an offline pass is
     // scored against.
