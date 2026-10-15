@@ -164,6 +164,17 @@ class WordDiagnosticsOut(BaseModel):
     recency_contribution: float
     stability_contribution: float
 
+    # The MEMORY model's own state for this pair (see app/memory/): how well it
+    # is remembered, when it was last reviewed, how many review days it has had,
+    # and the chance of recalling it right now. This is what «Повторить сегодня»
+    # reads: a word is due when `recall_probability` drops below the target
+    # (0.9 by default), so these four numbers say WHY a word is in that list --
+    # a real forgetting curve, or a history that was recorded at the wrong time.
+    memory_stability: float | None
+    memory_last_review: datetime | None
+    memory_review_days: int | None
+    recall_probability: float | None
+
     # Every exercise_key this word currently looks "weak" in -- the exact
     # same rule app/priority/quests_auto.py's personal auto-quests use to
     # decide what to build themselves around (see

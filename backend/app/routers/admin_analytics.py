@@ -445,7 +445,29 @@ def get_word_diagnostics(
         recency_contribution=priority.recency_contribution,
         stability_contribution=priority.stability_contribution,
         weak_exercises=weak_exercises_for_word(db, user_id, word_id),
+        # The memory model's own state (app/memory/): what «Повторить сегодня»
+        # reads. A word is due when recall_probability falls below the configured
+        # target (0.9 by default) -- these four numbers are what say whether that
+        # is a real forgetting curve or a history recorded at the wrong time.
+        memory_stability=progress.memory_stability if progress is not None else None,
+        memory_last_review=progress.memory_last_review if progress is not None else None,
+        memory_review_days=progress.memory_review_days if progress is not None else None,
+        recall_probability=_recall_now(progress),
     )
+
+
+def _recall_now(progress) -> float | None:
+    """The chance of recalling this word right now, or None when the pair has
+    never been modelled."""
+    if progress is None:
+        return None
+    from app.core.dates import utc_now
+    from app.memory.service import recall_probability
+
+    try:
+        return recall_probability(progress, utc_now())
+    except Exception:
+        return None
 
 
 # --- «Удержание» ------------------------------------------------------------
