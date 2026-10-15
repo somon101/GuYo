@@ -177,3 +177,77 @@ def clear_cache(db: Session = Depends(get_db), _admin=Depends(get_current_admin)
     key), but they would otherwise sit there taking up room."""
     text_check.clear_cache(db)
     db.commit()
+
+
+@router.get("/text-check/runs")
+def list_text_check_runs(
+    user_id: int | None = Query(default=None),
+    only_errors: bool = Query(default=False),
+    only_cached: bool = Query(default=False),
+    q: str | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """Every check that was ever run, newest first -- what Admin Web's cards are
+    built from.
+
+    Each card needs to be recognisable at a glance, so the LIST carries a short
+    preview; the full text, the prompt and the whole answer are one request away
+    (see get_text_check_run below), because shipping every checked message in full
+    with a page of fifty of them would be megabytes for nothing."""
+    query = db.query(TextCheckRun)
+    if user_id is not None:
+        query = query.filter(TextCheckRun.user_id == user_id)
+    if only_errors:
+        query = query.filter(TextCheckRun.succeeded.is_(False))
+    if only_cached:
+        query = query.filter(TextCheckRun.cached.is_(True))
+    if q and q.strip():
+        needle = f"%{q.strip()}%"
+        query = query.filter(TextCheckRun.text.ilike(needle) | TextCheckRun.user_login.ilike(needle))
+    total = query.with_entities(func.count(TextCheckRun.id)).scalar() or 0
+    rows = query.order_by(TextCheckRun.id.desc()).offset(offset).limit(limit).all()
+    return {
+        "total": total,
+        "runs": [
+            {
+                "id": row.id,
+                "user_id": row.user_id,
+                "user_login": row.user_login,
+                "created_at": row.created_at,
+                "chars": row.chars,
+                "cached": row.cached,
+                "succeeded": row.succeeded,
+                # Rows written before the check itself was kept have no text at
+                # all: the card says so instead of looking empty for no reason.
+                "preview": (row.text or "")[:160],
+                "has_text": row.text is not None,
+            }
+            for row in rows
+        ],
+    }
+
+
+@router.get("/text-check/runs/{run_id}")
+def get_text_check_run(run_id: int, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    """One check in full: the text as it was written, the settings it ran with, the
+    prompt that was sent to the model, and the whole answer it gave."""
+    row = db.get(TextCheckRun, run_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Проверка не найдена")
+    return {
+        "id": row.id,
+        "user_id": row.user_id,
+        "user_login": row.user_login,
+        "created_at": row.created_at,
+        "chars": row.chars,
+        "cached": row.cached,
+        "succeeded": row.succeeded,
+        "text": row.text,
+        "prompt": row.prompt,
+        "answer": row.answer,
+        "params": row.params or {},
+        "model": row.model,
+    }
