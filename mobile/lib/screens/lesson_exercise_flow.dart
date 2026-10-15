@@ -92,11 +92,18 @@ class LessonRunScope extends InheritedWidget {
 /// ending and the next exercise appearing. Not a completion screen: it
 /// carries no result, no buttons and nothing to read -- it exists only so
 /// the last frame isn't an empty or half-built layout.
+///
+/// Deliberately quiet: the app's own mark, breathing, on the ordinary
+/// background. It used to fill the body with grey blocks, which on a slow
+/// device sat there long enough to look like a screen that had failed to load
+/// -- exactly the "white loading screen" it was meant to avoid.
 class LessonExerciseHandoff extends StatelessWidget {
   const LessonExerciseHandoff({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const SkeletonExercise();
+    return const Center(
+      child: SkeletonPulse(child: Image(image: AssetImage('assets/icon/guyo_logo_full.png'), height: 64)),
+    );
   }
 }
