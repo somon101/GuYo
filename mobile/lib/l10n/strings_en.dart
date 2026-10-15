@@ -225,6 +225,7 @@ const Map<String, String> enStrings = {
   'Наведите камеру на QR-код из профиля друга': 'Point your camera at the QR code in your friend\'s profile',
   'Нажмите и произнесите слово': 'Tap and say the word',
   'Нажмите, чтобы остановить': 'Tap to stop',
+  'Нажмите, чтобы открыть': 'Tap to open',
   'Назад': 'Back',
   'Найдите друга по QR-коду или ID': 'Find a friend by QR code or ID',
   'Найти': 'Find',
@@ -312,6 +313,7 @@ const Map<String, String> enStrings = {
   'Опустился на {0}': 'Dropped to {0}',
   'Осталось {0} очков до следующего уровня': '{0} points to the next level',
   'Осталось {0} сек': '{0} sec left',
+  'Осталось нажатий: {0}': 'Taps left: {0}',
   'Осталось проверок сегодня: {0} из {1}': 'Checks left today: {0} of {1}',
   'от {0} очков': 'from {0} points',
   'От друзей или знакомых': 'From friends or acquaintances',
@@ -626,4 +628,5 @@ const Map<String, String> enStrings = {
   'После этого урок открывается мгновенно и работает без интернета.': 'After this the lesson opens instantly and works without internet.',
   'Не удалось подготовить урок. Проверьте интернет.': 'Could not prepare the lesson. Check your internet.',
   'Урок создаётся и подготавливается с интернетом, а потом проходится без него.': 'A lesson is created and prepared online, then played without it.',
+  'Синхронизируется с сервером…': 'Syncing with the server…',
 };

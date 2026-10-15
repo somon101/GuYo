@@ -266,6 +266,8 @@ const Map<String, (String, String)> uiStrings = {
   'Ранг пока не присвоен': ('Ранг ҳанӯз дода нашудааст', 'Daraja hali berilmagan'),
   '{0} место • {1}': ('ҷои {0} • {1}', '{0}-oʻrin • {1}'),
   'Достижение получено!': ('Дастовард гирифта шуд!', 'Yutuq olindi!'),
+  'Нажмите, чтобы открыть': ('Барои кушодан пахш кунед', 'Ochish uchun bosing'),
+  'Осталось нажатий: {0}': ('Пахшҳои боқимонда: {0}', 'Qolgan bosishlar: {0}'),
   'Отлично!': ('Аъло!', 'Ajoyib!'),
   'Логин должен быть не короче 3 символов': ('Логин бояд на кам аз 3 аломат бошад', 'Login kamida 3 belgidan iborat boʻlishi kerak'),
   'Сохранено': ('Сабт шуд', 'Saqlandi'),
@@ -636,6 +638,7 @@ const Map<String, (String, String)> uiStrings = {
   // без него (см. lib/services/lesson_preparation.dart).
   'Подготавливаем урок': ('Дарс омода карда мешавад', 'Dars tayyorlanmoqda'),
   'Готовим для работы без интернета': ('Барои кор бе интернет омода мекунем', 'Internetsiz ishlash uchun tayyorlayapmiz'),
+  'Синхронизируется с сервером…': ('Бо сервер ҳамоҳанг мешавад…', 'Server bilan sinxronlanmoqda…'),
   'Готовим урок для офлайна': ('Дарсро барои офлайн омода мекунем', 'Darsni oflayn uchun tayyorlayapmiz'),
   'Готовим упражнения': ('Машқҳоро омода мекунем', 'Mashqlarni tayyorlayapmiz'),
   'Скачиваем озвучку и картинки': ('Овоз ва расмҳоро боргирӣ мекунем', 'Ovoz va rasmlarni yuklayapmiz'),

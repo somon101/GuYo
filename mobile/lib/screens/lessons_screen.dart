@@ -263,7 +263,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
             state: _LessonCardState.inProgress,
             number: awaitingLesson.number,
             title: tr('Урок {0}', [awaitingLesson.number]),
-            subtitle: tr('Проверяем результаты — урок можно пройти ещё раз'),
+            subtitle: tr('Синхронизируется с сервером…'),
             progress: null,
             onTap: () => _continueLesson(awaitingLesson.id),
             onContinue: () => _continueLesson(awaitingLesson.id),
