@@ -325,6 +325,37 @@ export function RemindersSection() {
           />
           слов
         </label>
+        <label className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+          Тихие часы (по Душанбе): с
+          <input
+            type="number"
+            min={0}
+            max={23}
+            className="field w-16 px-2 py-1 text-sm"
+            defaultValue={settings.quiet_from_hour}
+            onBlur={(e) =>
+              changeHour(
+                "quiet_from_hour",
+                Math.max(0, Math.min(23, Number(e.target.value) || 0)),
+              )
+            }
+          />
+          до
+          <input
+            type="number"
+            min={0}
+            max={23}
+            className="field w-16 px-2 py-1 text-sm"
+            defaultValue={settings.quiet_to_hour}
+            onBlur={(e) =>
+              changeHour(
+                "quiet_to_hour",
+                Math.max(0, Math.min(23, Number(e.target.value) || 0)),
+              )
+            }
+          />
+          (одинаковое значение = без тихих часов)
+        </label>
       </div>
 
       <div className="flex flex-col gap-4">
