@@ -9,6 +9,7 @@ import '../models/word.dart';
 import '../theme/app_colors.dart';
 import '../widgets/word_card.dart';
 import 'lesson_run_screen.dart' show lessonExerciseLabels;
+import '../services/local_achievements.dart';
 import 'achievement_celebration_screen.dart';
 
 /// Shown once a "Начать урок" run has walked every available exercise type
@@ -47,6 +48,10 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTi
   /// dialog on top of the results themselves.
   Future<List<UserAchievement>>? _newAchievements;
 
+  /// What this lesson provably opens, worked out on the device -- used when the
+  /// server has nothing to report yet (a pass that has not gone over).
+  List<UserAchievement> _predictedAchievements = const [];
+
   /// The opening sequence: the centre ring, then the rings around it one
   /// by one, then the cards below one by one, each bar filling as its card
   /// appears. Kept short on purpose: the numbers are the point, and nobody
@@ -74,6 +79,18 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTi
     // Started here, awaited only when the user leaves: the celebration is the
     // LAST thing this lesson shows, exactly as asked.
     _newAchievements = takeNewAchievements();
+    // And the same for a lesson played with no network: the server has not been
+    // told about this pass yet, so the achievements it provably opens are worked
+    // out here from the profile's counters plus this pass's own result. The
+    // server checks them properly when the pass goes over -- anything it does not
+    // confirm simply closes again, without a word about the correction.
+    _predictedAchievements = LocalAchievements.afterLesson(
+      all: ApiClient.instance.cachedMyAchievements() ?? const [],
+      profile: ApiClient.instance.cachedMyProfile(),
+      newWordsLearned: _stats?.newlyLearned ?? 0,
+      newLessonsCompleted: widget.lesson.isCompleted ? 1 : 0,
+      newMiniPhrasesDone: widget.lesson.miniPhrases.length,
+    );
     // The pass numbers are fetched HERE, by the screen itself, rather than
     // before it opens: the results appear the moment the lesson runner has the
     // fresh lesson, and the tiles and gains fill in a beat later instead of
@@ -101,10 +118,13 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTi
     if (pending != null) {
       // Already on its way; the timeout only stops a very slow network from
       // making the button feel stuck.
-      final achievements = await pending.timeout(
+      var achievements = await pending.timeout(
         const Duration(seconds: 2),
         onTimeout: () => const <UserAchievement>[],
       );
+      // Nothing from the server (offline, or genuinely nothing new): this is
+      // where the lesson's own achievements show instead.
+      if (achievements.isEmpty) achievements = _predictedAchievements;
       if (achievements.isNotEmpty && mounted) {
         await Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => AchievementCelebrationScreen(achievements: achievements)),
