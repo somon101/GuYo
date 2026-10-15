@@ -317,6 +317,7 @@ def start_lesson_pass(
     lesson.pass_start_scores = {str(word_id): score for word_id, score in _word_scores(db, user.id, lesson).items()}
     # Any earlier pass left unfinished is dropped -- its answers never count.
     lesson.pass_pending_scores = None
+    _journal_sync(db, user=user, lesson=lesson, action="start", accepted=True)
     db.commit()
     db.refresh(lesson)
     return _lesson_to_out(db, lesson, threshold)
@@ -674,6 +675,38 @@ def _answered_at(lesson: Lesson, payload) -> "datetime | None":
     return moment
 
 
+def _journal_sync(
+    db: Session,
+    *,
+    user: User,
+    lesson: Lesson,
+    action: str,
+    exercise_key: str | None = None,
+    word_id: int | None = None,
+    payload: dict | None = None,
+    accepted: bool = True,
+    outcome: str | None = None,
+) -> None:
+    """One row in the sync journal: what the device sent and what the server did
+    with it. Pure observation -- never reads or changes a score, and never
+    commits (the caller owns the transaction)."""
+    from app.models.sync_journal import SyncJournal
+
+    db.add(
+        SyncJournal(
+            user_id=user.id,
+            user_login=user.login,
+            lesson_id=lesson.id,
+            action=action,
+            exercise_key=exercise_key,
+            word_id=word_id,
+            payload=payload,
+            accepted=accepted,
+            outcome=outcome,
+        )
+    )
+
+
 def _hold_answer_for_pass(db: Session, user: User, lesson: Lesson, exercise_key: str, payload, delta: int):
     """A deferred answer: moves the word's score only inside this pass
     (Lesson.pass_pending_scores), never its real WordProgress -- so no
@@ -782,6 +815,7 @@ def finish_lesson_pass(
         check_and_grant_achievements(db, user, "mini_phrases_done")
         db.commit()
         db.refresh(lesson)
+    _journal_sync(db, user=user, lesson=lesson, action="finish", accepted=True)
     out = _lesson_to_out(db, lesson, threshold)
     out.streak_lit_now = lit_now
     out.streak_days = streak_days_count(db, user)
@@ -812,6 +846,17 @@ def submit_answer(
         is not None
     )
     if not in_lesson:
+        _journal_sync(
+            db,
+            user=user,
+            lesson=lesson,
+            action="answer",
+            exercise_key=exercise_key,
+            word_id=payload.word_id,
+            payload={"is_correct": payload.is_correct, "given_answer": payload.given_answer},
+            accepted=False,
+            outcome="слова нет в этом уроке",
+        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Word not in this lesson")
 
     # The server's own verdict when the app says what was actually done.
@@ -843,6 +888,33 @@ def submit_answer(
 
     correct_points, incorrect_points = get_points(db, exercise_key)
     delta = 0 if already_answered else (correct_points if payload.is_correct else -incorrect_points)
+
+    # The sync journal: what the device sent and what the server decided. A dropped
+    # answer (duplicate, too fast) is marked so, with the reason -- the fields that
+    # actually mattered to the outcome are what is kept.
+    if already_answered:
+        _journal_sync(
+            db, user=user, lesson=lesson, action="answer", exercise_key=exercise_key,
+            word_id=payload.word_id, accepted=False, outcome="повторный ответ за проход — очки не засчитаны",
+        )
+    else:
+        _journal_sync(
+            db, user=user, lesson=lesson, action="answer", exercise_key=exercise_key,
+            word_id=payload.word_id,
+            payload={
+                "is_correct": payload.is_correct,
+                "duration_ms": payload.duration_ms,
+                "timed_out": payload.timed_out,
+                "given_answer": payload.given_answer,
+                "answer": payload.answer,
+                "answered_at_ms": payload.answered_at_ms,
+                "deferred": payload.deferred,
+            },
+            accepted=True,
+            outcome="слишком быстрый ответ — засчитан неверным"
+            if not payload.timed_out and payload.duration_ms is not None and payload.duration_ms < MIN_ANSWER_MS
+            else None,
+        )
 
     if payload.deferred:
         return _hold_answer_for_pass(db, user, lesson, exercise_key, payload, delta)
