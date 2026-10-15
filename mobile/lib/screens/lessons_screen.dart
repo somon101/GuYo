@@ -150,6 +150,13 @@ class _LessonsScreenState extends State<LessonsScreen> {
         if (attempt == 0) await Future<void>.delayed(const Duration(milliseconds: 800));
       }
     }
+    // The DEVICE's own copy is enough to play a lesson: it was fetched when the
+    // lesson was created and kept on disk (ApiClient.cachedLesson), and a pass
+    // needs nothing from the network. Without this, leaving a lesson and coming
+    // back with no connection said "Проверьте интернет" -- even though every word,
+    // recording and scoring rule of it was already on the phone (the in-memory
+    // copy above is lost the moment the app is restarted).
+    lesson ??= ApiClient.instance.cachedLesson(lessonId);
     if (lesson == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
