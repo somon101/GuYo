@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { UserHistorySection } from "../components/UserHistorySection";
 import { MiniPhraseAnalytics } from "../components/MiniPhraseAnalytics";
+import { SyncJournal } from "./SyncJournal";
 import {
   getUserPhraseAnalytics,
   listAnalyticsDictionaries,
@@ -149,6 +150,8 @@ export function UserAnalyticsPage() {
               {selectedUserId != null && selectedDictionaryId != null && (
                 <MiniPhraseAnalytics userId={selectedUserId} dictionaryId={selectedDictionaryId} />
               )}
+
+              <SyncJournal />
             </div>
           )}
         </>
