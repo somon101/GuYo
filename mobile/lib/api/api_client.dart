@@ -1242,8 +1242,21 @@ class ApiClient {
       if (_answersInFlight.contains(id)) continue;
       try {
         await _postAction(action);
+      } on ApiException catch (e) {
+        // The server REFUSED this one (404 "этого слова нет в уроке", 409, 422 --
+        // a pass whose word set the server worked out differently than the round
+        // prepared on the device). Retrying it forever is what froze the whole
+        // queue: every flush died on this one entry, so no answer after it ever
+        // reached the server and the lesson stayed at "Изучено 0 из 4" -- the
+        // pass played on the phone, counted by nobody.
+        final code = e.statusCode;
+        if (code == null || code < 400 || code >= 500) rethrow;
+        debugPrint('[guyo] queue: dropping entry ${action['kind']} for lesson '
+            '${action['lesson_id']} -- server said $code: ${e.message}');
+        await PendingAnswers.remove(id);
+        continue;
       } catch (_) {
-        return; // Still no luck: it stays, for the next attempt.
+        return; // No network (or the server is down): it stays, for the next attempt.
       }
       await PendingAnswers.remove(id);
     }
