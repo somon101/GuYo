@@ -213,9 +213,41 @@ def check_quota(db: Session, user: User) -> TextCheckQuota:
     raise TextCheckLimitReached(message)
 
 
-def record_run(db: Session, user: User, *, chars: int, cached: bool, succeeded: bool) -> None:
-    """Journals one check. Commits nothing: the caller owns the transaction."""
-    db.add(TextCheckRun(user_id=user.id, chars=chars, cached=cached, succeeded=succeeded))
+def record_run(
+    db: Session,
+    user: User,
+    *,
+    chars: int,
+    cached: bool,
+    succeeded: bool,
+    text: str | None = None,
+    prompt: str | None = None,
+    answer: str | None = None,
+    params: dict | None = None,
+    model: str | None = None,
+) -> None:
+    """Journals one check -- the whole check, not just that it happened.
+
+    The text, the prompt and the answer are stored WITH the run (see
+    app/models/text_check.py's TextCheckRun): Admin Web shows them as cards, and a
+    later "why did it answer that" is unanswerable without the prompt. The account's
+    own name travels with the row so a card stays readable after an account is gone.
+
+    Commits nothing: the caller owns the transaction."""
+    db.add(
+        TextCheckRun(
+            user_id=user.id,
+            user_login=user.login,
+            chars=chars,
+            cached=cached,
+            succeeded=succeeded,
+            text=text,
+            prompt=prompt,
+            answer=answer,
+            params=params,
+            model=model,
+        )
+    )
 
 
 def api_key(db: Session) -> str:

@@ -111,7 +111,20 @@ def check_text(
     entry = service.cache_lookup(db, key)
     if entry is not None:
         result = service.cache_hit(db, entry)
-        service.record_run(db, user, chars=len(text), cached=True, succeeded=True)
+        # The check is kept in full (see app/models/text_check.py): the text as
+        # written, the settings it ran with and the answer the user was shown. The
+        # prompt is the one stored with the first check of this text -- nothing was
+        # asked of the model this time.
+        service.record_run(
+            db,
+            user,
+            chars=len(text),
+            cached=True,
+            succeeded=True,
+            text=text,
+            params=params,
+            answer=str(result),
+        )
         db.commit()
         return {
             **result,
@@ -137,8 +150,26 @@ def check_text(
         )
     except deepseek.CheckUnavailable as e:
         # Journalled for the statistics, but a failure is never charged: the
-        # user got nothing, so they pay nothing.
-        service.record_run(db, user, chars=len(text), cached=False, succeeded=False)
+        # user got nothing, so they pay nothing. The text is kept -- what people
+        # ask about is worth seeing even when the model was down.
+        service.record_run(
+            db,
+            user,
+            chars=len(text),
+            cached=False,
+            succeeded=False,
+            text=text,
+            params=params,
+            prompt=deepseek._prompt(
+                text,
+                payload.user_gender,
+                payload.addressee_gender,
+                payload.formality,
+                payload.check_punctuation,
+                payload.explanation_language,
+            ),
+            model=deepseek.MODEL,
+        )
         db.commit()
         log.warning("text check failed: %s", e)
         raise HTTPException(
@@ -147,7 +178,27 @@ def check_text(
         ) from e
 
     service.cache_store(db, key, text, params, result)
-    service.record_run(db, user, chars=len(text), cached=False, succeeded=True)
+    # The full check, exactly as the user saw it: the text, the prompt the model
+    # was given, and the whole answer. This is what Admin Web's cards open on.
+    service.record_run(
+        db,
+        user,
+        chars=len(text),
+        cached=False,
+        succeeded=True,
+        text=text,
+        params=params,
+        prompt=deepseek._prompt(
+            text,
+            payload.user_gender,
+            payload.addressee_gender,
+            payload.formality,
+            payload.check_punctuation,
+            payload.explanation_language,
+        ),
+        answer=str(result),
+        model=deepseek.MODEL,
+    )
     db.commit()
 
     # Counted after the run, so the number the app shows includes this check.
