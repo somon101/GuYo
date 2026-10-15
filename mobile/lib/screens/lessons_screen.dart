@@ -2,6 +2,7 @@ import 'dart:async';
 import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
+import '../services/pending_answers.dart';
 import '../services/session_cache.dart';
 import '../models/dictionary.dart';
 import '../models/lesson.dart';
@@ -9,6 +10,7 @@ import '../theme/app_colors.dart';
 import 'lesson_create_screen.dart';
 import 'lesson_detail_screen.dart';
 import 'lesson_run_screen.dart';
+import '../widgets/in_app_banner.dart';
 import '../widgets/skeleton.dart';
 
 /// "Уроки": the new primary progress system's own tab. Shows this
@@ -76,6 +78,14 @@ class _LessonsScreenState extends State<LessonsScreen> {
         _lessons = lessons;
         _isLoading = false;
       });
+      // A pass that is still on the device goes over in the background (see
+      // fetchLessons); one quiet re-check a few seconds later is what turns
+      // "проверяем результаты" back into "можно создавать урок".
+      if (_awaitingCheckLessonId != null) {
+        Future<void>.delayed(const Duration(seconds: 4), () {
+          if (mounted) setState(() {});
+        });
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -139,9 +149,34 @@ class _LessonsScreenState extends State<LessonsScreen> {
     await _runLesson(lesson);
   }
 
+  /// The lesson whose pass the device is still holding -- queued to be handed
+  /// over and checked -- or null when everything has gone over.
+  ///
+  /// A lesson played with no network already looks finished here (its own local
+  /// numbers say so), but the server has not confirmed it yet, so creating the
+  /// NEXT lesson stays closed until it does. The hand-over happens by itself
+  /// (every 30 seconds, and whenever this list is loaded), so the state is
+  /// short-lived -- and the way forward meanwhile is to play that lesson again.
+  int? get _awaitingCheckLessonId {
+    for (final lesson in _lessons) {
+      if (PendingAnswers.forLesson(lesson.id).isNotEmpty) return lesson.id;
+    }
+    return null;
+  }
+
   /// Word selection, then -- when "Начать урок" there creates the lesson
   /// -- straight into it.
   Future<void> _createNextLesson() async {
+    // Nothing may be created while a pass is still waiting to be checked: the
+    // lesson it belongs to is not really finished yet.
+    if (_awaitingCheckLessonId != null) {
+      InAppBanner.show(
+        body: tr('Сначала проверяются результаты прошлого урока'),
+        visibleFor: InAppBanner.confirmationVisibleFor,
+        opensInbox: false,
+      );
+      return;
+    }
     final lesson = await Navigator.of(context).push<Lesson>(
       MaterialPageRoute(builder: (_) => LessonCreateScreen(dictionary: widget.dictionary)),
     );
@@ -188,10 +223,18 @@ class _LessonsScreenState extends State<LessonsScreen> {
     }
 
     final lessons = _lessons;
+    // The lesson whose pass is still on the device, waiting to be handed over
+    // and checked by the server. Until that happens its results -- and the
+    // words it moved -- are not real yet, so no new lesson may be created
+    // (mirroring the backend's own creation rule); the way forward is to play
+    // that lesson again.
+    final awaitingCheckId = _awaitingCheckLessonId;
+    final awaitingLesson =
+        awaitingCheckId == null ? null : lessons.firstWhere((l) => l.id == awaitingCheckId, orElse: () => lessons.first);
     // A new card is only ever added once the current last lesson is fully
     // complete -- exactly the backend's own creation rule (POST /lessons
     // 409s otherwise), mirrored here purely for what the list displays.
-    final canCreateNext = lessons.isEmpty || lessons.last.isCompleted;
+    final canCreateNext = (lessons.isEmpty || lessons.last.isCompleted) && awaitingCheckId == null;
     final nextNumber = lessons.isEmpty ? 1 : lessons.last.number + 1;
     final completedCount = lessons.where((l) => l.isCompleted).length;
 
@@ -215,6 +258,16 @@ class _LessonsScreenState extends State<LessonsScreen> {
           style: TextStyle(color: AppColors.secondaryText, fontSize: 14),
         ),
         const SizedBox(height: 22),
+        if (awaitingLesson != null)
+          _LessonCard(
+            state: _LessonCardState.inProgress,
+            number: awaitingLesson.number,
+            title: tr('Урок {0}', [awaitingLesson.number]),
+            subtitle: tr('Проверяем результаты — урок можно пройти ещё раз'),
+            progress: null,
+            onTap: () => _continueLesson(awaitingLesson.id),
+            onContinue: () => _continueLesson(awaitingLesson.id),
+          ),
         if (canCreateNext)
           _LessonCard(
             state: _LessonCardState.unlocked,
