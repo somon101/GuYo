@@ -289,15 +289,33 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
     // recordings and rules are already on the device from the first pass.
     final ready = _pass == 1 ? (ahead ?? LessonRounds.fromCache(widget.lessonId, widget.exerciseKeys)) : null;
     if (_pass > 1) {
+      // A repeat re-tests only what is left, so it asks for a fresh set -- but
+      // it must never walk into exercises that would each sit on a skeleton
+      // (that is exactly what happens with no network: every round request comes
+      // back empty and every exercise then waits for its own). The rounds
+      // prepared for the first pass are used instead -- re-testing the same
+      // words is what a repeat is anyway -- and if there are none, the pass says
+      // so rather than hanging.
+      LessonRounds? fresh;
       try {
-        rounds = await driver.prepareRounds(widget.lessonId, widget.exerciseKeys);
+        fresh = await driver.prepareRounds(widget.lessonId, widget.exerciseKeys);
       } catch (_) {
-        // No network for a repeat: the rounds prepared for the first pass are
-        // still on the device, and re-testing the same words is exactly what a
-        // repeat is. The server still decides what its own pass covers when the
-        // answers reach it.
-        rounds = LessonRounds.fromCache(widget.lessonId, widget.exerciseKeys) ??
-            LessonRounds({for (final key in widget.exerciseKeys) key: null});
+        fresh = null;
+      }
+      final cached = LessonRounds.fromCache(widget.lessonId, widget.exerciseKeys);
+      if ((fresh == null || fresh.hasNothing) && cached != null) {
+        rounds = cached;
+        LessonPreparation.warmMedia(rounds);
+      } else if (fresh == null || fresh.hasNothing) {
+        if (mounted) {
+          setState(() {
+            _preparing = false;
+            _prepError = tr('Не удалось подготовить урок. Проверьте интернет.');
+          });
+        }
+        return;
+      } else {
+        rounds = fresh;
       }
     } else if (ready != null) {
       // Prepared on this device some time ago (or a moment ago in the Уроки
