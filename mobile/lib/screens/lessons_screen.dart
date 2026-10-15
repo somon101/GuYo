@@ -329,17 +329,23 @@ class _LessonsScreenState extends State<LessonsScreen> {
             state: lesson.isCompleted ? _LessonCardState.completed : _LessonCardState.inProgress,
             number: lesson.number,
             title: tr('Урок {0}', [lesson.number]),
-            // Waiting for the server's confirmation, with the points already
-            // earned: say ONLY that. No percentage and no "continue" -- the
-            // device's own numbers have nothing left to add, and offering to
-            // carry on made a finished lesson look unfinished.
-            subtitle: lesson.id == awaitingLesson?.id && lesson.isCompleted
+            // Waiting for the server's confirmation with the points already there:
+            // ONLY that -- no percentage, no "continue" (a finished lesson must not
+            // look unfinished). "Passed" MUST count the pass this device scored for
+            // itself: offline the server's own list still calls the lesson
+            // unfinished, and that is exactly how a lesson played to the end showed
+            // "100%" next to a "Продолжить" button instead of this note.
+            subtitle: lesson.id == awaitingLesson?.id &&
+                    lesson.wordCount > 0 &&
+                    (_locallyLearned(lesson.id) ?? lesson.learnedCount) >= lesson.wordCount
                 ? tr('Синхронизируется с сервером…')
                 : tr('Изучено {0} из {1} слов', [
                     _locallyLearned(lesson.id) ?? lesson.learnedCount,
                     lesson.wordCount,
                   ]),
-            progress: lesson.id == awaitingLesson?.id && lesson.isCompleted
+            progress: lesson.id == awaitingLesson?.id &&
+                    lesson.wordCount > 0 &&
+                    (_locallyLearned(lesson.id) ?? lesson.learnedCount) >= lesson.wordCount
                 ? null
                 : (lesson.wordCount == 0
                     ? 0.0
@@ -348,7 +354,8 @@ class _LessonsScreenState extends State<LessonsScreen> {
             // Points NOT earned: the ordinary "continue and earn them" card.
             // Confirmed complete: no button either. Only the still-unconfirmed
             // one offers a repeat, so nobody is stuck without a network.
-            onContinue: lesson.isCompleted
+            onContinue: lesson.wordCount > 0 &&
+                    (_locallyLearned(lesson.id) ?? lesson.learnedCount) >= lesson.wordCount
                 ? (lesson.id == awaitingLesson?.id ? () => _continueLesson(lesson.id) : null)
                 : () => _continueLesson(lesson.id),
           ),
