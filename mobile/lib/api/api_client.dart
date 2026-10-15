@@ -1280,6 +1280,13 @@ class ApiClient {
     // told, so the lesson's state changes on its own (see syncTick).
     syncTick.value++;
     for (final lessonId in touched) {
+      // Only once NOTHING is left for this lesson. The queue's LAST entry is the
+      // pass's own finish, and the server only counts the pass when that lands --
+      // so forgetting the device's own result here (and fetching the server's
+      // still-unfinished copy) is exactly what flashed "0% / пройдите заново"
+      // right after a sync, before the finish arrived. Until the finish is gone,
+      // the local result stands and the card keeps saying it is syncing.
+      if (PendingAnswers.forLesson(lessonId).isNotEmpty) continue;
       LessonScoreOverlay.forget(lessonId);
       unawaited(() async {
         try {

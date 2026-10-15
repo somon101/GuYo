@@ -984,20 +984,14 @@ class _WordProgressRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // The level this word's score falls into AFTER this pass. Offline the word
-    // still carries the score the SERVER last knew -- 0 for a word this very pass
-    // just moved -- and looking the level up from that said "0 — новое" right next
-    // to a "+75" gain on the same row.
-    final scoreNow = (word.score + (gained ?? 0)).toDouble();
-    final byScore = levels
-        .where((l) =>
-            l.minPoints != null &&
-            l.maxPoints != null &&
-            scoreNow >= l.minPoints! &&
-            scoreNow <= l.maxPoints!)
-        .firstOrNull;
-    final level = byScore != null
-        ? WordLevelView.resolve(byScore.id, byScore.name, levels)
+    // The level this word's score falls into NOW -- the pass already moved the
+    // word, so `word.score` IS the score after the pass (both online, from the
+    // server's fresh copy, and offline, from the local scoring). Looking it up
+    // from `word.score + gained` counted the gain twice and pushed the number
+    // past every range, which is how a finished word still read "0 — новое".
+    final resolved = WordLevelView.forScore(word.score, levels);
+    final level = resolved != null
+        ? WordLevelView.resolve(resolved.id, resolved.name, levels)
         : WordLevelView.resolve(word.wordLevelId, word.wordLevelName, levels);
     final color = word.isLearned ? AppColors.success : level.color;
 
