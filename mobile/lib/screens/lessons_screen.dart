@@ -176,22 +176,33 @@ class _LessonsScreenState extends State<LessonsScreen> {
   }
 
   Future<void> _continueLessonNow(int lessonId) async {
-    Lesson? lesson = SessionCache.take<Lesson>('lesson-$lessonId');
-    // A network blip shouldn't stop the lesson: one quiet second try.
-    for (var attempt = 0; lesson == null && attempt < 2; attempt++) {
-      try {
-        lesson = await ApiClient.instance.fetchLesson(lessonId);
-      } catch (_) {
-        if (attempt == 0) await Future<void>.delayed(const Duration(milliseconds: 800));
+    // The DEVICE's own copy first, and immediately: it was fetched when the lesson
+    // was created and kept on disk, and a pass needs nothing from the network.
+    // Asking the server first meant that with no connection the tap did nothing
+    // visible for seconds (the request waited on the operating system's own
+    // timeout), which reads as a dead button -- and invites more taps.
+    Lesson? lesson = SessionCache.take<Lesson>('lesson-$lessonId') ?? ApiClient.instance.cachedLesson(lessonId);
+    if (lesson != null) {
+      // Refreshed behind the lesson: the next open, and the word list, get the
+      // server's newer copy without this one waiting for it.
+      unawaited(() async {
+        try {
+          await ApiClient.instance.fetchLesson(lessonId);
+        } catch (_) {
+          // Offline, or the server is down: the device's copy stands.
+        }
+      }());
+    } else {
+      // Nothing on the device: the server is the only way, with a short wait so a
+      // dead network fails fast instead of freezing the screen.
+      for (var attempt = 0; lesson == null && attempt < 2; attempt++) {
+        try {
+          lesson = await ApiClient.instance.fetchLesson(lessonId).timeout(kOfflineActionTimeout);
+        } catch (_) {
+          if (attempt == 0) await Future<void>.delayed(const Duration(milliseconds: 800));
+        }
       }
     }
-    // The DEVICE's own copy is enough to play a lesson: it was fetched when the
-    // lesson was created and kept on disk (ApiClient.cachedLesson), and a pass
-    // needs nothing from the network. Without this, leaving a lesson and coming
-    // back with no connection said "Проверьте интернет" -- even though every word,
-    // recording and scoring rule of it was already on the phone (the in-memory
-    // copy above is lost the moment the app is restarted).
-    lesson ??= ApiClient.instance.cachedLesson(lessonId);
     if (lesson == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
