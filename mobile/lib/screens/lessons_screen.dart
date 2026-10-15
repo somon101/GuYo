@@ -59,7 +59,21 @@ class _LessonsScreenState extends State<LessonsScreen> {
       _lessons = cached;
       _isLoading = false;
     }
+    // The moment the device's own pass work reaches the server, this list is
+    // reloaded by itself: «Синхронизируется с сервером…» turns into the confirmed
+    // result without the user reloading anything (see ApiClient.syncTick).
+    ApiClient.instance.syncTick.addListener(_onSynced);
     _load();
+  }
+
+  void _onSynced() {
+    if (mounted) unawaited(_load());
+  }
+
+  @override
+  void dispose() {
+    ApiClient.instance.syncTick.removeListener(_onSynced);
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -286,15 +300,22 @@ class _LessonsScreenState extends State<LessonsScreen> {
             state: lesson.isCompleted ? _LessonCardState.completed : _LessonCardState.inProgress,
             number: lesson.number,
             title: tr('Урок {0}', [lesson.number]),
+            // Waiting for the server's confirmation, with the points already
+            // earned: say ONLY that. No percentage and no "continue" -- the
+            // device's own numbers have nothing left to add, and offering to
+            // carry on made a finished lesson look unfinished.
             subtitle: lesson.id == awaitingLesson?.id && lesson.isCompleted
                 ? tr('Синхронизируется с сервером…')
                 : tr('Изучено {0} из {1} слов', [lesson.learnedCount, lesson.wordCount]),
-            progress: lesson.wordCount == 0 ? 0.0 : lesson.learnedCount / lesson.wordCount,
-            onTap: () => _openLesson(lesson.id),
-            // A confirmed-complete lesson needs no "continue" -- but the one
-            // still being confirmed does, so it can be played again meanwhile.
-            onContinue: lesson.isCompleted && lesson.id != awaitingLesson?.id
+            progress: lesson.id == awaitingLesson?.id && lesson.isCompleted
                 ? null
+                : (lesson.wordCount == 0 ? 0.0 : lesson.learnedCount / lesson.wordCount),
+            onTap: () => _openLesson(lesson.id),
+            // Points NOT earned: the ordinary "continue and earn them" card.
+            // Confirmed complete: no button either. Only the still-unconfirmed
+            // one offers a repeat, so nobody is stuck without a network.
+            onContinue: lesson.isCompleted
+                ? (lesson.id == awaitingLesson?.id ? () => _continueLesson(lesson.id) : null)
                 : () => _continueLesson(lesson.id),
           ),
       ],

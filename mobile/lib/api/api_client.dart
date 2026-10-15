@@ -1192,6 +1192,9 @@ class ApiClient {
       await PendingAnswers.remove(id);
     }
     if (touched.isEmpty) return;
+    // Everything went over: the screens that were waiting for exactly this are
+    // told, so the lesson's state changes on its own (see syncTick).
+    syncTick.value++;
     for (final lessonId in touched) {
       LessonScoreOverlay.forget(lessonId);
       unawaited(() async {
@@ -1203,6 +1206,13 @@ class ApiClient {
       }());
     }
   }
+
+  /// Ticks every time the device's own lesson work actually goes over to the
+  /// server. Screens that show a lesson's state listen to it, so «Синхронизируется
+  /// с сервером…» turns into the confirmed result by itself -- no reload, no
+  /// reopening the app: the whole point is that the user never has to do anything
+  /// for the truth to arrive.
+  final ValueNotifier<int> syncTick = ValueNotifier<int>(0);
 
   /// Retries the device's pending lesson work every so often while the app is
   /// running.
