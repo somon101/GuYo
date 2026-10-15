@@ -63,8 +63,23 @@ class _LessonsScreenState extends State<LessonsScreen> {
     // reloaded by itself: «Синхронизируется с сервером…» turns into the confirmed
     // result without the user reloading anything (see ApiClient.syncTick).
     ApiClient.instance.syncTick.addListener(_onSynced);
+    // And the same happens the moment the app comes back to the foreground: a pass
+    // played offline is handed over AT ONCE rather than waiting for the 30-second
+    // retry, and the list then shows what the server confirmed -- including the
+    // next lesson becoming creatable. Nothing is polled; this only runs on the
+    // transition, so opening the app IS the trigger.
+    _lifecycle = AppLifecycleListener(
+      onResume: () {
+        if (!mounted) return;
+        unawaited(ApiClient.instance.flushPendingAnswers());
+        unawaited(_load());
+      },
+    );
     _load();
   }
+
+  /// Kept only so it can be removed in [dispose]; created in [initState].
+  AppLifecycleListener? _lifecycle;
 
   void _onSynced() {
     if (mounted) unawaited(_load());
@@ -72,6 +87,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
 
   @override
   void dispose() {
+    _lifecycle?.dispose();
     ApiClient.instance.syncTick.removeListener(_onSynced);
     super.dispose();
   }
