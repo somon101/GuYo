@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getContentAudit, type ContentAudit } from "../api/endpoints";
+import { deletePhrase, getContentAudit, type ContentAudit } from "../api/endpoints";
 import { LanguageSectionTabs } from "../components/LanguageSectionTabs";
 
 /** Клик по фразе открывает её редактор. */
@@ -24,25 +24,63 @@ export function ContentAuditPage() {
   const [audit, setAudit] = useState<ContentAudit | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // The phrase being deleted (its id), or "all" for the bulk action below.
+  const [busy, setBusy] = useState<number | "all" | null>(null);
+
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      setAudit(await getContentAudit(dictionaryId));
+    } catch {
+      setError("Не удалось загрузить аудит контента");
+    } finally {
+      setLoading(false);
+    }
+  }, [dictionaryId]);
 
   useEffect(() => {
-    let cancelled = false;
     setLoading(true);
-    setError(null);
-    getContentAudit(dictionaryId)
-      .then((data) => {
-        if (!cancelled) setAudit(data);
-      })
-      .catch(() => {
-        if (!cancelled) setError("Не удалось загрузить аудит контента");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [dictionaryId]);
+    void load();
+  }, [load]);
+
+  /** Deletes one flagged phrase -- the server takes its audio files with it -- and
+   * re-reads the report, so the lists and counters stay true. */
+  async function removePhrase(phraseId: number) {
+    setBusy(phraseId);
+    try {
+      await deletePhrase(phraseId);
+      await load();
+    } catch {
+      setError("Не удалось удалить фразу");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** Every phrase this report flagged: the ones no one can ever be shown, because
+   * they use a word the dictionary does not have. */
+  async function removeAllFlagged() {
+    if (!audit || audit.phrases.items.length === 0) return;
+    if (
+      !confirm(
+        `Удалить ${audit.phrases.items.length} фраз(ы) со словами вне словаря?\n` +
+          `Вместе с ними удалятся их аудиофайлы. Отменить нельзя.`,
+      )
+    )
+      return;
+    setBusy("all");
+    try {
+      for (const phrase of audit.phrases.items) {
+        await deletePhrase(phrase.id);
+      }
+      await load();
+    } catch {
+      setError("Не удалось удалить все фразы — часть могла остаться, обновите отчёт");
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  }
 
   const tile =
     "card p-4 flex flex-col gap-1";
@@ -169,21 +207,51 @@ export function ContentAuditPage() {
 
           {audit.phrases.items.length > 0 && (
             <section className="mb-8">
-              <h2 className="mb-2 text-lg font-semibold text-slate-900">
-                Фразы с пропущенными словами
-              </h2>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Фразы с пропущенными словами
+                </h2>
+                <button
+                  onClick={removeAllFlagged}
+                  disabled={busy !== null}
+                  className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {busy === "all"
+                    ? "Удаляем…"
+                    : `Удалить все (${audit.phrases.items.length})`}
+                </button>
+              </div>
+              <p className="mb-3 text-xs text-slate-500">
+                Эти фразы сейчас не видит никто: они используют слова, которых нет в
+                словаре. Удаление уносит и их аудиофайлы.
+              </p>
               <ul className="flex flex-col gap-2">
                 {audit.phrases.items.map((phrase) => (
-                  <li key={phrase.id} className="card p-4">
-                    <Link
-                      to={phraseLink(dictionaryId, phrase.id)}
-                      className="text-sm font-medium text-slate-900 hover:text-indigo-600"
+                  <li
+                    key={phrase.id}
+                    className="card flex items-start justify-between gap-3 p-4"
+                  >
+                    <div className="min-w-0">
+                      <Link
+                        to={phraseLink(dictionaryId, phrase.id)}
+                        className="text-sm font-medium text-slate-900 hover:text-indigo-600"
+                      >
+                        {phrase.original}
+                      </Link>
+                      <p className="mt-1 text-xs text-red-600">
+                        Не хватает: {phrase.missing.join(", ")}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (!confirm(`Удалить фразу «${phrase.original}»?`)) return;
+                        void removePhrase(phrase.id);
+                      }}
+                      disabled={busy !== null}
+                      className="shrink-0 rounded-md px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
                     >
-                      {phrase.original}
-                    </Link>
-                    <p className="mt-1 text-xs text-red-600">
-                      Не хватает: {phrase.missing.join(", ")}
-                    </p>
+                      {busy === phrase.id ? "…" : "Удалить"}
+                    </button>
                   </li>
                 ))}
               </ul>
