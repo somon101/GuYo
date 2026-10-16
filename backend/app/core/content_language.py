@@ -63,15 +63,30 @@ def ui_language() -> str:
     return holder.get("ui", "ru") if holder else "ru"
 
 
+def _translation_entries(word) -> list:
+    """Переводы слова как языковые записи (многоязычная структура).
+
+    Своя запись (язык словаря) в переводах не участвует: у неё тот же id, что у
+    самого слова, -- по этому признаку её и исключаем, без обращения к базе.
+    Пустой список, если записи ещё не перенесены (до миграции)."""
+    entries = getattr(word, "language_entries", None) or []
+    return [e for e in entries if e.id != word.id]
+
+
 def primary_translation(word, *, strict: bool = False):
-    """The translation row to show for `word`, or None. `strict` (used to
-    filter pools) never falls back to another language."""
+    """The translation to show for `word`, or None. `strict` (used to
+    filter pools) never falls back to another language.
+
+    Читается из языковых записей. Порядок выбора ровно тот же, что был у
+    старой таблицы переводов: выбранный язык, затем таджикский, затем первая.
+    Совпадение со старым путём проверяется `python -m app.word_entries`."""
+    entries = _translation_entries(word)
     lang = content_language()
-    match = next((t for t in word.translations if t.language == lang), None)
+    match = next((t for t in entries if t.language == lang), None)
     if match is not None or strict:
         return match
-    tajik = next((t for t in word.translations if t.language == "tg"), None)
-    return tajik or (word.translations[0] if word.translations else None)
+    tajik = next((t for t in entries if t.language == "tg"), None)
+    return tajik or (entries[0] if entries else None)
 
 
 def has_translation(word) -> bool:

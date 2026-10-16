@@ -51,15 +51,22 @@ def form_to_out(f: WordForm) -> WordFormOut:
 
 
 def word_to_out(word: Word) -> WordOut:
-    translations = [translation_to_out(t) for t in word.translations]
+    # Читаем из языковых записей: своя запись (язык словаря) даёт написание,
+    # транскрипцию и аудио изучаемого языка, остальные -- переводы. Значения
+    # совпадают со старыми колонками один в один (доказано `python -m
+    # app.word_entries`), поэтому переключение ничего не меняет для людей, но
+    # открывает дорогу второму языку: у слова появятся записи и на нём.
+    entries = list(word.language_entries or [])
+    own = next((e for e in entries if e.id == word.id), None)
+    translations = [translation_to_out(t) for t in entries if t.id != word.id]
     chosen = primary_translation(word)
     primary = translation_to_out(chosen) if chosen is not None else None
     return WordOut(
         id=word.id,
         dictionary_id=word.dictionary_id,
-        word=word.word,
-        transcription=word.transcription,
-        word_audio_url=url_for_key(word.word_audio_key),
+        word=own.text if own is not None else word.word,
+        transcription=own.transcription if own is not None else word.transcription,
+        word_audio_url=url_for_key(own.audio_key if own is not None else word.word_audio_key),
         image_url=url_for_key(word.image_key),
         category_id=word.category_id,
         category_name=word.category.name if word.category is not None else None,

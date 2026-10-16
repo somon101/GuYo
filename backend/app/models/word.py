@@ -54,6 +54,20 @@ class Word(Base):
 
     dictionary: Mapped["Dictionary"] = relationship(back_populates="words")
     category: Mapped["Category | None"] = relationship(back_populates="words")
+    # Многоязычные записи этого понятия. id понятия = id слова (так заложено
+    # переносом данных), поэтому связь идёт по id без колонки-посредника. Своя
+    # запись -- та, у которой id совпадает с id слова.
+    #
+    # Это ключ к переключению чтения: переводы, подсказки и формы читаются из
+    # языковых записей через `word.language_entries`, а не из старой таблицы
+    # переводов, -- и при этом ни одно из 37 мест вызова менять не нужно.
+    language_entries: Mapped[list["WordEntry"]] = relationship(
+        "WordEntry",
+        primaryjoin="Word.id == foreign(WordEntry.concept_id)",
+        viewonly=True,
+        lazy="selectin",
+        order_by="WordEntry.id",
+    )
     translations: Mapped[list["WordTranslation"]] = relationship(
         back_populates="word", cascade="all, delete-orphan", order_by="WordTranslation.id"
     )
