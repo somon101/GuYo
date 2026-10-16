@@ -107,3 +107,13 @@ from app.models.mini_phrase import (
     UserMiniPhraseDone,
     UserMiniPhrasePoints,
 )
+# Многоязычная основа: понятие + языковые записи (см. docs/multilingual-migration.md).
+# Импорт нужен, чтобы Alembic видел новые таблицы при автогенерации миграций.
+from app.models.concept import (
+    Concept,
+    ConceptTopic,
+    PhraseConcept,
+    PhraseEntry,
+    WordEntry,
+    WordEntryForm,
+)

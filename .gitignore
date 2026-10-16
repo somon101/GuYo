@@ -44,3 +44,7 @@ Thumbs.db
 # ignore the folder and re-include only the skills.
 .claude/*
 !.claude/skills/
+
+# Дампы боевой базы: содержат данные людей (логины, хеши паролей) -- в git нельзя.
+_prod_backup.zip
+_*.zip
