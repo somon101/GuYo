@@ -1511,6 +1511,7 @@ class ApiClient {
     List<String>? learningTopics,
     String? uiLanguage,
     String? translationLanguage,
+    String? learningLanguage,
   }) async {
     final body = <String, dynamic>{
       if (login != null) 'login': login,
@@ -1520,6 +1521,7 @@ class ApiClient {
       if (learningTopics != null) 'learning_topics': learningTopics,
       if (uiLanguage != null) 'ui_language': uiLanguage,
       if (translationLanguage != null) 'translation_language': translationLanguage,
+      if (learningLanguage != null) 'learning_language': learningLanguage,
     };
     final res = await http.patch(
       _uri('/users/me/profile'),

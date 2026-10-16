@@ -281,6 +281,11 @@ def update_my_profile(
         user.translation_language = fields["translation_language"]
     if fields.get("ui_language"):
         user.ui_language = fields["ui_language"]
+    # Язык, который человек изучает. Пара «родной -> изучаемый» решает, что он
+    # видит: ответ -- из языковой записи изучаемого языка, подсказка -- из записи
+    # родного. Пусто (None) = язык словаря.
+    if "learning_language" in fields:
+        user.learning_language = fields["learning_language"]
     # A Tajik or Uzbek interface always reads its own language.
     user.translation_language = reading_language(user.ui_language, user.translation_language)
     if "learning_topics" in fields:

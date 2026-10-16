@@ -41,8 +41,12 @@ class UserProfile {
   final List<String>? learningTopics;
   /// Interface language: "ru", "tg" or "uz".
   final String uiLanguage;
-  /// Which translations a Russian interface shows: "tg" or "uz".
+  /// Which translations a Russian interface shows: "ru", "tg", "uz" or "en".
   final String translationLanguage;
+  /// Язык, который человек изучает. Пара «родной (translationLanguage) ->
+  /// изучаемый (этот)» решает, что он видит: ответ -- на изучаемом языке,
+  /// подсказка -- на родном. Null = язык словаря (как было до многоязычности).
+  final String? learningLanguage;
 
   UserProfile({
     required this.id,
@@ -60,6 +64,7 @@ class UserProfile {
     this.learningTopics,
     this.uiLanguage = 'ru',
     this.translationLanguage = 'tg',
+    this.learningLanguage,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -79,6 +84,7 @@ class UserProfile {
       learningTopics: (json['learning_topics'] as List<dynamic>?)?.cast<String>(),
       uiLanguage: json['ui_language'] as String? ?? 'ru',
       translationLanguage: json['translation_language'] as String? ?? 'tg',
+      learningLanguage: json['learning_language'] as String?,
     );
   }
 }

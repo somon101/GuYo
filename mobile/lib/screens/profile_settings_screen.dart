@@ -44,6 +44,8 @@ const List<({String code, String label})> _translationLanguages = [
 
 class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   late UserProfile _profile;
+  /// Язык изучения, выбранный прямо сейчас (до ответа сервера).
+  String? _learningShown;
 
   /// From the device cache at once, then refreshed quietly; null only on
   /// the very first open (the row then shows a dash).
@@ -252,8 +254,27 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     }
   }
 
-  Future<void> _confirmLogout() async {
-    final ok = await showDialog<bool>(
+  /// Язык, который человек изучает. Меняет сами слова: ответ приходит на
+  /// изучаемом языке, подсказка -- на родном. Поэтому кэш уроков и слов надо
+  /// сбросить, иначе человек увидит старые слова на прежнем языке.
+  Future<void> _changeLearningLanguage() async {
+    final current = _profile.learningLanguage ?? 'ru';
+    final code = await _pickOne(tr('Язык изучения'), _translationLanguages, current);
+    if (code == null || code == (_learningShown ?? current)) return;
+    // Показываем сразу; строка вернётся назад, только если сервер не сохранил.
+    setState(() => _learningShown = code);
+    try {
+      final saved = await ApiClient.instance.updateMyProfile(learningLanguage: code);
+      ApiClient.instance.forgetCachedContent(); // слова теперь на другом языке
+      if (mounted) setState(() => _profile = saved);
+    } catch (_) {
+      _showError(tr('Не удалось сохранить. Проверьте интернет.'));
+    } finally {
+      if (mounted) setState(() => _learningShown = null);
+    }
+  }
+
+  Future<void> _confirmLogout() async {    final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(tr('Выйти из аккаунта?')),
@@ -385,6 +406,18 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     value: labelOf(_translationLanguages, _translationShown ?? _profile.translationLanguage),
                     onTap: _changeTranslationLanguage,
                   ),
+                // Язык изучения -- для всех, независимо от языка интерфейса:
+                // именно он решает, какие слова человек учит.
+                _Row(
+                  key: const ValueKey('settings-learning-language'),
+                  icon: Icons.school_outlined,
+                  label: tr('Язык изучения'),
+                  value: labelOf(
+                    _translationLanguages,
+                    _learningShown ?? _profile.learningLanguage ?? 'ru',
+                  ),
+                  onTap: _changeLearningLanguage,
+                ),
               ],
             ),
             const SizedBox(height: 16),

@@ -187,6 +187,9 @@ class UserUpdateIn(BaseModel):
     learning_topics: list[LearningGoal] | None = None
     ui_language: UiLanguage | None = None
     translation_language: TranslationLanguage | None = None
+    # Язык, который человек изучает (пара «родной -> изучаемый»). None = язык
+    # словаря, как было до многоязычной перестройки.
+    learning_language: TranslationLanguage | None = None
 
     @field_validator("email")
     @classmethod

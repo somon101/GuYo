@@ -579,6 +579,7 @@ const Map<String, String> enStrings = {
   'Язык интерфейса': 'Interface language',
   'Язык объяснений': 'Explanation language',
   'Язык перевода': 'Translation language',
+  'Язык изучения': 'Learning language',
   'янв.': 'Jan',
   'января': 'January',
   'Нужны доступные фразы из 2+ слов с озвучкой. Изучите больше слов, чтобы открыть их.': 'You need available phrases of 2+ words with audio. Learn more words to unlock them.',

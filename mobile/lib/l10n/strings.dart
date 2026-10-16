@@ -505,6 +505,7 @@ const Map<String, (String, String)> uiStrings = {
   'Личные данные': ('Маълумоти шахсӣ', 'Shaxsiy maʼlumotlar'),
   'Обучение': ('Омӯзиш', 'Oʻqish'),
   'Язык перевода': ('Забони тарҷума', 'Tarjima tili'),
+  'Язык изучения': ('Забони омӯзиш', 'Oʻrganish tili'),
   'На каком языке показывать перевод слов?': ('Тарҷумаи калимаҳоро бо кадом забон нишон диҳем?', 'Soʻzlar tarjimasini qaysi tilda koʻrsataylik?'),
   'Это можно изменить в настройках.': ('Инро дар танзимот тағйир додан мумкин.', 'Buni sozlamalarda oʻzgartirish mumkin.'),
   'Как вас зовут?': ('Номатон чист?', 'Ismingiz nima?'),
