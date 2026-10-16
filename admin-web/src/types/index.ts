@@ -99,6 +99,9 @@ export interface Word {
   translation_audio_url: string | null;
   translations: WordTranslation[];
   forms: WordForm[];
+  /** Языковые записи понятия: номер + язык + текст. Приходят только админке --
+   * по ним из карточки понятия открывается правка слова в разделе «Языки». */
+  language_entries: { id: number; language: string; text: string }[];
 }
 
 // Phrases are a separate entity from Word (own phrase_id, own category

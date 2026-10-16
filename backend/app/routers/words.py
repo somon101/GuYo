@@ -28,7 +28,13 @@ from app.schemas.bulk import (
     ImportPayload,
     ImportSummary,
 )
-from app.schemas.word import WordFormOut, WordLearningIn, WordOut, WordTranslationOut
+from app.schemas.word import (
+    LanguageEntryOut,
+    WordFormOut,
+    WordLearningIn,
+    WordOut,
+    WordTranslationOut,
+)
 from app.core.content_language import (
     learning_language,
     only_translated,
@@ -108,6 +114,13 @@ def word_to_out(word: Word, *, all_forms: bool = False) -> WordOut:
         translation_audio_url=primary.audio_url if primary else None,
         translations=translations,
         forms=[form_to_out(f) for f in (word.forms if all_forms or own is None else own.forms)],
+        # Номера языковых записей нужны только админке: из карточки понятия по
+        # ним открывается правка слова в разделе «Языки».
+        language_entries=(
+            [LanguageEntryOut(id=e.id, language=e.language, text=e.text) for e in entries]
+            if all_forms
+            else []
+        ),
     )
 
 

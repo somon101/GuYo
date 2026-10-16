@@ -1,11 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { isAxiosError } from "axios";
 import { API_URL } from "../api/client";
 import {
-  addWordForm,
-  deleteTranslation,
-  deleteWordForm,
   getDictionary,
   getWord,
   listCategories,
@@ -13,9 +9,8 @@ import {
   upsertTranslation,
   updateWordLearning,
 } from "../api/endpoints";
-import type { Category, Dictionary, TranslationLanguage, Word, WordForm, WordTopic } from "../types";
+import type { Category, Dictionary, TranslationLanguage, Word, WordTopic } from "../types";
 import { TRANSLATION_LANGUAGE_LABELS } from "../types";
-import { PlayButton } from "../components/PlayButton";
 
 function mediaUrl(path: string | null): string | null {
   return path ? `${API_URL}${path}` : null;
@@ -76,7 +71,6 @@ export function WordEditPage() {
   const [translations, setTranslations] = useState<TranslationRow[]>([]);
 
   const [isSaving, setIsSaving] = useState(false);
-  const savedTranslations = translations.filter((t) => !t.isNew).length;
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedNotice, setSavedNotice] = useState(false);
 
@@ -212,30 +206,6 @@ export function WordEditPage() {
     }
   }
 
-  async function handleDeleteTranslation(language: TranslationLanguage) {
-    if (!confirm(`Удалить перевод (${TRANSLATION_LANGUAGE_LABELS[language]})?`)) return;
-    try {
-      await deleteTranslation(id, language);
-      await reload();
-    } catch (err) {
-      if (isAxiosError(err) && err.response?.status === 409) {
-        setSaveError("Нельзя удалить единственный перевод слова — сначала добавьте другой");
-      } else {
-        setSaveError("Не удалось удалить перевод");
-      }
-    }
-  }
-
-  async function handleAddForm(language: string, text: string) {
-    await addWordForm(id, language, text);
-    await reload();
-  }
-
-  async function handleDeleteForm(formId: number) {
-    await deleteWordForm(id, formId);
-    await reload();
-  }
-
   if (isLoading) return <p className="text-sm text-slate-500">Загрузка…</p>;
   if (loadError || !word || !dictionary) {
     return <p className="text-sm text-red-600">{loadError ?? "Слово не найдено"}</p>;
@@ -257,51 +227,32 @@ export function WordEditPage() {
 
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="text-[26px] font-bold tracking-tight text-slate-900" translate="no">{word.word}</h1>
-          <p className="mt-1 text-xs text-slate-400">ID слова: {word.id}</p>
+          <h1 className="text-[26px] font-bold tracking-tight text-slate-900">
+            Понятие №{word.id}
+          </h1>
+          <p className="mt-1 text-sm text-slate-600" translate="no">
+            {word.word}
+          </p>
+          <p className="mt-1 max-w-lg text-xs text-slate-400">
+            Номер понятия — то, к чему привязаны языковые записи. Здесь правится только
+            классификация; слово, транскрипция, озвучка и формы каждого языка — в разделе «Языки».
+          </p>
         </div>
         <Link
           to={`/dictionaries/${dictionaryId}`}
           className="shrink-0 btn-tinted rounded-full px-3 py-1.5 text-sm font-medium"
         >
-          ← Назад к словарю
+          ← Назад в базу
         </Link>
       </div>
 
-      <Section title="Основная информация">
-        <Field label="Язык">
-          <input
-            className="w-full max-w-xs rounded-[10px] bg-[var(--field)] px-3 py-2 text-sm text-slate-500"
-            value={dictionary.name}
-            disabled
-          />
-        </Field>
-        <Field label="Слово">
-          <input
-            className="w-full field px-3 py-2 text-sm"
-            value={wordText}
-            onChange={(e) => setWordText(e.target.value)}
-          />
-        </Field>
-        <Field label="Произношение слова" hint="озвучка самого слова">
-          <AudioBlock
-            languageLabel={dictionary.name}
-            text={word.word}
-            captionPrefix="Аудио слова"
-            stage={wordAudio}
-            onChange={setWordAudio}
-          />
-        </Field>
+      <Section title="Классификация">
+        <p className="mb-4 text-sm text-slate-500">
+          Это общее для всех языков: изображение, категория, темы, важность и роль. Дублировать
+          по языкам не нужно — всё связано через номер понятия.
+        </p>
         <Field label="Изображение" hint="необязательно">
           <ImageField stage={image} onChange={setImage} />
-        </Field>
-        <Field label="Транскрипция" hint="необязательно">
-          <input
-            className="w-full max-w-xs field px-3 py-2 text-sm"
-            value={transcription}
-            onChange={(e) => setTranscription(e.target.value)}
-            placeholder="/ˈæpəl/"
-          />
         </Field>
         <Field label="Категория" hint="необязательно">
           <select
@@ -321,81 +272,39 @@ export function WordEditPage() {
 
       <WordLearningSection word={word} onSaved={setWord} />
 
-      <Section title={`Формы (${dictionary.name})`}>
-        <FormsGroup
-          forms={word.forms.filter((f) => f.language === dictionary.language)}
-          onAdd={(text) => handleAddForm(dictionary.language, text)}
-          onDelete={handleDeleteForm}
-        />
-      </Section>
-
-      <Section title="Переводы">
+      <Section title="Языки понятия">
         <p className="mb-4 text-sm text-slate-500">
-          У каждого языка свой перевод, своё произношение и свои формы.
+          У каждого языка своё написание, транскрипция, озвучка и формы — они правятся в разделе
+          «Языки», у своей языковой записи. Здесь только список: чтобы видеть, что уже есть.
         </p>
-        {translations.map((t, i) => (
-          <div
-            key={t.language}
-            className={i > 0 ? "mt-6 border-t border-slate-100 pt-6" : undefined}
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {TRANSLATION_LANGUAGE_LABELS[t.language]}
+        <ul className="flex flex-col gap-2">
+          {word.language_entries.map((entry) => (
+            <li
+              key={entry.id}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[var(--fill)] px-3 py-2"
+            >
+              <span className="text-sm">
+                <span className="text-slate-500">
+                  {(TRANSLATION_LANGUAGE_LABELS as Record<string, string>)[entry.language] ??
+                    entry.language}
+                  :
+                </span>{" "}
+                <span className="font-medium text-slate-900" translate="no">
+                  {entry.text || "—"}
+                </span>
               </span>
-              {!t.isNew && (
-                <button
-                  type="button"
-                  onClick={() => handleDeleteTranslation(t.language)}
-                  disabled={savedTranslations <= 1}
-                  title={savedTranslations <= 1 ? "У слова должен остаться хотя бы один перевод" : undefined}
-                  className="text-xs text-slate-400 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-slate-400"
-                >
-                  Удалить этот перевод
-                </button>
-              )}
-            </div>
-            <Field label="Перевод">
-              <input
-                className="w-full field px-3 py-2 text-sm"
-                value={t.text}
-                placeholder={t.isNew ? "Пока нет перевода" : undefined}
-                onChange={(e) =>
-                  setTranslations((rows) => rows.map((r, j) => (j === i ? { ...r, text: e.target.value } : r)))
-                }
-              />
-            </Field>
-            <Field label="Транскрипция" hint="необязательно, для этого языка">
-              <input
-                className="w-full max-w-xs field px-3 py-2 text-sm"
-                value={t.transcription}
-                placeholder="/ˈpɜːsən/"
-                onChange={(e) =>
-                  setTranslations((rows) =>
-                    rows.map((r) => (r.language === t.language ? { ...r, transcription: e.target.value } : r)),
-                  )
-                }
-              />
-            </Field>
-            <Field label="Произношение" hint="озвучка перевода">
-              <AudioBlock
-                languageLabel={TRANSLATION_LANGUAGE_LABELS[t.language]}
-                text={t.text || t.originalText}
-                captionPrefix="Аудио перевода"
-                stage={t.audio}
-                onChange={(next) =>
-                  setTranslations((rows) => rows.map((r) => (r.language === t.language ? { ...r, audio: next } : r)))
-                }
-              />
-            </Field>
-            <Field label="Формы" hint={`формы на языке «${TRANSLATION_LANGUAGE_LABELS[t.language]}»`}>
-              <FormsGroup
-                forms={word.forms.filter((f) => f.language === t.language)}
-                onAdd={(text) => handleAddForm(t.language, text)}
-                onDelete={handleDeleteForm}
-              />
-            </Field>
-          </div>
-        ))}
+              <Link
+                to={`/languages/${entry.language}/words/${entry.id}`}
+                className="text-sm text-indigo-600 hover:underline"
+              >
+                Править слово →
+              </Link>
+            </li>
+          ))}
+          {word.language_entries.length === 0 && (
+            <li className="text-sm text-slate-500">Языковых записей пока нет.</li>
+          )}
+        </ul>
       </Section>
 
       <div className="sticky bottom-4 mt-6 flex items-center gap-3 card shadow-float p-4">
@@ -420,83 +329,6 @@ export function WordEditPage() {
  * single-text-field "+ Добавить форму" that saves immediately. The language
  * itself is never chosen here — it's fixed by the caller (the dictionary's
  * own language, or Tajik), per the block-language rule. */
-function FormsGroup({
-  forms,
-  onAdd,
-  onDelete,
-}: {
-  forms: WordForm[];
-  onAdd: (text: string) => Promise<void>;
-  onDelete: (formId: number) => Promise<void>;
-}) {
-  const [text, setText] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleAdd() {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    setIsSaving(true);
-    setError(null);
-    try {
-      await onAdd(trimmed);
-      setText("");
-    } catch {
-      setError("Не удалось добавить форму");
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  return (
-    <div>
-      {forms.length === 0 ? (
-        <p className="mb-3 text-sm text-slate-500">Forms пока нет</p>
-      ) : (
-        <ul className="mb-3 flex flex-col gap-1">
-          {forms.map((f) => (
-            <li
-              key={f.id}
-              className="flex items-center justify-between gap-2 rounded-[10px] bg-slate-50 px-3 py-1.5 text-sm"
-            >
-              <span translate="no">{f.text}</span>
-              <button
-                type="button"
-                onClick={() => onDelete(f.id)}
-                className="shrink-0 text-xs text-slate-400 hover:text-red-600"
-              >
-                Удалить
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <input
-          className="flex-1 field px-3 py-2 text-sm"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Новая форма"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleAdd();
-            }
-          }}
-        />
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={isSaving || !text.trim()}
-          className="shrink-0 btn-tinted rounded-full px-3 py-1.5 text-sm font-medium disabled:opacity-50"
-        >
-          + Добавить форму
-        </button>
-      </div>
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-    </div>
-  );
-}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -589,71 +421,6 @@ function ImageField({
   );
 }
 
-function AudioBlock({
-  languageLabel,
-  text,
-  captionPrefix,
-  stage,
-  onChange,
-}: {
-  languageLabel: string;
-  text: string;
-  captionPrefix: string;
-  stage: FileStage;
-  onChange: (stage: FileStage) => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const preview = stagePreviewUrl(stage);
-
-  return (
-    <div>
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{languageLabel}</p>
-      <p className="mb-2 font-serif text-base font-medium text-slate-800" translate="no">{text}</p>
-      {preview ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm text-slate-500">{captionPrefix}:</span>
-          <PlayButton src={preview} size={40} />
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="btn-tinted rounded-full px-3 py-1.5 text-sm font-medium"
-          >
-            Заменить аудио
-          </button>
-          <button
-            type="button"
-            onClick={() => onChange({ ...stage, newFile: null, removed: true })}
-            className="btn-tinted-danger rounded-full px-3 py-1.5 text-sm font-medium"
-          >
-            Удалить
-          </button>
-        </div>
-      ) : (
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-slate-400">{captionPrefix}: не добавлено</span>
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="btn-tinted rounded-full px-3 py-1.5 text-sm font-medium"
-          >
-            Добавить аудио
-          </button>
-        </div>
-      )}
-      <input
-        ref={inputRef}
-        type="file"
-        accept="audio/*"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0] ?? null;
-          if (file) onChange({ currentUrl: stage.currentUrl, newFile: file, removed: false });
-          e.target.value = "";
-        }}
-      />
-    </div>
-  );
-}
 
 const TOPIC_OPTIONS: { value: WordTopic; label: string }[] = [
   { value: "study", label: "Учёба" },

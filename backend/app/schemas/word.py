@@ -26,6 +26,17 @@ class WordFormOut(BaseModel):
     text: str
 
 
+class LanguageEntryOut(BaseModel):
+    """Языковая запись понятия: номер, язык и текст.
+
+    Нужна админке, чтобы из карточки понятия («База», где правится только
+    классификация) дать ссылку на правку слова в разделе «Языки»."""
+
+    id: int
+    language: str
+    text: str
+
+
 class WordOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -57,6 +68,11 @@ class WordOut(BaseModel):
     # Grammatical forms, in insertion order, one list mixing all languages
     # -- the admin editor groups them by `language` for display.
     forms: list[WordFormOut]
+
+    # Сами языковые записи понятия: номер + язык + текст. Из карточки понятия
+    # («База», где правится только классификация) по ним строятся ссылки на
+    # правку слова в разделе «Языки». Пусто для приложения -- ему это не нужно.
+    language_entries: list[LanguageEntryOut] = []
 
     # This user's own progress on this word -- None everywhere word_to_out()
     # is called without a user in scope (matching.py, exercises.py,
