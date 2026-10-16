@@ -34,6 +34,9 @@ class ProfileSettingsScreen extends StatefulWidget {
 const Color _logoutRed = Color(0xFFE5484D);
 
 const List<({String code, String label})> _translationLanguages = [
+  // Русский — полноправный родной язык: с ним возможна самая очевидная пара
+  // «учу английский, подсказки по-русски». Раньше его тут не было.
+  (code: 'ru', label: 'Русский'),
   (code: 'tg', label: 'Тоҷикӣ'),
   (code: 'uz', label: 'Oʻzbekcha'),
   (code: 'en', label: 'English'),
