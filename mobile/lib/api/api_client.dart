@@ -19,6 +19,7 @@ import '../models/dictionary.dart';
 import '../models/exercise.dart';
 import '../models/exercise_scoring.dart';
 import '../models/learning.dart';
+import '../models/language.dart';
 import '../models/lesson.dart';
 import '../models/notification.dart';
 import '../models/mini_phrase.dart';
@@ -394,8 +395,16 @@ class ApiClient {
     await _throwWithDetail(res);
   }
 
-  Future<List<GuyoDictionary>> fetchDictionaries() async {
-    final res = await http.get(_uri('/dictionaries'), headers: await _authHeaders());
+  /// Языки, доступные для изучения. Список живёт в базе и правится в админке,
+  /// поэтому в приложении он не зашит: добавили язык — он появился здесь.
+  Future<List<GuyoLanguage>> fetchLanguages() async {
+    final res = await http.get(_uri('/languages'), headers: await _authHeaders());
+    await _throwWithDetail(res);
+    final data = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
+    return data.map((e) => GuyoLanguage.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<GuyoDictionary>> fetchDictionaries() async {    final res = await http.get(_uri('/dictionaries'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
     return _parseDictionaries(_remember('dictionaries', res));
   }

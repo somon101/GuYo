@@ -277,6 +277,11 @@ def update_my_profile(
         user.first_name = fields["first_name"].strip() if fields["first_name"] else None
     if "last_name" in fields:
         user.last_name = fields["last_name"].strip() if fields["last_name"] else None
+    # Запоминаем прежние языки ДО правки: они нужны, если новый выбор столкнётся
+    # с другим языком пары.
+    previous_native = user.translation_language
+    previous_learning = user.learning_language
+
     if fields.get("translation_language"):
         user.translation_language = fields["translation_language"]
     if fields.get("ui_language"):
@@ -286,6 +291,23 @@ def update_my_profile(
     # родного. Пусто (None) = язык словаря.
     if "learning_language" in fields:
         user.learning_language = fields["learning_language"]
+
+    # Родной и изучаемый не могут совпадать: подсказка была бы на том же языке,
+    # что и ответ. Приложение такой вариант не предлагает; если он всё-таки
+    # пришёл -- языки МЕНЯЮТСЯ МЕСТАМИ, потому что человек сменил один на
+    # другой, а не попросил ошибку.
+    if user.learning_language is not None and user.learning_language == user.translation_language:
+        changed_learning = "learning_language" in fields
+        changed_native = bool(fields.get("translation_language"))
+        if changed_learning and previous_learning and previous_learning != user.translation_language:
+            user.translation_language = previous_learning
+        elif changed_native and previous_native != previous_learning:
+            user.learning_language = previous_native
+        elif user.learning_language == "ru":
+            user.translation_language = "tg"
+        else:
+            user.translation_language = "ru"
+
     # A Tajik or Uzbek interface always reads its own language.
     user.translation_language = reading_language(user.ui_language, user.translation_language)
     if "learning_topics" in fields:

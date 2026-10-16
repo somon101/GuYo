@@ -48,6 +48,7 @@ from app.routers import (
     words,
 )
 from app.routers import api_keys
+from app.routers import languages
 from app.routers import status as status_router
 
 settings = get_settings()
@@ -144,6 +145,7 @@ app.include_router(events.router)
 app.include_router(admin_achievements.router)
 app.include_router(admin_mini_phrases.router)
 app.include_router(admin_languages.router)
+app.include_router(languages.router)
 app.include_router(mini_phrases.router)
 app.include_router(admin_rating.router)
 app.include_router(admin_word_levels.router)

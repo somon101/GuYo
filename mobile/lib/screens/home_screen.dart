@@ -4,6 +4,7 @@ import '../widgets/guyo_ui.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
+import '../models/language.dart';
 import '../theme/app_colors.dart';
 import 'home_dashboard_screen.dart';
 import 'lessons_screen.dart';
@@ -59,6 +60,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Object? _loadError;
   List<GuyoDictionary> _dictionaries = [];
   GuyoDictionary? _selectedDictionary;
+  // Языки для переключателя на главном экране и текущая пара «родной ->
+  // изучаемый». Оба языка живут на сервере: список языков правится в админке,
+  // пара — в профиле человека.
+  List<GuyoLanguage> _languages = [];
+  String _nativeLanguage = 'tg';
+  String? _learningLanguage;
   int _selectedTabIndex = 0;
   // Lets the app bar's own settings gear (shown only while Профиль is
   // the active tab) open that screen's settings sheet -- the sheet and
@@ -173,6 +180,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _loadError = null;
       });
       _refreshDictionariesInBackground();
+      unawaited(_loadLanguages());
       return;
     }
     setState(() {
@@ -186,12 +194,60 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _dictionaries = fresh;
         _isLoading = false;
       });
+      unawaited(_loadLanguages());
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _loadError = e;
         _isLoading = false;
       });
+    }
+  }
+
+  /// Языки для переключателя и текущую пару «родной -> изучаемый».
+  ///
+  /// Молча, если не доехало: переключатель появится, когда данные придут, а
+  /// человек в это время уже видит контент.
+  Future<void> _loadLanguages() async {
+    try {
+      final languages = await ApiClient.instance.fetchLanguages();
+      final profile = await ApiClient.instance.fetchMyProfile();
+      if (!mounted) return;
+      setState(() {
+        _languages = languages;
+        _nativeLanguage = profile.translationLanguage;
+        _learningLanguage = profile.learningLanguage ?? _dictionaryLanguage;
+      });
+    } catch (_) {
+      // Тихо -- см. выше.
+    }
+  }
+
+  /// Язык словаря: на нём контент, пока человек не выбрал изучаемый сам.
+  String get _dictionaryLanguage => _selectedDictionary?.language ?? 'ru';
+
+  /// Что можно изучать: всё, КРОМЕ текущего родного языка. Иначе подсказка была
+  /// бы на том же языке, что и ответ, -- такой вариант не показываем вовсе.
+  List<GuyoLanguage> get _learningOptions =>
+      _languages.where((language) => language.code != _nativeLanguage).toList();
+
+  /// Смена изучаемого языка: сохраняем в профиле, сбрасываем кэш урока и слов
+  /// (они были на прежнем языке) и перечитываем контент.
+  Future<void> _selectLearningLanguage(GuyoLanguage language) async {
+    if (language.code == _learningLanguage) return;
+    final previous = _learningLanguage;
+    setState(() => _learningLanguage = language.code);
+    try {
+      final saved = await ApiClient.instance.updateMyProfile(learningLanguage: language.code);
+      ApiClient.instance.forgetCachedContent();
+      if (!mounted) return;
+      setState(() {
+        _nativeLanguage = saved.translationLanguage;
+        _learningLanguage = saved.learningLanguage ?? language.code;
+      });
+      await _refreshDictionariesInBackground();
+    } catch (_) {
+      if (mounted) setState(() => _learningLanguage = previous);
     }
   }
 
@@ -375,19 +431,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           else ...[
           Builder(
             builder: (context) {
-              final options = _languageOptions(_dictionaries);
-              final current = _resolveSelection(options);
-              if (current == null) {
-                // Nothing published -- no switcher to show at all, not even
-                // a disabled one with a made-up language in it.
+              final options = _learningOptions;
+              final current = _languages.firstWhere(
+                (language) => language.code == _learningLanguage,
+                orElse: () => options.isNotEmpty
+                    ? options.first
+                    : GuyoLanguage(code: _dictionaryLanguage, name: _dictionaryLanguage, nativeName: ''),
+              );
+              if (options.isEmpty) {
+                // Нечего выбирать: один доступный язык, и он же родной.
                 return const SizedBox.shrink();
               }
-              _selectedDictionary = current;
 
               return _LanguageSwitcher(
                 current: current,
                 options: options,
-                onSelected: (d) => setState(() => _selectedDictionary = d),
+                onSelected: (language) => unawaited(_selectLearningLanguage(language)),
               );
             },
           ),
@@ -535,13 +594,13 @@ class _NotificationsButtonState extends State<_NotificationsButton> with Widgets
 /// With only one language there is nothing to switch, so no chevron and
 /// no menu.
 class _LanguageSwitcher extends StatelessWidget {
-  final GuyoDictionary current;
-  final List<GuyoDictionary> options;
-  final ValueChanged<GuyoDictionary> onSelected;
+  final GuyoLanguage current;
+  final List<GuyoLanguage> options;
+  final ValueChanged<GuyoLanguage> onSelected;
 
   const _LanguageSwitcher({required this.current, required this.options, required this.onSelected});
 
-  Widget _badge(GuyoDictionary d, {bool selected = true}) => Container(
+  Widget _badge(GuyoLanguage d, {bool selected = true}) => Container(
         width: 26,
         height: 22,
         alignment: Alignment.center,
@@ -550,7 +609,7 @@ class _LanguageSwitcher extends StatelessWidget {
           borderRadius: BorderRadius.circular(7),
         ),
         child: Text(
-          d.language.toUpperCase(),
+          d.code.toUpperCase(),
           style: TextStyle(
             fontSize: 10.5,
             fontWeight: FontWeight.w800,
@@ -577,7 +636,7 @@ class _LanguageSwitcher extends StatelessWidget {
           _badge(current),
           const SizedBox(width: 8),
           Text(
-            current.languageLabel,
+            current.label,
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
           ),
           if (canSwitch) ...[
@@ -589,7 +648,7 @@ class _LanguageSwitcher extends StatelessWidget {
     );
     if (!canSwitch) return Center(child: pill);
 
-    return PopupMenuButton<GuyoDictionary>(
+    return PopupMenuButton<GuyoLanguage>(
       key: const ValueKey('language-switcher'),
       tooltip: tr('Выбрать язык'),
       onSelected: onSelected,
@@ -605,19 +664,20 @@ class _LanguageSwitcher extends StatelessWidget {
             height: 46,
             child: Row(
               children: [
-                _badge(option, selected: option.id == current.id),
+                _badge(option, selected: option.code == current.code),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    option.languageLabel,
+                    option.label,
                     style: TextStyle(
                       fontSize: 15,
-                      fontWeight: option.id == current.id ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: option.code == current.code ? FontWeight.w700 : FontWeight.w500,
                       color: AppColors.primaryDark,
                     ),
                   ),
                 ),
-                if (option.id == current.id) Icon(Icons.check_rounded, size: 18, color: AppColors.primary),
+                if (option.code == current.code)
+                  Icon(Icons.check_rounded, size: 18, color: AppColors.primary),
               ],
             ),
           ),
