@@ -452,7 +452,7 @@ def add_form(
     one. Order is preserved as insertion order (ascending id)."""
     language = language.strip().lower()
     _require_valid_language(language, db)
-    _get_word_or_404(db, word_id)
+    db_word = _get_word_or_404(db, word_id)
 
     db_form = WordForm(word_id=word_id, language=language, text=text.strip())
     db.add(db_form)
