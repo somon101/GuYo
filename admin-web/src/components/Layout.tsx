@@ -22,6 +22,7 @@ const navGroups = [
   {
     title: "Контент",
     items: [
+      { to: "/base", icon: "blocks", label: "База" },
       { to: "/dictionaries", icon: "globe", label: "Языки" },
       { to: "/multilingual", icon: "layers", label: "Многоязычность" },
       { to: "/exercises", icon: "dumbbell", label: "Упражнения" },

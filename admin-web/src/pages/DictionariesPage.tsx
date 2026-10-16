@@ -228,42 +228,13 @@ export function DictionariesPage() {
       )}
 
       {dictionaries.length > 0 && (
-        <section className="mt-8">
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Содержимое: понятия
-          </h2>
-          <p className="mb-3 text-xs text-slate-500">
-            Слова, фразы и мини-фразы лежат в наборе понятий — у каждого языка это свои записи
-            одного и того же набора.
-          </p>
-          <ul className="flex flex-col gap-2">
-            {dictionaries.map((d) => (
-              <li key={d.id} className="card flex flex-wrap items-center gap-3 p-4 text-sm">
-                <span className="font-medium text-slate-900">{d.name}</span>
-                <span className="text-xs text-slate-400">
-                  {d.word_count} слов · {d.is_published ? "опубликован" : "черновик"}
-                </span>
-                <span className="ml-auto flex flex-wrap gap-2">
-                  <Link to={`/dictionaries/${d.id}`} className="text-indigo-600 hover:underline">
-                    Слова
-                  </Link>
-                  <Link to={`/dictionaries/${d.id}/phrases`} className="text-indigo-600 hover:underline">
-                    Фразы
-                  </Link>
-                  <Link
-                    to={`/dictionaries/${d.id}/mini-phrases`}
-                    className="text-indigo-600 hover:underline"
-                  >
-                    Мини-фразы
-                  </Link>
-                  <Link to={`/dictionaries/${d.id}/audit`} className="text-indigo-600 hover:underline">
-                    Аудит
-                  </Link>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <p className="mt-8 text-xs text-slate-500">
+          Слова, фразы и мини-фразы лежат в разделе{" "}
+          <Link to="/base" className="text-indigo-600 hover:underline">
+            База
+          </Link>
+          : язык — это срез этих данных, а не отдельное хранилище.
+        </p>
       )}
     </div>
   );
