@@ -8,16 +8,27 @@
 
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_admin
+from app.core.storage import delete_by_key, save_upload, url_for_key
 from app.database import get_db
-from app.models.concept import PhraseEntry, WordEntry, WordEntryForm
+from app.models.concept import Concept, PhraseEntry, WordEntry, WordEntryForm
 from app.models.language import Language
-from app.schemas.language import LanguageDetail, LanguageIn, LanguageOut, LanguagePatch
+from app.models.word import Word, WordForm, WordTranslation
+from app.schemas.language import (
+    LanguageDetail,
+    LanguageFormIn,
+    LanguageFormOut,
+    LanguageIn,
+    LanguageOut,
+    LanguagePatch,
+    LanguageWordDetail,
+    LanguageWordPatch,
+)
 
 router = APIRouter(prefix="/admin/languages", tags=["admin-languages"])
 
@@ -119,3 +130,203 @@ def update_language(
     db.commit()
     db.refresh(language)
     return _detail(db, language)
+
+
+# --- Карточка слова в языке ---------------------------------------------------
+#
+# Здесь правятся только ЯЗЫКОВЫЕ поля: написание, транскрипция, аудио, формы.
+# Классификация (роль, важность, категория, темы, картинка) принадлежит понятию
+# и правится в разделе «База» -- она одна на все языки.
+#
+# Каждая запись зеркалится и в старые таблицы: пока приложение читает из них
+# частично (текст слова для упражнений), иначе правка была бы видна только новой
+# структуре.
+
+
+def _entry_or_404(db: Session, language: str, entry_id: int) -> WordEntry:
+    entry = db.get(WordEntry, entry_id)
+    if entry is None or entry.language != language:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Слово не найдено")
+    return entry
+
+
+def _word_detail(db: Session, entry: WordEntry) -> LanguageWordDetail:
+    concept = db.get(Concept, entry.concept_id)
+    siblings = (
+        db.query(WordEntry)
+        .filter(WordEntry.concept_id == entry.concept_id, WordEntry.id != entry.id)
+        .order_by(WordEntry.id)
+        .all()
+    )
+    return LanguageWordDetail(
+        id=entry.id,
+        concept_id=entry.concept_id,
+        language=entry.language,
+        text=entry.text,
+        transcription=entry.transcription,
+        audio_url=url_for_key(entry.audio_key),
+        forms=[LanguageFormOut(id=f.id, text=f.text) for f in entry.forms],
+        dictionary_id=concept.dictionary_id if concept is not None else 0,
+        role=concept.role if concept is not None else None,
+        importance=concept.importance if concept is not None else 3,
+        category_id=concept.category_id if concept is not None else None,
+        siblings=[{"language": s.language, "text": s.text} for s in siblings],
+    )
+
+
+def _mirror_text(db: Session, entry: WordEntry, concept: Concept | None) -> None:
+    """Переносит написание в старые таблицы, если эта запись -- язык слова."""
+    if concept is None:
+        return
+    word = db.get(Word, concept.id)
+    if word is None:
+        return
+    dictionary = db.get(Language, entry.language)
+    del dictionary  # язык словаря здесь не нужен: смотрим по самому слову
+    if entry.id == word.id:
+        word.word = entry.text
+        word.transcription = entry.transcription
+    else:
+        translation = (
+            db.query(WordTranslation)
+            .filter(WordTranslation.word_id == word.id, WordTranslation.language == entry.language)
+            .first()
+        )
+        if translation is not None:
+            translation.text = entry.text
+
+
+@router.get("/{language}/words/{entry_id}", response_model=LanguageWordDetail)
+def get_language_word(
+    language: str, entry_id: int, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
+):
+    """Слово на этом языке: написание, транскрипция, аудио и формы именно языка."""
+    return _word_detail(db, _entry_or_404(db, language, entry_id))
+
+
+@router.patch("/{language}/words/{entry_id}", response_model=LanguageWordDetail)
+def update_language_word(
+    language: str,
+    entry_id: int,
+    payload: LanguageWordPatch,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """Правит написание и транскрипцию этого языка. Классификация — в «Базе»."""
+    entry = _entry_or_404(db, language, entry_id)
+    if payload.text is not None:
+        entry.text = payload.text.strip()
+    if payload.remove_transcription:
+        entry.transcription = None
+    elif payload.transcription is not None:
+        entry.transcription = payload.transcription.strip() or None
+    db.flush()
+    _mirror_text(db, entry, db.get(Concept, entry.concept_id))
+    db.commit()
+    db.refresh(entry)
+    return _word_detail(db, entry)
+
+
+@router.post(
+    "/{language}/words/{entry_id}/audio",
+    response_model=LanguageWordDetail,
+    status_code=status.HTTP_201_CREATED,
+)
+def upload_language_word_audio(
+    language: str,
+    entry_id: int,
+    audio: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """Озвучка слова на этом языке."""
+    entry = _entry_or_404(db, language, entry_id)
+    if entry.audio_key:
+        delete_by_key(entry.audio_key)
+    entry.audio_key = save_upload(audio, subdir=f"languages/{language}/word_audio")
+    concept = db.get(Concept, entry.concept_id)
+    word = db.get(Word, concept.id) if concept is not None else None
+    if word is not None and entry.id == word.id:
+        word.word_audio_key = entry.audio_key
+    elif word is not None:
+        translation = (
+            db.query(WordTranslation)
+            .filter(WordTranslation.word_id == word.id, WordTranslation.language == language)
+            .first()
+        )
+        if translation is not None:
+            translation.audio_key = entry.audio_key
+    db.commit()
+    db.refresh(entry)
+    return _word_detail(db, entry)
+
+
+@router.delete("/{language}/words/{entry_id}/audio", response_model=LanguageWordDetail)
+def delete_language_word_audio(
+    language: str, entry_id: int, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
+):
+    entry = _entry_or_404(db, language, entry_id)
+    delete_by_key(entry.audio_key)
+    entry.audio_key = None
+    concept = db.get(Concept, entry.concept_id)
+    word = db.get(Word, concept.id) if concept is not None else None
+    if word is not None and entry.id == word.id:
+        word.word_audio_key = None
+    db.commit()
+    db.refresh(entry)
+    return _word_detail(db, entry)
+
+
+@router.post(
+    "/{language}/words/{entry_id}/forms",
+    response_model=LanguageWordDetail,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_language_word_form(
+    language: str,
+    entry_id: int,
+    payload: LanguageFormIn,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """Добавляет форму слова на этом языке (падеж, число, склонение)."""
+    entry = _entry_or_404(db, language, entry_id)
+    text = payload.text.strip()
+    if text:
+        existing = next((f for f in entry.forms if f.text.strip().lower() == text.lower()), None)
+        if existing is None:
+            form = WordEntryForm(word_entry_id=entry.id, language=language, text=text)
+            db.add(form)
+            db.flush()
+            concept = db.get(Concept, entry.concept_id)
+            word = db.get(Word, concept.id) if concept is not None else None
+            if word is not None:
+                # Зеркало в старую таблицу форм: её id совпадает с id новой формы,
+                # и на неё ссылаются части мини-фраз.
+                legacy = db.get(WordForm, form.id)
+                if legacy is None:
+                    db.add(WordForm(id=form.id, word_id=word.id, language=language, text=text))
+    db.commit()
+    db.refresh(entry)
+    return _word_detail(db, entry)
+
+
+@router.delete("/{language}/words/{entry_id}/forms/{form_id}", response_model=LanguageWordDetail)
+def delete_language_word_form(
+    language: str,
+    entry_id: int,
+    form_id: int,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    entry = _entry_or_404(db, language, entry_id)
+    form = db.get(WordEntryForm, form_id)
+    if form is None or form.word_entry_id != entry.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Форма не найдена")
+    legacy = db.get(WordForm, form_id)
+    if legacy is not None:
+        db.delete(legacy)
+    db.delete(form)
+    db.commit()
+    db.refresh(entry)
+    return _word_detail(db, entry)

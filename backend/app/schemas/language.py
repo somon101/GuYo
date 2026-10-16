@@ -46,3 +46,44 @@ class LanguageDetail(LanguageOut):
     forms: int
     phrase_entries: int
     created_at: datetime
+
+
+class LanguageFormOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    text: str
+
+
+class LanguageWordDetail(BaseModel):
+    """Слово одного языка так, как его правит админка.
+
+    Языковые поля (написание, транскрипция, аудио, формы) принадлежат ЭТОМУ
+    языку и правятся здесь. Классификация (роль, важность, категория, темы,
+    картинка) принадлежит понятию и правится в разделе «База» -- дублировать её
+    по языкам незачем, связь идёт через concept_id."""
+
+    id: int
+    concept_id: int
+    language: str
+    text: str
+    transcription: str | None
+    audio_url: str | None
+    forms: list[LanguageFormOut]
+    # Общее у понятия -- только для показа и перехода в «Базу».
+    dictionary_id: int
+    role: str | None
+    importance: int
+    category_id: int | None
+    # Как это же понятие выглядит на других языках: полезно видеть рядом.
+    siblings: list[dict]
+
+
+class LanguageWordPatch(BaseModel):
+    text: str | None = Field(default=None, min_length=1, max_length=255)
+    transcription: str | None = Field(default=None, max_length=255)
+    remove_transcription: bool = False
+
+
+class LanguageFormIn(BaseModel):
+    text: str = Field(min_length=1, max_length=255)
