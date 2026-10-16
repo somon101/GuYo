@@ -305,10 +305,19 @@ export async function deleteWordForm(
 export async function upsertTranslation(
   wordId: number,
   language: TranslationLanguage,
-  input: { text: string; audio?: File | null; removeAudio?: boolean },
+  input: {
+    text: string;
+    /// Транскрипция этого языка (например /ˈpɜːsən/ для английского).
+    transcription?: string;
+    removeTranscription?: boolean;
+    audio?: File | null;
+    removeAudio?: boolean;
+  },
 ): Promise<WordTranslation> {
   const form = new FormData();
   form.append("text", input.text);
+  if (input.transcription) form.append("transcription", input.transcription);
+  if (input.removeTranscription) form.append("remove_transcription", "true");
   if (input.audio) form.append("audio", input.audio);
   if (input.removeAudio) form.append("remove_audio", "true");
 

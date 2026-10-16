@@ -56,6 +56,8 @@ export interface WordTranslation {
   id: number;
   language: TranslationLanguage;
   text: string;
+  /// Транскрипция этого языка (у русского слова своя, у английского перевода своя).
+  transcription: string | null;
   audio_url: string | null;
 }
 

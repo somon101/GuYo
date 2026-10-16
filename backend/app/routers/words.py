@@ -49,7 +49,15 @@ def _default_translation_language(dictionary_language: str) -> str:
 
 
 def translation_to_out(t: WordTranslation) -> WordTranslationOut:
-    return WordTranslationOut(id=t.id, language=t.language, text=t.text, audio_url=url_for_key(t.audio_key))
+    # getattr: перевод приходит и языковой записью новой структуры (у неё
+    # транскрипция есть), и старой строкой (у неё такой колонки нет).
+    return WordTranslationOut(
+        id=t.id,
+        language=t.language,
+        text=t.text,
+        transcription=getattr(t, "transcription", None),
+        audio_url=url_for_key(t.audio_key),
+    )
 
 
 def form_to_out(f: WordForm) -> WordFormOut:
@@ -326,6 +334,10 @@ def upsert_translation(
     word_id: int,
     language: str,
     text: str = Form(..., min_length=1, max_length=255),
+    # Транскрипция ИМЕННО этого языка: у русского слова она своя, у английского
+    # перевода -- своя. Хранится в языковой записи.
+    transcription: str | None = Form(None),
+    remove_transcription: bool = Form(False),
     audio: UploadFile | None = File(None),
     remove_audio: bool = Form(False),
     db: Session = Depends(get_db),
@@ -365,7 +377,15 @@ def upsert_translation(
 
     # Двойная запись: чтение уже идёт из языковых записей (см. step 3b), поэтому
     # правка обязана попасть и туда, иначе человек увидит старый перевод.
-    sync_translation(db, db_word, language, db_translation.text, db_translation.audio_key)
+    sync_translation(
+        db,
+        db_word,
+        language,
+        db_translation.text,
+        db_translation.audio_key,
+        transcription,
+        remove_transcription=remove_transcription,
+    )
 
     db.commit()
     db.refresh(db_translation)

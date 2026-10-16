@@ -11,6 +11,10 @@ class WordTranslationOut(BaseModel):
     id: int
     language: str
     text: str
+    # Транскрипция ИМЕННО этого языка: у русского слова она своя, у английского
+    # перевода -- своя (/ˈpɜːsən/). Живёт только в языковой записи: в старой
+    # таблице переводов такой колонки не было.
+    transcription: str | None = None
     audio_url: str | None
 
 

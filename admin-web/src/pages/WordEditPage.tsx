@@ -48,6 +48,10 @@ interface TranslationRow {
   language: TranslationLanguage;
   originalText: string;
   text: string;
+  /// Транскрипция ИМЕННО этого языка: у русского слова своя, у английского
+  /// перевода -- своя. Хранится в языковой записи.
+  transcription: string;
+  originalTranscription: string;
   audio: FileStage;
   isNew: boolean; // not persisted yet on the server
 }
@@ -86,6 +90,8 @@ export function WordEditPage() {
       language: t.language,
       originalText: t.text,
       text: t.text,
+      transcription: t.transcription ?? "",
+      originalTranscription: t.transcription ?? "",
       audio: freshStage(t.audio_url),
       isNew: false,
     }));
@@ -94,7 +100,15 @@ export function WordEditPage() {
     // words translated into it.
     for (const lang of ["uz", "en"] as const) {
       if (!rows.some((r) => r.language === lang)) {
-        rows.push({ language: lang, originalText: "", text: "", audio: freshStage(null), isNew: true });
+        rows.push({
+          language: lang,
+          originalText: "",
+          text: "",
+          transcription: "",
+          originalTranscription: "",
+          audio: freshStage(null),
+          isNew: true,
+        });
       }
     }
     setTranslations(rows);
@@ -131,7 +145,12 @@ export function WordEditPage() {
     if (transcription.trim() !== (word.transcription ?? "")) return true;
     if (categoryId !== word.category_id) return true;
     if (stageChanged(image) || stageChanged(wordAudio)) return true;
-    return translations.some((t) => t.text.trim() !== t.originalText || stageChanged(t.audio));
+    return translations.some(
+      (t) =>
+        t.text.trim() !== t.originalText ||
+        t.transcription.trim() !== t.originalTranscription ||
+        stageChanged(t.audio),
+    );
   }, [word, wordText, transcription, categoryId, image, wordAudio, translations]);
 
   async function handleSave() {
@@ -169,10 +188,13 @@ export function WordEditPage() {
         if (t.isNew && !t.text.trim()) continue;
         const textChanged = t.text.trim() !== t.originalText;
         const audioChanged = stageChanged(t.audio);
-        if (!textChanged && !audioChanged) continue;
+        const transcriptionChanged = t.transcription.trim() !== t.originalTranscription;
+        if (!textChanged && !audioChanged && !transcriptionChanged) continue;
         requests.push(
           upsertTranslation(id, t.language, {
             text: t.text.trim() || t.originalText,
+            transcription: t.transcription.trim(),
+            removeTranscription: !t.transcription.trim() && !!t.originalTranscription,
             audio: t.audio.newFile,
             removeAudio: t.audio.removed && !t.audio.newFile,
           }),
@@ -339,6 +361,18 @@ export function WordEditPage() {
                 placeholder={t.isNew ? "Пока нет перевода" : undefined}
                 onChange={(e) =>
                   setTranslations((rows) => rows.map((r, j) => (j === i ? { ...r, text: e.target.value } : r)))
+                }
+              />
+            </Field>
+            <Field label="Транскрипция" hint="необязательно, для этого языка">
+              <input
+                className="w-full max-w-xs field px-3 py-2 text-sm"
+                value={t.transcription}
+                placeholder="/ˈpɜːsən/"
+                onChange={(e) =>
+                  setTranslations((rows) =>
+                    rows.map((r) => (r.language === t.language ? { ...r, transcription: e.target.value } : r)),
+                  )
                 }
               />
             </Field>

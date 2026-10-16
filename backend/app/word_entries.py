@@ -154,10 +154,27 @@ def sync_word(db: Session, word: Word) -> None:
             db.delete(row)
 
 
-def sync_translation(db: Session, word: Word, language: str, text: str, audio_key: str | None) -> None:
+def sync_translation(
+    db: Session,
+    word: Word,
+    language: str,
+    text: str,
+    audio_key: str | None,
+    transcription: str | None = None,
+    *,
+    remove_transcription: bool = False,
+) -> None:
+    """Зеркало перевода в новой структуре.
+
+    Транскрипцию не трогаем, если её не прислали: правка одной озвучки не должна
+    стирать уже введённую транскрипцию."""
     entry = ensure_translation_entry(db, word, language)
     entry.text = text
     entry.audio_key = audio_key
+    if remove_transcription:
+        entry.transcription = None
+    elif transcription is not None and transcription.strip():
+        entry.transcription = transcription.strip()
 
 
 def drop_translation(db: Session, word: Word, language: str) -> None:
