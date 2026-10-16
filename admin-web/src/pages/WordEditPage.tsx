@@ -261,19 +261,18 @@ export function WordEditPage() {
             onChange={(e) => setWordText(e.target.value)}
           />
         </Field>
-        {translations[0] && (
-          <Field label={`Перевод (${TRANSLATION_LANGUAGE_LABELS[translations[0].language]})`}>
-            <input
-              className="w-full field px-3 py-2 text-sm"
-              value={translations[0].text}
-              onChange={(e) =>
-                setTranslations((rows) =>
-                  rows.map((r, i) => (i === 0 ? { ...r, text: e.target.value } : r)),
-                )
-              }
-            />
-          </Field>
-        )}
+        <Field label="Произношение слова" hint="озвучка самого слова">
+          <AudioBlock
+            languageLabel={dictionary.name}
+            text={word.word}
+            captionPrefix="Аудио слова"
+            stage={wordAudio}
+            onChange={setWordAudio}
+          />
+        </Field>
+        <Field label="Изображение" hint="необязательно">
+          <ImageField stage={image} onChange={setImage} />
+        </Field>
         <Field label="Транскрипция" hint="необязательно">
           <input
             className="w-full max-w-xs field px-3 py-2 text-sm"
@@ -300,23 +299,26 @@ export function WordEditPage() {
 
       <WordLearningSection word={word} onSaved={setWord} />
 
-      <Section title="Изображение">
-        <ImageField stage={image} onChange={setImage} />
+      <Section title={`Формы (${dictionary.name})`}>
+        <FormsGroup
+          forms={word.forms.filter((f) => f.language === dictionary.language)}
+          onAdd={(text) => handleAddForm(dictionary.language, text)}
+          onDelete={handleDeleteForm}
+        />
       </Section>
 
-      <Section title="Произношение">
-        <AudioBlock
-          languageLabel={dictionary.name}
-          text={word.word}
-          captionPrefix="Аудио слова"
-          stage={wordAudio}
-          onChange={setWordAudio}
-        />
+      <Section title="Переводы">
+        <p className="mb-4 text-sm text-slate-500">
+          У каждого языка свой перевод, своё произношение и свои формы.
+        </p>
         {translations.map((t, i) => (
-          <div key={t.language} className={i > 0 ? "mt-5 border-t border-slate-100 pt-5" : "mt-5 border-t border-slate-100 pt-5"}>
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                Перевод: {TRANSLATION_LANGUAGE_LABELS[t.language]}
+          <div
+            key={t.language}
+            className={i > 0 ? "mt-6 border-t border-slate-100 pt-6" : undefined}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {TRANSLATION_LANGUAGE_LABELS[t.language]}
               </span>
               {!t.isNew && (
                 <button
@@ -330,43 +332,36 @@ export function WordEditPage() {
                 </button>
               )}
             </div>
-            {i > 0 && (
+            <Field label="Перевод">
               <input
-                className="mb-3 w-full field px-3 py-2 text-sm"
+                className="w-full field px-3 py-2 text-sm"
                 value={t.text}
                 placeholder={t.isNew ? "Пока нет перевода" : undefined}
                 onChange={(e) =>
                   setTranslations((rows) => rows.map((r, j) => (j === i ? { ...r, text: e.target.value } : r)))
                 }
               />
-            )}
-            <AudioBlock
-              languageLabel={TRANSLATION_LANGUAGE_LABELS[t.language]}
-              text={t.text || t.originalText}
-              captionPrefix="Аудио перевода"
-              stage={t.audio}
-              onChange={(next) =>
-                setTranslations((rows) => rows.map((r) => (r.language === t.language ? { ...r, audio: next } : r)))
-              }
-            />
+            </Field>
+            <Field label="Произношение" hint="озвучка перевода">
+              <AudioBlock
+                languageLabel={TRANSLATION_LANGUAGE_LABELS[t.language]}
+                text={t.text || t.originalText}
+                captionPrefix="Аудио перевода"
+                stage={t.audio}
+                onChange={(next) =>
+                  setTranslations((rows) => rows.map((r) => (r.language === t.language ? { ...r, audio: next } : r)))
+                }
+              />
+            </Field>
+            <Field label="Формы" hint={`формы на языке «${TRANSLATION_LANGUAGE_LABELS[t.language]}»`}>
+              <FormsGroup
+                forms={word.forms.filter((f) => f.language === t.language)}
+                onAdd={(text) => handleAddForm(t.language, text)}
+                onDelete={handleDeleteForm}
+              />
+            </Field>
           </div>
         ))}
-      </Section>
-
-      <Section title={`Формы (${dictionary.name})`}>
-        <FormsGroup
-          forms={word.forms.filter((f) => f.language === dictionary.language)}
-          onAdd={(text) => handleAddForm(dictionary.language, text)}
-          onDelete={handleDeleteForm}
-        />
-      </Section>
-
-      <Section title="Формы (Тоҷикӣ)">
-        <FormsGroup
-          forms={word.forms.filter((f) => f.language === "tg")}
-          onAdd={(text) => handleAddForm("tg", text)}
-          onDelete={handleDeleteForm}
-        />
       </Section>
 
       <div className="sticky bottom-4 mt-6 flex items-center gap-3 card shadow-float p-4">
@@ -691,6 +686,26 @@ function WordLearningSection({ word, onSaved }: { word: Word; onSaved: (word: Wo
       <p className="mb-4 text-sm text-slate-500">
         Случайный урок сначала берёт слова из тем, которые выбрал человек, и внутри них — самые важные.
       </p>
+      <Field label="Темы" hint="можно несколько или ни одной">
+        <div className="flex flex-wrap gap-2">
+          {TOPIC_OPTIONS.map((o) => {
+            const on = topics.includes(o.value);
+            return (
+              <button
+                key={o.value}
+                type="button"
+                aria-pressed={on}
+                onClick={() => toggle(o.value)}
+                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                  on ? "bg-[var(--sys-blue)] text-white" : "bg-[var(--fill)] text-slate-700 hover:bg-[var(--fill-strong)]"
+                }`}
+              >
+                {o.label}
+              </button>
+            );
+          })}
+        </div>
+      </Field>
       <Field label="Важность">
         <select
           className="w-full max-w-xs field px-3 py-2 text-sm"
@@ -723,26 +738,6 @@ function WordLearningSection({ word, onSaved }: { word: Word; onSaved: (word: Wo
             </option>
           ))}
         </select>
-      </Field>
-      <Field label="Темы" hint="можно несколько или ни одной">
-        <div className="flex flex-wrap gap-2">
-          {TOPIC_OPTIONS.map((o) => {
-            const on = topics.includes(o.value);
-            return (
-              <button
-                key={o.value}
-                type="button"
-                aria-pressed={on}
-                onClick={() => toggle(o.value)}
-                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                  on ? "bg-[var(--sys-blue)] text-white" : "bg-[var(--fill)] text-slate-700 hover:bg-[var(--fill-strong)]"
-                }`}
-              >
-                {o.label}
-              </button>
-            );
-          })}
-        </div>
       </Field>
       <div className="flex items-center gap-3">
         <button
