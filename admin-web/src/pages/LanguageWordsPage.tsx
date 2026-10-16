@@ -67,7 +67,7 @@ export function LanguageWordsPage() {
                 <th className="px-4 py-2 font-medium">Транскрипция</th>
                 <th className="px-4 py-2 font-medium">Озвучка</th>
                 <th className="px-4 py-2 font-medium">Формы</th>
-                <th className="px-4 py-2 font-medium">Понятие</th>
+                <th className="px-4 py-2 font-medium" />
               </tr>
             </thead>
             <tbody>
@@ -82,16 +82,12 @@ export function LanguageWordsPage() {
                     {row.forms}
                   </td>
                   <td className="px-4 py-2">
-                    {row.dictionary_id !== null ? (
-                      <Link
-                        to={`/dictionaries/${row.dictionary_id}/words/${row.concept_id}`}
-                        className="text-indigo-600 hover:underline"
-                      >
-                        №{row.concept_id} →
-                      </Link>
-                    ) : (
-                      "—"
-                    )}
+                    <Link
+                      to={`/languages/${code}/words/${row.id}`}
+                      className="text-indigo-600 hover:underline"
+                    >
+                      Открыть →
+                    </Link>
                   </td>
                 </tr>
               ))}

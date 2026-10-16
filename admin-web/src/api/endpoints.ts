@@ -1933,6 +1933,84 @@ export async function listLanguageWords(
   return data;
 }
 
+/** Слово одного языка: языковые поля правятся здесь, классификация — в «Базе». */
+export interface LanguageWordDetail {
+  id: number;
+  concept_id: number;
+  language: string;
+  text: string;
+  transcription: string | null;
+  audio_url: string | null;
+  forms: { id: number; text: string }[];
+  dictionary_id: number;
+  role: string | null;
+  importance: number;
+  category_id: number | null;
+  siblings: { language: string; text: string }[];
+}
+
+export async function getLanguageWord(
+  language: string,
+  entryId: number,
+): Promise<LanguageWordDetail> {
+  const { data } = await api.get(`/admin/languages/${language}/words/${entryId}`);
+  return data;
+}
+
+export async function updateLanguageWord(
+  language: string,
+  entryId: number,
+  input: { text?: string; transcription?: string | null; removeTranscription?: boolean },
+): Promise<LanguageWordDetail> {
+  const { data } = await api.patch(`/admin/languages/${language}/words/${entryId}`, {
+    ...(input.text !== undefined ? { text: input.text } : {}),
+    ...(input.transcription !== undefined ? { transcription: input.transcription } : {}),
+    ...(input.removeTranscription ? { remove_transcription: true } : {}),
+  });
+  return data;
+}
+
+export async function uploadLanguageWordAudio(
+  language: string,
+  entryId: number,
+  audio: File,
+): Promise<LanguageWordDetail> {
+  const form = new FormData();
+  form.append("audio", audio);
+  const { data } = await api.post(`/admin/languages/${language}/words/${entryId}/audio`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+export async function deleteLanguageWordAudio(
+  language: string,
+  entryId: number,
+): Promise<LanguageWordDetail> {
+  const { data } = await api.delete(`/admin/languages/${language}/words/${entryId}/audio`);
+  return data;
+}
+
+export async function addLanguageWordForm(
+  language: string,
+  entryId: number,
+  text: string,
+): Promise<LanguageWordDetail> {
+  const { data } = await api.post(`/admin/languages/${language}/words/${entryId}/forms`, { text });
+  return data;
+}
+
+export async function deleteLanguageWordForm(
+  language: string,
+  entryId: number,
+  formId: number,
+): Promise<LanguageWordDetail> {
+  const { data } = await api.delete(
+    `/admin/languages/${language}/words/${entryId}/forms/${formId}`,
+  );
+  return data;
+}
+
 /** Аудит контента словаря: каких слов не хватает его фразам и какие части
  * мини-фраз не совпадают со своими словами и формами. */
 export async function getContentAudit(dictionaryId: number): Promise<ContentAudit> {
