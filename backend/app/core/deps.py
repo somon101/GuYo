@@ -63,7 +63,9 @@ def get_current_user(
     user = db.get(User, payload.subject)
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    set_content_language_for(_reading_ui_language(user, x_ui_language), user.translation_language)
+    set_content_language_for(
+        _reading_ui_language(user, x_ui_language), user.translation_language, user.learning_language
+    )
     return user
 
 
@@ -87,7 +89,9 @@ def get_current_principal(
         user = db.get(User, payload.subject)
         if user is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-        set_content_language_for(_reading_ui_language(user, x_ui_language), user.translation_language)
+        set_content_language_for(
+            _reading_ui_language(user, x_ui_language), user.translation_language, user.learning_language
+        )
     else:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid role")
     return Principal(role=payload.role, id=payload.subject)

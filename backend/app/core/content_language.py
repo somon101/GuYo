@@ -42,13 +42,26 @@ def reading_language(ui_language: str | None, translation_language: str | None) 
     return translation_language if translation_language in READING_LANGUAGES else "tg"
 
 
-def set_content_language_for(ui_language: str | None, translation_language: str | None = None) -> None:
+def set_content_language_for(
+    ui_language: str | None,
+    translation_language: str | None = None,
+    learning_language: str | None = None,
+) -> None:
     holder = _language.get()
     if holder is None:
         holder = {}
         _language.set(holder)
     holder["lang"] = reading_language(ui_language, translation_language)
     holder["ui"] = ui_language if ui_language in UI_LANGUAGES else "ru"
+    # Язык, который человек изучает. Пусто = язык словаря (так было до
+    # многоязычной перестройки, поэтому поведение никого не меняется).
+    holder["learn"] = learning_language if learning_language in UI_LANGUAGES else None
+
+
+def learning_language() -> str | None:
+    """Язык, который человек изучает сейчас, или None -- «язык словаря»."""
+    holder = _language.get()
+    return holder.get("learn") if holder else None
 
 
 def content_language() -> str:
@@ -66,11 +79,15 @@ def ui_language() -> str:
 def _translation_entries(word) -> list:
     """Переводы слова как языковые записи (многоязычная структура).
 
-    Своя запись (язык словаря) в переводах не участвует: у неё тот же id, что у
-    самого слова, -- по этому признаку её и исключаем, без обращения к базе.
-    Пустой список, если записи ещё не перенесены (до миграции)."""
+    Запись ИЗУЧАЕМОГО языка в переводах не участвует: она и есть ответ, а
+    подсказка должна прийти на другом языке. Изучаемый язык берём из настроек
+    человека; если он не выбран -- исключаем свою запись по id (она совпадает с
+    id слова), как было до многоязычной перестройки."""
     entries = getattr(word, "language_entries", None) or []
-    return [e for e in entries if e.id != word.id]
+    learn = learning_language()
+    if learn is None:
+        return [e for e in entries if e.id != word.id]
+    return [e for e in entries if e.language != learn]
 
 
 def primary_translation(word, *, strict: bool = False):

@@ -29,7 +29,7 @@ from app.schemas.bulk import (
     ImportSummary,
 )
 from app.schemas.word import WordFormOut, WordLearningIn, WordOut, WordTranslationOut
-from app.core.content_language import only_translated, primary_translation
+from app.core.content_language import learning_language, only_translated, primary_translation
 from app.word_entries import drop_concept, drop_translation, sync_translation, sync_word
 
 router = APIRouter(tags=["words"])
@@ -58,7 +58,12 @@ def word_to_out(word: Word) -> WordOut:
     # app.word_entries`), поэтому переключение ничего не меняет для людей, но
     # открывает дорогу второму языку: у слова появятся записи и на нём.
     entries = list(word.language_entries or [])
-    own = next((e for e in entries if e.id == word.id), None)
+    # Запись ИЗУЧАЕМОГО языка -- это ответ: выбранный человеком язык, иначе язык
+    # словаря (его запись узнаётся по id, совпадающему с id слова).
+    wanted = learning_language()
+    own = next((e for e in entries if wanted is not None and e.language == wanted), None)
+    if own is None:
+        own = next((e for e in entries if e.id == word.id), None)
     translations = [translation_to_out(t) for t in entries if t.id != word.id]
     chosen = primary_translation(word)
     primary = translation_to_out(chosen) if chosen is not None else None
@@ -79,7 +84,9 @@ def word_to_out(word: Word) -> WordOut:
         translation=primary.text if primary else None,
         translation_audio_url=primary.audio_url if primary else None,
         translations=translations,
-        forms=[form_to_out(f) for f in word.forms],
+        # Формы языка изучения: подсказывать русскому таджикские формы (или
+        # наоборот) -- значит путать его на упражнении «Собери слово».
+        forms=[form_to_out(f) for f in (own.forms if own is not None else word.forms)],
     )
 
 
