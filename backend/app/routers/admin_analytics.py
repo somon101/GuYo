@@ -651,6 +651,92 @@ def list_sync_journal(
     }
 
 
+@router.get("/multilingual/status")
+def multilingual_status(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    """Живая картина многоязычной перестройки -- то, что видно глазами.
+
+    Сколько языковых записей и форм на каждом языке, сколько из них с озвучкой
+    (сразу видно, где аудио ещё нет), пример понятия со всеми языками и
+    результаты сверки переноса."""
+    from app.models.concept import Concept, PhraseConcept, PhraseEntry, WordEntry, WordEntryForm
+    from app.multilingual_backfill import verify
+
+    def count(model) -> int:
+        return int(db.query(func.count(model.id)).scalar() or 0)
+
+    languages = [row[0] for row in db.query(WordEntry.language).distinct().order_by(WordEntry.language).all()]
+    per_language = []
+    for language in languages:
+        entries = db.query(WordEntry).filter(WordEntry.language == language)
+        total = entries.count()
+        with_audio = entries.filter(WordEntry.audio_key.isnot(None)).count()
+        forms = (
+            db.query(func.count(WordEntryForm.id))
+            .join(WordEntry, WordEntry.id == WordEntryForm.word_entry_id)
+            .filter(WordEntry.language == language)
+            .scalar()
+            or 0
+        )
+        per_language.append(
+            {
+                "language": language,
+                "entries": total,
+                "with_audio": with_audio,
+                "with_transcription": entries.filter(WordEntry.transcription.isnot(None)).count(),
+                "forms": int(forms),
+            }
+        )
+
+    # Пример понятия, у которого есть запись на КАЖДОМ языке -- на нём видно, как
+    # одно и то же понятие живёт в четырёх языках.
+    sample = None
+    for concept in db.query(Concept).order_by(Concept.id).limit(400).all():
+        rows = (
+            db.query(WordEntry)
+            .filter(WordEntry.concept_id == concept.id)
+            .order_by(WordEntry.language)
+            .all()
+        )
+        if len({row.language for row in rows}) >= 4:
+            sample = {
+                "concept_id": concept.id,
+                "role": concept.role,
+                "importance": concept.importance,
+                "category_id": concept.category_id,
+                "entries": [
+                    {
+                        "language": row.language,
+                        "text": row.text,
+                        "transcription": row.transcription,
+                        "has_audio": row.audio_key is not None,
+                        "forms": len(row.forms),
+                    }
+                    for row in rows
+                ],
+            }
+            break
+
+    checks = [{"name": name, "ok": ok, "detail": detail} for name, ok, detail in verify(db)]
+
+    return {
+        "totals": {
+            "concepts": count(Concept),
+            "word_entries": count(WordEntry),
+            "word_entry_forms": count(WordEntryForm),
+            "phrase_concepts": count(PhraseConcept),
+            "phrase_entries": count(PhraseEntry),
+            "mini_phrases_with_language": int(
+                db.query(func.count(MiniPhrase.id)).filter(MiniPhrase.language.isnot(None)).scalar() or 0
+            ),
+            "mini_phrases": int(db.query(func.count(MiniPhrase.id)).scalar() or 0),
+        },
+        "languages": per_language,
+        "sample": sample,
+        "checks": checks,
+        "checks_failed": sum(1 for c in checks if not c["ok"]),
+    }
+
+
 @router.get("/sync-journal/{entry_id}")
 def get_sync_journal_entry(entry_id: int, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
     """One sync packet in full: everything the device sent and the server's verdict."""
