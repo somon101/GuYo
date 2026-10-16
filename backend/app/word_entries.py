@@ -23,14 +23,11 @@ from collections import defaultdict
 
 from sqlalchemy.orm import Session
 
-from app.core.content_language import content_language, set_content_language_for
+from app.core.content_language import READING_LANGUAGES, set_content_language_for
 from app.database import SessionLocal
 from app.models.concept import Concept, ConceptTopic, WordEntry, WordEntryForm
 from app.models.dictionary import Dictionary
 from app.models.word import Word
-
-# Языки чтения: те, что человек может выбрать родным (см. core/languages.py).
-READING_LANGUAGES = ("tg", "uz", "en")
 
 
 def entries_by_concept(db: Session, concept_ids: list[int]) -> dict[int, list[WordEntry]]:

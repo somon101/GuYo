@@ -29,9 +29,12 @@ def begin_request() -> None:
     _language.set({"lang": "tg"})
 
 
-# What a Russian-interface user may read translations in. Tajik is the
-# full set; every other language hides what has no translation in it.
-READING_LANGUAGES = ("tg", "uz", "en")
+# What a user may read translations in. Russian is here too: it is a full member
+# of the multilingual structure (a concept has a Russian record like any other
+# language), and without it "learn English with a Russian hint" -- the most
+# obvious pair for a Russian speaker -- would be impossible. Tajik stays the
+# fallback when nothing is chosen.
+READING_LANGUAGES = ("ru", "tg", "uz", "en")
 
 
 def reading_language(ui_language: str | None, translation_language: str | None) -> str:

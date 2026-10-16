@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 AgeGroup = Literal["12-17", "18-24", "25+"]
 LearningGoal = Literal["study", "work", "communication", "travel", "relocation", "personal", "other"]
 UiLanguage = Literal["ru", "tg", "uz", "en"]
-TranslationLanguage = Literal["tg", "uz", "en"]
+TranslationLanguage = Literal["ru", "tg", "uz", "en"]
 ReferralSource = Literal["social", "youtube", "telegram", "search", "friends", "ads", "other"]
 
 
