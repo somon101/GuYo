@@ -672,3 +672,25 @@ def get_sync_journal_entry(entry_id: int, db: Session = Depends(get_db), _admin=
         "outcome": row.outcome,
         "created_at": row.created_at,
     }
+
+
+@router.get("/dictionaries/{dictionary_id}/content-audit")
+def dictionary_content_audit(
+    dictionary_id: int,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """Что не сходится в контенте словаря: слова, которые нужны его фразам, но
+    которых в словаре нет, и части мини-фраз, чей текст не совпадает ни со словом,
+    ни с одной его формой.
+
+    Только чтение. Фраза не хранит ссылок на слова -- её слова выводятся из текста
+    предложения, -- поэтому фраза может молча использовать слово, которого в
+    словаре нет, и тогда она просто никогда никому не показывается. Этот отчёт
+    говорит, каких именно слов и форм не хватает."""
+    from app.content_audit import audit_dictionary
+
+    dictionary = db.get(Dictionary, dictionary_id)
+    if dictionary is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Словарь не найден")
+    return audit_dictionary(db, dictionary)
