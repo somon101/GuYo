@@ -1860,6 +1860,59 @@ export async function getContentAudit(dictionaryId: number): Promise<ContentAudi
   return data;
 }
 
+/** Один язык в многоязычной структуре: сколько записей и чего не хватает. */
+export interface MultilingualLanguage {
+  language: string;
+  entries: number;
+  with_audio: number;
+  with_transcription: number;
+  forms: number;
+}
+
+export interface MultilingualEntry {
+  language: string;
+  text: string;
+  transcription: string | null;
+  has_audio: boolean;
+  forms: number;
+}
+
+export interface MultilingualSample {
+  concept_id: number;
+  role: string | null;
+  importance: number;
+  category_id: number | null;
+  entries: MultilingualEntry[];
+}
+
+export interface MultilingualCheck {
+  name: string;
+  ok: boolean;
+  detail: string;
+}
+
+export interface MultilingualStatus {
+  totals: {
+    concepts: number;
+    word_entries: number;
+    word_entry_forms: number;
+    phrase_concepts: number;
+    phrase_entries: number;
+    mini_phrases_with_language: number;
+    mini_phrases: number;
+  };
+  languages: MultilingualLanguage[];
+  sample: MultilingualSample | null;
+  checks: MultilingualCheck[];
+  checks_failed: number;
+}
+
+/** Живая картина многоязычной перестройки: по языкам, пример понятия, сверка. */
+export async function getMultilingualStatus(): Promise<MultilingualStatus> {
+  const { data } = await api.get("/admin/analytics/multilingual/status");
+  return data;
+}
+
 /** «Проверка текста» without the daily limit for one person. */
 export async function setUserTextCheckUnlimited(
   userId: number,
