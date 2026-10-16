@@ -1,3 +1,9 @@
+// Imports must come first in a Gradle Kotlin script, and these two ARE needed
+// qualified-free: inside `android { }` the name `java` refers to the Android
+// extension, so `java.util.Properties` there is an unresolved reference.
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // Reads android/app/google-services.json (Firebase project guyo-1e112, push).
@@ -45,11 +51,34 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        // The release key -- what Google Play identifies this app by, and the only
+        // thing that lets a future update be published. The keystore and its
+        // passwords live in android/key.properties and android/*.jks, which are
+        // NEVER committed (see .gitignore): whoever holds them can publish as GuYo,
+        // and losing them means the app can never be updated again.
+        if (rootProject.file("key.properties").exists()) {
+            create("release") {
+                val props = Properties()
+                props.load(FileInputStream(rootProject.file("key.properties")))
+                keyAlias = props["keyAlias"] as String
+                keyPassword = props["keyPassword"] as String
+                storeFile = file(props["storeFile"] as String)
+                storePassword = props["storePassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Signed with the real key when it is present (always, on this machine);
+            // the debug key only as a fallback so a checkout without the secrets can
+            // still build a release.
+            signingConfig = if (rootProject.file("key.properties").exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
