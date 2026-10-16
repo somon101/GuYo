@@ -196,6 +196,44 @@ def drop_concept(db: Session, word: Word) -> None:
         db.delete(concept)
 
 
+def entry_for_language(db: Session, word: Word, language: str) -> WordEntry | None:
+    """Языковая запись слова для языка. Если её ещё нет -- создаётся пустой: форма
+    пришла раньше перевода, и без записи ей негде жить."""
+    own = ensure_own_entry(db, word)
+    if own.language == language:
+        return own
+    entry = (
+        db.query(WordEntry)
+        .filter(WordEntry.concept_id == word.id, WordEntry.language == language)
+        .first()
+    )
+    if entry is None:
+        entry = WordEntry(concept_id=word.id, language=language, text="")
+        db.add(entry)
+        db.flush()
+    return entry
+
+
+def mirror_form_added(db: Session, word: Word, form_id: int, language: str, text: str) -> None:
+    """Форма, добавленная через старую карточку, попадает и в новую структуру.
+
+    id формы в двух таблицах одинаковый -- так заложено переносом (части
+    мини-фраз ссылаются на форму по id), поэтому запись создаётся с тем же id."""
+    if db.get(WordEntryForm, form_id) is not None:
+        return
+    entry = entry_for_language(db, word, language)
+    if entry is None:
+        return
+    db.add(WordEntryForm(id=form_id, word_entry_id=entry.id, language=language, text=text))
+
+
+def mirror_form_deleted(db: Session, form_id: int) -> None:
+    """Удаление формы в старой структуре -- и в новой тоже."""
+    row = db.get(WordEntryForm, form_id)
+    if row is not None:
+        db.delete(row)
+
+
 def compare_reads(db: Session) -> list[tuple[str, int, str]]:
     """Сравнить старый и новый путь чтения по всем словам и языкам.
 

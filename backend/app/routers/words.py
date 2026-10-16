@@ -35,7 +35,14 @@ from app.core.content_language import (
     primary_translation,
     translation_entries,
 )
-from app.word_entries import drop_concept, drop_translation, sync_translation, sync_word
+from app.word_entries import (
+    drop_concept,
+    drop_translation,
+    mirror_form_added,
+    mirror_form_deleted,
+    sync_translation,
+    sync_word,
+)
 
 router = APIRouter(tags=["words"])
 
@@ -449,6 +456,10 @@ def add_form(
 
     db_form = WordForm(word_id=word_id, language=language, text=text.strip())
     db.add(db_form)
+    db.flush()
+    # Двойная запись: форма должна попасть и в новую структуру, иначе её не
+    # увидят мини-фразы и упражнения, которые читают языковые записи.
+    mirror_form_added(db, db_word, db_form.id, language, text.strip())
     db.commit()
     db.refresh(db_form)
     return form_to_out(db_form)
@@ -465,6 +476,8 @@ def delete_form(
     if db_form is None or db_form.word_id != word_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Form not found")
 
+    # Двойная запись: форма живёт и в новой структуре, убираем обе.
+    mirror_form_deleted(db, form_id)
     db.delete(db_form)
     db.commit()
     return None

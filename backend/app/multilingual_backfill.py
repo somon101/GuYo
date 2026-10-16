@@ -284,8 +284,14 @@ def verify(db: Session) -> list[tuple[str, bool, str]]:
     translated = scalar("select count(*) from word_entries e where e.language <> 'ru'")
     check("Записей других языков = переводов", translated == translations, f"{translated} / {translations}")
 
-    empty_texts = scalar("select count(*) from word_entries where coalesce(text, '') = ''")
-    check("Нет языковых записей без текста", empty_texts == 0, f"пустых: {empty_texts}")
+    # Запись без текста допустима только тогда, когда у неё уже есть формы:
+    # форма может прийти раньше перевода (её заводят в карточке языка).
+    empty_texts = scalar(
+        "select count(*) from word_entries e "
+        "where coalesce(e.text, '') = '' "
+        "and not exists (select 1 from word_entry_forms f where f.word_entry_id = e.id)"
+    )
+    check("Нет пустых записей без форм", empty_texts == 0, f"пустых: {empty_texts}")
 
     mini = scalar("select count(*) from mini_phrases")
     mini_lang = scalar("select count(*) from mini_phrases where language is not null")
