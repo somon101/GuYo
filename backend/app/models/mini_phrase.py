@@ -61,6 +61,12 @@ class MiniPhrase(Base):
     )
     # The correct answer, exactly as it should read in the studied language.
     text: Mapped[str] = mapped_column(String(500), nullable=False)
+    # Язык фразы. Мини-фраза собрана из языковых записей ОДНОГО языка и
+    # показывается только тем, кто этот язык изучает (см.
+    # docs/multilingual-migration.md). До многоязычной перестройки язык
+    # подразумевался языком словаря, поэтому поле nullable: старые строки
+    # заполняет перенос данных (app/multilingual_backfill.py).
+    language: Mapped[str | None] = mapped_column(String(8), nullable=True, index=True)
     translation_tg: Mapped[str] = mapped_column(String(500), nullable=False)
     translation_uz: Mapped[str | None] = mapped_column(String(500), nullable=True)
     translation_en: Mapped[str | None] = mapped_column(String(500), nullable=True)
