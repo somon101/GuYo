@@ -4,7 +4,6 @@ import { Link, useParams } from "react-router-dom";
 import {
   createMiniPhrase,
   deleteMiniPhrase,
-  fillMiniPhraseStarter,
   getDictionary,
   listMiniPhraseRoles,
   listMiniPhrases,
@@ -13,12 +12,10 @@ import {
   suggestMiniPhraseParts,
   updateMiniPhrase,
   type MiniPhraseInput,
-  type MiniPhraseStarterReport,
 } from "../api/endpoints";
 import { LanguageSectionTabs } from "../components/LanguageSectionTabs";
 import { MiniPhrasePhonePreview } from "../components/MiniPhrasePhonePreview";
 import { SearchBox, useSearchQuery } from "../components/SearchBox";
-import { Starter500Panel } from "../components/Starter500Panel";
 import { matches } from "../utils/search";
 import type {
   Dictionary,
@@ -77,9 +74,6 @@ export function MiniPhrasesPage() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [report, setReport] = useState<MiniPhraseStarterReport | null>(null);
-  const [isFilling, setIsFilling] = useState(false);
-  const [show500, setShow500] = useState(false);
   const [previewId, setPreviewId] = useState<number | null>(null);
   const [query, setQuery] = useSearchQuery();
   const shown = items.filter((mp) =>
@@ -93,18 +87,6 @@ export function MiniPhrasesPage() {
       ...mp.parts.map((p) => `${p.text} ${p.word}`),
     ),
   );
-
-  async function fillStarter() {
-    setIsFilling(true);
-    try {
-      setReport(await fillMiniPhraseStarter(dictionaryId));
-      reload();
-    } catch (e) {
-      alert(errorText(e, "Не удалось заполнить"));
-    } finally {
-      setIsFilling(false);
-    }
-  }
 
   async function reload() {
     try {
@@ -198,19 +180,6 @@ export function MiniPhrasesPage() {
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-2">
           <button
-            onClick={() => setShow500((v) => !v)}
-            className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
-          >
-            {show500 ? "Скрыть «Набор 500»" : "Набор 500"}
-          </button>
-          <button
-            onClick={fillStarter}
-            disabled={isFilling}
-            className="rounded-md bg-[var(--fill)] px-4 py-2 text-sm font-medium text-slate-800 hover:bg-[var(--fill-strong)] disabled:opacity-50"
-          >
-            {isFilling ? "Заполнение…" : "Заполнить стартовым набором"}
-          </button>
-          <button
             onClick={() =>
               setDraft({ ...EMPTY, template_id: templates[0]?.id ?? null })
             }
@@ -220,47 +189,6 @@ export function MiniPhrasesPage() {
           </button>
         </div>
       </div>
-
-      {show500 && (
-        <Starter500Panel dictionaryId={dictionaryId} onFilled={reload} />
-      )}
-
-      {report && (
-        <div className="card mb-6 p-4 text-sm text-slate-700">
-          <div className="mb-2 flex items-start justify-between gap-3">
-            <p className="font-medium text-slate-900">
-              Создано: {report.created.length} · уже были:{" "}
-              {report.already.length} · пропущено: {report.skipped.length}
-              {report.forms_added.length > 0 &&
-                ` · добавлено форм слов: ${report.forms_added.length}`}
-            </p>
-            <button
-              onClick={() => setReport(null)}
-              className="text-slate-400 hover:text-slate-700"
-            >
-              ✕
-            </button>
-          </div>
-          {report.skipped.length > 0 && (
-            <>
-              <p className="mb-1 text-slate-500">
-                Пропущены — в словаре нет слов (добавьте их и нажмите кнопку ещё
-                раз):
-              </p>
-              <ul
-                className="max-h-48 list-disc overflow-auto pl-5 text-slate-600"
-                translate="no"
-              >
-                {report.skipped.map((s) => (
-                  <li key={s.text}>
-                    {s.text} — нет: {s.missing_words.join(", ")}
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </div>
-      )}
 
       {draft && (
         <Editor
