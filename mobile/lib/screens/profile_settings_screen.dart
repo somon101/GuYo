@@ -6,6 +6,7 @@ import '../l10n/l10n.dart';
 import '../models/learning_topics.dart';
 import '../models/login_rules.dart';
 import '../models/user_profile.dart';
+import '../services/google_auth.dart';
 import '../services/push_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/in_app_banner.dart';
@@ -67,6 +68,25 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   /// Only failures speak up: a successful change is already visible in
   /// its row. Shown as GuYo's own banner, not a grey Android snackbar.
   void _showError(String text) => InAppBanner.show(body: text);
+
+  /// Connects a Google account to this account, after the fact: signing up does
+  /// not require one (see RegisterScreen), so this is where the link is made --
+  /// and it is what fills in the email, which is never typed by hand.
+  Future<void> _linkGoogle() async {
+    final idToken = await pickGoogleIdToken();
+    if (idToken == null) return; // closed the picker
+    try {
+      await ApiClient.instance.linkGoogle(idToken);
+      final fresh = await ApiClient.instance.fetchMyProfile();
+      if (!mounted) return;
+      setState(() => _profile = fresh);
+      InAppBanner.show(body: tr('Google-аккаунт подключён'));
+    } on ApiException catch (e) {
+      _showError(e.message);
+    } catch (_) {
+      _showError(tr('Не удалось подключить Google'));
+    }
+  }
 
   /// One small dialog per row: the given fields, prefilled, and Save.
   /// Returns only when saved or cancelled; a server error (a taken login,
@@ -305,10 +325,16 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   ),
                 ),
                 _Row(
+                  key: const ValueKey('settings-google'),
                   icon: Icons.mail_outline_rounded,
-                  label: tr('Почта'),
-                  value: (_profile.email ?? '').isEmpty ? tr('Не указано') : _profile.email!,
-                  onTap: null,
+                  // Signing up needs no Google account, so this row is where one is
+                  // connected later -- and it is what the email comes from (it is
+                  // never typed by hand).
+                  label: tr('Google-аккаунт'),
+                  value: (_profile.email ?? '').isEmpty
+                      ? (googleSignInEnabled ? tr('Не подключён — нажмите, чтобы подключить') : tr('Не подключён'))
+                      : _profile.email!,
+                  onTap: (_profile.email ?? '').isEmpty && googleSignInEnabled ? _linkGoogle : null,
                 ),
               ],
             ),

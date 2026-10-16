@@ -269,15 +269,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
           translationLanguage: _translationLanguage,
         );
       } else {
-        // The email is never typed: the last step links a Google account
-        // and the email comes from it.
-        final idToken = await pickGoogleIdToken();
-        if (idToken == null) {
-          if (mounted) setState(() => _isSubmitting = false);
-          return;
-        }
+        // Signing up does NOT require a Google account. It used to stop here and
+        // open the Google picker, which meant anyone without a Google account --
+        // or unwilling to link one just to try the app -- could not create an
+        // account at all. Login and password are enough; Google can be connected
+        // later from Settings.
         await ApiClient.instance.register(
-          idToken: idToken,
           login: _loginCtrl.text.trim(),
           password: _passwordCtrl.text,
           passwordConfirm: _confirmCtrl.text,

@@ -347,7 +347,11 @@ class ApiClient {
     required String passwordConfirm,
     required String firstName,
     required String lastName,
-    required String idToken,
+    // OPTIONAL: signing up does not require a Google account. Many people in our
+    // market have none, or will not link one just to try an app -- and demanding it
+    // here rejected them before they ever saw a lesson. Google can be connected
+    // later from Settings (see linkGoogle).
+    String? idToken,
     required String learningLanguage,
     required String ageGroup,
     required String learningGoal,
@@ -364,7 +368,7 @@ class ApiClient {
         'password_confirm': passwordConfirm,
         'first_name': firstName,
         'last_name': lastName,
-        'id_token': idToken,
+        if (idToken != null) 'id_token': idToken,
         'learning_language': learningLanguage,
         'age_group': ageGroup,
         'learning_goal': learningGoal,
@@ -377,6 +381,17 @@ class ApiClient {
     await _throwWithDetail(res);
     final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
     await _saveToken(data['access_token'] as String);
+  }
+
+  /// Connects a Google account to the account that is already signed in -- from
+  /// Settings, after the fact. Signing up does not require one (see register).
+  Future<void> linkGoogle(String idToken) async {
+    final res = await http.post(
+      _uri('/auth/google/link'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'id_token': idToken}),
+    );
+    await _throwWithDetail(res);
   }
 
   Future<List<GuyoDictionary>> fetchDictionaries() async {

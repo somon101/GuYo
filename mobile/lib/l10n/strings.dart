@@ -491,6 +491,17 @@ const Map<String, (String, String)> uiStrings = {
   'Имя и фамилия': ('Ном ва насаб', 'Ism va familiya'),
   'Не указано': ('Нишон дода нашудааст', 'Koʻrsatilmagan'),
   'Почта': ('Почта', 'Pochta'),
+  'Google-аккаунт': ('Ҳисоби Google', 'Google akkaunti'),
+  'Не подключён': ('Пайваст нашудааст', 'Ulanmagan'),
+  'Не подключён — нажмите, чтобы подключить': (
+    'Пайваст нашудааст — барои пайваст кардан пахш кунед',
+    'Ulanmagan — ulash uchun bosing',
+  ),
+  'Google-аккаунт подключён': ('Ҳисоби Google пайваст шуд', 'Google akkaunti ulandi'),
+  'Не удалось подключить Google': (
+    'Ҳисоби Google-ро пайваст карда нашуд',
+    'Google akkauntini ulab boʻlmadi',
+  ),
   'Личные данные': ('Маълумоти шахсӣ', 'Shaxsiy maʼlumotlar'),
   'Обучение': ('Омӯзиш', 'Oʻqish'),
   'Язык перевода': ('Забони тарҷума', 'Tarjima tili'),
