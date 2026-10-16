@@ -79,7 +79,7 @@ def ui_language() -> str:
     return holder.get("ui", "ru") if holder else "ru"
 
 
-def _translation_entries(word) -> list:
+def translation_entries(word) -> list:
     """Переводы слова как языковые записи (многоязычная структура).
 
     Если записей нет -- структура ещё не перенесена (на бою перенос идёт
@@ -107,7 +107,7 @@ def primary_translation(word, *, strict: bool = False):
     Читается из языковых записей. Порядок выбора ровно тот же, что был у
     старой таблицы переводов: выбранный язык, затем таджикский, затем первая.
     Совпадение со старым путём проверяется `python -m app.word_entries`."""
-    entries = _translation_entries(word)
+    entries = translation_entries(word)
     lang = content_language()
     match = next((t for t in entries if t.language == lang), None)
     if match is not None or strict:

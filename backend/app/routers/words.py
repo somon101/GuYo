@@ -29,7 +29,12 @@ from app.schemas.bulk import (
     ImportSummary,
 )
 from app.schemas.word import WordFormOut, WordLearningIn, WordOut, WordTranslationOut
-from app.core.content_language import learning_language, only_translated, primary_translation
+from app.core.content_language import (
+    learning_language,
+    only_translated,
+    primary_translation,
+    translation_entries,
+)
 from app.word_entries import drop_concept, drop_translation, sync_translation, sync_word
 
 router = APIRouter(tags=["words"])
@@ -64,7 +69,7 @@ def word_to_out(word: Word) -> WordOut:
     own = next((e for e in entries if wanted is not None and e.language == wanted), None)
     if own is None:
         own = next((e for e in entries if e.id == word.id), None)
-    translations = [translation_to_out(t) for t in entries if t.id != word.id]
+    translations = [translation_to_out(t) for t in translation_entries(word)]
     chosen = primary_translation(word)
     primary = translation_to_out(chosen) if chosen is not None else None
     return WordOut(
