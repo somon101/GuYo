@@ -115,6 +115,11 @@ def update_dictionary(
     if dictionary is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dictionary not found")
 
+    if payload.name is not None:
+        name = payload.name.strip()
+        if not name:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Название не может быть пустым")
+        dictionary.name = name
     if payload.is_published is not None:
         dictionary.is_published = payload.is_published
     if payload.alphabet is not None:

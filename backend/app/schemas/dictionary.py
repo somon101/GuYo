@@ -17,6 +17,11 @@ class DictionaryUpdate(BaseModel):
     # Both optional so a single PATCH only ever touches the field(s) it
     # actually sends -- publishing never clobbers the alphabet, and vice
     # versa. An empty-string alphabet clears it back to unset.
+    #
+    # `name` тоже меняется: словарь перестал быть «языком» и стал набором
+    # понятий, которые учат в любую сторону, -- поэтому имя вроде «Русский»
+    # вводит в заблуждение и должно быть переименовываемым.
+    name: str | None = Field(default=None, min_length=1, max_length=128)
     is_published: bool | None = None
     alphabet: str | None = None
 
