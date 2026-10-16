@@ -21,6 +21,7 @@ import { MiniPhrasesPage } from "./pages/MiniPhrasesPage";
 import { MiniPhraseTemplatesPage } from "./pages/MiniPhraseTemplatesPage";
 import { ContentAuditPage } from "./pages/ContentAuditPage";
 import { MultilingualPage } from "./pages/MultilingualPage";
+import { LanguageWordsPage } from "./pages/LanguageWordsPage";
 import { ExercisesPage } from "./pages/ExercisesPage";
 import { TrueOrFalseSettingsPage } from "./pages/exercises/TrueOrFalseSettingsPage";
 import { MatchingSettingsPage } from "./pages/exercises/MatchingSettingsPage";
@@ -170,6 +171,16 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <MultilingualPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/languages/:code/words"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <LanguageWordsPage />
                 </Layout>
               </ProtectedRoute>
             }

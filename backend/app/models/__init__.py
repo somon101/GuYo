@@ -117,3 +117,5 @@ from app.models.concept import (
     WordEntry,
     WordEntryForm,
 )
+# Языки как данные: завести новый язык можно из админки, без правки кода.
+from app.models.language import Language

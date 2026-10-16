@@ -651,6 +651,61 @@ def list_sync_journal(
     }
 
 
+@router.get("/languages/{language}/words")
+def language_words(
+    language: str,
+    search: str | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """Слова ОДНОГО языка: то, что человек учит, выбрав этот язык.
+
+    Понятия общие, а языковые записи у каждого языка свои -- поэтому список
+    строится по записям, а рядом отдаётся понятие, к которому запись относится
+    (по нему открывается карточка, где правятся все языки сразу)."""
+    from app.models.concept import Concept, WordEntry, WordEntryForm
+
+    query = db.query(WordEntry).filter(WordEntry.language == language)
+    if search and search.strip():
+        query = query.filter(WordEntry.text.ilike(f"%{search.strip()}%"))
+    total = query.with_entities(func.count(WordEntry.id)).scalar() or 0
+    rows = (
+        query.order_by(WordEntry.id).offset(offset).limit(limit).all()
+    )
+    concept_ids = [row.concept_id for row in rows]
+    concepts = {
+        c.id: c for c in db.query(Concept).filter(Concept.id.in_(concept_ids)).all()
+    } if concept_ids else {}
+    form_counts = dict(
+        db.query(WordEntryForm.word_entry_id, func.count(WordEntryForm.id))
+        .filter(WordEntryForm.word_entry_id.in_([row.id for row in rows]))
+        .group_by(WordEntryForm.word_entry_id)
+        .all()
+    ) if rows else {}
+
+    return {
+        "language": language,
+        "total": int(total),
+        "entries": [
+            {
+                "id": row.id,
+                "concept_id": row.concept_id,
+                "dictionary_id": concepts[row.concept_id].dictionary_id if row.concept_id in concepts else None,
+                "text": row.text,
+                "transcription": row.transcription,
+                "has_audio": row.audio_key is not None,
+                "forms": int(form_counts.get(row.id, 0)),
+                "role": concepts[row.concept_id].role if row.concept_id in concepts else None,
+                "importance": concepts[row.concept_id].importance if row.concept_id in concepts else None,
+                "category_id": concepts[row.concept_id].category_id if row.concept_id in concepts else None,
+            }
+            for row in rows
+        ],
+    }
+
+
 @router.get("/multilingual/status")
 def multilingual_status(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
     """Живая картина многоязычной перестройки -- то, что видно глазами.
@@ -677,6 +732,22 @@ def multilingual_status(db: Session = Depends(get_db), _admin=Depends(get_curren
             .scalar()
             or 0
         )
+        # Фразы и мини-фразы: у фразы запись на каждый язык, поэтому считаем
+        # записи; у мини-фразы -- ярлык языка, а переводы лежат колонками.
+        phrase_entries = (
+            db.query(func.count(PhraseEntry.id)).filter(PhraseEntry.language == language).scalar() or 0
+        )
+        mini_own = db.query(func.count(MiniPhrase.id)).filter(MiniPhrase.language == language).scalar() or 0
+        translated_column = {
+            "tg": MiniPhrase.translation_tg,
+            "uz": MiniPhrase.translation_uz,
+            "en": MiniPhrase.translation_en,
+        }.get(language)
+        mini_translated = (
+            0
+            if translated_column is None
+            else db.query(func.count(MiniPhrase.id)).filter(translated_column.isnot(None)).scalar() or 0
+        )
         per_language.append(
             {
                 "language": language,
@@ -684,6 +755,9 @@ def multilingual_status(db: Session = Depends(get_db), _admin=Depends(get_curren
                 "with_audio": with_audio,
                 "with_transcription": entries.filter(WordEntry.transcription.isnot(None)).count(),
                 "forms": int(forms),
+                "phrase_entries": int(phrase_entries),
+                "mini_phrases": int(mini_own),
+                "mini_phrases_translated": int(mini_translated),
             }
         )
 

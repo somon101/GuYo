@@ -1860,6 +1860,79 @@ export interface ContentAudit {
   };
 }
 
+/** Язык платформы: код, названия, алфавит и чем он наполнен. */
+export interface LanguageDetail {
+  code: string;
+  name: string;
+  native_name: string | null;
+  alphabet: string | null;
+  is_enabled: boolean;
+  sort_order: number;
+  entries: number;
+  with_audio: number;
+  with_transcription: number;
+  forms: number;
+  phrase_entries: number;
+  created_at: string;
+}
+
+export async function listLanguages(): Promise<LanguageDetail[]> {
+  const { data } = await api.get("/admin/languages");
+  return data.languages;
+}
+
+export async function createLanguage(input: {
+  code: string;
+  name: string;
+  native_name?: string | null;
+  alphabet?: string | null;
+}): Promise<LanguageDetail> {
+  const { data } = await api.post("/admin/languages", input);
+  return data;
+}
+
+export async function updateLanguage(
+  code: string,
+  input: {
+    name?: string;
+    native_name?: string | null;
+    alphabet?: string | null;
+    is_enabled?: boolean;
+    sort_order?: number;
+  },
+): Promise<LanguageDetail> {
+  const { data } = await api.patch(`/admin/languages/${code}`, input);
+  return data;
+}
+
+/** Слово одного языка: языковая запись + понятие, к которому она относится. */
+export interface LanguageWord {
+  id: number;
+  concept_id: number;
+  dictionary_id: number | null;
+  text: string;
+  transcription: string | null;
+  has_audio: boolean;
+  forms: number;
+  role: string | null;
+  importance: number | null;
+  category_id: number | null;
+}
+
+export async function listLanguageWords(
+  language: string,
+  params: { search?: string; limit?: number; offset?: number } = {},
+): Promise<{ total: number; entries: LanguageWord[] }> {
+  const { data } = await api.get(`/admin/analytics/languages/${language}/words`, {
+    params: {
+      limit: params.limit ?? 50,
+      offset: params.offset ?? 0,
+      ...(params.search ? { search: params.search } : {}),
+    },
+  });
+  return data;
+}
+
 /** Аудит контента словаря: каких слов не хватает его фразам и какие части
  * мини-фраз не совпадают со своими словами и формами. */
 export async function getContentAudit(dictionaryId: number): Promise<ContentAudit> {

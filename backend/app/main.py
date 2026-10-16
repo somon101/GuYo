@@ -13,6 +13,7 @@ from app.rating.scheduler import run_season_scheduler
 from app.routers import (
     admin_achievements,
     admin_ai,
+    admin_languages,
     admin_mini_phrases,
     mini_phrases,
     admin_memory,
@@ -142,6 +143,7 @@ app.include_router(admin_backup.router)
 app.include_router(events.router)
 app.include_router(admin_achievements.router)
 app.include_router(admin_mini_phrases.router)
+app.include_router(admin_languages.router)
 app.include_router(mini_phrases.router)
 app.include_router(admin_rating.router)
 app.include_router(admin_word_levels.router)

@@ -125,9 +125,19 @@ def _get_word_or_404(db: Session, word_id: int) -> Word:
     return db_word
 
 
-def _require_valid_language(language: str) -> None:
-    if not is_valid_translation_language(language):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unsupported language code")
+def _require_valid_language(language: str, db: Session | None = None) -> None:
+    """Язык либо из встроенного списка, либо заведён в админке.
+
+    Раньше набор языков был зашит в код, и новый язык нельзя было использовать
+    без правки кода. Теперь достаточно, чтобы он был в таблице языков."""
+    if is_valid_translation_language(language):
+        return
+    if db is not None:
+        from app.models.language import Language
+
+        if db.get(Language, language) is not None:
+            return
+    raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Unsupported language code")
 
 
 def _resolve_category(db: Session, dictionary_id: int, category_id: int | None) -> Category | None:
@@ -188,7 +198,7 @@ def create_word(
     category = _resolve_category(db, dictionary_id, category_id)
 
     lang = (translation_language or _default_translation_language(dictionary.language)).strip().lower()
-    _require_valid_language(lang)
+    _require_valid_language(lang, db)
 
     transcription = transcription.strip() if transcription and transcription.strip() else None
 
@@ -349,7 +359,7 @@ def upsert_translation(
     future Tajik translation gets added alongside the existing Russian one,
     with its own independent pronunciation audio."""
     language = language.strip().lower()
-    _require_valid_language(language)
+    _require_valid_language(language, db)
     db_word = _get_word_or_404(db, word_id)
 
     existing = next((t for t in db_word.translations if t.language == language), None)
@@ -434,7 +444,7 @@ def add_form(
     language -- this always adds a new row, never overwrites an existing
     one. Order is preserved as insertion order (ascending id)."""
     language = language.strip().lower()
-    _require_valid_language(language)
+    _require_valid_language(language, db)
     _get_word_or_404(db, word_id)
 
     db_form = WordForm(word_id=word_id, language=language, text=text.strip())
@@ -753,7 +763,7 @@ def import_words(
     the tab -- polling GET .../import/{job_id} is the only way the result
     is meant to be observed, never a state held only in the browser."""
     dictionary = _get_dictionary_or_404(db, dictionary_id)
-    _require_valid_language(dictionary.language)
+    _require_valid_language(dictionary.language, db)
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
         tmp.write(file.file.read())

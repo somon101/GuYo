@@ -250,6 +250,44 @@ def seed_achievements() -> None:
         db.close()
 
 
+def seed_languages() -> None:
+    """Языки платформы: переезжают из кода в базу.
+
+    До этого они были зашиты (app/core/languages.py), поэтому завести новый язык
+    без программиста было нельзя. Строки добавляются, только если их ещё нет, --
+    названия и алфавит, выставленные в админке, никогда не перетираются."""
+    from app.models.language import Language
+
+    defaults = [
+        # code, название для админки, самоназвание, алфавит
+        ("ru", "Русский", "Русский", "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"),
+        ("tg", "Таджикский", "Тоҷикӣ", "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯҒӢҚӮҲҶ"),
+        ("uz", "Узбекский", "Oʻzbekcha", "ABCDEFGHIJKLMNOPQRSTUVXYZ OʻGʻSHCH"),
+        ("en", "Английский", "English", "abcdefghijklmnopqrstuvwxyz"),
+        ("zh", "Китайский", "中文", None),
+    ]
+    db = SessionLocal()
+    try:
+        added = 0
+        for order, (code, name, native_name, alphabet) in enumerate(defaults):
+            if db.get(Language, code) is None:
+                db.add(
+                    Language(
+                        code=code,
+                        name=name,
+                        native_name=native_name,
+                        alphabet=alphabet,
+                        sort_order=order,
+                    )
+                )
+                added += 1
+        db.commit()
+        total = db.query(Language).count()
+        print(f"[seed] languages: +{added}, всего {total}")
+    finally:
+        db.close()
+
+
 def clean_existing_icons() -> None:
     """Cleans icons uploaded before the cleanup existed (see
     app/core/icon_cleanup.py): seasons, ranks, achievements. A cleaned icon is
@@ -294,4 +332,5 @@ if __name__ == "__main__":
     seed_ranks()
     seed_statuses()
     seed_achievements()
+    seed_languages()
     clean_existing_icons()
