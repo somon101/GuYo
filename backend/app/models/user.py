@@ -86,12 +86,6 @@ class User(Base):
     # Which translations a Russian-interface user reads ("tg", "uz" or "en"); a
     # Tajik or Uzbek interface always reads its own language.
     translation_language: Mapped[str] = mapped_column(String(8), nullable=False, default="tg", server_default="tg")
-    # Язык, который человек изучает. Пара «родной (translation_language) ->
-    # изучаемый (этот)» полностью определяет, что он видит: ответ берётся из
-    # языковой записи изучаемого языка, подсказка -- из записи родного.
-    # Пусто = язык словаря, как было до многоязычной перестройки, поэтому
-    # поведение существующих людей не меняется.
-    learning_language: Mapped[str | None] = mapped_column(String(8), nullable=True)
     # «Проверка текста» without the daily limit, set by the admin person by
     # person (see app/models/text_check.py). Deliberately independent of
     # Premium: it exists so a tester or a team member can use the checker
