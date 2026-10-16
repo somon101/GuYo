@@ -1805,6 +1805,61 @@ export async function getSyncJournalEntry(id: number): Promise<SyncJournalDetail
   return data;
 }
 
+/** Одно слово, которого нет в словаре, но которое нужно фразам. */
+export interface ContentAuditMissingWord {
+  word: string;
+  phrases: number;
+  example: string | null;
+}
+
+/** Фраза, у которой есть слова вне словаря: такая фраза никому не показывается. */
+export interface ContentAuditPhrase {
+  id: number;
+  original: string;
+  missing: string[];
+}
+
+/** Часть мини-фразы, чей текст не совпал ни со словом, ни с одной его формой. */
+export interface ContentAuditPart {
+  mini_phrase_id: number;
+  mini_phrase: string;
+  position: number;
+  part_text: string;
+  word_id: number;
+  word: string;
+  word_form_id: number | null;
+}
+
+export interface ContentAudit {
+  dictionary_id: number;
+  dictionary_language: string;
+  tokens_available: number;
+  words_in_dictionary: number;
+  phrases: {
+    total: number;
+    ready: number;
+    with_missing_words: number;
+    empty: number;
+    items: ContentAuditPhrase[];
+  };
+  missing_words: ContentAuditMissingWord[];
+  mini_phrases: {
+    total: number;
+    parts_total: number;
+    parts_without_matching_form: number;
+    items: ContentAuditPart[];
+  };
+}
+
+/** Аудит контента словаря: каких слов не хватает его фразам и какие части
+ * мини-фраз не совпадают со своими словами и формами. */
+export async function getContentAudit(dictionaryId: number): Promise<ContentAudit> {
+  const { data } = await api.get(
+    `/admin/analytics/dictionaries/${dictionaryId}/content-audit`,
+  );
+  return data;
+}
+
 /** «Проверка текста» without the daily limit for one person. */
 export async function setUserTextCheckUnlimited(
   userId: number,
