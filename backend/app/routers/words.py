@@ -56,7 +56,10 @@ def form_to_out(f: WordForm) -> WordFormOut:
     return WordFormOut(id=f.id, language=f.language, text=f.text)
 
 
-def word_to_out(word: Word) -> WordOut:
+def word_to_out(word: Word, *, all_forms: bool = False) -> WordOut:
+    # all_forms: админка правит ВСЕ языки, поэтому ей нужны формы всех языков.
+    # Приложению -- только формы языка изучения: подсказывать русскому
+    # таджикские формы значит путать его на упражнении «Собери слово».
     # Читаем из языковых записей: своя запись (язык словаря) даёт написание,
     # транскрипцию и аудио изучаемого языка, остальные -- переводы. Значения
     # совпадают со старыми колонками один в один (доказано `python -m
@@ -89,9 +92,7 @@ def word_to_out(word: Word) -> WordOut:
         translation=primary.text if primary else None,
         translation_audio_url=primary.audio_url if primary else None,
         translations=translations,
-        # Формы языка изучения: подсказывать русскому таджикские формы (или
-        # наоборот) -- значит путать его на упражнении «Собери слово».
-        forms=[form_to_out(f) for f in (own.forms if own is not None else word.forms)],
+        forms=[form_to_out(f) for f in (word.forms if all_forms or own is None else own.forms)],
     )
 
 
@@ -209,7 +210,7 @@ def create_word(
 
     db.commit()
     db.refresh(db_word)
-    return word_to_out(db_word)
+    return word_to_out(db_word, all_forms=True)
 
 
 @router.get("/words/{word_id}", response_model=WordOut)
@@ -218,7 +219,8 @@ def get_word(
 ):
     db_word = _get_word_or_404(db, word_id)
     _get_dictionary_or_404(db, db_word.dictionary_id, principal)
-    return word_to_out(db_word)
+    # Админка (и этот же эндпоинт для неё) видит формы всех языков.
+    return word_to_out(db_word, all_forms=principal.role == "admin")
 
 
 @router.patch("/words/{word_id}", response_model=WordOut)
@@ -278,7 +280,7 @@ def update_word(
 
     db.commit()
     db.refresh(db_word)
-    return word_to_out(db_word)
+    return word_to_out(db_word, all_forms=True)
 
 
 @router.put("/words/{word_id}/learning", response_model=WordOut)
@@ -301,7 +303,7 @@ def update_word_learning(
     sync_word(db, db_word)
     db.commit()
     db.refresh(db_word)
-    return word_to_out(db_word)
+    return word_to_out(db_word, all_forms=True)
 
 
 @router.delete("/words/{word_id}", status_code=status.HTTP_204_NO_CONTENT)
