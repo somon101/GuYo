@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 
 from app.core.content_language import content_language, set_content_language_for
 from app.database import SessionLocal
-from app.models.concept import WordEntry, WordEntryForm
+from app.models.concept import Concept, ConceptTopic, WordEntry, WordEntryForm
 from app.models.dictionary import Dictionary
 from app.models.word import Word
 
@@ -79,6 +79,107 @@ def _legacy_primary(word: Word, language: str):
         return match
     tajik = next((t for t in word.translations if t.language == "tg"), None)
     return tajik or (word.translations[0] if word.translations else None)
+
+
+def _dictionary_language(db: Session, dictionary_id: int) -> str:
+    dictionary = db.get(Dictionary, dictionary_id)
+    return dictionary.language if dictionary is not None else "ru"
+
+
+def ensure_concept(db: Session, word: Word) -> Concept:
+    """Понятие слова (id понятия = id слова). Создаётся, если его ещё нет --
+    так новые слова сразу попадают в многоязычную структуру, а не только в
+    старую."""
+    concept = db.get(Concept, word.id)
+    if concept is None:
+        concept = Concept(id=word.id, dictionary_id=word.dictionary_id)
+        db.add(concept)
+        db.flush()
+    return concept
+
+
+def ensure_own_entry(db: Session, word: Word) -> WordEntry:
+    """Языковая запись ИЗУЧАЕМОГО языка: её id совпадает с id слова."""
+    entry = db.get(WordEntry, word.id)
+    if entry is None:
+        ensure_concept(db, word)
+        entry = WordEntry(
+            id=word.id,
+            concept_id=word.id,
+            language=_dictionary_language(db, word.dictionary_id),
+            text=word.word or "",
+        )
+        db.add(entry)
+        db.flush()
+    return entry
+
+
+def ensure_translation_entry(db: Session, word: Word, language: str) -> WordEntry:
+    """Языковая запись языка перевода: создаётся, если её ещё нет."""
+    ensure_concept(db, word)
+    entry = (
+        db.query(WordEntry)
+        .filter(WordEntry.concept_id == word.id, WordEntry.language == language)
+        .first()
+    )
+    if entry is None:
+        entry = WordEntry(concept_id=word.id, language=language, text="")
+        db.add(entry)
+        db.flush()
+    return entry
+
+
+def sync_word(db: Session, word: Word) -> None:
+    """Зеркало слова в новую структуру: тело записи + классификация понятия.
+
+    Нужно, пока живы обе структуры: чтение уже идёт из языковых записей, и без
+    двойной записи правка в админке осталась бы видна только старому пути --
+    человек увидел бы старый текст."""
+    entry = ensure_own_entry(db, word)
+    entry.text = word.word or ""
+    entry.transcription = word.transcription
+    entry.audio_key = word.word_audio_key
+
+    concept = ensure_concept(db, word)
+    concept.category_id = word.category_id
+    concept.image_key = word.image_key
+    concept.importance = word.importance
+    concept.role = word.role
+
+    wanted = [link.topic for link in word.topic_links]
+    have = {row.topic for row in concept.topics}
+    for topic in wanted:
+        if topic not in have:
+            db.add(ConceptTopic(concept_id=concept.id, topic=topic))
+            have.add(topic)
+    for row in list(concept.topics):
+        if row.topic not in wanted:
+            db.delete(row)
+
+
+def sync_translation(db: Session, word: Word, language: str, text: str, audio_key: str | None) -> None:
+    entry = ensure_translation_entry(db, word, language)
+    entry.text = text
+    entry.audio_key = audio_key
+
+
+def drop_translation(db: Session, word: Word, language: str) -> None:
+    """Убирает языковую запись перевода. Формы этого языка остаются: они
+    принадлежат языку, а не переводу."""
+    entry = (
+        db.query(WordEntry)
+        .filter(WordEntry.concept_id == word.id, WordEntry.language == language)
+        .first()
+    )
+    if entry is not None:
+        db.delete(entry)
+
+
+def drop_concept(db: Session, word: Word) -> None:
+    """Убирает понятие вместе с его языковыми записями (каскадом)."""
+    concept = db.get(Concept, word.id)
+    if concept is not None:
+        db.delete(concept)
 
 
 def compare_reads(db: Session) -> list[tuple[str, int, str]]:

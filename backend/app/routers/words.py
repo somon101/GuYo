@@ -30,6 +30,7 @@ from app.schemas.bulk import (
 )
 from app.schemas.word import WordFormOut, WordLearningIn, WordOut, WordTranslationOut
 from app.core.content_language import only_translated, primary_translation
+from app.word_entries import drop_concept, drop_translation, sync_translation, sync_word
 
 router = APIRouter(tags=["words"])
 
@@ -189,6 +190,11 @@ def create_word(
     )
     db.add(db_translation)
 
+    # Новое слово сразу попадает и в многоязычную структуру: иначе оно жило бы
+    # только в старой таблице, и второй язык его не увидел бы.
+    sync_word(db, db_word)
+    sync_translation(db, db_word, lang, db_translation.text, db_translation.audio_key)
+
     db.commit()
     db.refresh(db_word)
     return word_to_out(db_word)
@@ -255,6 +261,9 @@ def update_word(
         delete_by_key(db_word.image_key)
         db_word.image_key = None
 
+    # Двойная запись тела и классификации: чтение идёт из языковых записей.
+    sync_word(db, db_word)
+
     db.commit()
     db.refresh(db_word)
     return word_to_out(db_word)
@@ -275,6 +284,9 @@ def update_word_learning(
     db_word.topic_links = [link for link in db_word.topic_links if link.topic in wanted]
     have = {link.topic for link in db_word.topic_links}
     db_word.topic_links.extend(WordTopic(topic=t) for t in wanted if t not in have)
+    # Двойная запись: роль, важность, категория и темы живут у понятия, а чтение
+    # уже идёт оттуда.
+    sync_word(db, db_word)
     db.commit()
     db.refresh(db_word)
     return word_to_out(db_word)
@@ -289,6 +301,7 @@ def delete_word(word_id: int, db: Session = Depends(get_db), _admin=Depends(get_
     for t in db_word.translations:
         delete_by_key(t.audio_key)
 
+    drop_concept(db, db_word)
     db.delete(db_word)
     db.commit()
     return None
@@ -336,6 +349,10 @@ def upsert_translation(
             delete_by_key(db_translation.audio_key)
             db_translation.audio_key = None
 
+    # Двойная запись: чтение уже идёт из языковых записей (см. step 3b), поэтому
+    # правка обязана попасть и туда, иначе человек увидит старый перевод.
+    sync_translation(db, db_word, language, db_translation.text, db_translation.audio_key)
+
     db.commit()
     db.refresh(db_translation)
     return translation_to_out(db_translation)
@@ -365,6 +382,7 @@ def delete_translation(
 
     delete_by_key(existing.audio_key)
     db.delete(existing)
+    drop_translation(db, db_word, language)
     db.commit()
     return None
 
