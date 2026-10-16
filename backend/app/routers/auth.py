@@ -75,12 +75,17 @@ def register_user(payload: RegisterIn, db: Session = Depends(get_db)):
     # needing it at module load time is the safer default.
     from app.routers.users import new_user_row
 
-    # The email is the linked Google account's, never typed by the user.
-    identity = _google_identity(payload.id_token)
-    if db.query(User).filter(User.google_sub == identity["sub"]).first() is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Этот Google-аккаунт уже зарегистрирован")
-    if db.query(User).filter(User.email == identity["email"]).first() is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_EMAIL_TAKEN)
+    # A Google account is OPTIONAL at sign-up: without a token the account is
+    # created with no email at all, and Google can be connected later from
+    # Settings (POST /auth/google/link). Requiring one up front locked out
+    # everyone who has no Google account -- the narrowest point of the funnel,
+    # before a single lesson was ever played.
+    identity = _google_identity(payload.id_token) if payload.id_token else None
+    if identity is not None:
+        if db.query(User).filter(User.google_sub == identity["sub"]).first() is not None:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Этот Google-аккаунт уже зарегистрирован")
+        if db.query(User).filter(User.email == identity["email"]).first() is not None:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_EMAIL_TAKEN)
 
     user = new_user_row(
         db,
@@ -88,8 +93,8 @@ def register_user(payload: RegisterIn, db: Session = Depends(get_db)):
         password=payload.password,
         first_name=payload.first_name,
         last_name=payload.last_name,
-        email=identity["email"],
-        google_sub=identity["sub"],
+        email=identity["email"] if identity is not None else None,
+        google_sub=identity["sub"] if identity is not None else None,
         learning_language=payload.learning_language,
         age_group=payload.age_group,
         learning_goal=payload.learning_goal,
@@ -101,6 +106,40 @@ def register_user(payload: RegisterIn, db: Session = Depends(get_db)):
     db.commit()
     token = create_access_token(subject=user.id, role="user")
     return TokenResponse(access_token=token, role="user")
+
+
+@router.post("/google/link", status_code=status.HTTP_204_NO_CONTENT)
+def link_google_account(
+    payload: GoogleAuthIn,
+    principal: Principal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+):
+    """Connects a Google account to an account that already exists.
+
+    Signing up no longer requires Google (see RegisterIn.id_token), so this is how
+    the link is made afterwards -- from Settings, when the user chooses to. The
+    Google account must not already belong to somebody else, and an account that
+    already has one is never re-linked: silently moving the identity would break
+    "sign in with Google" for whoever had it."""
+    if principal.role != "user":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Доступно только пользователю")
+    user = db.get(User, principal.id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+    identity = _google_identity(payload.id_token)
+    if user.google_sub is not None and user.google_sub != identity["sub"]:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="К аккаунту уже привязан Google-аккаунт")
+    other = db.query(User).filter(User.google_sub == identity["sub"], User.id != user.id).first()
+    if other is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Этот Google-аккаунт уже привязан к другому аккаунту"
+        )
+    taken = db.query(User).filter(User.email == identity["email"], User.id != user.id).first()
+    if taken is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_EMAIL_TAKEN)
+    user.google_sub = identity["sub"]
+    user.email = identity["email"]
+    db.commit()
 
 
 @router.get("/me", response_model=MeResponse)

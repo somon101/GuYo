@@ -101,9 +101,12 @@ class RegisterIn(BaseModel):
     password_confirm: str = Field(min_length=4, max_length=128)
     first_name: str = Field(min_length=1, max_length=100)
     last_name: str = Field(min_length=1, max_length=100)
-    # The email is never typed: it comes from the Google account the
-    # sign-up's last step links, verified from this token.
-    id_token: str = Field(min_length=10)
+    # The email comes from a Google account when one is linked at sign-up.
+    # OPTIONAL on purpose: signing up must not require a Google account (many
+    # people in our market do not have one, or will not link it just to try an
+    # app). A Google account can be connected later from Settings --
+    # POST /auth/google/link.
+    id_token: str | None = Field(default=None, min_length=10)
     # A Dictionary.language code (e.g. "en") from GET /dictionaries/public
     # -- never validated against that list here, same trust boundary as
     # every other dictionary_id/language a logged-in request already

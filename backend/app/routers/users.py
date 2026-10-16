@@ -78,7 +78,10 @@ def new_user_row(
     password: str,
     first_name: str,
     last_name: str,
-    email: str,
+    # None for an account created without a Google account: signing up does not
+    # require one (see RegisterIn.id_token), and the email arrives later if the
+    # user connects Google from Settings.
+    email: str | None = None,
     learning_language: str | None = None,
     age_group: str | None = None,
     learning_goal: str | None = None,
@@ -96,7 +99,9 @@ def new_user_row(
     it issues right after)."""
     if login_taken(db, login):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Этот логин уже занят")
-    if db.query(User).filter(User.email == email).first() is not None:
+    # Only when there IS an email: `== None` matches every account that has none,
+    # which would reject the very sign-up this now allows.
+    if email is not None and db.query(User).filter(User.email == email).first() is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Этот адрес почты уже занят")
 
     user = User(
