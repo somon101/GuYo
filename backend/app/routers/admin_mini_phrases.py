@@ -417,6 +417,30 @@ def save_language_records(
     return translate_phrases.save(db, name, payload.language, payload.items)
 
 
+@router.post("/dictionaries/{dictionary_id}/mini-phrases/translate-text")
+def preview_phrase_translations(
+    dictionary_id: int, payload: TranslateIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
+):
+    """Переводы-подсказки для существующих фраз на выбранный язык.
+
+    Не требует слов этого языка (в отличие от записей): подсказка под фразой
+    нужна и там, где словарь ещё не наполнен."""
+    from app.mini_phrases import translate_phrases
+
+    name = _get_dictionary_or_404(db, dictionary_id)
+    return translate_phrases.preview_translations(db, name, payload.language, payload.count * 25)
+
+
+@router.post("/dictionaries/{dictionary_id}/mini-phrases/translate-text/save")
+def save_phrase_translations(
+    dictionary_id: int, payload: TranslateSaveIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
+):
+    from app.mini_phrases import translate_phrases
+
+    name = _get_dictionary_or_404(db, dictionary_id)
+    return translate_phrases.save_translations(db, name, payload.language, payload.items)
+
+
 @router.post("/dictionaries/{dictionary_id}/mini-phrases/generate/to-phrases")
 def save_generated_as_phrases(
     dictionary_id: int, payload: ItemsIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)

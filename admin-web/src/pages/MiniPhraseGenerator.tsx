@@ -1,4 +1,4 @@
-import axios from "axios";
+﻿import axios from "axios";
 import { useEffect, useState } from "react";
 import {
   addMissingWords,
@@ -69,6 +69,9 @@ export function MiniPhraseGenerator({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tokens, setTokens] = useState(0);
+  // Языки, на которые переводит генератор (из таблицы languages): по ним
+  // строятся колонки предпросмотра.
+  const [languages, setLanguages] = useState<string[]>([]);
   const [toPhraseKeys, setToPhraseKeys] = useState<Set<string>>(new Set());
   const [screen, setScreen] = useState<Screen>("generate");
   const [aiNeeds, setAiNeeds] = useState<{ text: string; example: string }[]>(
@@ -163,6 +166,7 @@ export function MiniPhraseGenerator({
     );
     if (!res) return;
     setTokens((t) => t + res.tokens);
+    if (res.languages?.length) setLanguages(res.languages);
     accept(res.items);
     if (res.suggested_words?.length) {
       setAiNeeds((prev) => {
@@ -516,6 +520,7 @@ export function MiniPhraseGenerator({
               onTogglePhrase={() =>
                 toggle(toPhraseKeys, i.key, setToPhraseKeys)
               }
+              languages={languages}
             />
           ))}
           {similar.length > 0 && (
@@ -550,6 +555,7 @@ export function MiniPhraseGenerator({
               onTogglePhrase={() =>
                 toggle(toPhraseKeys, i.key, setToPhraseKeys)
               }
+              languages={languages}
             />
           ))}
         </Section>
@@ -620,6 +626,7 @@ function Card({
   manual = false,
   toPhrase,
   onTogglePhrase,
+  languages = [],
 }: {
   item: GeneratedMiniPhrase;
   checked: boolean;
@@ -627,7 +634,23 @@ function Card({
   manual?: boolean;
   toPhrase: boolean;
   onTogglePhrase: () => void;
+  /** Языки, на которые переводил генератор (из таблицы languages). */
+  languages?: string[];
 }) {
+  // Переводы показываем для КАЖДОГО языка из базы, а не только для трёх
+  // зашитых: генератор присылает их словарём по кодам. Старые поля остаются
+  // запасным вариантом, если ответ пришёл от прежней версии сервера.
+  const translations: Record<string, string> =
+    item.translations && Object.keys(item.translations).length > 0
+      ? item.translations
+      : {
+          tg: item.translation_tg,
+          ...(item.translation_uz ? { uz: item.translation_uz } : {}),
+          ...(item.translation_en ? { en: item.translation_en } : {}),
+        };
+  const codes = (
+    languages.length > 0 ? languages : Object.keys(translations)
+  ).filter((code) => translations[code]);
   const canPick =
     item.valid || (manual && !item.broken && item.parts.length > 0);
   return (
@@ -650,7 +673,12 @@ function Card({
           <span className="text-[16px] font-semibold text-slate-900">
             {item.text}
           </span>
-          <span className="text-sm text-slate-500">{item.translation_tg}</span>
+          {codes.map((code) => (
+            <span key={code} className="text-sm text-slate-500">
+              <span className="mr-1 text-xs uppercase text-slate-400">{code}</span>
+              {translations[code]}
+            </span>
+          ))}
           {item.situation && (
             <span className="text-xs text-slate-400">· {item.situation}</span>
           )}
@@ -723,3 +751,4 @@ function Card({
     </div>
   );
 }
+

@@ -12,12 +12,25 @@ import {
 
 /** Карточка слова НА ОДНОМ ЯЗЫКЕ.
  *
- * Здесь правятся только языковые поля: написание, транскрипция (необязательно),
- * озвучка и формы — всё это своё у каждого языка.
+ * Здесь правятся ЯЗЫКОВЫЕ поля: написание, транскрипция (необязательно),
+ * озвучка, формы и часть речи — всё это своё у каждого языка.
  *
- * Классификация (роль, важность, категория, темы, картинка) принадлежит понятию
- * и правится в разделе «База»: она одна на все языки, дублировать её незачем —
- * связь идёт через concept_id. */
+ * Общее у понятия (категория, темы, важность, картинка) правится в разделе
+ * «База»: связь идёт через concept_id. Роль — исключение: она принадлежит
+ * языку, потому что в другом языке это же слово может быть другой частью речи.
+ */
+
+/// Части речи, которые понимает сервер (WORD_ROLES на бэкенде).
+const ROLE_OPTIONS = [
+  { value: "pronoun", label: "Местоимение" },
+  { value: "verb", label: "Глагол" },
+  { value: "noun", label: "Существительное" },
+  { value: "adjective", label: "Прилагательное" },
+  { value: "adverb", label: "Наречие" },
+  { value: "preposition", label: "Предлог" },
+  { value: "number", label: "Числительное" },
+  { value: "other", label: "Другое" },
+];
 export function LanguageWordPage() {
   const { code = "", entryId = "" } = useParams();
   const id = Number(entryId);
@@ -125,9 +138,26 @@ export function LanguageWordPage() {
     }
   }
 
+  /// Роль (часть речи) сохраняется сразу при выборе: это выпадающий список, а не
+  /// текстовое поле, промежуточных состояний у него нет.
+  async function saveRole(value: string) {
+    setBusy(true);
+    try {
+      const next = value
+        ? await updateLanguageWord(code, id, { role: value })
+        : await updateLanguageWord(code, id, { removeRole: true });
+      apply(next, value ? "Роль сохранена" : "Роль сброшена на роль понятия");
+    } catch {
+      setError("Не удалось сохранить роль");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (loading) return <p className="text-sm text-slate-500">Загрузка…</p>;
   if (!word) return <p className="text-sm text-red-600">{error ?? "Слово не найдено"}</p>;
 
+  const role = word.role;
   const dirty = text.trim() !== word.text || transcription.trim() !== (word.transcription ?? "");
 
   return (
@@ -170,6 +200,27 @@ export function LanguageWordPage() {
             value={transcription}
             onChange={(e) => setTranscription(e.target.value)}
           />
+        </label>
+        <label className="mt-4 block text-sm">
+          <span className="mb-1 block text-xs font-medium text-slate-500">
+            Часть речи в этом языке
+          </span>
+          <select
+            className="w-full max-w-xs field px-3 py-2 text-sm"
+            value={role ?? ""}
+            onChange={(e) => void saveRole(e.target.value)}
+            disabled={busy}
+          >
+            <option value="">Как у понятия ({word.role ?? "не задана"})</option>
+            {ROLE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block text-xs text-slate-400">
+            Роль принадлежит языку: в другом языке это же слово может быть другой частью речи.
+          </span>
         </label>
 
         <div className="mt-4">

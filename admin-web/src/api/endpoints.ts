@@ -1962,12 +1962,21 @@ export async function getLanguageWord(
 export async function updateLanguageWord(
   language: string,
   entryId: number,
-  input: { text?: string; transcription?: string | null; removeTranscription?: boolean },
+  input: {
+    text?: string;
+    transcription?: string | null;
+    removeTranscription?: boolean;
+    /** Часть речи В ЭТОМ языке: роль принадлежит языку, а не понятию. */
+    role?: string | null;
+    removeRole?: boolean;
+  },
 ): Promise<LanguageWordDetail> {
   const { data } = await api.patch(`/admin/languages/${language}/words/${entryId}`, {
     ...(input.text !== undefined ? { text: input.text } : {}),
     ...(input.transcription !== undefined ? { transcription: input.transcription } : {}),
     ...(input.removeTranscription ? { remove_transcription: true } : {}),
+    ...(input.role !== undefined ? { role: input.role } : {}),
+    ...(input.removeRole ? { remove_role: true } : {}),
   });
   return data;
 }
@@ -2313,6 +2322,10 @@ export interface GeneratedMiniPhrase {
   translation_tg: string;
   translation_uz: string | null;
   translation_en: string | null;
+  /** Переводы по кодам языков: столько, сколько языков в базе. Приходят вместе
+   * с `languages` в ответе генерации — колонки предпросмотра строятся по ним,
+   * а не по трём зашитым. */
+  translations?: Record<string, string>;
   parts: GeneratedPart[];
   template_name: string;
   template_exists: boolean;
@@ -2348,6 +2361,8 @@ export async function generateMiniPhrases(
   suggested_words?: { text: string; example: string }[];
   auto_fixed?: number;
   dropped?: number;
+  /** Языки, на которые переводил генератор (из таблицы languages). */
+  languages?: string[];
 }> {
   const { data } = await api.post(
     `/admin/dictionaries/${dictionaryId}/mini-phrases/generate`,

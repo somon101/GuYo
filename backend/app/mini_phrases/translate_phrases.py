@@ -12,7 +12,7 @@
 без расхождений.
 """
 
-from sqlalchemy import func
+from sqlalchemy import func, text
 
 from app.database import SessionLocal
 from app.mini_phrases.generate import (
@@ -31,6 +31,7 @@ from app.models.mini_phrase import (
     MiniPhrasePart,
     MiniPhraseTemplate,
     MiniPhraseTemplateTranslation,
+    MiniPhraseTranslation,
 )
 from app.models.word import Word, WordForm
 from app.word_entries import role_for
@@ -110,6 +111,98 @@ def _source_phrases(db, dictionary: Dictionary, source_language: str, target_lan
         }
         for mp in rows
     ]
+
+
+_TRANSLATE_TEXT_SYSTEM = (
+    "You translate short learning phrases into one target language. Input: {\"to\":\"target language name\","
+    "\"p\":[{\"id\":phrase id,\"text\":\"phrase\"}]}. For each phrase give a natural, correct translation in the "
+    "target language -- the same meaning and tone, nothing added. This is a hint shown under the phrase, so "
+    "keep it short. Reply JSON only: {\"r\":[{\"id\":phrase id,\"t\":\"translation\"}]}."
+)
+
+
+def preview_translations(db, dictionary: Dictionary, target_language: str, count: int = 25) -> dict:
+    """Переводы СУЩЕСТВУЮЩИХ фраз на язык, у которого может не быть слов.
+
+    Отличается от записей: запись — это фраза на другом языке со своими частями
+    (нужны слова этого языка). Перевод нужен как подсказка и слова не требует —
+    поэтому работает и для китайского, где словарь ещё не наполнен.
+    """
+    have = {
+        row[0]
+        for row in db.execute(
+            text("select mini_phrase_id from mini_phrase_translations where language = :lang"),
+            {"lang": target_language},
+        ).fetchall()
+    }
+    query = db.query(MiniPhrase).filter(
+        MiniPhrase.dictionary_id == dictionary.id, MiniPhrase.enabled.is_(True)
+    )
+    if have:
+        query = query.filter(MiniPhrase.id.notin_(have))
+    rows = query.order_by(MiniPhrase.id).limit(count).all()
+    if not rows:
+        return {"items": [], "tokens": 0, "reason": "У всех фраз уже есть перевод на этот язык"}
+
+    name = next((n for c, n in _language_names() if c == target_language), target_language)
+    payload = {"to": name, "p": [{"id": mp.id, "text": mp.text} for mp in rows]}
+    data, tokens = chat(db, _TRANSLATE_TEXT_SYSTEM, payload, max_tokens=90 * len(rows) + 300)
+    by_id = {mp.id: mp for mp in rows}
+    items = []
+    for row in data.get("r") or []:
+        if not isinstance(row, dict):
+            continue
+        try:
+            mp_id = int(row.get("id"))
+        except (TypeError, ValueError):
+            continue
+        mp = by_id.get(mp_id)
+        value = str(row.get("t") or "").strip()
+        if mp is None or not value:
+            continue
+        items.append({"id": mp_id, "text": mp.text, "translation": value[:1000]})
+    return {"items": items, "tokens": tokens, "language": target_language, "language_name": name}
+
+
+def save_translations(db, dictionary: Dictionary, target_language: str, items: list[dict]) -> dict:
+    """Сохраняет переводы-подсказки. Повтор не создаёт второй строки."""
+    created, skipped = [], []
+    for item in items:
+        try:
+            mp_id = int(item.get("id"))
+        except (TypeError, ValueError):
+            continue
+        text = str(item.get("translation") or "").strip()
+        mp = db.get(MiniPhrase, mp_id)
+        if mp is None or mp.dictionary_id != dictionary.id or not text:
+            skipped.append({"id": mp_id, "reason": "нет фразы или перевода"})
+            continue
+        existing = (
+            db.query(MiniPhraseTranslation)
+            .filter(
+                MiniPhraseTranslation.mini_phrase_id == mp_id,
+                MiniPhraseTranslation.language == target_language,
+            )
+            .first()
+        )
+        if existing is not None:
+            existing.text = text
+        else:
+            db.add(
+                MiniPhraseTranslation(
+                    mini_phrase_id=mp_id, language=target_language, text=text
+                )
+            )
+        # Три старые колонки продолжают заполняться: их читает API для тех языков.
+        if target_language == "tg":
+            mp.translation_tg = text[:500]
+        elif target_language == "uz":
+            mp.translation_uz = text[:500]
+        elif target_language == "en":
+            mp.translation_en = text[:500]
+        created.append(text)
+    db.commit()
+    return {"created": created, "skipped": skipped}
 
 
 def preview(db, dictionary: Dictionary, target_language: str, count: int = 10) -> dict:
