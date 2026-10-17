@@ -70,6 +70,7 @@ def _langs_payload(langs: list[tuple[str, str]]) -> str:
 from app.core.content_language import primary_translation
 from app.mini_phrases.service import normalize_answer
 from app.models.category import Category
+from app.models.concept import WordEntry
 from app.models.dictionary import Dictionary
 from app.models.mini_phrase import (
     WORD_ROLES,
@@ -134,8 +135,21 @@ def guess_role(text: str) -> str:
     return "noun"
 
 
-def role_of(word: Word) -> str:
-    return word.role or guess_role(word.word)
+def role_of(word: Word, role: str | None = None) -> str:
+    """Роль слова: сначала языковая запись (переданная сюда), потом понятие,
+    потом догадка по написанию."""
+    return role or word.role or guess_role(word.word)
+
+
+def _roles_for(db: Session, words: list[Word], language: str) -> dict[int, str]:
+    """Роль каждого слова В ЯЗЫКЕ, на котором собираем фразы.
+
+    Роль -- свойство языка: понятие может быть глаголом в одном языке и
+    существительным в другом. Поэтому берём её из языковой записи, а значение с
+    понятия остаётся запасным."""
+    from app.word_entries import role_for
+
+    return {w.id: role_of(w, role_for(db, w, language)) for w in words}
 
 
 def _words(db: Session, dictionary_id: int) -> list[Word]:
@@ -328,9 +342,10 @@ def word_list(db: Session, dictionary: Dictionary, category_id: int | None, limi
     so hundreds of phrases spread over the whole dictionary."""
     words = _words(db, dictionary.id)
     use = _word_use(db, dictionary.id)
-    fresh = [w for w in words if role_of(w) == "pronoun" or use.get(w.id, 0) < WORD_USE_CAP]
-    anchors = [w for w in fresh if role_of(w) == "pronoun"]
-    anchors += sorted((w for w in fresh if role_of(w) == "verb"), key=lambda w: (use.get(w.id, 0) // 3, -w.importance))[:40]
+    roles = _roles_for(db, words, phrase_language(dictionary))
+    fresh = [w for w in words if roles[w.id] == "pronoun" or use.get(w.id, 0) < WORD_USE_CAP]
+    anchors = [w for w in fresh if roles[w.id] == "pronoun"]
+    anchors += sorted((w for w in fresh if roles[w.id] == "verb"), key=lambda w: (use.get(w.id, 0) // 3, -w.importance))[:40]
     topic = [w for w in fresh if category_id is None or w.category_id == category_id]
     topic.sort(key=lambda w: (use.get(w.id, 0) // 3, -w.importance))
     picked = {w.id: w for w in anchors}
@@ -343,6 +358,18 @@ def word_list(db: Session, dictionary: Dictionary, category_id: int | None, limi
 
 def _compact(words: list[Word]) -> str:
     return ",".join(f"{w.id}:{w.word.strip().lower()}" for w in words)
+
+
+def phrase_language(dictionary: Dictionary) -> str:
+    """Язык, на котором собираются мини-фразы: тот, что человек изучает.
+
+    Пока фразы пишутся на языке словаря (по-русски), но выбор уже идёт через
+    изучаемый язык: когда появятся фразы других языков, они возьмут роли и
+    порядок частей из своего языка, а не из русского.
+    """
+    from app.core.content_language import learning_language
+
+    return learning_language() or dictionary.language or PHRASE_LANGUAGE
 
 
 def ai_phrases(
@@ -969,6 +996,17 @@ def save(db: Session, dictionary: Dictionary, items: list[dict]) -> dict:
             word = db.get(Word, p["word_id"])
             if word.role is None:
                 word.role = p["role"]
+            # Роль пишется И в языковую запись того языка, на котором собрана
+            # фраза: роль принадлежит языку, и правка одного языка не должна
+            # менять роль в остальных.
+            phrase_lang = phrase_language(dictionary)
+            entry = (
+                db.query(WordEntry)
+                .filter(WordEntry.concept_id == word.id, WordEntry.language == phrase_lang)
+                .first()
+            )
+            if entry is not None and entry.role is None:
+                entry.role = p["role"]
             form_id = None
             if p["text"].lower() != word.word.strip().lower():
                 form = next(

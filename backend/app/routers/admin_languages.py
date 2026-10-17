@@ -18,6 +18,7 @@ from app.core.storage import delete_by_key, save_upload, url_for_key
 from app.database import get_db
 from app.models.concept import Concept, PhraseEntry, WordEntry, WordEntryForm
 from app.models.language import Language
+from app.models.mini_phrase import WORD_ROLES
 from app.models.word import Word, WordForm, WordTranslation
 from app.schemas.language import (
     LanguageDetail,
@@ -182,7 +183,8 @@ def _word_detail(db: Session, entry: WordEntry) -> LanguageWordDetail:
         audio_url=url_for_key(entry.audio_key),
         forms=[LanguageFormOut(id=f.id, text=f.text) for f in entry.forms],
         dictionary_id=concept.dictionary_id if concept is not None else 0,
-        role=concept.role if concept is not None else None,
+        # Роль этого языка; значение с понятия -- запасное (см. word_entries.role_for).
+        role=entry.role or (concept.role if concept is not None else None),
         importance=concept.importance if concept is not None else 3,
         category_id=concept.category_id if concept is not None else None,
         siblings=[{"language": s.language, "text": s.text} for s in siblings],
@@ -227,7 +229,11 @@ def update_language_word(
     db: Session = Depends(get_db),
     _admin=Depends(get_current_admin),
 ):
-    """Правит написание и транскрипцию этого языка. Классификация — в «Базе»."""
+    """Правит поля этого языка: написание, транскрипцию и роль (часть речи).
+
+    Роль принадлежит языку: одно и то же понятие бывает глаголом в одном языке и
+    существительным в другом. Общая классификация (категория, темы, важность,
+    картинка) правится в «Базе»."""
     entry = _entry_or_404(db, language, entry_id)
     if payload.text is not None:
         entry.text = payload.text.strip()
@@ -235,6 +241,13 @@ def update_language_word(
         entry.transcription = None
     elif payload.transcription is not None:
         entry.transcription = payload.transcription.strip() or None
+    if payload.remove_role:
+        entry.role = None
+    elif payload.role is not None:
+        value = payload.role.strip() or None
+        if value is not None and value not in WORD_ROLES:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Неизвестная роль «{value}»")
+        entry.role = value
     db.flush()
     _mirror_text(db, entry, db.get(Concept, entry.concept_id))
     db.commit()

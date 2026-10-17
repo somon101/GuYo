@@ -20,6 +20,7 @@ from app.models.mini_phrase import (
     UserMiniPhrasePoints,
 )
 from app.models.user import User
+from app.word_entries import role_for
 from app.models.word import Word
 from app.models.word_progress import WordProgress
 from app.schemas.mini_phrase import MiniPhraseOut
@@ -120,7 +121,10 @@ def mini_phrase_out(db: Session, user: User, mp: MiniPhrase, threshold: int, *, 
                 "position": p.position,
                 "text": p.text,
                 "word_id": p.word_id,
-                "role": p.role or (p.word.role if p.word is not None else None),
+                # Роль -- из языка самой фразы: в другом языке это же слово
+                # может быть другой частью речи.
+                "role": p.role
+                or (role_for(db, p.word, mp.language) if p.word is not None else None),
                 "translation": primary.text if primary else None,
             }
         )

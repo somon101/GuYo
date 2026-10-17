@@ -196,6 +196,24 @@ def drop_concept(db: Session, word: Word) -> None:
         db.delete(concept)
 
 
+def role_for(db: Session, word: Word, language: str | None) -> str | None:
+    """Роль (часть речи) для конкретного языка.
+
+    Сначала языковая запись -- роль принадлежит языку: одно и то же понятие
+    бывает глаголом в одном языке и существительным в другом, а роли «предлог»
+    в некоторых языках нет. Значение с понятия -- запасное.
+    """
+    if language:
+        entry = (
+            db.query(WordEntry)
+            .filter(WordEntry.concept_id == word.id, WordEntry.language == language)
+            .first()
+        )
+        if entry is not None and entry.role:
+            return entry.role
+    return word.role
+
+
 def entry_for_language(db: Session, word: Word, language: str) -> WordEntry | None:
     """Языковая запись слова для языка. Если её ещё нет -- создаётся пустой: форма
     пришла раньше перевода, и без записи ей негде жить."""

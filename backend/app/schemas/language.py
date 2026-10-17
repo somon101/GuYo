@@ -62,10 +62,12 @@ class LanguageFormOut(BaseModel):
 class LanguageWordDetail(BaseModel):
     """Слово одного языка так, как его правит админка.
 
-    Языковые поля (написание, транскрипция, аудио, формы) принадлежат ЭТОМУ
-    языку и правятся здесь. Классификация (роль, важность, категория, темы,
-    картинка) принадлежит понятию и правится в разделе «База» -- дублировать её
-    по языкам незачем, связь идёт через concept_id."""
+    Языковые поля (написание, транскрипция, аудио, формы, роль) принадлежат
+    ЭТОМУ языку и правятся здесь. Общее у понятия (категория, темы, важность,
+    картинка) правится в разделе «База» -- связь идёт через concept_id.
+
+    Роль (часть речи) -- именно языковое поле: в одном языке слово может быть
+    глаголом, в другом существительным."""
 
     id: int
     concept_id: int
@@ -87,6 +89,9 @@ class LanguageWordPatch(BaseModel):
     text: str | None = Field(default=None, min_length=1, max_length=255)
     transcription: str | None = Field(default=None, max_length=255)
     remove_transcription: bool = False
+    # Часть речи в этом языке. Пустая строка = «как у понятия».
+    role: str | None = None
+    remove_role: bool = False
 
 
 class LanguageFormIn(BaseModel):

@@ -99,6 +99,12 @@ class WordEntry(Base):
     text: Mapped[str] = mapped_column(String(255), nullable=False)
     transcription: Mapped[str | None] = mapped_column(String(255), nullable=True)
     audio_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Роль (часть речи) В ЭТОМ ЯЗЫКЕ: pronoun, verb, noun, adjective, adverb,
+    # preposition, number, other. Роль — свойство языка, а не понятия: одно и то
+    # же понятие бывает глаголом в одном языке и существительным в другом, а
+    # роли «предлог» в некоторых языках нет вовсе. Пусто -- берётся роль
+    # понятия (Concept.role) как запасное значение.
+    role: Mapped[str | None] = mapped_column(String(32), nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
