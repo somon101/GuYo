@@ -3,6 +3,8 @@ import re
 from sqlalchemy.orm import Session
 
 from app.core.content_language import (
+    content_language,
+    learning_language,
     mini_phrase_translation,
     phrase_translation,
     primary_translation,
@@ -28,6 +30,7 @@ def template_explanation(template, language: str) -> str | None:
     if legacy and legacy.strip():
         return legacy
     return template.explanation_ru
+from app.models.dictionary import Dictionary
 from app.models.lesson import Lesson
 from app.models.mini_phrase import (
     KIND_ORDERED_PARTS,
@@ -73,8 +76,12 @@ def select_for_lesson(
     already learned or taught in this lesson, at least one of them IS from
     this lesson (so it's this lesson that opens it), and the user hasn't
     gone through it before. At most the admin's per-lesson limit, in the
-    admin's order (id)."""
+    admin's order (id).
+
+    Берутся только записи того языка, который человек изучает."""
     limit = get_mini_phrase_settings(db).max_per_lesson
+    dictionary = db.get(Dictionary, dictionary_id)
+    dictionary_language = (dictionary.language if dictionary is not None else None) or "ru"
     lesson_set = set(lesson_word_ids)
     if limit <= 0 or not lesson_set:
         return []
@@ -84,9 +91,17 @@ def select_for_lesson(
         for row in db.query(UserMiniPhraseDone.mini_phrase_id).filter(UserMiniPhraseDone.user_id == user.id).all()
     }
     chosen: list[MiniPhrase] = []
+    # Показываем только записи того языка, который человек изучает: у одного
+    # понятия теперь может быть несколько языковых записей («Я не понимаю» и
+    # «Ман нафаҳмидам»), и учить нужно свою.
+    target_language = learning_language() or dictionary_language
     candidates = (
         db.query(MiniPhrase)
-        .filter(MiniPhrase.dictionary_id == dictionary_id, MiniPhrase.enabled.is_(True))
+        .filter(
+            MiniPhrase.dictionary_id == dictionary_id,
+            MiniPhrase.enabled.is_(True),
+            (MiniPhrase.language == target_language) | (MiniPhrase.language.is_(None)),
+        )
         .order_by(MiniPhrase.id)
         .all()
     )
@@ -94,7 +109,7 @@ def select_for_lesson(
         if mp.id in done or (mp.template is not None and not mp.template.enabled):
             continue
         # Readable in this user's translation language (no fallback, like phrases).
-        if not phrase_translation(mp):
+        if not _record_translation(db, mp, content_language()):
             continue
         word_ids = {p.word_id for p in mp.parts}
         if word_ids and word_ids <= known and word_ids & lesson_set:
@@ -129,8 +144,45 @@ def _distractors(db: Session, user: User, mp: MiniPhrase, count: int, threshold:
     return [{"text": w.word, "word_id": w.id} for w in picked]
 
 
+def _record_translation(db: Session, mp: MiniPhrase, reading: str) -> str | None:
+    """Перевод фразы на язык, который человек читает.
+
+    Запись мини-фразы — это фраза НА ОДНОМ языке, поэтому перевод ищется так:
+    1. строки переводов этой записи (mini_phrase_translations);
+    2. запись ТОГО ЖЕ понятия на языке чтения — например, русская пара к
+       таджикской фразе;
+    3. если запись сама на языке чтения — её собственный текст;
+    4. старые колонки tg/uz/en — только для записей языка словаря: у фразы на
+       другом языке эти колонки не про неё.
+    """
+    for row in getattr(mp, "translations", None) or []:
+        if row.language == reading and (row.text or "").strip():
+            return row.text
+
+    if mp.concept_id is not None:
+        sibling = (
+            db.query(MiniPhrase)
+            .filter(
+                MiniPhrase.concept_id == mp.concept_id,
+                MiniPhrase.language == reading,
+                MiniPhrase.enabled.is_(True),
+                MiniPhrase.id != mp.id,
+            )
+            .first()
+        )
+        if sibling is not None and (sibling.text or "").strip():
+            return sibling.text
+
+    own = mp.language or "ru"
+    if own == reading:
+        return mp.text
+    if own == "ru":
+        return mini_phrase_translation(mp)
+    return None
+
+
 def mini_phrase_out(db: Session, user: User, mp: MiniPhrase, threshold: int, *, with_distractors: bool = True) -> MiniPhraseOut:
-    translation = mini_phrase_translation(mp) or mp.translation_tg
+    translation = _record_translation(db, mp, content_language()) or mp.translation_tg
     parts = []
     for p in mp.parts:
         primary = primary_translation(p.word) if p.word is not None else None

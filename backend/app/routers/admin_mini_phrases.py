@@ -381,6 +381,42 @@ def save_generated_mini_phrases(
     return report
 
 
+class TranslateIn(BaseModel):
+    count: int = Field(default=10, ge=1, le=30)
+    language: str = Field(min_length=2, max_length=8)
+
+
+class TranslateSaveIn(BaseModel):
+    language: str = Field(min_length=2, max_length=8)
+    items: list[dict] = Field(max_length=60)
+
+
+@router.post("/dictionaries/{dictionary_id}/mini-phrases/translate")
+def preview_language_records(
+    dictionary_id: int, payload: TranslateIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
+):
+    """Записи мини-фраз на другом языке: показ, ничего не сохраняется.
+
+    Понятие у фразы одно, а записи по языкам разные: свой текст, свои части,
+    свой порядок слов. Здесь модель переводит фразы на выбранный язык, а скрипт
+    проверяет, что каждая часть -- действительно слово этого языка."""
+    from app.mini_phrases import translate_phrases
+
+    name = _get_dictionary_or_404(db, dictionary_id)
+    return translate_phrases.preview(db, name, payload.language, payload.count)
+
+
+@router.post("/dictionaries/{dictionary_id}/mini-phrases/translate/save")
+def save_language_records(
+    dictionary_id: int, payload: TranslateSaveIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
+):
+    """Сохраняет выбранные записи на другом языке, привязывая их к понятиям."""
+    from app.mini_phrases import translate_phrases
+
+    name = _get_dictionary_or_404(db, dictionary_id)
+    return translate_phrases.save(db, name, payload.language, payload.items)
+
+
 @router.post("/dictionaries/{dictionary_id}/mini-phrases/generate/to-phrases")
 def save_generated_as_phrases(
     dictionary_id: int, payload: ItemsIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)

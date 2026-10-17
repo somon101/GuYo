@@ -21,7 +21,12 @@ router = APIRouter(tags=["mini-phrases"])
 @router.get("/dictionaries/{dictionary_id}/mini-phrases/open", response_model=list[MiniPhraseOut])
 def list_open_mini_phrases(dictionary_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """Практика: every mini-phrase this user has already gone through in a
-    lesson, newest first."""
+    lesson, newest first -- только записи языка, который человек изучает."""
+    from app.core.content_language import learning_language
+    from app.models.dictionary import Dictionary
+
+    dictionary = db.get(Dictionary, dictionary_id)
+    target = learning_language() or ((dictionary.language if dictionary is not None else None) or "ru")
     rows = (
         db.query(MiniPhrase)
         .join(UserMiniPhraseDone, UserMiniPhraseDone.mini_phrase_id == MiniPhrase.id)
@@ -29,6 +34,7 @@ def list_open_mini_phrases(dictionary_id: int, db: Session = Depends(get_db), us
             UserMiniPhraseDone.user_id == user.id,
             MiniPhrase.dictionary_id == dictionary_id,
             MiniPhrase.enabled.is_(True),
+            (MiniPhrase.language == target) | (MiniPhrase.language.is_(None)),
         )
         .order_by(UserMiniPhraseDone.created_at.desc(), MiniPhrase.id.desc())
         .all()
