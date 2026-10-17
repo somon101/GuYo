@@ -74,8 +74,11 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
-    } catch (_) {
-      if (mounted) setState(() => _error = tr('Не удалось войти через Google'));
+    } catch (error) {
+      // Показываем настоящую причину, а не общее «не удалось»: у отказа Google
+      // бывает код (например, DEVELOPER_ERROR при несовпадении отпечатка
+      // подписи), и без него причину не найти.
+      if (mounted) setState(() => _error = '${tr('Не удалось войти через Google')}: $error');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
