@@ -119,7 +119,7 @@ class RegisterIn(BaseModel):
     learning_topics: list[LearningGoal] | None = None
     referral_source: ReferralSource
     ui_language: UiLanguage = "ru"
-    translation_language: TranslationLanguage = "tg"
+    translation_language: str = Field(default="tg", min_length=2, max_length=16)
 
     @field_validator("login")
     @classmethod
@@ -150,7 +150,7 @@ class GoogleRegisterIn(BaseModel):
     learning_topics: list[LearningGoal] | None = None
     referral_source: ReferralSource
     ui_language: UiLanguage = "ru"
-    translation_language: TranslationLanguage = "tg"
+    translation_language: str = Field(default="tg", min_length=2, max_length=16)
 
     @field_validator("login")
     @classmethod
@@ -186,10 +186,14 @@ class UserUpdateIn(BaseModel):
     email: str | None = Field(default=None, min_length=3, max_length=255)
     learning_topics: list[LearningGoal] | None = None
     ui_language: UiLanguage | None = None
-    translation_language: TranslationLanguage | None = None
+    # Языки здесь -- обычные строки, а не жёсткий список из четырёх: языки
+    # живут в таблице languages и добавляются из админки, поэтому пятый язык
+    # отвергался схемой ещё до того, как до него доходил сервер. Допустимость
+    # проверяет роутер по таблице.
+    translation_language: str | None = Field(default=None, min_length=2, max_length=16)
     # Язык, который человек изучает (пара «родной -> изучаемый»). None = язык
     # словаря, как было до многоязычной перестройки.
-    learning_language: TranslationLanguage | None = None
+    learning_language: str | None = Field(default=None, min_length=2, max_length=16)
 
     @field_validator("email")
     @classmethod
