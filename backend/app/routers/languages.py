@@ -16,7 +16,11 @@ router = APIRouter(prefix="/languages", tags=["languages"])
 
 @router.get("")
 def list_languages(db: Session = Depends(get_db)):
-    """Включённые языки: код, название и самоназвание."""
+    """Включённые языки: код, название, самоназвание и переведён ли интерфейс.
+
+    `ui_ready` -- единственное, что решает, предлагать ли язык в переключателе
+    интерфейса приложения. Язык без перевода строк остаётся доступным как
+    родной и как изучаемый: это разные вещи."""
     rows = (
         db.query(Language)
         .filter(Language.is_enabled.is_(True))
@@ -28,6 +32,7 @@ def list_languages(db: Session = Depends(get_db)):
             "code": row.code,
             "name": row.name,
             "native_name": row.native_name or row.name,
+            "ui_ready": row.ui_ready,
         }
         for row in rows
     ]

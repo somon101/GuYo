@@ -14,12 +14,37 @@ import 'strings_en.dart';
 /// which word translations the user is served.
 final ValueNotifier<String> appLanguage = ValueNotifier('ru');
 
+/// Все языки, СТРОКИ для которых есть в этой сборке приложения. Это не то же
+/// самое, что «какие языки предлагать»: второе решает база (languages.ui_ready),
+/// и приложение показывает пересечение -- язык, который оно умеет рисовать, и
+/// который объявлен переведённым в админке.
 const List<({String code, String label})> uiLanguages = [
   (code: 'ru', label: 'Русский'),
   (code: 'tg', label: 'Тоҷикӣ'),
   (code: 'uz', label: 'Oʻzbekcha'),
   (code: 'en', label: 'English'),
 ];
+
+/// Языки интерфейса, объявленные переведёнными в админке. Пусто = ещё не
+/// получили список с сервера, тогда предлагаем всё, что есть в сборке.
+Set<String> _uiReady = const {};
+
+/// Обновляет список из ответа GET /languages. Вызывается при загрузке главного
+/// экрана: правка в админке видна без новой сборки приложения.
+void setUiLanguagesReady(Iterable<String> codes) {
+  final ready = codes.toSet();
+  // Пустой список не должен оставить человека вообще без выбора интерфейса:
+  // если сервер не знает ни одного переведённого языка, верим сборке.
+  if (ready.isEmpty) return;
+  _uiReady = ready;
+}
+
+/// Что показывать в переключателе интерфейса.
+List<({String code, String label})> get availableUiLanguages {
+  if (_uiReady.isEmpty) return uiLanguages;
+  final filtered = uiLanguages.where((l) => _uiReady.contains(l.code)).toList();
+  return filtered.isEmpty ? uiLanguages : filtered;
+}
 
 /// Whether this device has a language the user picked here; if not, the
 /// one saved on their account is used after login.

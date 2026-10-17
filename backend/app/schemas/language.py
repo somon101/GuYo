@@ -13,6 +13,9 @@ class LanguageOut(BaseModel):
     native_name: str | None
     alphabet: str | None
     is_enabled: bool
+    # Интерфейс приложения на этом языке переведён: только такие языки
+    # предлагаются в переключателе интерфейса.
+    ui_ready: bool
     sort_order: int
 
 
@@ -34,6 +37,7 @@ class LanguagePatch(BaseModel):
     native_name: str | None = Field(default=None, max_length=64)
     alphabet: str | None = Field(default=None, max_length=256)
     is_enabled: bool | None = None
+    ui_ready: bool | None = None
     sort_order: int | None = None
 
 

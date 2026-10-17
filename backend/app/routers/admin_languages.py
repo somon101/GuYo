@@ -96,10 +96,16 @@ def create_language(
         native_name=(payload.native_name or "").strip() or None,
         alphabet=(payload.alphabet or "").strip() or None,
         sort_order=int(last) + 1,
+        # Строк интерфейса на новом языке в приложении ещё нет: в переключателе
+        # интерфейса он появится, когда перевод будет готов (галочка в админке).
+        ui_ready=False,
     )
     db.add(language)
     db.commit()
     db.refresh(language)
+    from app.core.languages_in_db import forget
+
+    forget()
     return _detail(db, language)
 
 
@@ -110,9 +116,12 @@ def update_language(
     db: Session = Depends(get_db),
     _admin=Depends(get_current_admin),
 ):
-    """Название, самоназвание, алфавит, порядок и включён ли язык.
+    """Название, самоназвание, алфавит, порядок, включён ли язык и переведён
+    ли его интерфейс.
 
-    Выключенный язык остаётся со своими записями, но людям не предлагается."""
+    Выключенный язык остаётся со своими записями, но людям не предлагается.
+    `ui_ready` управляет только переключателем интерфейса: язык без перевода
+    строк всё равно можно учить и читать на нём подсказки."""
     language = db.get(Language, code)
     if language is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Язык не найден")
@@ -125,10 +134,16 @@ def update_language(
         language.alphabet = payload.alphabet.strip() or None
     if payload.is_enabled is not None:
         language.is_enabled = payload.is_enabled
+    if payload.ui_ready is not None:
+        language.ui_ready = payload.ui_ready
     if payload.sort_order is not None:
         language.sort_order = payload.sort_order
     db.commit()
     db.refresh(language)
+    # Список языков кэшируется на полминуты; правка должна применяться сразу.
+    from app.core.languages_in_db import forget
+
+    forget()
     return _detail(db, language)
 
 

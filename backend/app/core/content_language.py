@@ -32,8 +32,11 @@ def begin_request() -> None:
 # What a user may read translations in. Russian is here too: it is a full member
 # of the multilingual structure (a concept has a Russian record like any other
 # language), and without it "learn English with a Russian hint" -- the most
-# obvious pair for a Russian speaker -- would be impossible. Tajik stays the
-# fallback when nothing is chosen.
+# obvious pair for a Russian speaker -- would be impossible.
+#
+# Это только ЗАПАСНОЙ список: рабочий список берётся из таблицы languages
+# (app.core.languages_in_db), чтобы язык, добавленный в админке, сразу работал
+# как родной или изучаемый. Здесь он нужен, если база ещё не готова.
 READING_LANGUAGES = ("ru", "tg", "uz", "en")
 
 
@@ -45,7 +48,10 @@ def reading_language(ui_language: str | None, translation_language: str | None) 
     из-за чего поле «Язык перевода» пропадало и пара «родной -> изучаемый»
     ломалась. Теперь выбор человека -- единственное, что решает."""
     del ui_language  # оставлен в подписи: вызовов много, а смысла в нём нет
-    return translation_language if translation_language in READING_LANGUAGES else "tg"
+    from app.core.languages_in_db import known_codes
+
+    codes = known_codes() or READING_LANGUAGES
+    return translation_language if translation_language in codes else "tg"
 
 
 def set_content_language_for(
@@ -53,15 +59,22 @@ def set_content_language_for(
     translation_language: str | None = None,
     learning_language: str | None = None,
 ) -> None:
+    from app.core.languages_in_db import known_codes
+
     holder = _language.get()
     if holder is None:
         holder = {}
         _language.set(holder)
+    codes = known_codes() or READING_LANGUAGES
     holder["lang"] = reading_language(ui_language, translation_language)
-    holder["ui"] = ui_language if ui_language in UI_LANGUAGES else "ru"
+    holder["ui"] = ui_language if ui_language in codes else "ru"
     # Язык, который человек изучает. Пусто = язык словаря (так было до
     # многоязычной перестройки, поэтому поведение никого не меняется).
-    holder["learn"] = learning_language if learning_language in UI_LANGUAGES else None
+    #
+    # Проверяем по таблице языков: раньше здесь стоял зашитый список из четырёх,
+    # и добавленный в админке пятый язык (китайский) молча выбрасывался --
+    # человек выбирал его, а слова приходили на языке словаря.
+    holder["learn"] = learning_language if learning_language in codes else None
 
 
 def learning_language() -> str | None:

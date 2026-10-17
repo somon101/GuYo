@@ -18,7 +18,7 @@ class LanguagePicker extends StatelessWidget {
       alignment: WrapAlignment.center,
       spacing: 8,
       children: [
-        for (final lang in uiLanguages)
+        for (final lang in availableUiLanguages)
           ChoiceChip(
             label: Text(lang.label),
             selected: lang.code == selected,

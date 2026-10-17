@@ -213,6 +213,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final languages = await ApiClient.instance.fetchLanguages();
       final profile = await ApiClient.instance.fetchMyProfile();
       if (!mounted) return;
+      // Какие языки предлагать в переключателе ИНТЕРФЕЙСА, решает база: язык с
+      // непереведёнными строками из него убирается без новой сборки.
+      setUiLanguagesReady(languages.where((l) => l.uiReady).map((l) => l.code));
       setState(() {
         _languages = languages;
         _nativeLanguage = profile.translationLanguage;

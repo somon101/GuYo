@@ -259,17 +259,17 @@ def seed_languages() -> None:
     from app.models.language import Language
 
     defaults = [
-        # code, название для админки, самоназвание, алфавит
-        ("ru", "Русский", "Русский", "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"),
-        ("tg", "Таджикский", "Тоҷикӣ", "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯҒӢҚӮҲҶ"),
-        ("uz", "Узбекский", "Oʻzbekcha", "ABCDEFGHIJKLMNOPQRSTUVXYZ OʻGʻSHCH"),
-        ("en", "Английский", "English", "abcdefghijklmnopqrstuvwxyz"),
-        ("zh", "Китайский", "中文", None),
+        # code, название для админки, самоназвание, алфавит, переведён ли интерфейс
+        ("ru", "Русский", "Русский", "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ", True),
+        ("tg", "Таджикский", "Тоҷикӣ", "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯҒӢҚӮҲҶ", True),
+        ("uz", "Узбекский", "Oʻzbekcha", "ABCDEFGHIJKLMNOPQRSTUVXYZ OʻGʻSHCH", True),
+        ("en", "Английский", "English", "abcdefghijklmnopqrstuvwxyz", True),
+        ("zh", "Китайский", "中文", None, False),
     ]
     db = SessionLocal()
     try:
         added = 0
-        for order, (code, name, native_name, alphabet) in enumerate(defaults):
+        for order, (code, name, native_name, alphabet, ui_ready) in enumerate(defaults):
             if db.get(Language, code) is None:
                 db.add(
                     Language(
@@ -278,6 +278,7 @@ def seed_languages() -> None:
                         native_name=native_name,
                         alphabet=alphabet,
                         sort_order=order,
+                        ui_ready=ui_ready,
                     )
                 )
                 added += 1

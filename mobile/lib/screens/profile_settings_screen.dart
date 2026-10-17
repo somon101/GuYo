@@ -214,7 +214,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   /// to the account in the background. If that save fails, the previous
   /// language comes back.
   Future<void> _changeLanguage() async {
-    final code = await _pickOne(tr('Язык интерфейса'), uiLanguages, appLanguage.value);
+    final code = await _pickOne(tr('Язык интерфейса'), availableUiLanguages, appLanguage.value);
     if (code == null || code == appLanguage.value) return;
     final previous = appLanguage.value;
     ApiClient.instance.forgetCachedContent(); // kept in the old language
@@ -433,7 +433,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 _Row(
                   icon: Icons.language_rounded,
                   label: tr('Язык интерфейса'),
-                  value: labelOf(uiLanguages, appLanguage.value),
+                  value: labelOf(availableUiLanguages, appLanguage.value),
                   onTap: _changeLanguage,
                 ),
                 _Row(

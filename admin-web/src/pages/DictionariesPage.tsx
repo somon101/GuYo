@@ -87,6 +87,24 @@ export function DictionariesPage() {
     }
   }
 
+  /// Переключает «интерфейс приложения переведён на этот язык».
+  ///
+  /// Только этот признак решает, предлагать ли язык в переключателе интерфейса
+  /// в приложении. Строки перевода он не создаёт: сначала их надо добавить в
+  /// сборку, затем включить здесь — и язык появится у людей без обновления
+  /// приложения через магазин.
+  async function handleUiReady(language: LanguageDetail) {
+    setBusy(language.code);
+    try {
+      await updateLanguage(language.code, { ui_ready: !language.ui_ready });
+      await load();
+    } catch {
+      setLoadError("Не удалось изменить перевод интерфейса");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function handleAlphabet(language: LanguageDetail, alphabet: string) {
     setBusy(language.code);
     try {
@@ -220,6 +238,20 @@ export function DictionariesPage() {
                   }`}
                 >
                   {l.is_enabled ? "Выключить" : "Включить"}
+                </button>
+                <button
+                  onClick={() => handleUiReady(l)}
+                  disabled={busy === l.code}
+                  title={
+                    l.ui_ready
+                      ? "Язык показан в переключателе интерфейса приложения"
+                      : "Язык не предлагается как язык интерфейса: строки ещё не переведены"
+                  }
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium disabled:opacity-60 ${
+                    l.ui_ready ? "bg-emerald-50 text-emerald-700" : "btn-tinted text-slate-500"
+                  }`}
+                >
+                  {l.ui_ready ? "Интерфейс переведён" : "Интерфейс не переведён"}
                 </button>
               </div>
             </li>

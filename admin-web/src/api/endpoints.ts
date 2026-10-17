@@ -1867,6 +1867,7 @@ export interface LanguageDetail {
   native_name: string | null;
   alphabet: string | null;
   is_enabled: boolean;
+  ui_ready: boolean;
   sort_order: number;
   entries: number;
   with_audio: number;
@@ -1898,6 +1899,7 @@ export async function updateLanguage(
     native_name?: string | null;
     alphabet?: string | null;
     is_enabled?: boolean;
+    ui_ready?: boolean;
     sort_order?: number;
   },
 ): Promise<LanguageDetail> {
