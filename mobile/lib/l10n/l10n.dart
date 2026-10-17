@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'strings.dart';
 import 'strings_en.dart';
+import 'strings_zh.dart';
 
 /// The interface language: "ru", "tg", "uz" or "en". Every interface string is
 /// written in Russian in the code and wrapped in [tr], which looks up its
@@ -23,6 +24,7 @@ const List<({String code, String label})> uiLanguages = [
   (code: 'tg', label: 'Тоҷикӣ'),
   (code: 'uz', label: 'Oʻzbekcha'),
   (code: 'en', label: 'English'),
+  (code: 'zh', label: '中文'),
 ];
 
 /// Языки интерфейса, объявленные переведёнными в админке. Пусто = ещё не
@@ -85,6 +87,10 @@ String tr(String ru, [List<Object?> args = const []]) {
     // string it does not have yet falls back to Russian, never to another
     // language -- the interface stays in one language at a time.
     text = enStrings[ru] ?? ru;
+  } else if (lang == 'zh') {
+    // Китайский — своя таблица, как у английского: строки, которых нет,
+    // показываются по-русски, а не на другом языке.
+    text = zhStrings[ru] ?? ru;
   }
   for (var i = 0; i < args.length; i++) {
     text = text.replaceAll('{$i}', '${args[i]}');
