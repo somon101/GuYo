@@ -16,6 +16,7 @@ from app.models.mini_phrase import (
     TEMPLATE_KINDS,
     WORD_ROLES,
     MiniPhrase,
+    MiniPhraseConcept,
     MiniPhrasePart,
     MiniPhraseTemplate,
 )
@@ -210,7 +211,17 @@ def create_mini_phrase(
     dictionary_id: int, payload: MiniPhraseIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
 ):
     _get_dictionary_or_404(db, dictionary_id)
-    mp = MiniPhrase(dictionary_id=dictionary_id, text="", translation_tg="")
+    # Понятие создаётся сразу: это смысл, к которому привязываются записи на
+    # разных языках. У новой фразы запись пока одна -- на языке словаря.
+    concept = MiniPhraseConcept(dictionary_id=dictionary_id)
+    db.add(concept)
+    db.flush()
+    mp = MiniPhrase(
+        dictionary_id=dictionary_id,
+        concept_id=concept.id,
+        text="",
+        translation_tg="",
+    )
     db.add(mp)
     _apply_mini_phrase(db, mp, dictionary_id, payload)
     db.commit()

@@ -214,6 +214,28 @@ def backfill_mini_phrase_languages(db: Session) -> int:
     return int(result.rowcount or 0)
 
 
+def backfill_mini_phrase_concepts(db: Session) -> int:
+    """Фразам без понятия -- своё понятие.
+
+    Понятие мини-фразы -- это смысл, общий для языков; языковые записи
+    ссылаются на него. Миграция a3d7f0c62e19 проставила понятия уже
+    существующим фразам, а эта функция доделывает те, что появились другим
+    путём (импорт, старый код), чтобы связь никогда не оставалась пустой."""
+    rows = db.execute(
+        text("select id, dictionary_id from mini_phrases where concept_id is null order by id")
+    ).fetchall()
+    for mp_id, dictionary_id in rows:
+        concept_id = db.execute(
+            text("insert into mini_phrase_concepts (dictionary_id) values (:d) returning id"),
+            {"d": dictionary_id},
+        ).scalar()
+        db.execute(
+            text("update mini_phrases set concept_id = :c where id = :m"),
+            {"c": concept_id, "m": mp_id},
+        )
+    return len(rows)
+
+
 def verify(db: Session) -> list[tuple[str, bool, str]]:
     """Сверка переноса: каждая цифра старой структуры должна найтись в новой.
 
@@ -300,6 +322,22 @@ def verify(db: Session) -> list[tuple[str, bool, str]]:
     phrase_ru = scalar("select count(*) from phrase_entries group by language order by count(*) desc limit 1")
     check("У каждой фразы есть запись основного языка", phrase_ru == phrases, f"{phrase_ru} / {phrases}")
 
+    # Понятие мини-фразы -- смысл, общий для языков; без него языковые записи
+    # нельзя связать между собой.
+    mini_concepts = scalar("select count(*) from mini_phrases where concept_id is not null")
+    check("У каждой мини-фразы есть понятие", mini_concepts == mini, f"{mini_concepts} / {mini}")
+    orphan_concepts = scalar(
+        "select count(*) from mini_phrase_concepts c "
+        "where not exists (select 1 from mini_phrases m where m.concept_id = c.id)"
+    )
+    check("Нет понятий без фраз", orphan_concepts == 0, f"лишних: {orphan_concepts}")
+
+    # Шаблон описывает порядок частей, а порядок -- свойство языка: у шаблона
+    # должен быть проставлен язык.
+    templates = scalar("select count(*) from mini_phrase_templates")
+    templates_lang = scalar("select count(*) from mini_phrase_templates where language is not null")
+    check("У всех шаблонов проставлен язык", templates_lang == templates, f"{templates_lang} / {templates}")
+
     return checks
 
 
@@ -348,9 +386,16 @@ def backfill(db: Session) -> dict:
     db.flush()
     mini = backfill_mini_phrase_languages(db)
     db.flush()
+    mini_concepts = backfill_mini_phrase_concepts(db)
+    db.flush()
     _advance_sequences(db)
     db.commit()
-    return {"words": words, "phrases": phrases, "mini_phrases_language_set": mini}
+    return {
+        "words": words,
+        "phrases": phrases,
+        "mini_phrases_language_set": mini,
+        "mini_phrase_concepts_created": mini_concepts,
+    }
 
 
 def main() -> int:

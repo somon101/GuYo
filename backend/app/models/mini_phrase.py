@@ -81,6 +81,23 @@ class MiniPhraseTemplateTranslation(Base):
     text: Mapped[str] = mapped_column(Text, nullable=False)
 
 
+class MiniPhraseConcept(Base):
+    """Смысл мини-фразы, общий для всех языков.
+
+    У понятия — по одной записи (MiniPhrase) на язык: свой текст, свои части и
+    свой шаблон. Это и есть разница между «Я не понимаю» и «Ман нафаҳмидам»:
+    смысл один, а написание, порядок слов и даже части — разные.
+    """
+
+    __tablename__ = "mini_phrase_concepts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    dictionary_id: Mapped[int] = mapped_column(
+        ForeignKey("dictionaries.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class MiniPhrase(Base):
     __tablename__ = "mini_phrases"
 
@@ -90,6 +107,13 @@ class MiniPhrase(Base):
     )
     template_id: Mapped[int | None] = mapped_column(
         ForeignKey("mini_phrase_templates.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    # Смысл фразы, общий для языков. Каждая языковая запись (эта строка) -- своё
+    # написание, свои части и свой шаблон: порядок слов и грамматика у языков
+    # разные. Пока у большинства понятий одна запись (русская), но связь уже
+    # есть, и фразу на втором языке можно привязать к тому же понятию.
+    concept_id: Mapped[int | None] = mapped_column(
+        ForeignKey("mini_phrase_concepts.id", ondelete="CASCADE"), nullable=True, index=True
     )
     # The correct answer, exactly as it should read in the studied language.
     text: Mapped[str] = mapped_column(String(500), nullable=False)

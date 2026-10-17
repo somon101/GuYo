@@ -75,6 +75,7 @@ from app.models.dictionary import Dictionary
 from app.models.mini_phrase import (
     WORD_ROLES,
     MiniPhrase,
+    MiniPhraseConcept,
     MiniPhrasePart,
     MiniPhraseTemplate,
     MiniPhraseTemplateTranslation,
@@ -974,6 +975,19 @@ def rephrase(db: Session, dictionary: Dictionary, items: list[dict], category_id
 # --- Saving the chosen ones (script only) -----------------------------------------
 
 
+def _concept_for(db: Session, dictionary_id: int) -> int:
+    """Создаёт понятие мини-фразы и возвращает его id.
+
+    Понятие — это смысл, общий для языков («Я не понимаю» / «Ман нафаҳмидам»).
+    Запись фразы на каждом языке ссылается на него, поэтому позже к одному
+    понятию можно привязать вторую языковую запись, не теряя первую.
+    """
+    concept = MiniPhraseConcept(dictionary_id=dictionary_id)
+    db.add(concept)
+    db.flush()
+    return concept.id
+
+
 def save(db: Session, dictionary: Dictionary, items: list[dict]) -> dict:
     created, skipped, forms_added, templates_created = [], [], [], []
     # Новые шаблоны: (имя, роли, русский текст объяснения) -- чтобы после цикла
@@ -1057,8 +1071,12 @@ def save(db: Session, dictionary: Dictionary, items: list[dict]) -> dict:
             templates_created.append(name)
         mp = MiniPhrase(
             dictionary_id=dictionary.id,
+            # Смысл фразы, общий для языков. К нему же будут привязываться
+            # записи на других языках -- со своим порядком слов и своими частями.
+            concept_id=_concept_for(db, dictionary.id),
             template_id=template.id,
             text=checked["text"],
+            language=phrase_language(dictionary),
             translation_tg=checked["translation_tg"],
             translation_uz=checked["translation_uz"],
             translation_en=checked["translation_en"],
