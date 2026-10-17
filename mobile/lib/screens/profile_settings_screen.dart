@@ -383,14 +383,16 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   value: labelOf(themeChoices, appThemeChoice.value),
                   onTap: _changeTheme,
                 ),
-                // A Tajik or Uzbek interface always reads its own language.
-                if (appLanguage.value == 'ru')
-                  _Row(
-                    icon: Icons.translate_rounded,
-                    label: tr('Язык перевода'),
-                    value: labelOf(_translationLanguages, _translationShown ?? _profile.translationLanguage),
-                    onTap: _changeTranslationLanguage,
-                  ),
+                // «Язык перевода» — это РОДНОЙ язык, и он не зависит от языка
+                // интерфейса: интерфейс только язык кнопок и подписей. Поэтому
+                // строка показывается всегда, а не только при русском UI.
+                _Row(
+                  key: const ValueKey('settings-translation-language'),
+                  icon: Icons.translate_rounded,
+                  label: tr('Язык перевода'),
+                  value: labelOf(_translationLanguages, _translationShown ?? _profile.translationLanguage),
+                  onTap: _changeTranslationLanguage,
+                ),
                 // Язык изучения здесь ОТСУТСТВУЕТ намеренно: он выбирается
                 // переключателем на главном экране, рядом со словарём.
               ],

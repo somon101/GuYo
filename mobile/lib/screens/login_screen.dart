@@ -191,7 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-class _LoginField extends StatelessWidget {
+class _LoginField extends StatefulWidget {
   final String label;
   final TextEditingController controller;
   final bool obscure;
@@ -207,29 +207,50 @@ class _LoginField extends StatelessWidget {
   });
 
   @override
+  State<_LoginField> createState() => _LoginFieldState();
+}
+
+class _LoginFieldState extends State<_LoginField> {
+  /// Пароль по умолчанию скрыт, но человек может посмотреть его глазком —
+  /// так же, как при регистрации. Текст остаётся тем же, меняется только показ.
+  late bool _hidden = widget.obscure;
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          label,
+          widget.label,
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
         ),
         const SizedBox(height: 6),
         TextField(
-          controller: controller,
-          obscureText: obscure,
-          textInputAction: textInputAction,
-          onSubmitted: onSubmitted,
+          controller: widget.controller,
+          obscureText: widget.obscure ? _hidden : false,
+          textInputAction: widget.textInputAction,
+          onSubmitted: widget.onSubmitted,
           decoration: InputDecoration(
             filled: true,
             fillColor: AppColors.violetSurface,
             isDense: true,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            contentPadding: EdgeInsets.fromLTRB(14, 13, widget.obscure ? 4 : 14, 13),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppShapes.rowRadius),
               borderSide: BorderSide.none,
             ),
+            suffixIcon: widget.obscure
+                ? IconButton(
+                    key: const ValueKey('login-password-visibility'),
+                    tooltip: _hidden ? tr('Показать пароль') : tr('Скрыть пароль'),
+                    icon: Icon(
+                      _hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                      size: 20,
+                      color: AppColors.secondaryText,
+                    ),
+                    onPressed: () => setState(() => _hidden = !_hidden),
+                  )
+                : null,
           ),
         ),
       ],

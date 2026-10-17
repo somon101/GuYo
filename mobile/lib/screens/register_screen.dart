@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
+import '../models/language.dart';
 import '../theme/app_colors.dart';
 import '../widgets/guyo_ui.dart';
 import 'home_screen.dart';
@@ -79,7 +80,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // --- Step 0: language ---------------------------------------------------
   bool _isLoadingLanguages = true;
   String? _languagesError;
-  List<GuyoDictionary> _languages = [];
+  List<GuyoLanguage> _languages = [];
   String? _selectedLanguage;
   bool _showAllLanguages = false;
 
@@ -131,18 +132,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _languagesError = null;
     });
     try {
-      final fetched = await ApiClient.instance.fetchPublicDictionaries();
+      // Языки живут в базе и правятся в админке: берём их из GET /languages, а
+      // не из словарей -- словарь теперь один и язык больше не задаёт.
+      final fetched = await ApiClient.instance.fetchLanguages();
       if (!mounted) return;
-      // One entry per language, first-seen order -- same rule
-      // HomeScreen's own switcher already applies (see _languageOptions
-      // there), never a second "which languages exist" system.
-      final seen = <String>{};
-      final deduped = <GuyoDictionary>[];
-      for (final d in fetched) {
-        if (seen.add(d.language)) deduped.add(d);
-      }
       setState(() {
-        _languages = deduped;
+        _languages = fetched;
         _isLoadingLanguages = false;
       });
     } catch (_) {
@@ -192,7 +187,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (_step < _steps.length - 1) {
       setState(() => _step += 1);
     } else {
-      _submit();
+      // Последний шаг: главная кнопка зовёт Google, если регистрация идёт без
+      // него. Вторая кнопка («Продолжить без привязки») зовёт _submit напрямую.
+      _submit(linkGoogle: widget.google == null);
     }
   }
 
@@ -250,7 +247,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return _passwordError == null && _confirmError == null;
   }
 
-  Future<void> _submit() async {
+  /// Creates the account. [linkGoogle] = человек нажал «Привязать
+  /// Google-аккаунт»: тогда сначала спрашиваем Google, каким аккаунтом
+  /// привязываться, и создаём профиль уже с ним. Ложь -- «Продолжить без
+  /// привязки», аккаунт без Google.
+  Future<void> _submit({bool linkGoogle = false}) async {
     setState(() {
       _isSubmitting = true;
       _submitError = null;
@@ -269,12 +270,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
           translationLanguage: _translationLanguage,
         );
       } else {
-        // Signing up does NOT require a Google account. It used to stop here and
-        // open the Google picker, which meant anyone without a Google account --
-        // or unwilling to link one just to try the app -- could not create an
-        // account at all. Login and password are enough; Google can be connected
-        // later from Settings.
+        // Signing up does NOT require a Google account. Login and password are
+        // enough; Google can be connected right here from the main button, or
+        // later from Settings. linkGoogle=true means the person pressed
+        // «Привязать Google-аккаунт» -- then we really ask Google for the
+        // account and create the profile with it attached.
+        String? idToken;
+        if (linkGoogle) {
+          idToken = await pickGoogleIdToken();
+          if (idToken == null) {
+            // Закрыл выбор аккаунта: ничего не создаём, остаёмся на месте.
+            if (mounted) setState(() => _isSubmitting = false);
+            return;
+          }
+        }
         await ApiClient.instance.register(
+          idToken: idToken,
           login: _loginCtrl.text.trim(),
           password: _passwordCtrl.text,
           passwordConfirm: _confirmCtrl.text,
@@ -353,40 +364,74 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  key: const ValueKey('register-next-button'),
-                  onPressed: (_isSubmitting || !_canAdvance) ? null : _goNext,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.35),
-                    foregroundColor: Colors.white,
-                    disabledForegroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppShapes.rowRadius)),
-                  ),
-                  child: _isSubmitting
-                      ? SkeletonPulse(
-                          child: Text(_nextLabel, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                        )
-                      : (_isLastStep && widget.google == null)
-                          ? Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 24,
-                                  height: 24,
-                                  alignment: Alignment.center,
-                                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                                  child: const GoogleLogo(size: 15),
-                                ),
-                                const SizedBox(width: 10),
-                                Text(_nextLabel, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                              ],
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      key: const ValueKey('register-next-button'),
+                      onPressed: (_isSubmitting || !_canAdvance) ? null : _goNext,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.35),
+                        foregroundColor: Colors.white,
+                        disabledForegroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppShapes.rowRadius),
+                        ),
+                      ),
+                      child: _isSubmitting
+                          ? SkeletonPulse(
+                              child: Text(
+                                _nextLabel,
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                              ),
                             )
-                          : Text(_nextLabel, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                ),
+                          : (_isLastStep && widget.google == null)
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 24,
+                                      height: 24,
+                                      alignment: Alignment.center,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const GoogleLogo(size: 15),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      _nextLabel,
+                                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                                    ),
+                                  ],
+                                )
+                              : Text(
+                                  _nextLabel,
+                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                                ),
+                    ),
+                  ),
+                  // Вторая кнопка -- только на последнем шаге регистрации без
+                  // Google: аккаунт можно создать и не привязывая Google.
+                  if (_isLastStep && widget.google == null) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        key: const ValueKey('register-without-google-button'),
+                        onPressed: _isSubmitting ? null : () => unawaited(_submit(linkGoogle: false)),
+                        child: Text(
+                          tr('Продолжить без привязки'),
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],
@@ -552,13 +597,12 @@ class _StepScaffold extends StatelessWidget {
 class _LanguageStep extends StatelessWidget {
   final bool isLoading;
   final String? error;
-  final List<GuyoDictionary> languages;
+  final List<GuyoLanguage> languages;
   final String? selected;
   final bool showAll;
   final VoidCallback onRetry;
   final ValueChanged<String> onSelect;
   final VoidCallback onShowAll;
-
   const _LanguageStep({
     required this.isLoading,
     required this.error,
@@ -615,10 +659,10 @@ class _LanguageStep extends StatelessWidget {
         children: [
           for (final dict in visible) ...[
             SelectableCard(
-              key: ValueKey('register-language-${dict.language}'),
-              label: dict.languageLabel,
-              selected: selected == dict.language,
-              onTap: () => onSelect(dict.language),
+              key: ValueKey('register-language-${dict.code}'),
+              label: dict.label,
+              selected: selected == dict.code,
+              onTap: () => onSelect(dict.code),
             ),
             const SizedBox(height: 10),
           ],

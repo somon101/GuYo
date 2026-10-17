@@ -38,10 +38,13 @@ READING_LANGUAGES = ("ru", "tg", "uz", "en")
 
 
 def reading_language(ui_language: str | None, translation_language: str | None) -> str:
-    """A Tajik or Uzbek interface reads its own language; a Russian one
-    reads the translation language the user picked."""
-    if ui_language in ("tg", "uz"):
-        return ui_language
+    """Родной язык человека -- тот, на котором он читает подсказки.
+
+    Язык интерфейса на это НЕ влияет: он только язык кнопок и подписей. Раньше
+    таджикский или узбекский интерфейс принудительно делал родным свой же язык,
+    из-за чего поле «Язык перевода» пропадало и пара «родной -> изучаемый»
+    ломалась. Теперь выбор человека -- единственное, что решает."""
+    del ui_language  # оставлен в подписи: вызовов много, а смысла в нём нет
     return translation_language if translation_language in READING_LANGUAGES else "tg"
 
 

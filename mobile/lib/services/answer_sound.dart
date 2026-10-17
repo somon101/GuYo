@@ -15,25 +15,59 @@ import 'package:audioplayers/audioplayers.dart';
 class AnswerSound {
   AnswerSound._();
 
-  static final AudioPlayer _player = AudioPlayer()..setReleaseMode(ReleaseMode.stop);
+  /// Two things keep this safe, both learned the hard way (a real ANR on a
+  /// phone: the app froze in Сопоставление after a couple of wrong pairs):
+  ///
+  /// 1. ONE chime at a time. Сопоставление and Собери слово fire a chime on
+  ///    every attempt, and a wrong pair is followed by another attempt less
+  ///    than a second later. Overlapping `play()` calls on the same player
+  ///    queue up inside the native player and can leave it wedged.
+  /// 2. A wedged player is thrown away, not reused. If `play()` does not
+  ///    finish within [_timeout], that player instance is replaced, so a
+  ///    single bad native state can never take every later answer with it.
+  static const Duration _timeout = Duration(seconds: 2);
+
+  static AudioPlayer _player = _newPlayer();
+  static bool _busy = false;
+
+  /// Сколько раз подряд звук не смог проиграться. На третьем провале звуки
+  /// выключаются до перезапуска приложения: на устройстве, где нативный плеер
+  /// сломан, каждый новый вызов -- это ещё один шанс подвесить урок, а польза
+  /// от него нулевая.
+  static int _failures = 0;
+  static bool _disabled = false;
+
+  static AudioPlayer _newPlayer() => AudioPlayer()..setReleaseMode(ReleaseMode.stop);
 
   static Future<void> play(bool isCorrect) async {
+    // A chime is decoration: losing one is invisible, hanging the exercise is
+    // not. So a running chime simply wins and this call is dropped.
+    if (_busy || _disabled) return;
+    _busy = true;
     try {
-      // play() already replaces whatever this player was doing -- no
-      // separate stop() first, which on a broken/driverless audio backend
-      // (seen on a Windows box with no audio driver at all) can itself
-      // hang waiting on the native side and pile up across the rapid
-      // back-to-back calls Сопоставление/Собери слово make on every
-      // attempt. The timeout is the real safety net either way: a native
-      // audio failure must never be able to block anything past a blink,
-      // no matter how it fails on a given device.
       await _player
           .play(AssetSource(isCorrect ? 'sounds/correct-answer.mp3' : 'sounds/incorrect-answer.mp3'))
-          .timeout(const Duration(seconds: 2));
+          .timeout(_timeout);
+      _failures = 0;
     } catch (_) {
       // A missing/broken audio backend (e.g. a muted or misconfigured
       // device) must never block the exercise flow itself -- the visual
       // feedback already carries the result on its own.
+      _failures++;
+      if (_failures >= 3) _disabled = true;
+      _discardPlayer();
+    } finally {
+      _busy = false;
     }
+  }
+
+  /// Throws the current player away and starts a fresh one. Disposing is not
+  /// awaited: a hung player is exactly the thing that cannot be trusted to
+  /// answer a dispose call, and nothing below depends on its reply.
+  static void _discardPlayer() {
+    final dead = _player;
+    _player = _newPlayer();
+    // ignore: unawaited_futures
+    dead.dispose().timeout(const Duration(seconds: 1)).catchError((_) {});
   }
 }
