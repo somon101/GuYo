@@ -649,8 +649,10 @@ class _LanguageStep extends StatelessWidget {
       );
     }
 
-    final visible = (showAll || languages.length <= 4) ? languages : languages.sublist(0, 4);
-    final showMoreButton = !showAll && languages.length > 4;
+    // Показываем ВСЕ доступные языки сразу: их единицы, и спрятанный за
+    // кнопкой «другие языки» русский выглядел как пропавший.
+    final visible = languages;
+    final showMoreButton = false;
 
     return _StepScaffold(
       title: tr('Какой язык хотите изучать?'),
