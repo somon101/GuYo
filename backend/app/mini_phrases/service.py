@@ -134,14 +134,23 @@ def _distractors(db: Session, user: User, mp: MiniPhrase, count: int, threshold:
     from app.priority.distractors import prefer_distractor_words
 
     part_ids = {p.word_id for p in mp.parts}
+    # Обманки должны быть на ТОМ ЖЕ языке, что и части фразы: иначе на доске
+    # «Собери фразу» таджикские части лежат рядом с русскими плитками.
+    language = mp.language or "ru"
     part_texts = {p.text.strip().lower() for p in mp.parts}
-    pool = [
-        w
-        for w in get_learned_pool(db, user.id, mp.dictionary_id, threshold)
-        if w.id not in part_ids and w.word.strip().lower() not in part_texts
-    ]
-    picked = prefer_distractor_words(db, user.id, pool)[:count]
-    return [{"text": w.word, "word_id": w.id} for w in picked]
+    pool = []
+    for word in get_learned_pool(db, user.id, mp.dictionary_id, threshold):
+        if word.id in part_ids:
+            continue
+        entry = next((e for e in word.language_entries if e.language == language), None)
+        text = ((entry.text if entry is not None else "") or "").strip()
+        if not text or text.lower() in part_texts:
+            continue
+        pool.append((word, text))
+
+    picked = prefer_distractor_words(db, user.id, [word for word, _ in pool])[:count]
+    texts = {word.id: text for word, text in pool}
+    return [{"text": texts[word.id], "word_id": word.id} for word in picked if word.id in texts]
 
 
 def _record_translation(db: Session, mp: MiniPhrase, reading: str) -> str | None:
