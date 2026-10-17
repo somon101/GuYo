@@ -37,7 +37,15 @@ class MiniPhraseTemplate(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
+    # Язык, к которому относится ПОРЯДОК частей в этом шаблоне. Порядок -- это
+    # грамматика конкретного языка: шаблон «Кто + глагол» верен там, где такой
+    # порядок принят, и неверен в языке с другим порядком. Старые шаблоны --
+    # русские (заполняет миграция).
+    language: Mapped[str | None] = mapped_column(String(8), nullable=True, index=True)
     kind: Mapped[str] = mapped_column(String(32), nullable=False, default=KIND_ORDERED_PARTS, server_default=KIND_ORDERED_PARTS)
+    # Устаревшие колонки: остаются ради совместимости, читаются как запасной
+    # вариант. Новые объяснения пишутся в mini_phrase_template_translations --
+    # по строке на язык, сколько бы языков ни было в базе.
     explanation_ru: Mapped[str | None] = mapped_column(Text, nullable=True)
     explanation_tg: Mapped[str | None] = mapped_column(Text, nullable=True)
     explanation_uz: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -47,6 +55,30 @@ class MiniPhraseTemplate(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    translations: Mapped[list["MiniPhraseTemplateTranslation"]] = relationship(
+        cascade="all, delete-orphan"
+    )
+
+
+class MiniPhraseTemplateTranslation(Base):
+    """Объяснение шаблона на одном языке.
+
+    Заменяет три колонки explanation_ru/tg/uz: языков может быть сколько угодно,
+    и добавление языка больше не требует ни миграции, ни правки кода.
+    """
+
+    __tablename__ = "mini_phrase_template_translations"
+    __table_args__ = (
+        UniqueConstraint("template_id", "language", name="uq_mini_phrase_template_translations"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    template_id: Mapped[int] = mapped_column(
+        ForeignKey("mini_phrase_templates.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    language: Mapped[str] = mapped_column(String(8), nullable=False, index=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
 
 
 class MiniPhrase(Base):

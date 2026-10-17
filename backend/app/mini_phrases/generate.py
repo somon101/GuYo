@@ -77,6 +77,7 @@ from app.models.mini_phrase import (
     MiniPhrase,
     MiniPhrasePart,
     MiniPhraseTemplate,
+    MiniPhraseTemplateTranslation,
     MiniPhraseTranslation,
 )
 from app.models.phrase import Phrase
@@ -969,11 +970,34 @@ def save(db: Session, dictionary: Dictionary, items: list[dict]) -> dict:
             continue
         roles = [p["role"] for p in checked["parts"]]
         name = checked["template_name"]
-        template = db.query(MiniPhraseTemplate).filter(MiniPhraseTemplate.name == name).first()
+        # Шаблон ищется ВМЕСТЕ с языком: порядок частей — грамматика языка, и
+        # одинаковое имя шаблона в разных языках означает разные правила.
+        lang = phrase_language(dictionary)
+        template = (
+            db.query(MiniPhraseTemplate)
+            .filter(MiniPhraseTemplate.name == name, MiniPhraseTemplate.language == lang)
+            .first()
+        )
         if template is None:
-            template = MiniPhraseTemplate(name=name, distractor_count=2, enabled=True, **_template_texts(roles))
+            template = MiniPhraseTemplate(
+                name=name,
+                language=lang,
+                distractor_count=2,
+                enabled=True,
+                **_template_texts(roles),
+            )
             db.add(template)
             db.flush()
+            # Объяснения трёх языков дублируем в таблицу переводов, чтобы
+            # чтение шло одним путём для всех языков.
+            for code in ("ru", "tg", "uz"):
+                value = getattr(template, f"explanation_{code}", None)
+                if value:
+                    db.add(
+                        MiniPhraseTemplateTranslation(
+                            template_id=template.id, language=code, text=value
+                        )
+                    )
             templates_created.append(name)
         mp = MiniPhrase(
             dictionary_id=dictionary.id,

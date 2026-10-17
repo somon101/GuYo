@@ -10,6 +10,24 @@ from app.core.content_language import (
 )
 from app.core.storage import url_for_key
 from app.mini_phrases.render import DEFAULT_EXPLANATIONS, render_explanation
+
+
+def template_explanation(template, language: str) -> str | None:
+    """Текст объяснения шаблона на нужном языке.
+
+    Сначала таблица переводов (там столько языков, сколько в базе), затем
+    старые колонки трёх языков, затем русский. Для языка без перевода вернётся
+    None -- вызывающий возьмёт общее объяснение из DEFAULT_EXPLANATIONS.
+    """
+    if template is None:
+        return None
+    for row in getattr(template, "translations", None) or []:
+        if row.language == language and (row.text or "").strip():
+            return row.text
+    legacy = getattr(template, f"explanation_{language}", None)
+    if legacy and legacy.strip():
+        return legacy
+    return template.explanation_ru
 from app.models.lesson import Lesson
 from app.models.mini_phrase import (
     KIND_ORDERED_PARTS,
@@ -130,9 +148,7 @@ def mini_phrase_out(db: Session, user: User, mp: MiniPhrase, threshold: int, *, 
         )
     template = mp.template
     lang = ui_language()
-    text = None
-    if template is not None:
-        text = getattr(template, f"explanation_{lang}", None) or template.explanation_ru
+    text = template_explanation(template, lang) if template is not None else None
     explanation = render_explanation(text or DEFAULT_EXPLANATIONS.get(lang, DEFAULT_EXPLANATIONS["ru"]), mp.text, translation, parts)
     count = template.distractor_count if template is not None else 2
     return MiniPhraseOut(
