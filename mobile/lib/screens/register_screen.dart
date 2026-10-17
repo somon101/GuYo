@@ -55,12 +55,15 @@ List<({String code, String label})> get _referralSources => [
 class _RegisterScreenState extends State<RegisterScreen> {
   int _step = 0;
 
-  /// The wizard's steps in order. A Russian interface also asks which
-  /// language word translations are shown in; a Tajik or Uzbek one already
-  /// reads its own.
+  /// The wizard's steps in order. The translation language is asked ALWAYS,
+  /// whatever the interface language is: interface is only labels, it says
+  /// nothing about what language the person reads word translations in. It
+  /// used to be asked only for a Russian interface, and a Tajik/Uzbek one
+  /// silently fell back to Tajik -- the person was never asked, yet ended up
+  /// with a native language chosen for them.
   List<String> get _steps => [
     'language',
-    if (appLanguage.value == 'ru') 'translation',
+    'translation',
     if (widget.google == null) 'name',
     // The login gets its own step, checked live; the next step only
     // opens once it is free.
@@ -74,8 +77,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   String get _stepKey => _steps[_step];
 
-  // --- Translation language (Russian interface only) ----------------------
-  String _translationLanguage = 'tg';
+  // --- Translation language (native) --------------------------------------
+  // Nothing is preselected: the person must say it themselves.
+  String? _translationLanguage;
 
   // --- Step 0: language ---------------------------------------------------
   bool _isLoadingLanguages = true;
@@ -154,7 +158,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       case 'language':
         return _selectedLanguage != null;
       case 'translation':
-        return true;
+        return _translationLanguage != null;
       case 'name':
       case 'password':
         return true; // these steps validate their own fields on Next
@@ -267,7 +271,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           learningGoal: _learningGoals.first,
           learningTopics: _learningGoals,
           referralSource: _referralSource!,
-          translationLanguage: _translationLanguage,
+          translationLanguage: _translationLanguage!,
         );
       } else {
         // Signing up does NOT require a Google account. Login and password are
@@ -296,7 +300,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           learningGoal: _learningGoals.first,
           learningTopics: _learningGoals,
           referralSource: _referralSource!,
-          translationLanguage: _translationLanguage,
+          translationLanguage: _translationLanguage!,
         );
       }
       // Best effort: the account exists already, and the times can be set
@@ -456,9 +460,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       case 'translation':
         return _ChoiceStep(
           title: tr('На каком языке показывать перевод слов?'),
-          subtitle: tr('Это можно изменить в настройках.'),
+          subtitle: tr('Это ваш родной язык. Изменить можно в настройках.'),
           keyPrefix: 'translation',
-          options: const [(code: 'tg', label: 'Тоҷикӣ'), (code: 'uz', label: 'Oʻzbekcha'), (code: 'en', label: 'English')],
+          // Все языки, кроме выбранного для изучения: родной и изучаемый не
+          // могут совпадать, иначе подсказка была бы на языке ответа.
+          options: [
+            for (final l in _languages)
+              if (l.code != _selectedLanguage) (code: l.code, label: l.label),
+          ],
           selected: _translationLanguage,
           onSelect: (code) => setState(() => _translationLanguage = code),
         );
