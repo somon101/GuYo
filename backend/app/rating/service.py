@@ -180,13 +180,27 @@ def award_word_points_if_new(db: Session, user: User, word_id: int) -> int:
 LEADERBOARD_LIMIT = 100
 
 
+def _active_ratings(db: Session):
+    """Рейтинги только живых аккаунтов.
+
+    Удалённый аккаунт исчезает из всех списков сразу и полностью: его нет ни в
+    топе, ни в подсчёте мест. Строка в базе живёт ещё 30 дней (на случай
+    «передумал»), поэтому фильтр стоит здесь, а не только в запросах экранов.
+    """
+    return (
+        db.query(UserRating)
+        .join(User, User.id == UserRating.user_id)
+        .filter(User.deleted_at.is_(None))
+    )
+
+
 def leaderboard_for_rank(db: Session, rank: Rank, limit: int = LEADERBOARD_LIMIT) -> list[UserRating]:
     """Top `limit` users whose CURRENT points fall inside this one rank's
     own range -- never a manually-picked rank, always the caller's own
     (see app/routers/rating.py). Filters directly on UserRating.total_points
     rather than computing every user's rank in Python, since a rank's
     range already says exactly which point values belong to it."""
-    query = db.query(UserRating).filter(UserRating.total_points >= rank.min_points)
+    query = _active_ratings(db).filter(UserRating.total_points >= rank.min_points)
     if rank.max_points is not None:
         query = query.filter(UserRating.total_points <= rank.max_points)
     return query.order_by(UserRating.total_points.desc(), UserRating.user_id.asc()).limit(limit).all()
@@ -200,7 +214,11 @@ def rank_position_for_user(db: Session, rank: Rank, rating: UserRating) -> int:
     user_id asc as the tie-break), so the number shown on the Profile
     screen always matches where that user actually appears on the
     "Топ-100" board itself."""
-    query = db.query(func.count(UserRating.user_id)).filter(UserRating.total_points >= rank.min_points)
+    query = (
+        db.query(func.count(UserRating.user_id))
+        .join(User, User.id == UserRating.user_id)
+        .filter(User.deleted_at.is_(None), UserRating.total_points >= rank.min_points)
+    )
     if rank.max_points is not None:
         query = query.filter(UserRating.total_points <= rank.max_points)
     ahead = query.filter(
@@ -212,7 +230,12 @@ def rank_position_for_user(db: Session, rank: Rank, rating: UserRating) -> int:
 
 def leaderboard_global(db: Session, limit: int = LEADERBOARD_LIMIT) -> list[UserRating]:
     """Top `limit` users across every rank combined, by points alone."""
-    return db.query(UserRating).order_by(UserRating.total_points.desc(), UserRating.user_id.asc()).limit(limit).all()
+    return (
+        _active_ratings(db)
+        .order_by(UserRating.total_points.desc(), UserRating.user_id.asc())
+        .limit(limit)
+        .all()
+    )
 
 
 def get_active_season(db: Session) -> Season | None:

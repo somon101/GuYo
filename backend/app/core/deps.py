@@ -63,6 +63,12 @@ def get_current_user(
     user = db.get(User, payload.subject)
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    # Аккаунт помечен удалённым: старый токен больше не пускает. Войти заново
+    # по логину и паролю можно -- это и есть восстановление (30 дней).
+    if user.deleted_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Аккаунт удалён"
+        )
     set_content_language_for(
         _reading_ui_language(user, x_ui_language), user.translation_language, user.learning_language
     )
@@ -89,6 +95,8 @@ def get_current_principal(
         user = db.get(User, payload.subject)
         if user is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        if user.deleted_at is not None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Аккаунт удалён")
         set_content_language_for(
             _reading_ui_language(user, x_ui_language), user.translation_language, user.learning_language
         )

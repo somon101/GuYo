@@ -44,6 +44,8 @@ const List<({String code, String label})> _translationLanguages = [
 
 class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   late UserProfile _profile;
+  /// Идёт удаление аккаунта: кнопка показывает кружок и не нажимается дважды.
+  bool _isDeleting = false;
 
   /// From the device cache at once, then refreshed quietly; null only on
   /// the very first open (the row then shows a dash).
@@ -259,6 +261,64 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     }
   }
 
+  /// Удаление аккаунта. Спрашиваем дважды: первый раз -- что именно
+  /// произойдёт, второй -- последнее подтверждение. Так человек не удаляет
+  /// аккаунт одним случайным касанием.
+  Future<void> _confirmDeleteAccount() async {
+    final sure = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('Удалить аккаунт?')),
+        content: Text(
+          tr(
+            'Аккаунт исчезнет из рейтинга, друзей и поиска. Прогресс удалится. '
+            'Вернуть его можно, если войти тем же логином и паролем в течение 30 дней.',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(tr('Отмена'))),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(tr('Удалить'), style: const TextStyle(color: _logoutRed, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (sure != true || !mounted) return;
+
+    final again = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('Точно удалить?')),
+        content: Text(tr('Это последнее подтверждение. Данные будут удалены.')),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(tr('Отмена'))),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(tr('Удалить'), style: const TextStyle(color: _logoutRed, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (again != true || !mounted) return;
+
+    setState(() => _isDeleting = true);
+    try {
+      await PushService.instance.unregisterCurrentUser();
+      await ApiClient.instance.deleteMyAccount();
+      await ApiClient.instance.logout();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isDeleting = false);
+      _showError(tr('Не удалось удалить аккаунт. Проверьте интернет.'));
+    }
+  }
+
   Future<void> _confirmLogout() async {    final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -428,6 +488,42 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                       const SizedBox(width: 8),
                       Text(
                         tr('Выйти'),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _logoutRed),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Удаление аккаунта: этого требует Google Play -- человек должен
+            // уметь удалиться из приложения, не писая в поддержку.
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: AppShapes.cardShadow,
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                key: const ValueKey('settings-delete-account'),
+                onTap: _isDeleting ? null : _confirmDeleteAccount,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (_isDeleting)
+                        const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: _logoutRed),
+                        )
+                      else
+                        const Icon(Icons.no_accounts_rounded, color: _logoutRed, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        tr('Удалить аккаунт'),
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _logoutRed),
                       ),
                     ],

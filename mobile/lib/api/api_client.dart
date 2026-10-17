@@ -325,6 +325,15 @@ class ApiClient {
     await clearToken();
   }
 
+  /// Удаляет аккаунт (требование Google Play). Строка на сервере помечается
+  /// удалённой и исчезает отовсюду; вернуть её можно, войдя тем же логином и
+  /// паролем в течение 30 дней. После вызова локальные данные стираются, так
+  /// что вызывающий должен увести человека на экран входа.
+  Future<void> deleteMyAccount() async {
+    final res = await http.delete(_uri('/users/me'), headers: await _authHeaders());
+    await _throwWithDetail(res);
+  }
+
   /// The published-language list for the sign-up wizard's first step --
   /// reachable with no token at all (there is no account yet), unlike
   /// [fetchDictionaries] below which this deliberately does not touch or

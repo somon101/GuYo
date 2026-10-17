@@ -37,6 +37,15 @@ def user_login(payload: LoginRequest, db: Session = Depends(get_db)):
     )
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid login or password")
+    # Аккаунт был удалён: вход в течение 30 дней возвращает его вместе со всем
+    # прогрессом. После окна -- только регистрация заново.
+    from app.account_deletion import restore_if_deleted
+
+    if user.deleted_at is not None and not restore_if_deleted(db, user):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Аккаунт удалён",
+        )
     token = create_access_token(subject=user.id, role="user")
     return TokenResponse(access_token=token, role="user")
 
@@ -170,6 +179,11 @@ def google_login(payload: GoogleAuthIn, db: Session = Depends(get_db)):
     identity = _google_identity(payload.id_token)
     user = db.query(User).filter(User.google_sub == identity["sub"]).first()
     if user is not None:
+        # Удалённый аккаунт возвращается тем же правилом, что и вход по паролю.
+        from app.account_deletion import restore_if_deleted
+
+        if user.deleted_at is not None and not restore_if_deleted(db, user):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Аккаунт удалён")
         return GoogleAuthOut(access_token=create_access_token(subject=user.id, role="user"))
     if db.query(User).filter(User.email == identity["email"]).first() is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_EMAIL_TAKEN)

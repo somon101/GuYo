@@ -118,7 +118,8 @@ def get_friends_leaderboard(db: Session = Depends(get_db), user: User = Depends(
     db.flush()
     ratings = (
         db.query(UserRating)
-        .filter(UserRating.user_id.in_(ids))
+        .join(User, User.id == UserRating.user_id)
+        .filter(UserRating.user_id.in_(ids), User.deleted_at.is_(None))
         .order_by(UserRating.total_points.desc(), UserRating.user_id)
         .all()
     )
@@ -131,7 +132,7 @@ def get_friends_leaderboard(db: Session = Depends(get_db), user: User = Depends(
 def find_user_by_public_id(public_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """Who a 9-digit ID belongs to -- shown for confirmation before adding a
     friend (after a QR scan or typing the ID)."""
-    other = db.query(User).filter(User.public_id == public_id).first()
+    other = db.query(User).filter(User.public_id == public_id, User.deleted_at.is_(None)).first()
     if other is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь с таким ID не найден")
     is_friend = (
@@ -153,7 +154,7 @@ def find_user_by_public_id(public_id: int, db: Session = Depends(get_db), user: 
 @router.post("/friends", status_code=status.HTTP_204_NO_CONTENT)
 def add_friend(payload: AddFriendIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """Adds the account with this 9-digit ID as a friend, both ways."""
-    friend = db.query(User).filter(User.public_id == payload.public_id).first()
+    friend = db.query(User).filter(User.public_id == payload.public_id, User.deleted_at.is_(None)).first()
     if friend is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь с таким ID не найден")
     if friend.id == user.id:

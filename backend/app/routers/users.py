@@ -146,6 +146,32 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db), _admin: Admi
     return user
 
 
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_my_account(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Удаление аккаунта из приложения -- требование Google Play.
+
+    Аккаунт помечается удалённым и сразу исчезает отовсюду: рейтинг, друзья,
+    поиск, уведомления. Данные остаются 30 дней, чтобы человек мог передумать:
+    вход по прежнему логину и паролю возвращает всё. Через 30 дней
+    `python -m app.account_deletion purge` удаляет строку окончательно, вместе
+    со всеми её данными (все таблицы ссылаются на users с ON DELETE CASCADE).
+
+    Объявлен ДО "/{user_id}": иначе админский маршрут перехватил бы "me" как
+    несуществующий номер и ответил бы 403.
+    """
+    from app.account_deletion import mark_deleted
+
+    old_avatar = user.avatar_key
+    mark_deleted(db, user)
+    # Фото профиля убираем сразу: это персональные данные, и держать их в
+    # общем хранилище до истечения окна незачем.
+    if old_avatar:
+        user.avatar_key = None
+        db.commit()
+        delete_by_key(old_avatar)
+    return None
+
+
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user(user_id: int, db: Session = Depends(get_db), _admin: Admin = Depends(get_current_admin)):
     """Permanently removes a user and everything scoped to them -- every

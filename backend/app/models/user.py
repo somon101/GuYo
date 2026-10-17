@@ -102,3 +102,11 @@ class User(Base):
         ForeignKey("status_phrases.id", ondelete="SET NULL"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Когда человек удалил аккаунт. Пока стоит дата, аккаунт скрыт отовсюду
+    # (рейтинг, друзья, поиск) и не пускает по токену; вход по логину и паролю
+    # возвращает его, пока не прошло DELETION_GRACE_DAYS (app/account_deletion).
+    # None = аккаунт живой.
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
