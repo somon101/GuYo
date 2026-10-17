@@ -2,6 +2,13 @@
 /// itself (see l10n.dart). Kept as its own table rather than a third column
 /// of uiStrings, so the Tajik/Uzbek rows stay untouched.
 const Map<String, String> enStrings = {
+  'День': 'Day',
+  'Закреплено': 'Locked in',
+  'Место в рейтинге': 'Leaderboard rank',
+  'Очков сегодня': 'Points today',
+  'ПО УПРАЖНЕНИЯМ': 'BY EXERCISE',
+  'Слово': 'Word',
+  'правильно': 'correct',
   '{0} {1} осталось': '{0} {1} left',
   '{0} в день': '{0} a day',
   '{0} в неделю': '{0} a week',

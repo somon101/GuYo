@@ -9,7 +9,7 @@
 import re
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -253,6 +253,48 @@ def update_language_word(
     db.commit()
     db.refresh(entry)
     return _word_detail(db, entry)
+
+
+class GapsIn(BaseModel):
+    limit: int = Field(default=20, ge=1, le=60)
+
+
+class GapsSaveIn(BaseModel):
+    items: list[dict] = Field(max_length=60)
+
+
+@router.get("/{language}/gaps")
+def language_gaps(language: str, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    """Чего не хватает языку: сколько слов без форм и без транскрипции."""
+    from app import word_gaps
+
+    return word_gaps.plan(db, language)
+
+
+@router.post("/{language}/gaps/fill")
+def fill_language_gaps(
+    language: str,
+    payload: GapsIn,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """Показ: какие формы и транскрипции предложит модель. Ничего не сохраняет."""
+    from app import word_gaps
+
+    return word_gaps.preview(db, language, payload.limit)
+
+
+@router.post("/{language}/gaps/fill/save")
+def save_language_gaps(
+    language: str,
+    payload: GapsSaveIn,
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """Сохраняет формы и транскрипции в языковые записи выбранного языка."""
+    from app import word_gaps
+
+    return word_gaps.save(db, language, payload.items)
 
 
 @router.post(
