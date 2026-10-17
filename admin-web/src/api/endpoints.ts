@@ -2022,6 +2022,55 @@ export async function deleteLanguageWordForm(
   return data;
 }
 
+/** Чего не хватает языку: слова без форм и без транскрипции. */
+export interface LanguageGaps {
+  language: string;
+  name: string;
+  words: number;
+  with_forms: number;
+  with_transcription: number;
+  missing_forms: number;
+  missing_transcription: number;
+}
+
+export interface GapItem {
+  entry_id: number;
+  word: string;
+  transcription: string;
+  forms: string[];
+  has_transcription: boolean;
+}
+
+export async function getLanguageGaps(language: string): Promise<LanguageGaps> {
+  const { data } = await api.get(`/admin/languages/${language}/gaps`);
+  return data;
+}
+
+/** Что модель предлагает заполнить. Ничего не сохраняет. */
+export async function previewLanguageGaps(
+  language: string,
+  limit = 20,
+): Promise<{ items: GapItem[]; tokens: number; reason?: string }> {
+  const { data } = await api.post(
+    `/admin/languages/${language}/gaps/fill`,
+    { limit },
+    { timeout: 300000 },
+  );
+  return data;
+}
+
+export async function saveLanguageGaps(
+  language: string,
+  items: GapItem[],
+): Promise<{ forms_added: number; transcriptions: number; skipped: unknown[] }> {
+  const { data } = await api.post(
+    `/admin/languages/${language}/gaps/fill/save`,
+    { items },
+    { timeout: 300000 },
+  );
+  return data;
+}
+
 /** Аудит контента словаря: каких слов не хватает его фразам и какие части
  * мини-фраз не совпадают со своими словами и формами. */
 export async function getContentAudit(dictionaryId: number): Promise<ContentAudit> {

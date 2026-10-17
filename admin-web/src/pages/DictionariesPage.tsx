@@ -4,7 +4,10 @@ import {
   createLanguage,
   listDictionaries,
   listLanguages,
+  previewLanguageGaps,
+  saveLanguageGaps,
   updateLanguage,
+  type GapItem,
   type LanguageDetail,
 } from "../api/endpoints";
 import type { Dictionary } from "../types";
@@ -28,6 +31,52 @@ export function DictionariesPage() {
   const [draft, setDraft] = useState({ code: "", name: "", native_name: "", alphabet: "" });
   const [busy, setBusy] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  // Заполнение пробелов: показ предложений модели и сохранение.
+  const [gaps, setGaps] = useState<Record<string, GapItem[]>>({});
+  const [gapsNote, setGapsNote] = useState<string | null>(null);
+
+  /// Просит модель заполнить формы и транскрипции для этого языка.
+  /// Ничего не сохраняет: сначала человек смотрит, что пришло.
+  async function suggestGaps(language: LanguageDetail) {
+    setBusy(language.code);
+    setGapsNote(null);
+    try {
+      const res = await previewLanguageGaps(language.code, 20);
+      if (res.reason) {
+        setGapsNote(res.reason);
+        setBusy(null);
+        return;
+      }
+      setGaps((prev) => ({ ...prev, [language.code]: res.items }));
+      const forms = res.items.reduce((sum, item) => sum + item.forms.length, 0);
+      setGapsNote(
+        `Предложено: слов ${res.items.length}, форм ${forms} · токенов ${res.tokens}. Проверьте и нажмите «Сохранить».`,
+      );
+    } catch {
+      setGapsNote("Не удалось получить предложения — проверьте ключ ИИ в настройках");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function applyGaps(language: LanguageDetail) {
+    const items = gaps[language.code] ?? [];
+    if (items.length === 0) return;
+    setBusy(language.code);
+    try {
+      const res = await saveLanguageGaps(language.code, items);
+      setGaps((prev) => ({ ...prev, [language.code]: [] }));
+      setGapsNote(
+        `Сохранено: форм ${res.forms_added}, транскрипций ${res.transcriptions}.` +
+          (res.skipped.length ? ` Пропущено: ${res.skipped.length}.` : ""),
+      );
+      await load();
+    } catch {
+      setGapsNote("Не удалось сохранить");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -253,11 +302,52 @@ export function DictionariesPage() {
                 >
                   {l.ui_ready ? "Интерфейс переведён" : "Интерфейс не переведён"}
                 </button>
+                <button
+                  onClick={() => suggestGaps(l)}
+                  disabled={busy === l.code}
+                  title="Модель предложит формы и транскрипции для слов, у которых их нет"
+                  className="btn-tinted rounded-full px-3 py-1.5 text-sm font-medium disabled:opacity-60"
+                >
+                  {busy === l.code ? "…" : "Заполнить формы"}
+                </button>
               </div>
+
+              {(gaps[l.code]?.length ?? 0) > 0 && (
+                <div className="mt-3 rounded-lg bg-[var(--fill)] p-3">
+                  <p className="mb-2 text-xs text-slate-500">
+                    Предложено слов: {gaps[l.code].length} · форм:{" "}
+                    {gaps[l.code].reduce((sum, item) => sum + item.forms.length, 0)} ·
+                    транскрипций:{" "}
+                    {gaps[l.code].filter((item) => item.transcription && !item.has_transcription).length}
+                  </p>
+                  <ul className="mb-2 max-h-40 space-y-1 overflow-auto text-xs">
+                    {gaps[l.code].slice(0, 20).map((item) => (
+                      <li key={item.entry_id} translate="no">
+                        <span className="font-medium text-slate-800">{item.word}</span>
+                        {item.transcription && (
+                          <span className="ml-1 text-slate-400">/{item.transcription}/</span>
+                        )}
+                        <span className="ml-1 text-slate-500">
+                          {item.forms.length ? item.forms.join(", ") : "без форм"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    onClick={() => applyGaps(l)}
+                    disabled={busy === l.code}
+                    className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+                  >
+                    Сохранить
+                  </button>
+                </div>
+              )}
             </li>
           ))}
         </ul>
       )}
+
+      {gapsNote && <p className="mt-3 text-xs text-slate-500">{gapsNote}</p>}
 
       {dictionaries.length > 0 && (
         <p className="mt-8 text-xs text-slate-500">
