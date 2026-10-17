@@ -439,6 +439,55 @@ def _template_texts(roles: list[str]) -> dict:
     }
 
 
+_EXPLANATION_SYSTEM = (
+    "You localise a language-learning app's short instruction into several languages. Input: "
+    "{\"langs\":\"code:name,...\",\"t\":[{\"n\":\"template name (Russian)\",\"ru\":\"Russian instruction\","
+    "\"roles\":\"pronoun,verb\"}]}. For every template and EVERY language code in langs write the same instruction "
+    "in that language: keep the meaning (\"to say X, put the parts in this order ... the result is the phrase\"), "
+    "keep the placeholders EXACTLY as written ({{translation}}, {{phrase}}, {{1}}, {{1.tr}} -- braces, digits and "
+    "the .tr suffix unchanged), and translate the role names (pronoun, verb, noun, adjective, adverb, preposition, "
+    "number, other) into that language. Do not add or drop parts, do not invent new placeholders. "
+    "Reply JSON only: {\"tr\":[{\"n\":\"template name\",\"tr\":{\"<code from langs>\":\"instruction\"}}]}."
+)
+
+
+def ai_template_explanations(
+    db: Session, templates: list[tuple[str, list[str], str]], lang_names: list[tuple[str, str]]
+) -> tuple[dict[str, dict[str, str]], int]:
+    """Объяснения шаблонов на языках, для которых их ещё нет.
+
+    `templates` -- (имя, роли, русский текст). Возвращает {имя: {язык: текст}} и
+    потраченные токены. Один запрос на все новые шаблоны: дешевле и быстрее, чем
+    по запросу на каждый."""
+    if not templates or not lang_names:
+        return {}, 0
+    payload = {
+        "langs": _langs_payload(lang_names),
+        "t": [{"n": name, "ru": reference, "roles": ",".join(roles)} for name, roles, reference in templates],
+    }
+    try:
+        data, tokens = chat(db, _EXPLANATION_SYSTEM, payload, max_tokens=260 * len(templates) + 300)
+    except HTTPException:
+        # Объяснения -- удобство, а не обязательная часть сохранения фразы:
+        # без них шаблон покажет русский текст.
+        return {}, 0
+    out: dict[str, dict[str, str]] = {}
+    allowed = {code for code, _ in lang_names}
+    for row in data.get("tr") or []:
+        if not isinstance(row, dict):
+            continue
+        name = str(row.get("n") or "").strip()
+        values = row.get("tr") if isinstance(row.get("tr"), dict) else {}
+        texts = {
+            str(code).strip().lower(): str(text).strip()
+            for code, text in values.items()
+            if str(code).strip().lower() in allowed and str(text or "").strip()
+        }
+        if name and texts:
+            out[name] = texts
+    return out, tokens
+
+
 # Words that carry no meaning of their own for similarity: two phrases are
 # not "the same" just because both start with «я» or contain «не».
 _FUNCTION_WORDS = {
@@ -927,6 +976,9 @@ def rephrase(db: Session, dictionary: Dictionary, items: list[dict], category_id
 
 def save(db: Session, dictionary: Dictionary, items: list[dict]) -> dict:
     created, skipped, forms_added, templates_created = [], [], [], []
+    # Новые шаблоны: (имя, роли, русский текст объяснения) -- чтобы после цикла
+    # одним запросом попросить объяснения на остальных языках.
+    new_templates: list[tuple[str, list[str], str]] = []
     for item in items:
         # Переводы: приходят словарём по кодам языков. Старые три поля остаются
         # для совместимости, остальные языки живут в mini_phrase_translations.
@@ -979,25 +1031,29 @@ def save(db: Session, dictionary: Dictionary, items: list[dict]) -> dict:
             .first()
         )
         if template is None:
+            texts = _template_texts(roles)
             template = MiniPhraseTemplate(
                 name=name,
                 language=lang,
                 distractor_count=2,
                 enabled=True,
-                **_template_texts(roles),
+                **texts,
             )
             db.add(template)
             db.flush()
             # Объяснения трёх языков дублируем в таблицу переводов, чтобы
             # чтение шло одним путём для всех языков.
             for code in ("ru", "tg", "uz"):
-                value = getattr(template, f"explanation_{code}", None)
+                value = texts.get(f"explanation_{code}")
                 if value:
                     db.add(
                         MiniPhraseTemplateTranslation(
                             template_id=template.id, language=code, text=value
                         )
                     )
+            # Остальные языки попросим у модели после цикла — одним запросом на
+            # все новые шаблоны сразу.
+            new_templates.append((name, roles, texts.get("explanation_ru") or ""))
             templates_created.append(name)
         mp = MiniPhrase(
             dictionary_id=dictionary.id,
@@ -1049,7 +1105,41 @@ def save(db: Session, dictionary: Dictionary, items: list[dict]) -> dict:
         db.add(mp)
         db.flush()
         created.append(checked["text"])
-    return {"created": created, "skipped": skipped, "forms_added": forms_added, "templates_created": templates_created}
+
+    # Объяснения на языках, для которых их ещё нет: ru/tg/uz собираются из
+    # подписей ролей, остальные приходят от модели. Языки берутся из таблицы
+    # languages, поэтому новый язык получает объяснение без правки кода.
+    explain_tokens = 0
+    if new_templates:
+        covered = {"ru", "tg", "uz"}
+        missing = [(code, name) for code, name in translation_languages() if code not in covered]
+        if missing:
+            filled, explain_tokens = ai_template_explanations(db, new_templates, missing)
+            lang = phrase_language(dictionary)
+            for name, _roles, _reference in new_templates:
+                texts = filled.get(name) or {}
+                if not texts:
+                    continue
+                template = (
+                    db.query(MiniPhraseTemplate)
+                    .filter(MiniPhraseTemplate.name == name, MiniPhraseTemplate.language == lang)
+                    .first()
+                )
+                if template is None:
+                    continue
+                for code, text in texts.items():
+                    db.add(
+                        MiniPhraseTemplateTranslation(
+                            template_id=template.id, language=code, text=text
+                        )
+                    )
+    return {
+        "created": created,
+        "skipped": skipped,
+        "forms_added": forms_added,
+        "templates_created": templates_created,
+        "tokens": explain_tokens,
+    }
 
 
 # --- Adding missing words as full cards --------------------------------------------
