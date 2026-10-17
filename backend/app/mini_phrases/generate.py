@@ -29,11 +29,55 @@ from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+# Язык, на котором написана сама мини-фраза. Переводы делаются на все
+# остальные включённые языки.
+PHRASE_LANGUAGE = "ru"
+
+
+def translation_languages() -> list[tuple[str, str]]:
+    """Языки, на которые переводим мини-фразы: все включённые, кроме самого
+    языка фразы.
+
+    Список берётся из таблицы languages, поэтому язык, добавленный в админке,
+    попадает в генерацию сам -- без правки кода. Раньше здесь были зашиты три
+    кода (tg/uz/en), и четвёртый язык просто не переводился.
+    """
+    from app.core.languages_in_db import known_codes
+    from app.database import SessionLocal
+    from app.models.language import Language
+
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(Language.code, Language.name)
+            .filter(Language.is_enabled.is_(True))
+            .order_by(Language.sort_order, Language.code)
+            .all()
+        )
+    finally:
+        db.close()
+    known = known_codes()
+    pairs = [(code, name) for code, name in rows if code != PHRASE_LANGUAGE]
+    if known:
+        pairs = [(code, name) for code, name in pairs if code in known]
+    return pairs or [("tg", "Таджикский"), ("uz", "Узбекский"), ("en", "Английский")]
+
+
+def _langs_payload(langs: list[tuple[str, str]]) -> str:
+    """`tg:Таджикский,uz:Узбекский` -- модель видит и код, и название языка."""
+    return ",".join(f"{code}:{name}" for code, name in langs)
+
 from app.core.content_language import primary_translation
 from app.mini_phrases.service import normalize_answer
 from app.models.category import Category
 from app.models.dictionary import Dictionary
-from app.models.mini_phrase import WORD_ROLES, MiniPhrase, MiniPhrasePart, MiniPhraseTemplate
+from app.models.mini_phrase import (
+    WORD_ROLES,
+    MiniPhrase,
+    MiniPhrasePart,
+    MiniPhraseTemplate,
+    MiniPhraseTranslation,
+)
 from app.models.phrase import Phrase
 from app.models.word import Word, WordForm, WordTranslation
 
@@ -256,9 +300,12 @@ _PHRASE_SYSTEM = (
     "— cover many different words and situations. "
     "Rate u = how often a beginner needs it in real conversation, 1-5. "
     "ALWAYS list in need 5-10 words NOT in w that would most widen what the learner can say, each with an example "
-    "phrase. Reply JSON only: {\"r\":[{\"t\":\"the full correct phrase\",\"p\":[[id,\"word exactly as in t"
-    "\"],...],\"u\":5,\"s\":\"situation, 2-4 Russian words\",\"tg\":\"Tajik\",\"uz\":\"Uzbek (Latin, oʻ gʻ)\","
-    "\"en\":\"English\"}],\"need\":[{\"w\":\"word (base form)\",\"ex\":\"example phrase\"}]}. "
+    "phrase. "
+    "Translate every phrase into EVERY language listed in langs (input, form \"code:name,...\"): put the natural "
+    "translation of t into tr, keyed by the language code, nothing else there. "
+    "Reply JSON only: {\"r\":[{\"t\":\"the full correct phrase\",\"p\":[[id,\"word exactly as in t\"],...],"
+    "\"u\":5,\"s\":\"situation, 2-4 Russian words\",\"tr\":{\"<code from langs>\":\"translation\"}}],"
+    "\"need\":[{\"w\":\"word (base form)\",\"ex\":\"example phrase\"}]}. "
     "p lists every word of t in order."
 )
 
@@ -298,7 +345,15 @@ def _compact(words: list[Word]) -> str:
     return ",".join(f"{w.id}:{w.word.strip().lower()}" for w in words)
 
 
-def ai_phrases(db: Session, words: list[Word], count: int, topic: str, avoid: list[str]) -> tuple[list[dict], list[dict], int]:
+def ai_phrases(
+    db: Session,
+    words: list[Word],
+    count: int,
+    topic: str,
+    avoid: list[str],
+    langs: list[tuple[str, str]] | None = None,
+) -> tuple[list[dict], list[dict], int]:
+    langs = langs or translation_languages()
     results: list[dict] = []
     needs: dict[str, dict] = {}
     tokens = 0
@@ -309,8 +364,10 @@ def ai_phrases(db: Session, words: list[Word], count: int, topic: str, avoid: li
         data, used = chat(
             db,
             _PHRASE_SYSTEM,
-            {"n": n, "topic": topic, "w": _compact(words), "have": seen[-150:]},
-            max_tokens=190 * n + 700,
+            {"n": n, "topic": topic, "w": _compact(words), "have": seen[-150:], "langs": _langs_payload(langs)},
+            # Каждый язык добавляет текст перевода, поэтому бюджет растёт с их
+            # числом: иначе на пяти языках ответ обрезался бы на середине.
+            max_tokens=(190 + 50 * len(langs)) * n + 700,
         )
         tokens += used
         got = [i for i in data.get("r") or [] if isinstance(i, dict)]
@@ -631,7 +688,18 @@ def generate(db: Session, dictionary: Dictionary, count: int, category_id: int |
             detail="Слишком мало слов для фраз — добавьте слова (см. «Не хватает слов»)",
         )
     avoid = [t for (t,) in db.query(MiniPhrase.text).filter(MiniPhrase.dictionary_id == dictionary.id).limit(150)]
-    raw, needs, tokens = ai_phrases(db, words, count, topic, avoid)
+    langs = translation_languages()
+    raw, needs, tokens = ai_phrases(db, words, count, topic, avoid, langs)
+    # Переводы живут отдельно от проверки структуры фразы: саму фразу проверяет
+    # скрипт (слова из словаря, формы, повторы), а переводы -- дело модели.
+    translations_by_key = {
+        str(item.get("key")): {
+            str(code).strip().lower(): str(text).strip()
+            for code, text in (item.get("tr") or {}).items()
+            if str(text or "").strip()
+        }
+        for item in raw
+    }
     known = _known_tokens(_words(db, dictionary.id), dictionary.language)
     needs = [n for n in needs if n["text"] not in known]
     for i, item in enumerate(raw):
@@ -643,6 +711,8 @@ def generate(db: Session, dictionary: Dictionary, count: int, category_id: int |
     keep = [i for i in items if i["valid"] and (i["too_similar"] or i.get("stars", 0) >= MIN_STARS)]
     dropped = len(items) - len(keep)
     items = keep
+    for item in items:
+        item["translations"] = translations_by_key.get(str(item.get("key")), {})
     return {
         "items": items,
         "tokens": tokens + fix_tokens,
@@ -650,6 +720,7 @@ def generate(db: Session, dictionary: Dictionary, count: int, category_id: int |
         "suggested_words": needs,
         "auto_fixed": fixed,
         "dropped": dropped,
+        "languages": [code for code, _ in langs],
     }
 
 
@@ -777,34 +848,50 @@ def self_review(db: Session, dictionary: Dictionary, words: list[Word], raw: lis
 
 _REPHRASE_SYSTEM = (
     "You are an experienced Russian teacher for adult Tajik/Uzbek beginners. Input: {\"w\":\"id:word,...\" (the ONLY "
-    "words allowed),\"r\":[{\"k\":key,\"was\":\"phrase\",\"like\":\"an existing phrase\"}]}. For each, write ONE "
+    "words allowed),\"langs\":\"code:name,...\" (translate into every one of them),"
+    "\"r\":[{\"k\":key,\"was\":\"phrase\",\"like\":\"an existing phrase\"}]}. For each, write ONE "
     "new phrase of 2-5 words that is genuinely useful in real conversation (question, request, answer, politeness, "
     "need, plan, feeling, opinion), 100% correct natural Russian, and means something clearly different from both was "
     "and like. Every word in its exact form must be a form of the w word whose id you give; if a needed word/form is "
     "missing from w, choose another phrase. Check each answer before replying. Rate u 1-5 how often a beginner needs "
     "it. Reply JSON only: {\"r\":[{\"k\":key,\"t\":\"full phrase\",\"p\":[[id,\"word exactly as in t\"],...],"
-    "\"u\":5,\"s\":\"situation\",\"tg\":\"Tajik\",\"uz\":\"Uzbek (Latin)\",\"en\":\"English\"}]}."
+    "\"u\":5,\"s\":\"situation\",\"tr\":{\"<code from langs>\":\"translation\"}}]}."
 )
 
 
 def rephrase(db: Session, dictionary: Dictionary, items: list[dict], category_id: int | None = None) -> dict:
     _, category_id = _topic(db, dictionary, category_id)
     words = word_list(db, dictionary, category_id)
+    langs = translation_languages()
     payload_items = [
         {"k": str(item.get("key")), "was": item.get("text"), "like": item.get("similar_to") or ""} for item in items[:30]
     ]
     if not payload_items:
         return {"items": [], "tokens": 0}
     data, tokens = chat(
-        db, _REPHRASE_SYSTEM, {"w": _compact(words), "r": payload_items}, max_tokens=170 * len(payload_items) + 200
+        db,
+        _REPHRASE_SYSTEM,
+        {"w": _compact(words), "r": payload_items, "langs": _langs_payload(langs)},
+        max_tokens=(170 + 50 * len(langs)) * len(payload_items) + 200,
     )
     raw = [i for i in data.get("r") or [] if isinstance(i, dict)]
     for i in raw:
         i["key"] = str(i.get("k"))
+    translations_by_key = {
+        str(i.get("key")): {
+            str(code).strip().lower(): str(text).strip()
+            for code, text in (i.get("tr") or {}).items()
+            if str(text or "").strip()
+        }
+        for i in raw
+    }
     allowed = {w.id for w in words}
     items = check_candidates(db, dictionary, raw, allowed)
     items, fix_tokens, _ = self_review(db, dictionary, words, raw, items, allowed)
-    return {"items": [i for i in items if i["valid"]], "tokens": tokens + fix_tokens}
+    kept = [i for i in items if i["valid"]]
+    for item in kept:
+        item["translations"] = translations_by_key.get(str(item.get("key")), {})
+    return {"items": kept, "tokens": tokens + fix_tokens}
 
 
 # --- Saving the chosen ones (script only) -----------------------------------------
@@ -813,12 +900,27 @@ def rephrase(db: Session, dictionary: Dictionary, items: list[dict], category_id
 def save(db: Session, dictionary: Dictionary, items: list[dict]) -> dict:
     created, skipped, forms_added, templates_created = [], [], [], []
     for item in items:
+        # Переводы: приходят словарём по кодам языков. Старые три поля остаются
+        # для совместимости, остальные языки живут в mini_phrase_translations.
+        translations = {
+            str(code).strip().lower(): str(text).strip()
+            for code, text in (item.get("translations") or {}).items()
+            if str(text or "").strip()
+        }
+        for code, value in (
+            ("tg", item.get("translation_tg")),
+            ("uz", item.get("translation_uz")),
+            ("en", item.get("translation_en")),
+        ):
+            if value and str(value).strip() and code not in translations:
+                translations[code] = str(value).strip()
+
         raw = {
             "key": item.get("key"),
             "p": [[p.get("word_id"), p.get("text")] for p in item.get("parts", [])],
-            "tg": item.get("translation_tg"),
-            "uz": item.get("translation_uz"),
-            "en": item.get("translation_en"),
+            "tg": translations.get("tg"),
+            "uz": translations.get("uz"),
+            "en": translations.get("en"),
         }
         checked = check_candidates(db, dictionary, [raw])[0]
         if not checked["valid"] and item.get("force"):
@@ -855,6 +957,14 @@ def save(db: Session, dictionary: Dictionary, items: list[dict]) -> dict:
             translation_en=checked["translation_en"],
             enabled=True,
         )
+        db.add(mp)
+        db.flush()
+        # Одна строка на язык: поэтому пятый язык сохраняется без миграции
+        # колонок и без правки кода.
+        for code, text in translations.items():
+            db.add(
+                MiniPhraseTranslation(mini_phrase_id=mp.id, language=code, text=text[:1000])
+            )
         for position, p in enumerate(checked["parts"], start=1):
             word = db.get(Word, p["word_id"])
             if word.role is None:

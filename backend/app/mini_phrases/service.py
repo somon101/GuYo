@@ -2,7 +2,12 @@ import re
 
 from sqlalchemy.orm import Session
 
-from app.core.content_language import phrase_translation, primary_translation, ui_language
+from app.core.content_language import (
+    mini_phrase_translation,
+    phrase_translation,
+    primary_translation,
+    ui_language,
+)
 from app.core.storage import url_for_key
 from app.mini_phrases.render import DEFAULT_EXPLANATIONS, render_explanation
 from app.models.lesson import Lesson
@@ -106,7 +111,7 @@ def _distractors(db: Session, user: User, mp: MiniPhrase, count: int, threshold:
 
 
 def mini_phrase_out(db: Session, user: User, mp: MiniPhrase, threshold: int, *, with_distractors: bool = True) -> MiniPhraseOut:
-    translation = phrase_translation(mp) or mp.translation_tg
+    translation = mini_phrase_translation(mp) or mp.translation_tg
     parts = []
     for p in mp.parts:
         primary = primary_translation(p.word) if p.word is not None else None

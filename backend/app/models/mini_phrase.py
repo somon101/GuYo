@@ -80,6 +80,35 @@ class MiniPhrase(Base):
     parts: Mapped[list["MiniPhrasePart"]] = relationship(
         back_populates="mini_phrase", cascade="all, delete-orphan", order_by="MiniPhrasePart.position"
     )
+    translations: Mapped[list["MiniPhraseTranslation"]] = relationship(
+        back_populates="mini_phrase", cascade="all, delete-orphan"
+    )
+
+
+class MiniPhraseTranslation(Base):
+    """Перевод мини-фразы на один язык.
+
+    Раньше языков было ровно три (колонки translation_tg/uz/en), поэтому
+    четвёртый нельзя было ни сгенерировать, ни сохранить. Теперь переводов
+    столько, сколько языков в таблице languages: добавили язык в админке --
+    генератор сам спросит перевод на нём, без правки кода.
+
+    Старые колонки остаются: их читает API, и они продолжают заполняться.
+    """
+
+    __tablename__ = "mini_phrase_translations"
+    __table_args__ = (
+        UniqueConstraint("mini_phrase_id", "language", name="uq_mini_phrase_translations"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    mini_phrase_id: Mapped[int] = mapped_column(
+        ForeignKey("mini_phrases.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    language: Mapped[str] = mapped_column(String(8), nullable=False, index=True)
+    text: Mapped[str] = mapped_column(String(1000), nullable=False)
+
+    mini_phrase: Mapped["MiniPhrase"] = relationship(back_populates="translations")
 
 
 class MiniPhrasePart(Base):

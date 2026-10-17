@@ -153,6 +153,24 @@ def phrase_translation(phrase) -> str | None:
     return phrase.translation_tg
 
 
+def mini_phrase_translation(mp) -> str | None:
+    """Перевод мини-фразы на язык, который читает человек.
+
+    Сначала смотрим mini_phrase_translations -- там столько языков, сколько в
+    таблице languages (генератор пишет туда все), затем старые колонки
+    tg/uz/en, которые остаются для уже существующих строк и для совместимости.
+    """
+    lang = content_language()
+    for row in getattr(mp, "translations", None) or []:
+        if row.language == lang and (row.text or "").strip():
+            return row.text
+    if lang == "uz":
+        return mp.translation_uz
+    if lang == "en":
+        return mp.translation_en
+    return mp.translation_tg
+
+
 def only_translated_phrases(phrases: list) -> list:
     if content_language() == "tg":
         return phrases
