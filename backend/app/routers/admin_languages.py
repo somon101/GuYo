@@ -57,6 +57,8 @@ def _detail(db: Session, language: Language) -> LanguageDetail:
         native_name=language.native_name,
         alphabet=language.alphabet,
         is_enabled=language.is_enabled,
+        # Поле обязательное в схеме: без него рушился весь ответ админке.
+        ui_ready=language.ui_ready,
         sort_order=language.sort_order,
         entries=entries.count(),
         with_audio=entries.filter(WordEntry.audio_key.isnot(None)).count(),
