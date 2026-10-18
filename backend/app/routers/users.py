@@ -172,6 +172,26 @@ def delete_my_account(db: Session = Depends(get_db), user: User = Depends(get_cu
     return None
 
 
+class UserPasswordIn(BaseModel):
+    password: str
+
+
+@router.put("/{user_id}/password", status_code=status.HTTP_204_NO_CONTENT)
+def set_user_password(
+    user_id: int, payload: UserPasswordIn, db: Session = Depends(get_db), _admin: Admin = Depends(get_current_admin)
+):
+    """Support: the admin sets a new password for a user -- e.g. an account
+    made with Google (whose password nobody knows) that has to log in
+    with login and password. A Google link, if any, stays."""
+    if len(payload.password) < 4:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Минимум 4 символа")
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    user.password_hash = hash_password(payload.password)
+    db.commit()
+
+
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user(user_id: int, db: Session = Depends(get_db), _admin: Admin = Depends(get_current_admin)):
     """Permanently removes a user and everything scoped to them -- every
