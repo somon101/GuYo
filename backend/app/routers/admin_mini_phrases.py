@@ -588,3 +588,68 @@ def update_settings(payload: MiniPhraseSettingsIn, db: Session = Depends(get_db)
         s.max_per_lesson = payload.max_per_lesson
     db.commit()
     return _settings_out(s)
+
+
+# --- Мини-фразы на своём языке (app/mini_phrases/native.py) -------------------
+
+
+class NativeGenerateIn(BaseModel):
+    language: str = Field(min_length=2, max_length=8)
+    count: int = Field(default=10, ge=1, le=25)
+    topic: str = Field(default="", max_length=100)
+
+
+class NativeSaveIn(BaseModel):
+    language: str = Field(min_length=2, max_length=8)
+    items: list[dict] = Field(min_length=1, max_length=50)
+
+
+class ManualCheckIn(BaseModel):
+    language: str = Field(min_length=2, max_length=8)
+    text: str = Field(min_length=1, max_length=500)
+
+
+class ManualTemplateIn(ManualCheckIn):
+    parts: list[dict] = Field(min_length=1, max_length=20)
+
+
+@router.post("/dictionaries/{dictionary_id}/mini-phrases/native/generate")
+def native_generate(
+    dictionary_id: int, payload: NativeGenerateIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
+):
+    """Новые мини-фразы сразу на выбранном языке. Ничего не сохраняет."""
+    from app.mini_phrases import native
+
+    return native.generate_preview(db, _get_dictionary_or_404(db, dictionary_id), payload.language, payload.count, payload.topic)
+
+
+@router.post("/dictionaries/{dictionary_id}/mini-phrases/native/save")
+def native_save(
+    dictionary_id: int, payload: NativeSaveIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
+):
+    """Сохраняет фразы выбранного языка (из генерации или вручную)."""
+    from app.mini_phrases import native
+
+    return native.save(db, _get_dictionary_or_404(db, dictionary_id), payload.language, payload.items)
+
+
+@router.post("/dictionaries/{dictionary_id}/mini-phrases/manual/check")
+def manual_check(
+    dictionary_id: int, payload: ManualCheckIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
+):
+    """Своя фраза: есть ли все её слова в словаре этого языка."""
+    from app.mini_phrases import native
+
+    return native.manual_check(db, _get_dictionary_or_404(db, dictionary_id), payload.language, payload.text)
+
+
+@router.post("/dictionaries/{dictionary_id}/mini-phrases/manual/template")
+def manual_template(
+    dictionary_id: int, payload: ManualTemplateIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)
+):
+    """ИИ подбирает шаблон этого языка (или предлагает новый) и пишет подсказки."""
+    from app.mini_phrases import native
+
+    return native.manual_template(
+        db, _get_dictionary_or_404(db, dictionary_id), payload.language, payload.text, payload.parts
+    )

@@ -347,7 +347,9 @@ def save(db, dictionary: Dictionary, target_language: str, items: list[dict]) ->
             .first()
         )
         if template is None:
-            texts = _template_texts(roles) if target_language in ("ru", "tg", "uz") else {}
+            # Объяснения пишутся на языках ЧТЕНИЯ, а не на языке фразы: ru/tg/uz
+            # есть всегда, остальные языки заполняет модель ниже.
+            texts = _template_texts(roles)
             template = MiniPhraseTemplate(
                 name=name,
                 language=target_language,

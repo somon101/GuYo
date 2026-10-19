@@ -18,6 +18,8 @@ import { MiniPhrasePhonePreview } from "../components/MiniPhrasePhonePreview";
 import { SearchBox, useSearchQuery } from "../components/SearchBox";
 import { matches } from "../utils/search";
 import { PerLanguageFields } from "../components/PerLanguageFields";
+import { NativeMiniPhrasePanel } from "../components/NativeMiniPhrasePanel";
+import { useLanguages } from "../components/PerLanguageFields";
 import type {
   Dictionary,
   MiniPhrase,
@@ -75,7 +77,13 @@ export function MiniPhrasesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [previewId, setPreviewId] = useState<number | null>(null);
   const [query, setQuery] = useSearchQuery();
+  // Each studied language has its own mini-phrases: one tab per language.
+  const languages = useLanguages();
+  const [tab, setTab] = useState<string | null>(null);
+  const lang = tab ?? dictionary?.language ?? "ru";
+  const ofLanguage = (mp: MiniPhrase) => (mp.language ?? dictionary?.language ?? "ru") === lang;
   const shown = items.filter((mp) =>
+    ofLanguage(mp) &&
     matches(
       query,
       mp.text,
@@ -167,13 +175,30 @@ export function MiniPhrasesPage() {
       </nav>
       <LanguageSectionTabs dictionaryId={dictionaryId} active="mini-phrases" />
 
+      <div className="mb-4 flex flex-wrap gap-1.5">
+        {languages.map((l) => (
+          <button
+            key={l.code}
+            onClick={() => {
+              setTab(l.code);
+              setDraft(null);
+            }}
+            className={`rounded-full px-3 py-1 text-sm font-medium ${
+              l.code === lang ? "bg-indigo-600 text-white" : "btn-tinted"
+            }`}
+          >
+            {l.name} · {items.filter((mp) => (mp.language ?? dictionary.language) === l.code).length}
+          </button>
+        ))}
+      </div>
+
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-[26px] font-bold tracking-tight text-slate-900">
             Мини-фразы
           </h1>
           <p className="text-sm text-slate-500">
-            {items.length} шт. · Шаблоны и очки —{" "}
+            {items.filter(ofLanguage).length} шт. · Шаблоны и очки —{" "}
             <Link
               to="/mini-phrase-templates"
               className="text-indigo-600 hover:underline"
@@ -183,6 +208,7 @@ export function MiniPhrasesPage() {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-2">
+          {lang === dictionary.language && (
           <button
             onClick={() =>
               setDraft({ ...EMPTY, template_id: templates[0]?.id ?? null })
@@ -191,8 +217,17 @@ export function MiniPhrasesPage() {
           >
             + Мини-фраза
           </button>
+          )}
         </div>
       </div>
+
+      <NativeMiniPhrasePanel
+        key={lang}
+        dictionaryId={dictionaryId}
+        language={lang}
+        languageName={languages.find((l) => l.code === lang)?.name ?? lang}
+        onSaved={reload}
+      />
 
       {draft && (
         <Editor
@@ -250,7 +285,10 @@ export function MiniPhrasesPage() {
                   )}
                 </p>
                 <p className="font-serif text-[15px] text-slate-600">
-                  {mp.translation_tg}
+                  {Object.entries(mp.translations ?? {})
+                    .slice(0, 3)
+                    .map(([code, text]) => `${code}: ${text}`)
+                    .join(" · ") || mp.translation_tg}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   {mp.parts.map((p, i) => (

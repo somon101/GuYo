@@ -12,7 +12,7 @@ import {
   type MiniPhraseTemplateInput,
 } from "../api/endpoints";
 import { MiniPhrasePhonePreview } from "../components/MiniPhrasePhonePreview";
-import { PerLanguageFields } from "../components/PerLanguageFields";
+import { PerLanguageFields, useLanguages } from "../components/PerLanguageFields";
 import type {
   Dictionary,
   MiniPhrase,
@@ -62,6 +62,10 @@ export function MiniPhraseTemplatesPage() {
   const [phrases, setPhrases] = useState<MiniPhrase[]>([]);
   const [openId, setOpenId] = useState<number | "none" | null>(null);
   const [previewId, setPreviewId] = useState<number | null>(null);
+  // Templates belong to one studied language: one tab per language.
+  const languages = useLanguages();
+  const [lang, setLang] = useState("ru");
+  const shownTemplates = templates.filter((t) => (t.language ?? "ru") === lang);
 
   useEffect(() => {
     listDictionaries()
@@ -129,7 +133,7 @@ export function MiniPhraseTemplatesPage() {
           </p>
         </div>
         <button
-          onClick={() => setEditing({ id: null, input: { ...EMPTY } })}
+          onClick={() => setEditing({ id: null, input: { ...EMPTY, language: lang } })}
           className="shrink-0 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
         >
           + Шаблон
@@ -161,7 +165,24 @@ export function MiniPhraseTemplatesPage() {
         />
       )}
 
-      <div className="mb-3 mt-8 flex flex-wrap items-end justify-between gap-3">
+      <div className="mt-8 flex flex-wrap gap-1.5">
+        {languages.map((l) => (
+          <button
+            key={l.code}
+            onClick={() => {
+              setLang(l.code);
+              setOpenId(null);
+            }}
+            className={`rounded-full px-3 py-1 text-sm font-medium ${
+              l.code === lang ? "bg-indigo-600 text-white" : "btn-tinted"
+            }`}
+          >
+            {l.name} · {templates.filter((t) => (t.language ?? "ru") === l.code).length}
+          </button>
+        ))}
+      </div>
+
+      <div className="mb-3 mt-4 flex flex-wrap items-end justify-between gap-3">
         <h2 className="text-lg font-semibold text-slate-900">
           {openId === null ? (
             "Шаблоны"
@@ -198,14 +219,14 @@ export function MiniPhraseTemplatesPage() {
       </div>
 
       {openId === null ? (
-        templates.length === 0 ? (
+        shownTemplates.length === 0 ? (
           <p className="text-sm text-slate-500">
-            Шаблонов пока нет. Без шаблона используется стандартное объяснение.
+            Шаблонов этого языка пока нет. Без шаблона используется стандартное объяснение.
           </p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {[
-              ...templates.map((t) => ({ t, key: t.id as number | "none" })),
+              ...shownTemplates.map((t) => ({ t, key: t.id as number | "none" })),
               ...(phrasesOf("none").length
                 ? [{ t: null, key: "none" as const }]
                 : []),
@@ -235,7 +256,7 @@ export function MiniPhraseTemplatesPage() {
                   </div>
                   <span className="line-clamp-2 text-xs text-slate-500">
                     {t
-                      ? t.explanation_ru || t.explanation_tg
+                      ? t.explanations?.ru || t.explanation_ru || Object.values(t.explanations ?? {})[0]
                       : "Без шаблона — общее объяснение"}
                   </span>
                   <span

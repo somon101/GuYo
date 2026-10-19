@@ -2714,3 +2714,83 @@ export async function getMemoryWord(userId: number, wordId: number): Promise<Mem
   const { data } = await api.get(`/admin/memory/users/${userId}/words/${wordId}`);
   return data;
 }
+
+// --- Мини-фразы на своём языке (генерация и вручную) -------------------------
+
+export interface NativePart {
+  word_id: number;
+  text: string;
+  form_id: number | null;
+  role: string;
+  base?: string;
+}
+
+export interface NativeItem {
+  text: string;
+  parts: NativePart[];
+  roles?: string[];
+  translations: Record<string, string>;
+  template_name: string;
+  template_exists?: boolean;
+  template_id?: number | null;
+  explanations?: Record<string, string>;
+  valid?: boolean;
+  reason?: string | null;
+}
+
+export async function nativeGenerate(
+  dictionaryId: number,
+  language: string,
+  count: number,
+  topic = "",
+): Promise<{ items: NativeItem[]; tokens: number; reason?: string }> {
+  const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases/native/generate`, {
+    language,
+    count,
+    topic,
+  });
+  return data;
+}
+
+export async function nativeSave(
+  dictionaryId: number,
+  language: string,
+  items: NativeItem[],
+): Promise<{ created: string[]; skipped: { text: string; reason: string }[] }> {
+  const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases/native/save`, { language, items });
+  return data;
+}
+
+export interface ManualCheck {
+  text: string;
+  parts: NativePart[];
+  missing: string[];
+  duplicate: boolean;
+  ok: boolean;
+}
+
+export async function manualCheck(dictionaryId: number, language: string, text: string): Promise<ManualCheck> {
+  const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases/manual/check`, { language, text });
+  return data;
+}
+
+export interface ManualTemplate {
+  template: { id: number | null; name: string; new: boolean; explanations?: Record<string, string> };
+  translations: Record<string, string>;
+  why: string;
+  roles: string[];
+}
+
+export async function manualTemplate(
+  dictionaryId: number,
+  language: string,
+  text: string,
+  parts: NativePart[],
+): Promise<ManualTemplate> {
+  const { data } = await api.post(`/admin/dictionaries/${dictionaryId}/mini-phrases/manual/template`, {
+    language,
+    text,
+    parts,
+  });
+  return data;
+}
