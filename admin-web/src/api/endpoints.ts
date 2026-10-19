@@ -2794,3 +2794,20 @@ export async function manualTemplate(
   });
   return data;
 }
+
+// --- Уроки: общие настройки (GET/PUT /learning-settings) ---------------------
+
+export interface LearningSettings {
+  threshold_score: number;
+  max_lesson_words: number;
+}
+
+export async function getLearningSettings(): Promise<LearningSettings> {
+  const { data } = await api.get("/learning-settings");
+  return data;
+}
+
+export async function updateLearningSettings(input: Partial<LearningSettings>): Promise<LearningSettings> {
+  const { data } = await api.put("/learning-settings", input);
+  return data;
+}

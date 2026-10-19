@@ -6,14 +6,20 @@ from app.schemas.word import WordOut
 from app.schemas.mini_phrase import MiniPhraseOut
 
 
+# The highest "max words per lesson" an admin can set.
+MAX_LESSON_WORDS_CEILING = 50
+
+
 class CreateLessonIn(BaseModel):
     """Exactly one of `word_ids` (ручной выбор) or `random_count` (случайный
     выбор) must be given -- both pick from the same pool (this dictionary's
     not-yet-learned words), capped at 15 either way."""
 
     dictionary_id: int
-    word_ids: list[int] | None = Field(default=None, max_length=15)
-    random_count: int | None = Field(default=None, ge=1, le=15)
+    # The real cap is the admin's max_lesson_words (checked in create_lesson);
+    # this is only the absolute ceiling.
+    word_ids: list[int] | None = Field(default=None, max_length=MAX_LESSON_WORDS_CEILING)
+    random_count: int | None = Field(default=None, ge=1, le=MAX_LESSON_WORDS_CEILING)
 
     @model_validator(mode="after")
     def _exactly_one_selection_mode(self) -> "CreateLessonIn":
@@ -124,6 +130,8 @@ class LessonCandidateWordsOut(BaseModel):
     dictionary_id: int
     available_count: int
     words: list[WordOut]
+    # The most words a new lesson may have (Admin Web -> Упражнения).
+    max_words: int = 15
 
 
 class SubmitAnswerIn(BaseModel):
@@ -162,10 +170,12 @@ class SubmitAnswerOut(BaseModel):
 
 class LearningSettingsOut(BaseModel):
     threshold_score: int
+    max_lesson_words: int = 15
 
 
 class LearningSettingsIn(BaseModel):
-    threshold_score: int = Field(ge=0, le=100)
+    threshold_score: int | None = Field(default=None, ge=0, le=100)
+    max_lesson_words: int | None = Field(default=None, ge=4, le=MAX_LESSON_WORDS_CEILING)
 
 
 class SpeakingWordItemOut(BaseModel):

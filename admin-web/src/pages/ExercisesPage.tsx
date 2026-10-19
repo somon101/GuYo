@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { getLearningSettings, updateLearningSettings } from "../api/endpoints";
 import { NavIcon } from "../components/NavIcon";
 
 // Just an index of exercises — each one's settings live on their own page
@@ -44,6 +46,64 @@ export function ExercisesPage() {
       <Tiles items={EXERCISES} />
       <h2 className="mb-3 mt-8 text-sm font-semibold uppercase tracking-wide text-slate-500">Настройки слов</h2>
       <Tiles items={WORD_SETTINGS} />
+      <h2 className="mb-3 mt-8 text-sm font-semibold uppercase tracking-wide text-slate-500">Уроки</h2>
+      <MaxLessonWords />
+    </div>
+  );
+}
+
+/** The most words a person can pick for one lesson (random count or by hand). */
+function MaxLessonWords() {
+  const [value, setValue] = useState<number | null>(null);
+  const [saved, setSaved] = useState<number | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    getLearningSettings()
+      .then((s) => {
+        setValue(s.max_lesson_words);
+        setSaved(s.max_lesson_words);
+      })
+      .catch(() => setMessage("Не удалось загрузить"));
+  }, []);
+
+  async function save() {
+    if (value == null) return;
+    setMessage(null);
+    try {
+      const s = await updateLearningSettings({ max_lesson_words: value });
+      setSaved(s.max_lesson_words);
+      setMessage("Сохранено");
+    } catch {
+      setMessage("Не удалось сохранить: от 4 до 50");
+    }
+  }
+
+  return (
+    <div className="card flex flex-wrap items-end gap-3 p-4">
+      <label className="text-sm text-slate-700">
+        <span className="mb-1 block text-xs text-slate-500">Максимум слов в одном уроке (4–50)</span>
+        <input
+          type="number"
+          min={4}
+          max={50}
+          className="field w-28 px-3 py-2 text-sm"
+          value={value ?? ""}
+          onChange={(e) => setValue(e.target.value === "" ? null : Number(e.target.value))}
+        />
+      </label>
+      <button
+        onClick={save}
+        disabled={value == null || value === saved || value < 4 || value > 50}
+        className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+      >
+        Сохранить
+      </button>
+      {message && <span className="text-sm text-slate-500">{message}</span>}
+      <p className="w-full text-xs text-slate-400">
+        Столько слов человек сможет выбрать для нового урока — случайно или вручную. Новое число сразу
+        видно в приложении.
+      </p>
     </div>
   );
 }

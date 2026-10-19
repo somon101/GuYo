@@ -242,7 +242,9 @@ def get_lesson_candidate_words(
     # So the picker's word cards carry the same score/level every other
     # word list shows -- the shared helper, never a second classification.
     fill_word_progress(db, user.id, out, [w.id for w in words])
-    return LessonCandidateWordsOut(dictionary_id=dictionary_id, available_count=len(words), words=out)
+    return LessonCandidateWordsOut(
+        dictionary_id=dictionary_id, available_count=len(words), words=out, max_words=max_lesson_words(db)
+    )
 
 
 @router.get("/lessons/active", response_model=LessonOut)
@@ -429,6 +431,14 @@ def create_lesson(
     Checked after the active-lesson rule, so a user with an unfinished
     lesson is told to finish it rather than about a limit."""
     dictionary = _get_published_dictionary_or_404(db, payload.dictionary_id)
+
+    cap = max_lesson_words(db)
+    asked = len(payload.word_ids) if payload.word_ids is not None else (payload.random_count or 0)
+    if asked > cap:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"В уроке может быть не больше {cap} слов",
+        )
 
     if _get_active_lesson(db, user.id, dictionary.id) is not None:
         raise HTTPException(
@@ -911,9 +921,15 @@ def submit_answer(
 # --- Admin: global learning threshold --------------------------------------
 
 
+def max_lesson_words(db: Session) -> int:
+    """The most words one lesson may have (Admin Web -> Упражнения)."""
+    settings = db.get(LearningSettings, 1)
+    return settings.max_lesson_words if settings is not None and settings.max_lesson_words else 15
+
+
 @router.get("/learning-settings", response_model=LearningSettingsOut)
 def get_learning_settings(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
-    return LearningSettingsOut(threshold_score=get_threshold(db))
+    return LearningSettingsOut(threshold_score=get_threshold(db), max_lesson_words=max_lesson_words(db))
 
 
 @router.put("/learning-settings", response_model=LearningSettingsOut)
@@ -922,9 +938,11 @@ def set_learning_settings(
 ):
     settings = db.get(LearningSettings, 1)
     if settings is None:
-        settings = LearningSettings(id=1, threshold_score=payload.threshold_score)
+        settings = LearningSettings(id=1, threshold_score=60)
         db.add(settings)
-    else:
+    if payload.threshold_score is not None:
         settings.threshold_score = payload.threshold_score
+    if payload.max_lesson_words is not None:
+        settings.max_lesson_words = payload.max_lesson_words
     db.commit()
-    return LearningSettingsOut(threshold_score=settings.threshold_score)
+    return LearningSettingsOut(threshold_score=settings.threshold_score, max_lesson_words=settings.max_lesson_words)

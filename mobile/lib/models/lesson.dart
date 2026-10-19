@@ -105,14 +105,17 @@ class LessonCandidateWords {
   final int dictionaryId;
   final int availableCount;
   final List<GuyoWord> words;
+  /// The most words a new lesson may have (set in Admin Web).
+  final int maxWords;
 
-  LessonCandidateWords({required this.dictionaryId, required this.availableCount, required this.words});
+  LessonCandidateWords({required this.dictionaryId, required this.availableCount, required this.words, this.maxWords = 15});
 
   factory LessonCandidateWords.fromJson(Map<String, dynamic> json) {
     return LessonCandidateWords(
       dictionaryId: json['dictionary_id'] as int,
       availableCount: json['available_count'] as int,
       words: (json['words'] as List<dynamic>).map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList(),
+      maxWords: json['max_words'] as int? ?? 15,
     );
   }
 }

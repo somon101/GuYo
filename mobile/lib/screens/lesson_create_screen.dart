@@ -26,7 +26,6 @@ class LessonCreateScreen extends StatefulWidget {
   State<LessonCreateScreen> createState() => _LessonCreateScreenState();
 }
 
-const int _maxLessonWords = 15;
 
 enum _Mode { random, manual }
 
@@ -62,6 +61,10 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
     _search.dispose();
     super.dispose();
   }
+
+  /// The most words one lesson may have: the admin's number, sent with the
+  /// candidate words (15 until it arrives).
+  int _maxLessonWords = 15;
 
   int get _maxCount => _candidates.length < _maxLessonWords ? _candidates.length : _maxLessonWords;
 
@@ -106,6 +109,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
       final result = await ApiClient.instance.fetchLessonCandidateWords(widget.dictionary.id);
       if (!mounted) return;
       setState(() {
+        _maxLessonWords = result.maxWords;
         _candidates = result.words;
         _randomCount = result.words.isEmpty ? 0 : (result.words.length < _maxLessonWords ? result.words.length : _maxLessonWords).clamp(1, _maxLessonWords);
         _isLoading = false;
@@ -232,7 +236,10 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
 
   Widget _buildRandomPicker() {
     final maxCount = _maxCount;
-    final presets = [5, 10, 15].where((n) => n <= maxCount).toList();
+    final presets = {
+      for (final n in [5, 10, 15, 20, 30, 40, 50]) if (n < maxCount) n,
+      maxCount,
+    }.where((n) => n > 0).toList();
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
       children: [

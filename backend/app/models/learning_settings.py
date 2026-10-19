@@ -19,6 +19,9 @@ class LearningSettings(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     threshold_score: Mapped[int] = mapped_column(Integer, nullable=False, default=60, server_default="60")
+    # The most words one lesson can have (random count and manual pick alike),
+    # set in Admin Web -> Упражнения.
+    max_lesson_words: Mapped[int] = mapped_column(Integer, nullable=False, default=15, server_default="15")
     # The AI translator (app/translation/deepseek.py): its key, and the
     # progress of its current or last run ("idle"/"running"/"completed"/
     # "failed"/"stopped").
