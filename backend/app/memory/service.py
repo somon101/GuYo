@@ -150,37 +150,19 @@ def memory_coverage(db: Session) -> tuple[int, int]:
     return modelled or 0, total or 0
 
 
-def secured_word_ids(db: Session, user_id: int, word_ids: list[int] | None, threshold: int) -> set[int]:
-    """Words that need no more work in a lesson: learned by score AND, while
-    the memory model is on, still remembered (R at or above the target).
-    A learned word the user is forgetting needs work again -- it goes back
-    into lessons and stays there until a review brings R back up. A pair
-    with no memory data yet is judged by score alone. `word_ids=None`
-    means every word this user has progress on."""
-    from app.priority.settings import get_priority_settings
+def secured_word_ids(db: Session, user_id: int, word_ids: list[int] | None, threshold: int = 0) -> set[int]:
+    """Words that need no more work in a lesson: the LEARNED ones
+    (app/learning/mastery.py). Learned is for good -- a word the user is
+    forgetting is reviewed through «Повторить сегодня» and Practice, it never
+    goes back into lessons. `threshold` is ignored (kept for old callers)."""
+    from app.learning.mastery import learned_ids
 
-    settings = get_priority_settings(db)
-    query = db.query(WordProgress).filter(WordProgress.user_id == user_id, WordProgress.score >= threshold)
-    if word_ids is not None:
-        if not word_ids:
-            return set()
-        query = query.filter(WordProgress.word_id.in_(word_ids))
-    rows = query.all()
-    if not settings.memory_enabled:
-        return {p.word_id for p in rows}
-    now = utc_now()
-    secured = set()
-    for p in rows:
-        r = recall_probability(p, now)
-        if r is None or r >= settings.memory_target_retention:
-            secured.add(p.word_id)
-    return secured
+    return learned_ids(db, user_id, word_ids)
 
 
 def due_progress_rows(db: Session, user_id: int, dictionary_id: int) -> list[tuple[float, WordProgress]]:
     """Learned words of this dictionary whose recall is below the target
     retention right now, most forgotten first, with that recall."""
-    from app.exercises.common import get_threshold
     from app.models.word import Word
     from app.priority.settings import get_priority_settings
 
@@ -193,7 +175,7 @@ def due_progress_rows(db: Session, user_id: int, dictionary_id: int) -> list[tup
         .join(Word, Word.id == WordProgress.word_id)
         .filter(
             WordProgress.user_id == user_id,
-            WordProgress.score >= get_threshold(db),
+            WordProgress.mastered_at.isnot(None),
             Word.dictionary_id == dictionary_id,
         )
         .all()

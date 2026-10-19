@@ -191,11 +191,6 @@ def calculate_priorities(db: Session, user_id: int, word_ids: list[int]) -> dict
     ids = list(set(word_ids))
     ctx = _load_context(db)
 
-    scores = dict(
-        db.query(WordProgress.word_id, WordProgress.score)
-        .filter(WordProgress.user_id == user_id, WordProgress.word_id.in_(ids))
-        .all()
-    )
 
     # Newest first, at most ATTEMPTS_PER_WORD per word -- every sub-signal
     # (windows, stability, recency) only ever needs a prefix of that.
@@ -217,9 +212,10 @@ def calculate_priorities(db: Session, user_id: int, word_ids: list[int]) -> dict
     ):
         attempts[word_id].append(_Attempt(is_correct, created_at))
 
-    results = {word_id: _score(ctx, scores.get(word_id, 0), attempts.get(word_id, [])) for word_id in ids}
-    if ctx.settings.memory_enabled:
-        _apply_memory(db, user_id, ids, results, ctx)
+    # There are no points any more: the level always comes from the memory
+    # model (chance of recall); the answer-history signals stay as detail.
+    results = {word_id: _score(ctx, 0, attempts.get(word_id, [])) for word_id in ids}
+    _apply_memory(db, user_id, ids, results, ctx)
     return results
 
 

@@ -30,7 +30,6 @@ from app.models.word_attempt import WordAttempt
 from app.models.word_progress import WordProgress
 from app.routers.lessons import _get_threshold
 from app.routers.phrases import _get_learned_word_tokens, _tokenize
-from app.word_levels import level_for_score_in, ordered_enabled_levels
 from app.priority import calculate_priority, weak_exercises_for_word
 from app.schemas.analytics import (
     AnalyticsDictionaryOut,
@@ -138,7 +137,7 @@ def get_user_phrase_analytics(
     learned_word_count = (
         db.query(func.count(Word.id))
         .join(WordProgress, WordProgress.word_id == Word.id)
-        .filter(WordProgress.user_id == user.id, WordProgress.score >= threshold, Word.dictionary_id == dictionary.id)
+        .filter(WordProgress.user_id == user.id, WordProgress.mastered_at.isnot(None), Word.dictionary_id == dictionary.id)
         .scalar()
     )
 
@@ -302,8 +301,11 @@ def get_user_mini_phrase_analytics(
 # only the router prefix and the same "pick a user" step in Admin Web.
 
 
-def _word_level_summary(db: Session, score: int) -> WordLevelSummaryOut | None:
-    level = level_for_score_in(ordered_enabled_levels(db), score)
+def _word_level_summary(db: Session, user_id: int, word_id: int) -> WordLevelSummaryOut | None:
+    """The word's level on the memory ladder (app/word_levels/service.py)."""
+    from app.word_levels import memory_levels_for
+
+    level = memory_levels_for(db, user_id, [word_id]).get(word_id)
     if level is None:
         return None
     return WordLevelSummaryOut(
@@ -330,7 +332,6 @@ def list_user_word_progress(
     if db.get(Dictionary, dictionary_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dictionary not found")
 
-    levels = ordered_enabled_levels(db)
 
     attempt_counts = dict(
         db.query(WordAttempt.word_id, func.count(WordAttempt.id))
@@ -347,17 +348,20 @@ def list_user_word_progress(
         .all()
     )
 
+    from app.word_levels import memory_levels_for
+
+    memory_levels = memory_levels_for(db, user_id, [w.id for w, _ in rows])
     out: list[UserWordProgressOut] = []
     for word, progress in rows:
         primary = word.translations[0].text if word.translations else None
-        level = level_for_score_in(levels, progress.score)
+        level = memory_levels.get(word.id)
         out.append(
             UserWordProgressOut(
                 word_id=word.id,
                 word=word.word,
                 translation=primary,
                 dictionary_id=word.dictionary_id,
-                score=progress.score,
+                score=100 if progress.mastered_at is not None else 0,
                 level=WordLevelSummaryOut(
                     id=level.id, name=level.name, min_points=level.min_points, max_points=level.max_points,
                     priority_weight=level.priority_weight,
@@ -391,7 +395,7 @@ def get_word_diagnostics(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Word not found")
 
     progress = db.query(WordProgress).filter(WordProgress.user_id == user_id, WordProgress.word_id == word_id).first()
-    score = progress.score if progress is not None else 0
+    score = 100 if progress is not None and progress.mastered_at is not None else 0
 
     attempts = (
         db.query(WordAttempt)
@@ -420,7 +424,7 @@ def get_word_diagnostics(
         word=word.word,
         translation=primary,
         score=score,
-        level=_word_level_summary(db, score),
+        level=_word_level_summary(db, user_id, word_id),
         total_attempts=len(attempts),
         total_correct=total_correct,
         total_errors=len(attempts) - total_correct,

@@ -16,7 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.dates import DUSHANBE_TZ, dushanbe_today
-from app.exercises.common import get_points, get_threshold
+from app.exercises.common import get_threshold
 from app.models.quest import Quest, QuestWord, UserQuestWordDay
 from app.priority.quests import order_candidates_by_priority
 from app.models.user import User
@@ -86,19 +86,20 @@ def candidate_words_for_quest(db: Session, user: User, quest: Quest, dictionary_
 
     used_today = _words_used_today(db, user.id)
 
-    query = (
-        db.query(Word, WordProgress.score)
-        .join(WordProgress, WordProgress.word_id == Word.id)
-        .filter(
-            Word.dictionary_id == dictionary_id,
-            WordProgress.user_id == user.id,
-            WordProgress.score >= level.min_points,
-        )
-    )
-    if level.max_points is not None:
-        query = query.filter(WordProgress.score <= level.max_points)
+    # Words at this level of the memory ladder (app/word_levels/service.py).
+    from app.word_levels import memory_levels_for
 
-    return [word for word, _score in query.all() if word.id not in used_today]
+    words = (
+        db.query(Word)
+        .join(WordProgress, WordProgress.word_id == Word.id)
+        .filter(Word.dictionary_id == dictionary_id, WordProgress.user_id == user.id)
+        .all()
+    )
+    levels = memory_levels_for(db, user.id, [w.id for w in words])
+    return [
+        w for w in words
+        if w.id not in used_today and levels.get(w.id) is not None and levels[w.id].id == level.id
+    ]
 
 
 def _candidate_words_for_personal_quest(db: Session, user: User, quest: Quest) -> list[Word]:
@@ -165,10 +166,9 @@ def build_quest_round(db: Session, user: User, quest: Quest, dictionary_id: int,
 
 
 def complete_quest_attempt(db: Session, user: User, quest: Quest, word: Word, is_correct: bool) -> int:
-    """Scores `word`'s WordProgress exactly like a Lesson answer would
-    (same get_points(exercise_key) delta, same 0-100 clamp) and, only on
-    success, grants the quest's rating reward and locks `word` out of
-    every quest for the rest of today. Returns the word's new score.
+    """Only on success: grants the quest's rating reward and locks `word`
+    out of every quest for the rest of today. No points -- the answer is
+    recorded by the caller as memory evidence. Returns 0 (kept for callers).
 
     The daily lock is written inside its own SAVEPOINT (same pattern as
     app/rating/service.py's award_word_points_if_new) so a losing race
@@ -176,17 +176,13 @@ def complete_quest_attempt(db: Session, user: User, quest: Quest, word: Word, is
     means this attempt's reward is skipped rather than a 500 -- the
     UNIQUE(user_id, word_id, used_date) constraint is what actually
     decides "already used today" at the database level."""
-    correct_points, incorrect_points = get_points(db, quest.exercise_key)
-    delta = correct_points if is_correct else -incorrect_points
-
+    # No points: the answer itself is the evidence (recorded by the caller
+    # for the memory model).
     progress = db.query(WordProgress).filter(WordProgress.user_id == user.id, WordProgress.word_id == word.id).first()
     if progress is None:
         progress = WordProgress(user_id=user.id, word_id=word.id, score=0)
         db.add(progress)
         db.flush()
-
-    progress.score = max(0, min(100, progress.score + delta))
-    db.flush()
 
     if is_correct:
         try:
@@ -197,8 +193,8 @@ def complete_quest_attempt(db: Session, user: User, quest: Quest, word: Word, is
             # Lost a race against a concurrent quest completion for the
             # same word today -- the word is locked either way, but this
             # request's own reward is skipped rather than double-granted.
-            return progress.score
+            return 0
 
         grant_rating_points(db, user, quest.reward_points)
 
-    return progress.score
+    return 0

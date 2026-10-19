@@ -91,7 +91,7 @@ def refresh_lists(db: Session, user_id: int, dictionary_id: int) -> ReviewList |
                         difficulty=p.memory_difficulty,
                         last_review=p.memory_last_review,
                         review_days=p.memory_review_days or 0,
-                        score=p.score,
+                        score=100,
                     )
                 )
             lists.append(rl)

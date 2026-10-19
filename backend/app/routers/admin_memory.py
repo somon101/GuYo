@@ -235,8 +235,9 @@ def get_memory_word(
         "translation": _translation(word),
         "settings": settings,
         "state": {
-            "score": progress.score if progress is not None else 0,
-            "learned": progress is not None and progress.score >= settings["learned_threshold"],
+            "score": 100 if progress is not None and progress.mastered_at is not None else 0,
+            "learned": progress is not None and progress.mastered_at is not None,
+            "learned_at": progress.mastered_at if progress is not None else None,
             "recall_now": recall_probability(progress, now) if progress is not None else None,
             "stability": progress.memory_stability if progress is not None else None,
             "difficulty": progress.memory_difficulty if progress is not None else None,

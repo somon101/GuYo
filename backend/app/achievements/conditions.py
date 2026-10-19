@@ -30,15 +30,12 @@ def phrases_opened_count(db: Session, user: User) -> int:
 
 def words_learned_count(db: Session, user: User) -> int:
     """How many words this user has learned, across every dictionary --
-    reuses the exact same WordProgress.score >= threshold definition
+    reuses the exact same WordProgress.mastered_at.isnot(None) definition
     "Мои слова" and the Lessons system already use (see app/exercises/
     common.py's get_threshold), never a second "learned" definition."""
-    from app.exercises.common import get_threshold
-
-    threshold = get_threshold(db)
     return (
         db.query(func.count(WordProgress.id))
-        .filter(WordProgress.user_id == user.id, WordProgress.score >= threshold)
+        .filter(WordProgress.user_id == user.id, WordProgress.mastered_at.isnot(None))
         .scalar()
         or 0
     )

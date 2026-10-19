@@ -24,7 +24,7 @@ router = APIRouter(prefix="/admin/word-levels", tags=["admin-word-levels"])
 
 def _out(level: WordLevel) -> WordLevelOut:
     return WordLevelOut(
-        id=level.id, name=level.name, min_points=level.min_points, max_points=level.max_points,
+        id=level.id, name=level.name, min_points=level.min_points, max_points=level.max_points, min_days=level.min_days,
         order=level.order, enabled=level.enabled, priority_weight=level.priority_weight,
     )
 
@@ -46,7 +46,7 @@ def create_word_level(payload: WordLevelCreateIn, db: Session = Depends(get_db),
 
     level = WordLevel(
         name=payload.name.strip(), min_points=payload.min_points, max_points=payload.max_points,
-        enabled=payload.enabled, order=payload.order, priority_weight=payload.priority_weight,
+        min_days=payload.min_days, enabled=payload.enabled, order=payload.order, priority_weight=payload.priority_weight,
     )
     db.add(level)
     db.commit()
@@ -92,6 +92,8 @@ def update_word_level(
         level.order = payload.order
     if payload.priority_weight is not None:
         level.priority_weight = payload.priority_weight
+    if payload.min_days is not None:
+        level.min_days = payload.min_days
 
     db.commit()
     db.refresh(level)

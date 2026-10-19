@@ -36,4 +36,9 @@ class WordProgress(Base):
     memory_stability: Mapped[float | None] = mapped_column(Float, nullable=True)
     memory_difficulty: Mapped[float | None] = mapped_column(Float, nullable=True)
     memory_last_review: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # When this word became learned ("изучено"): set once, by a lesson pass
+    # that proved it (app/learning/mastery.py), and never cleared -- a learned
+    # word stays in "Мои слова" however much it is forgotten later; how well it
+    # is remembered is the memory model's business. NULL = not learned yet.
+    mastered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     memory_review_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")

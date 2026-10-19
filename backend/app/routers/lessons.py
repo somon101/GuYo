@@ -43,7 +43,6 @@ from app.exercises import EXERCISE_TYPES, build_word, listen_word, matching, spe
 from app.exercises.common import (
     fill_word_progress,
     get_eligible_words,
-    get_points,
     get_threshold,
     is_exercise_enabled,
     lesson_words_below_threshold,
@@ -54,13 +53,15 @@ from app.models.lesson import Lesson, LessonExercise, LessonWord
 from app.models.user import User
 from app.models.word import Word, WordTopic
 from app.memory import recall_probability, secured_word_ids
+from app.learning.mastery import apply_pass, learned_ids, progress_row
+from app.word_levels import memory_levels_for
 from app.models.word_attempt import WordAttempt
 from app.models.word_progress import WordProgress
 from app.premium import LessonLimitReached, check_lesson_quota
 from app.priority.background_prep import mark_for_prep
 from app.routers.words import word_to_out
 from app.word_attempts import record_word_attempt
-from app.word_levels import level_for_score_in, ordered_enabled_levels
+
 from app.schemas.exercise import BuildWordRoundOut, ExerciseWordsOut, TrueOrFalseRoundOut
 from app.schemas.lesson import (
     CreateLessonIn,
@@ -128,29 +129,24 @@ def _require_lesson_exercise(db: Session, lesson_id: int, exercise_key: str) -> 
 def _lesson_to_out(db: Session, lesson: Lesson, threshold: int) -> LessonOut:
     lesson_words = db.query(LessonWord).filter(LessonWord.lesson_id == lesson.id).order_by(LessonWord.id).all()
     word_ids = [lw.word_id for lw in lesson_words]
-    progress_by_word: dict[int, int] = {}
-    if word_ids:
-        progress_by_word = {
-            wp.word_id: wp.score
-            for wp in db.query(WordProgress)
-            .filter(WordProgress.user_id == lesson.user_id, WordProgress.word_id.in_(word_ids))
-            .all()
-        }
+    learned = learned_ids(db, lesson.user_id, word_ids)
 
-    levels = ordered_enabled_levels(db)
+    levels = memory_levels_for(db, lesson.user_id, word_ids)
     words_out = []
     for lw in lesson_words:
         w = lw.word
-        score = progress_by_word.get(lw.word_id, 0)
+        # No points any more: `score` only says learned (100) or not (0); the
+        # level is the memory model's (app/word_levels/service.py).
+        score = 100 if lw.word_id in learned else 0
         primary = primary_translation(w)
-        level = level_for_score_in(levels, score)
+        level = levels.get(lw.word_id)
         words_out.append(
             LessonWordOut(
                 word_id=w.id,
                 word=w.word,
                 translation=primary.text if primary else None,
                 score=score,
-                is_learned=score >= threshold,
+                is_learned=lw.word_id in learned,
                 word_level_id=level.id if level else None,
                 word_level_name=level.name if level else None,
                 transcription=w.transcription,
@@ -203,9 +199,8 @@ def _lesson_to_summary(db: Session, lesson: Lesson, threshold: int) -> LessonSum
 
 
 def _check_and_apply_lesson_completion(db: Session, lesson: Lesson, threshold: int) -> bool:
-    """Recomputes from WordProgress every time rather than trusting any
-    cached flag -- a lesson is complete exactly when ALL its words are at
-    or above the threshold, never "most of them"."""
+    """A lesson is complete exactly when ALL its words are learned
+    (app/learning/mastery.py), never "most of them"."""
     if lesson.is_completed:
         return True
     word_ids = [row[0] for row in db.query(LessonWord.word_id).filter(LessonWord.lesson_id == lesson.id).all()]
@@ -324,15 +319,11 @@ def start_lesson_pass(
 
 
 def _word_scores(db: Session, user_id: int, lesson: Lesson) -> dict[int, int]:
-    """Every word of this lesson -> this user's current score (0 when the
-    word has never been answered)."""
+    """Every word of this lesson -> 100 when learned, else 0 (what the pass
+    statistics compare before and after: did the word become learned)."""
     word_ids = [lw.word_id for lw in lesson.words]
-    scores = dict(
-        db.query(WordProgress.word_id, WordProgress.score)
-        .filter(WordProgress.user_id == user_id, WordProgress.word_id.in_(word_ids))
-        .all()
-    ) if word_ids else {}
-    return {word_id: scores.get(word_id, 0) for word_id in word_ids}
+    learned = learned_ids(db, user_id, word_ids)
+    return {word_id: (100 if word_id in learned else 0) for word_id in word_ids}
 
 
 @router.get("/lessons/{lesson_id}/pass/stats", response_model=LessonPassStatsOut)
@@ -384,7 +375,7 @@ def _pass_stats(db: Session, user: User, lesson: Lesson) -> LessonPassStatsOut:
                 word=lw.word.word,
                 score_before=was,
                 score_after=now,
-                gained=now - was,
+                gained=0,  # no points any more: became_learned says what changed
                 became_learned=was < threshold <= now,
             )
         )
@@ -503,15 +494,14 @@ def prioritized_words(
     first, then the rest; within each, the most important first; words of
     equal standing shuffled, so two lessons are never the same list."""
     topics = set(user.learning_topics or [])
-    # Learned words the user is forgetting come first: they are only in
-    # this pool because their recall fell below the target.
+    # Words already started that the user is forgetting come first.
     due: dict[int, float] = {}
     if words:
         for progress in db.query(WordProgress).filter(
             WordProgress.user_id == user.id, WordProgress.word_id.in_([w.id for w in words])
         ):
             r = recall_probability(progress)
-            if r is not None and progress.score >= get_threshold(db):
+            if r is not None:
                 due[progress.word_id] = r
     in_topic: set[int] = set()
     if topics and words:
@@ -667,31 +657,18 @@ def _pass_too_fast(db: Session, user_id: int, lesson: Lesson) -> bool:
     return max(durations) < IMPLAUSIBLE_PASS_MS
 
 
-def _hold_answer_for_pass(db: Session, user: User, lesson: Lesson, exercise_key: str, payload, delta: int):
-    """A deferred answer: moves the word's score only inside this pass
-    (Lesson.pass_pending_scores), never its real WordProgress -- so no
-    level, rating point, achievement or lesson completion can come from a
-    pass the user doesn't finish. The answer is still recorded for the
-    statistics."""
-    pending = dict(lesson.pass_pending_scores or {})
-    key = str(payload.word_id)
-    if key not in pending:
-        real = (
-            db.query(WordProgress.score)
-            .filter(WordProgress.user_id == user.id, WordProgress.word_id == payload.word_id)
-            .scalar()
-        )
-        pending[key] = real or 0
-    pending[key] = max(0, min(100, pending[key] + delta))
-    lesson.pass_pending_scores = pending  # reassigned so the JSON change is saved
-
+def _hold_answer_for_pass(db: Session, user: User, lesson: Lesson, exercise_key: str, payload):
+    """A deferred answer: only recorded. Whether its word became learned is
+    decided when the pass is finished (finish_lesson_pass) -- nothing counts
+    from a pass the user doesn't finish."""
+    progress_row(db, user.id, payload.word_id)
     record_word_attempt(
         db,
         user_id=user.id,
         word_id=payload.word_id,
         exercise_key=exercise_key,
         is_correct=payload.is_correct,
-        score_after=pending[key],
+        score_after=0,
         lesson_id=lesson.id,
         duration_ms=payload.duration_ms,
         timed_out=payload.timed_out,
@@ -700,10 +677,11 @@ def _hold_answer_for_pass(db: Session, user: User, lesson: Lesson, exercise_key:
         mini_phrase_id=payload.mini_phrase_id,
     )
     db.commit()
+    learned = bool(learned_ids(db, user.id, [payload.word_id]))
     return SubmitAnswerOut(
         word_id=payload.word_id,
-        score=pending[key],
-        is_learned=pending[key] >= get_threshold(db),
+        score=100 if learned else 0,
+        is_learned=learned,
         lesson_completed=False,
         points_awarded=0,
     )
@@ -716,66 +694,48 @@ def finish_lesson_pass(
     user: User = Depends(get_current_user),
     _app: None = Depends(require_current_app),
 ):
-    """The pass was played to the end: its held-back scores become the
-    words' real scores now, and everything that follows from them happens
-    here -- word levels, rating points, achievements, lesson completion,
-    the adaptive lesson and personal quest. Finishing twice applies
-    nothing the second time."""
+    """The pass was played to the end: the words it proved become learned,
+    and everything that follows happens here."""
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
     threshold = get_threshold(db)
     # A lesson (or adaptive lesson, or a repeat) played to the end lights
     # today's streak day.
     lit_now = record_activity(db, user)
     db.commit()
-    pending = lesson.pass_pending_scores or {}
-    if pending:
-        newly_learned = []
-        for key, score in pending.items():
-            word_id = int(key)
-            progress = (
-                db.query(WordProgress)
-                .filter(WordProgress.user_id == user.id, WordProgress.word_id == word_id)
-                .first()
-            )
-            if progress is None:
-                progress = WordProgress(user_id=user.id, word_id=word_id, score=0)
-                db.add(progress)
-            progress.score = score
-            if score >= threshold:
-                newly_learned.append(word_id)
-        lesson.pass_pending_scores = None
-        db.flush()  # autoflush is off -- the checks below must see the new scores
-
-        lesson_completed = _check_and_apply_lesson_completion(db, lesson, threshold)
-        if lesson_completed:
-            # Finishing the pass is the one genuine "played to the end"
-            # signal -- the only place completed_by_pass is set, so the
-            # "lessons_completed" achievement rewards a real playthrough.
-            lesson.completed_by_pass = True
-            db.flush()
-        # Auto lesson/quest are built quietly later (app/priority/background_prep.py).
-        mark_for_prep(db, user, lesson.dictionary_id)
-        if newly_learned:
-            check_and_grant_achievements(db, user, "words_learned")
-            # A pass where every single answer came back faster than a person can
-            # read earns no rating points: the words still count, so an honest
-            # fast player loses nothing, while a script gains no rank.
-            if not _pass_too_fast(db, user.id, lesson):
-                for word_id in newly_learned:
-                    award_word_points_if_new(db, user, word_id)
-        if lesson_completed:
-            check_and_grant_achievements(db, user, "lessons_completed")
-        # The lesson's mini-phrases were gone through on this pass: they're
-        # open now (Практика) and never attached to another lesson.
-        from app.mini_phrases import mark_done
-        from app.models.mini_phrase import LessonMiniPhrase
-
-        for (mini_phrase_id,) in db.query(LessonMiniPhrase.mini_phrase_id).filter(LessonMiniPhrase.lesson_id == lesson.id):
-            mark_done(db, user.id, mini_phrase_id)
+    # The words this pass proved become learned now (app/learning/mastery.py);
+    # everything that follows from that happens here -- rating points,
+    # achievements, lesson completion. Finishing twice changes nothing more.
+    newly_learned = apply_pass(db, user.id, lesson)
+    lesson.pass_pending_scores = None
+    lesson_completed = _check_and_apply_lesson_completion(db, lesson, threshold)
+    if lesson_completed and not lesson.completed_by_pass:
+        # Finishing the pass is the one genuine "played to the end" signal --
+        # the only place completed_by_pass is set, so the "lessons_completed"
+        # achievement rewards a real playthrough.
+        lesson.completed_by_pass = True
         db.flush()
-        check_and_grant_achievements(db, user, "mini_phrases_done")
-        db.commit()
-        db.refresh(lesson)
+        check_and_grant_achievements(db, user, "lessons_completed")
+    # Auto lesson/quest are built quietly later (app/priority/background_prep.py).
+    mark_for_prep(db, user, lesson.dictionary_id)
+    if newly_learned:
+        check_and_grant_achievements(db, user, "words_learned")
+        # A pass where every single answer came back faster than a person can
+        # read earns no rating points: the words still count, so an honest
+        # fast player loses nothing, while a script gains no rank.
+        if not _pass_too_fast(db, user.id, lesson):
+            for word_id in newly_learned:
+                award_word_points_if_new(db, user, word_id)
+    # The lesson's mini-phrases were gone through on this pass: they're
+    # open now (Практика) and never attached to another lesson.
+    from app.mini_phrases import mark_done
+    from app.models.mini_phrase import LessonMiniPhrase
+
+    for (mini_phrase_id,) in db.query(LessonMiniPhrase.mini_phrase_id).filter(LessonMiniPhrase.lesson_id == lesson.id):
+        mark_done(db, user.id, mini_phrase_id)
+    db.flush()
+    check_and_grant_achievements(db, user, "mini_phrases_done")
+    db.commit()
+    db.refresh(lesson)
     out = _lesson_to_out(db, lesson, threshold)
     out.streak_lit_now = lit_now
     out.streak_days = streak_days_count(db, user)
@@ -794,13 +754,9 @@ def submit_answer(
     user: User = Depends(get_current_user),
     _app: None = Depends(require_current_app),
 ):
-    """The one place a user's answer actually changes anything: moves
-    `payload.word_id`'s WordProgress.score by this exercise's configured
-    points (clamped 0-100), then checks whether that word -- and the whole
-    lesson -- just crossed the learned threshold. `word_id` must belong to
-    THIS lesson; scoring a word through an exercise it was never shown in
-    is rejected, not silently accepted. Identical for every exercise_key,
-    including both new ones -- neither needed a change here."""
+    """One answer in a lesson. It is recorded (the memory model learns from
+    every answer); whether its word is learned is judged by the pass rule
+    (app/learning/mastery.py). `word_id` must belong to THIS lesson."""
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
     _require_lesson_exercise(db, lesson.id, exercise_key)
 
@@ -824,48 +780,19 @@ def submit_answer(
     if not payload.timed_out and payload.duration_ms is not None and payload.duration_ms < MIN_ANSWER_MS:
         payload.is_correct = False
 
-    # One COUNTED answer per (pass, word, exercise). The app may legitimately
-    # resend an answer whose response was lost -- that must not move the score a
-    # second time -- and a modified app cannot farm one word by repeating the
-    # same answer. The attempt is still recorded below: analytics sees repeats.
-    repeats = db.query(WordAttempt.id).filter(
-        WordAttempt.user_id == user.id,
-        WordAttempt.lesson_id == lesson.id,
-        WordAttempt.word_id == payload.word_id,
-        WordAttempt.exercise_key == exercise_key,
-    )
-    if lesson.pass_started_at is not None:
-        repeats = repeats.filter(WordAttempt.created_at >= lesson.pass_started_at)
-    already_answered = repeats.first() is not None
-
-    correct_points, incorrect_points = get_points(db, exercise_key)
-    delta = 0 if already_answered else (correct_points if payload.is_correct else -incorrect_points)
-
     if payload.deferred:
-        return _hold_answer_for_pass(db, user, lesson, exercise_key, payload, delta)
+        return _hold_answer_for_pass(db, user, lesson, exercise_key, payload)
 
-    progress = (
-        db.query(WordProgress)
-        .filter(WordProgress.user_id == user.id, WordProgress.word_id == payload.word_id)
-        .first()
-    )
-    if progress is None:
-        progress = WordProgress(user_id=user.id, word_id=payload.word_id, score=0)
-        db.add(progress)
-        db.flush()
-
-    progress.score = max(0, min(100, progress.score + delta))
-    db.flush()  # this session's autoflush is off -- the completion check below must see this update
-
-    # Analytics only -- see app/models/word_attempt.py's own note. Never
-    # read by any scoring/level/achievement/rating decision.
+    # An older app scores answer by answer: the answer is recorded and its
+    # word judged right away by the same rule a finished pass uses.
+    progress = progress_row(db, user.id, payload.word_id)
     record_word_attempt(
         db,
         user_id=user.id,
         word_id=payload.word_id,
         exercise_key=exercise_key,
         is_correct=payload.is_correct,
-        score_after=progress.score,
+        score_after=0,
         lesson_id=lesson.id,
         duration_ms=payload.duration_ms,
         timed_out=payload.timed_out,
@@ -873,45 +800,22 @@ def submit_answer(
         phrase_id=payload.phrase_id,
         mini_phrase_id=payload.mini_phrase_id,
     )
-
     threshold = get_threshold(db)
-    # Keep is_completed (lesson-chain progression) accurate here, but do NOT
-    # set completed_by_pass mid-pass: the "lessons_completed" achievement is
-    # earned only by actually finishing the pass (POST /pass/finish), never
-    # by a lesson auto-completing from already-known words on a single answer.
+    newly_learned = apply_pass(db, user.id, lesson, [payload.word_id])
     lesson_completed = _check_and_apply_lesson_completion(db, lesson, threshold)
     if lesson_completed:
         db.flush()
-    is_learned = progress.score >= threshold
-
-    # Auto lesson/quest are no longer built mid-session: the answer only
-    # marks the user, and the background sweep builds them once the user has
-    # left (app/priority/background_prep.py) and sends a push. Same builders,
-    # same rules as before -- see app/priority/lessons.py and quests_auto.py.
+    is_learned = progress.mastered_at is not None
     mark_for_prep(db, user, lesson.dictionary_id)
-
-    # A word crossing the learned threshold is the one event that can raise
-    # words_learned_count (a word becoming LESS learned never grants
-    # anything, so this is skipped otherwise) -- see app/achievements/
-    # service.py, the one reusable mechanism every condition_type shares.
-    # phrases_opened is NOT granted here: it now counts phrases the user
-    # actually opened (see POST .../phrases/{id}/open), not phrases that
-    # became available from a newly-learned word. lessons_completed is
-    # granted only in finish_lesson_pass, not mid-pass. Rating points react
-    # to the exact same condition but are a fully separate system (see
-    # app/rating/service.py) -- award_word_points_if_new never grants twice
-    # for the same word, so calling it here on every is_learned=True answer
-    # is safe.
     points_awarded = 0
-    if is_learned:
+    if newly_learned:
         check_and_grant_achievements(db, user, "words_learned")
         points_awarded = award_word_points_if_new(db, user, payload.word_id)
-
 
     db.commit()
     return SubmitAnswerOut(
         word_id=payload.word_id,
-        score=progress.score,
+        score=100 if is_learned else 0,
         is_learned=is_learned,
         lesson_completed=lesson_completed,
         points_awarded=points_awarded,

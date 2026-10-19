@@ -63,7 +63,7 @@ def _learned_word_ids(db: Session, user_id: int, dictionary_id: int, threshold: 
     rows = (
         db.query(WordProgress.word_id)
         .join(Word, Word.id == WordProgress.word_id)
-        .filter(WordProgress.user_id == user_id, WordProgress.score >= threshold, Word.dictionary_id == dictionary_id)
+        .filter(WordProgress.user_id == user_id, WordProgress.mastered_at.isnot(None), Word.dictionary_id == dictionary_id)
         .all()
     )
     return {row[0] for row in rows}

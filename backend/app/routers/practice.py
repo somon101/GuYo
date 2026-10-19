@@ -1,5 +1,5 @@
 """«Практика»: self-directed rounds over a user's own LEARNED words
-(WordProgress.score >= threshold -- the same get_learned_pool every other
+(learned words -- the same get_learned_pool every other
 "learned words" feature already reads from), for every one of the 5
 word-scoped exercise types.
 
@@ -206,7 +206,7 @@ def record_practice_answer(
         word_id=word.id,
         exercise_key=payload.exercise_key,
         is_correct=payload.is_correct,
-        score_after=progress.score if progress is not None else 0,
+        score_after=0,
         source="practice",
         duration_ms=payload.duration_ms,
         timed_out=payload.timed_out,
@@ -228,7 +228,7 @@ def record_practice_answer(
 def _review_points_allowed(db: Session, progress: WordProgress | None) -> bool:
     """A word still counts as learned (review points are for learned words
     being forgotten, never for new ones)."""
-    return progress is not None and progress.score >= get_threshold(db)
+    return progress is not None and progress.mastered_at is not None
 
 
 def _grant_review_points(db: Session, user: User, word_id: int) -> None:

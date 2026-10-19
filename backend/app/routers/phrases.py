@@ -61,13 +61,12 @@ def _get_learned_word_tokens(db: Session, user_id: int, dictionary: Dictionary) 
     language). "Learned" reuses the exact same threshold-based definition
     as /learned-words: WordProgress.score >= the admin's configured
     threshold."""
-    threshold = _get_threshold(db)
     learned_words = (
         db.query(Word)
         .join(WordProgress, WordProgress.word_id == Word.id)
         .filter(
             WordProgress.user_id == user_id,
-            WordProgress.score >= threshold,
+            WordProgress.mastered_at.isnot(None),
             Word.dictionary_id == dictionary.id,
         )
         .all()

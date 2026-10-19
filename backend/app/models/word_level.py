@@ -32,6 +32,10 @@ class WordLevel(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     min_points: Mapped[int] = mapped_column(Integer, nullable=False)
     max_points: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # The memory-model ladder: a word is at this level while its memory
+    # holds at least this many days (FSRS stability, app/memory/). Levels
+    # are ordered by it; points are no longer used.
+    min_days: Mapped[float] = mapped_column(Float, nullable=False, default=0, server_default="0")
     order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     # How much a word sitting at this level contributes to its own Priority
