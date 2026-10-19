@@ -17,7 +17,6 @@ import '../config.dart';
 import '../models/status.dart';
 import '../models/dictionary.dart';
 import '../models/exercise.dart';
-import '../models/exercise_scoring.dart';
 import '../models/learning.dart';
 import '../models/language.dart';
 import '../models/lesson.dart';
@@ -31,8 +30,6 @@ import '../models/user_profile.dart';
 import '../models/user_rating.dart';
 import '../models/word.dart';
 import '../services/answer_signals.dart';
-import '../services/lesson_scoring.dart';
-import '../services/pending_answers.dart';
 
 /// package:http's MultipartFile.fromBytes defaults to
 /// application/octet-stream when no contentType is given -- the backend's
@@ -119,17 +116,6 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
-/// How long an action that decides whether a pass can be played at all (opening
-/// a pass, closing one) waits for the network before giving up and being queued
-/// on the device instead.
-///
-/// It MUST be short: with no network the request would otherwise sit on the
-/// operating system's own timeout for tens of seconds, and the user pressing
-/// «Продолжить» on a lesson they prepared earlier would watch a frozen screen
-/// instead of the lesson. Everything these calls do is queued and retried when
-/// there is a connection, so giving up early costs nothing.
-const Duration kOfflineActionTimeout = Duration(seconds: 5);
-
 /// Thin wrapper around the GuYo backend REST API. Holds the JWT in secure
 /// storage (Android Keystore-backed) rather than plain SharedPreferences.
 class ApiClient {
@@ -160,14 +146,10 @@ class ApiClient {
   }
 
   Future<void> clearToken() async {
-    // Last chance to deliver answers judged on this device: they belong to the
-    // account that is about to leave, and nothing else would ever resend them.
-    await flushPendingAnswers();
     _cachedToken = null;
     // Whatever was kept belongs to the account that just left.
     SessionCache.clear();
     await DiskCache.clear();
-    await PendingAnswers.clear();
     await _storage.delete(key: _tokenKey);
   }
 
@@ -421,10 +403,6 @@ class ApiClient {
   List<GuyoDictionary> _parseDictionaries(dynamic json) =>
       (json as List<dynamic>).map((e) => GuyoDictionary.fromJson(e as Map<String, dynamic>)).toList();
 
-  List<GuyoWord> _parseMatchingWords(dynamic json) => ((json as Map<String, dynamic>)['words'] as List<dynamic>)
-      .map((e) => GuyoWord.fromJson(e as Map<String, dynamic>))
-      .toList();
-
   // --- Last answers kept on the device (DiskCache) ---------------------
   // Each main screen opens on these and refreshes in the background.
 
@@ -453,9 +431,9 @@ class ApiClient {
   UserRating? cachedMyRating() => _cached('rating', (j) => UserRating.fromJson(j as Map<String, dynamic>));
   List<LessonSummary>? cachedLessons(int dictionaryId) => _cached(
       'lessons-$dictionaryId',
-      (j) => _withLocalProgress(((j as Map<String, dynamic>)['lessons'] as List<dynamic>)
+      (j) => ((j as Map<String, dynamic>)['lessons'] as List<dynamic>)
           .map((e) => LessonSummary.fromJson(e as Map<String, dynamic>))
-          .toList()));
+          .toList());
   Leaderboard? cachedMyRankLeaderboard() =>
       _cached('leaderboard', (j) => Leaderboard.fromJson(j as Map<String, dynamic>));
   List<GuyoWord>? cachedLearnedWords(int dictionaryId, {bool includeInProgress = false}) =>
@@ -755,10 +733,6 @@ class ApiClient {
   /// this never means "not found", an empty list is a normal response for
   /// a user with no lessons yet.
   Future<List<LessonSummary>> fetchLessons(int dictionaryId) async {
-    // Opening (or refreshing) the Уроки list is exactly when a pass played
-    // offline should be handed over: whatever is still on the device goes first,
-    // so the list that follows already reflects it on the server too.
-    if (await PendingAnswers.hasWork()) unawaited(flushPendingAnswers());
     final res = await http.get(
       _uri('/dictionaries/$dictionaryId/lessons'),
       headers: await _authHeaders(),
@@ -766,40 +740,7 @@ class ApiClient {
     await _throwIfUnauthorized(res);
     final body = _remember('lessons-$dictionaryId', res) as Map<String, dynamic>;
     final list = body['lessons'] as List<dynamic>;
-    return _withLocalProgress(list.map((e) => LessonSummary.fromJson(e as Map<String, dynamic>)).toList());
-  }
-
-  /// Lesson summaries with the passes this device played but the server has not
-  /// confirmed yet folded in.
-  ///
-  /// A lesson finished with no network must not look unfinished the moment the
-  /// user leaves it -- and its words must not look untouched -- just because the
-  /// server has not heard about the pass yet. The local scores are exactly what
-  /// the results screen showed, so the two agree; the server's own numbers
-  /// replace them after the pass goes over (ApiClient.flushPendingAnswers).
-  List<LessonSummary> _withLocalProgress(List<LessonSummary> lessons) {
-    if (lessons.isEmpty) return lessons;
-    final threshold = (cachedExerciseScoring() ?? ExerciseScoring.fallback).threshold;
-    final result = <LessonSummary>[];
-    for (final lesson in lessons) {
-      final scores = LessonScoreOverlay.scoresFor(lesson.id);
-      if (scores.isEmpty) {
-        result.add(lesson);
-        continue;
-      }
-      final total = lesson.wordCount == 0 ? scores.length : lesson.wordCount;
-      final learned = scores.values.where((score) => score >= threshold).length;
-      result.add(
-        LessonSummary(
-          id: lesson.id,
-          number: lesson.number,
-          isCompleted: lesson.isCompleted || (total > 0 && learned >= total),
-          wordCount: lesson.wordCount,
-          learnedCount: learned > total ? total : learned,
-        ),
-      );
-    }
-    return result;
+    return list.map((e) => LessonSummary.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<LessonCandidateWords> fetchLessonCandidateWords(int dictionaryId) async {
@@ -808,31 +749,7 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    // Remembered on the device as well: "Создать урок" opens on the pool it
-    // already has and refreshes quietly, instead of a loader.
-    return LessonCandidateWords.fromJson(_remember('lesson-words-$dictionaryId', res) as Map<String, dynamic>);
-  }
-
-  /// The word pool «Создать урок» last saw, straight off the device -- no
-  /// network and no waiting. Null until [prefetchLessonWords] (or a real
-  /// fetch) has stored one for this dictionary.
-  LessonCandidateWords? cachedLessonCandidateWords(int dictionaryId) =>
-      _cached('lesson-words-$dictionaryId', (j) => LessonCandidateWords.fromJson(j as Map<String, dynamic>));
-
-  /// Warms «Создать урок» in the background: the candidate words and their
-  /// translations are fetched once and kept on the device, so opening the
-  /// screen later needs no loading state at all. Called right after login and
-  /// whenever the chosen dictionary changes.
-  ///
-  /// Silent and best-effort by design: it is an optimisation, never a step
-  /// anybody waits on. Photos and audio are deliberately NOT prefetched --
-  /// those are large and are still fetched the moment they are shown.
-  Future<void> prefetchLessonWords(int dictionaryId) async {
-    try {
-      await fetchLessonCandidateWords(dictionaryId);
-    } catch (_) {
-      // Offline, or nothing to offer yet: the screen fetches for itself.
-    }
+    return LessonCandidateWords.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
   /// Returns the current active (not-yet-completed) lesson for this
@@ -845,34 +762,14 @@ class ApiClient {
     );
     if (res.statusCode == 404) return null;
     await _throwIfUnauthorized(res);
-    return _rememberLesson(res);
+    return Lesson.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
   Future<Lesson> fetchLesson(int lessonId) async {
     final res = await http.get(_uri('/lessons/$lessonId'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
-    return _rememberLesson(res);
+    return Lesson.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
-
-  /// Parses a lesson and keeps the raw body on the device under its id.
-  ///
-  /// EVERY path that returns a lesson goes through here, because the lesson as
-  /// it was BEFORE a pass is what the phone scores an offline pass against (see
-  /// ApiClient.cachedLesson and services/lesson_scoring.dart). A single path
-  /// that forgot to leave a copy was enough to break offline results entirely.
-  Lesson _rememberLesson(http.Response res) {
-    final body = utf8.decode(res.bodyBytes);
-    final lesson = Lesson.fromJson(jsonDecode(body) as Map<String, dynamic>);
-    DiskCache.put('lesson-${lesson.id}', body);
-    // What the user is shown carries the passes this device already played
-    // offline; the raw body above is the server's own copy, kept clean for
-    // exactly that reason (see cachedLesson).
-    return LessonScoreOverlay.applied(lesson, cachedExerciseScoring() ?? ExerciseScoring.fallback);
-  }
-
-  /// The device's copy of this lesson, without a request. Null until it has
-  /// been fetched at least once (see [fetchLesson]).
-  Lesson? cachedLesson(int lessonId) => _cached('lesson-$lessonId', (j) => Lesson.fromJson(j as Map<String, dynamic>));
 
   /// Statistics of the pass that just finished (answers, accuracy, per
   /// exercise, per-word score gain).
@@ -896,9 +793,7 @@ class ApiClient {
   Future<void> finishLessonPass(int lessonId) async {
     // Every answer of the pass must be on the server before it counts.
     await flushLessonAnswers();
-    final res = await http
-        .post(_uri('/lessons/$lessonId/pass/finish'), headers: await _authHeaders())
-        .timeout(kOfflineActionTimeout);
+    final res = await http.post(_uri('/lessons/$lessonId/pass/finish'), headers: await _authHeaders());
     await _throwWithDetail(res);
     try {
       reportStreakResult(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
@@ -906,51 +801,10 @@ class ApiClient {
   }
 
   Future<Lesson> startLessonPass(int lessonId) async {
-    final res = await http
-        .post(_uri('/lessons/$lessonId/pass'), headers: await _authHeaders())
-        .timeout(kOfflineActionTimeout);
+    final res = await http.post(_uri('/lessons/$lessonId/pass'), headers: await _authHeaders());
     await _throwIfUnauthorized(res);
-    // The pass's own starting point: exactly the "before" an offline pass is
-    // scored against.
-    return _rememberLesson(res);
+    return Lesson.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
-
-  /// Opens this pass on the server BEHIND the lesson that is already running
-  /// (see LessonRunScreen): every word the pass covers is on the device, so the
-  /// first exercise is playable at once and this goes on behind it. With no
-  /// network, waiting for it in front of the lesson used to mean five seconds of
-  /// breathing logo before the first card appeared.
-  ///
-  /// The order is what this method is for. An answer must never reach the server
-  /// before the pass it belongs to, or the server records a score for a pass it
-  /// has not opened (and drops it again the moment one is). So nothing this pass
-  /// does goes out until [open] has concluded: an answer given meanwhile waits on
-  /// the gate below, and if [open] fails the opening is written to the device's
-  /// queue first, ahead of the answers waiting behind that gate.
-  ///
-  /// [open] is the request itself (LessonRunDriver.startPass), so the caller
-  /// keeps owning how a pass is opened.
-  Future<void> openLessonPass(int lessonId, Future<void> Function() open) async {
-    // Two passes of one lesson at once would be a bug, and a gate left closed by
-    // one of them must never hold the other's answers back forever.
-    final stale = _passOpening;
-    if (stale != null && !stale.isCompleted) stale.complete();
-    final gate = _passOpening = Completer<void>();
-    try {
-      await open();
-    } catch (_) {
-      // No network: the opening waits on the device, in its own place ahead of
-      // this pass's answers (see PendingAnswers.addStart).
-      await PendingAnswers.addStart(lessonId);
-    } finally {
-      _passOpening = null;
-      gate.complete();
-    }
-  }
-
-  /// The pass being opened on the server right now, if any: answers written while
-  /// it is closed wait behind it (see [openLessonPass]).
-  Completer<void>? _passOpening;
 
   /// Pass exactly one of [wordIds] (ручной выбор, max 15) or [randomCount]
   /// (случайный выбор, 1-15) -- the backend rejects both/neither, same rule
@@ -969,18 +823,7 @@ class ApiClient {
     );
     await _throwWithDetail(res);
     lessonQuotaRevision.value++;
-    final lesson = _rememberLesson(res);
-    // And the device's own LIST of this dictionary is refreshed while we are
-    // online. That list is what «Уроки» shows when there is no network, and it
-    // was written BEFORE this lesson existed -- so a lesson created here and then
-    // played offline (or simply reopened offline) was missing from it: the screen
-    // offered to create it again, and the server, which already had it, refused.
-    try {
-      await fetchLessons(lesson.dictionaryId);
-    } catch (_) {
-      // The list refreshes the next time «Уроки» is opened with a connection.
-    }
-    return lesson;
+    return Lesson.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
   Future<TrueOrFalseRound> fetchLessonTrueOrFalseRound(int lessonId) async {
@@ -989,9 +832,7 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    // Kept on the device as well: a prepared lesson reopens instantly (and
-    // works with no network) instead of asking for the same round again.
-    return TrueOrFalseRound.fromJson(_remember('lesson-round-$lessonId-true_or_false', res) as Map<String, dynamic>);
+    return TrueOrFalseRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
   /// Same generic shape as [fetchExerciseLearnedWords], sourced from this
@@ -1002,7 +843,9 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return _parseMatchingWords(_remember('lesson-round-$lessonId-matching', res));
+    final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    final list = body['words'] as List<dynamic>;
+    return list.map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<BuildWordRound> fetchLessonBuildWordRound(int lessonId) async {
@@ -1011,7 +854,7 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return BuildWordRound.fromJson(_remember('lesson-round-$lessonId-build_word', res) as Map<String, dynamic>);
+    return BuildWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
   Future<SpeakingWordRound> fetchLessonSpeakingWordRound(int lessonId) async {
@@ -1020,7 +863,7 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return SpeakingWordRound.fromJson(_remember('lesson-round-$lessonId-speaking_word', res) as Map<String, dynamic>);
+    return SpeakingWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
   Future<ListenWordRound> fetchLessonListenWordRound(int lessonId) async {
@@ -1029,39 +872,8 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return ListenWordRound.fromJson(_remember('lesson-round-$lessonId-listen_word', res) as Map<String, dynamic>);
+    return ListenWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
-
-  // --- Подготовка урока (офлайн) -------------------------------------------
-  // What lesson preparation reads back off the device: the rounds of every
-  // exercise and the scoring rules. Everything here was stored by an earlier
-  // fetch, so it costs nothing and works with no network.
-
-  /// The device's copy of one exercise's prepared round, or null.
-  Object? cachedLessonRound(int lessonId, String exerciseKey) => switch (exerciseKey) {
-        'true_or_false' => _cached(
-            'lesson-round-$lessonId-true_or_false', (j) => TrueOrFalseRound.fromJson(j as Map<String, dynamic>)),
-        'matching' => _cached('lesson-round-$lessonId-matching', _parseMatchingWords),
-        'build_word' => _cached(
-            'lesson-round-$lessonId-build_word', (j) => BuildWordRound.fromJson(j as Map<String, dynamic>)),
-        'speaking_word' => _cached(
-            'lesson-round-$lessonId-speaking_word', (j) => SpeakingWordRound.fromJson(j as Map<String, dynamic>)),
-        'listen_word' => _cached(
-            'lesson-round-$lessonId-listen_word', (j) => ListenWordRound.fromJson(j as Map<String, dynamic>)),
-        _ => null,
-      };
-
-  /// Scoring rules for every exercise (GET /exercises/scoring) -- what the
-  /// phone mirrors to score a lesson with no network. Stored on the device
-  /// when a lesson is prepared; the server still recomputes everything.
-  Future<ExerciseScoring> fetchExerciseScoring() async {
-    final res = await http.get(_uri('/exercises/scoring'), headers: await _authHeaders());
-    await _throwIfUnauthorized(res);
-    return ExerciseScoring.fromJson(_remember('exercise-scoring', res) as Map<String, dynamic>);
-  }
-
-  ExerciseScoring? cachedExerciseScoring() =>
-      _cached('exercise-scoring', (j) => ExerciseScoring.fromJson(j as Map<String, dynamic>));
 
   // --- Практика ------------------------------------------------------------
   // Self-directed rounds over "Мои изученные слова" for the same 5 exercise
@@ -1159,213 +971,31 @@ class ApiClient {
 
   final Set<Future<void>> _pendingLessonAnswers = {};
 
-  /// Sends a lesson answer in the background: the exercise moves on at once
-  /// (it already judged the answer itself) and the server gets it a moment
-  /// later.
-  ///
-  /// The answer is written to the DEVICE first -- see [PendingAnswers] -- and
-  /// only forgotten once the server has taken it. So a killed app, a dead
-  /// network or a phone switched off mid-lesson never loses a pass's progress:
-  /// [flushPendingAnswers] resends whatever is left. [flushLessonAnswers] waits
-  /// for what is still on its way right now.
+  /// Sends a lesson answer in the background: the exercise moves on at
+  /// once (it already judged the answer itself) and the server gets it a
+  /// moment later -- tried twice, then given up on. [flushLessonAnswers]
+  /// waits for whatever is still on its way.
   void queueLessonAnswer(int lessonId, String exerciseKey, {required int wordId, required bool isCorrect}) {
     // Taken now, before the next question resets them.
     final signals = AnswerSignals.take();
-    final answer = <String, dynamic>{
-      'lesson_id': lessonId,
-      'exercise_key': exerciseKey,
-      'word_id': wordId,
-      'is_correct': isCorrect,
-      // When it was answered: the pass's own statistics (its duration) are
-      // built from these, and a late arrival must not look instantaneous.
-      'at': DateTime.now().millisecondsSinceEpoch,
-      // Whether the server should hold this score until the pass is finished:
-      // recorded per answer, because a resend after a restart has no way to
-      // know how the lesson was being run.
-      'deferred': deferredLessonId == lessonId,
-      ...signals,
-    };
+    final deferred = deferredLessonId == lessonId;
+    Future<void> send() async {
+      final res = await http.post(
+        _uri('/lessons/$lessonId/exercises/$exerciseKey/answers'),
+        headers: await _authHeaders(),
+        body: jsonEncode({...signals, 'word_id': wordId, 'is_correct': isCorrect, if (deferred) 'deferred': true}),
+      );
+      await _throwWithDetail(res);
+    }
 
     late final Future<void> job;
-    job = _storeThenSend(answer).whenComplete(() => _pendingLessonAnswers.remove(job));
+    job = send()
+        .catchError((_) => Future<void>.delayed(const Duration(seconds: 1), send))
+        .catchError((_) {})
+        .whenComplete(() => _pendingLessonAnswers.remove(job));
     _pendingLessonAnswers.add(job);
   }
 
-  /// Writes the answer down, then tries to deliver it -- twice, a second
-  /// apart. If it still will not go, it stays on the device for
-  /// [flushPendingAnswers] rather than being silently dropped.
-  Future<void> _storeThenSend(Map<String, dynamic> answer) async {
-    // Nothing of a pass may reach the server before the pass itself: an answer
-    // given while its pass was still opening waits here, and is written down
-    // after that opening has concluded (see [openLessonPass]).
-    await _passOpening?.future;
-    final id = await PendingAnswers.add(answer);
-    _answersInFlight.add(id);
-    var delivered = false;
-    try {
-      try {
-        await _postLessonAnswer(answer);
-        delivered = true;
-      } catch (_) {
-        try {
-          await Future<void>.delayed(const Duration(seconds: 1));
-          await _postLessonAnswer(answer);
-          delivered = true;
-        } catch (_) {
-          // Kept on the device; the next flush picks it up.
-        }
-      }
-    } finally {
-      _answersInFlight.remove(id);
-    }
-    if (delivered) await PendingAnswers.remove(id);
-  }
-
-  /// Entries whose request is in the air right now: the queue must leave them
-  /// alone (see [_storeThenSend]). Without this the same answer reached the
-  /// server twice -- two identical rows in its history, and, before the server's
-  /// own guard, the word's score moved twice.
-  final Set<int> _answersInFlight = {};
-
-  Future<void> _postLessonAnswer(Map<String, dynamic> answer) async {
-    final res = await http.post(
-      _uri('/lessons/${answer['lesson_id']}/exercises/${answer['exercise_key']}/answers'),
-      headers: await _authHeaders(),
-      body: jsonEncode({
-        for (final entry in answer.entries)
-          // The moment the answer was really given. An answer made with no
-          // network reaches the server much later, and the memory model reads
-          // DAYS -- so this is what the server records as its time (clamped on
-          // its side: never in the future, never before the pass began).
-          if (entry.key == 'at')
-            'answered_at_ms': entry.value
-          else if (entry.key != 'id' &&
-              entry.key != 'kind' &&
-              entry.key != 'lesson_id' &&
-              entry.key != 'exercise_key')
-            entry.key: entry.value,
-      }),
-    );
-    await _throwWithDetail(res);
-  }
-
-  /// One queued entry, in the order it happened: the pass opening, one answer,
-  /// or the pass being played to the end.
-  Future<void> _postAction(Map<String, dynamic> action) async {
-    switch (action['kind'] ?? 'answer') {
-      case 'start':
-        await startLessonPass(action['lesson_id'] as int);
-      case 'finish':
-        await finishLessonPass(action['lesson_id'] as int);
-      default:
-        await _postLessonAnswer(action);
-    }
-  }
-
-  /// Resends everything this device is still holding back, in order. Called once
-  /// the user is logged in, whenever the app opens, and after a lesson's results:
-  /// work done offline is worth exactly as much as work done on time.
-  ///
-  /// Stops at the first failure rather than skipping ahead -- the entries build
-  /// on each other (a pass must be open before its answers, and the answers'
-  /// order is the pass's own order).
-  Future<void> flushPendingAnswers() async {
-    await PendingAnswers.load();
-    // The lessons whose work is going over now: once the server has taken it,
-    // its own numbers for them are the true ones, so anything this device
-    // scored for itself is dropped and the fresh copies are fetched.
-    final touched = <int>{
-      for (final action in PendingAnswers.all)
-        if (action['lesson_id'] is int) action['lesson_id'] as int,
-    };
-    // Whatever happens below, the retry loop runs from here on: this is the one
-    // place that knows the device has something to hand over, so nothing has to
-    // remember to start it at app launch (and nothing did -- see startPendingFlush).
-    _ensurePendingFlush();
-    for (final action in PendingAnswers.all) {
-      final id = action['id'];
-      if (id is! int) continue;
-      // Already on its way: sending it from here as well is exactly how the same
-      // answer used to reach the server twice (see _storeThenSend).
-      if (_answersInFlight.contains(id)) continue;
-      try {
-        await _postAction(action);
-      } on ApiException catch (e) {
-        // The server REFUSED this one (404 "этого слова нет в уроке", 409, 422 --
-        // a pass whose word set the server worked out differently than the round
-        // prepared on the device). Retrying it forever is what froze the whole
-        // queue: every flush died on this one entry, so no answer after it ever
-        // reached the server and the lesson stayed at "Изучено 0 из 4" -- the
-        // pass played on the phone, counted by nobody.
-        final code = e.statusCode;
-        if (code == null || code < 400 || code >= 500) rethrow;
-        debugPrint('[guyo] queue: dropping entry ${action['kind']} for lesson '
-            '${action['lesson_id']} -- server said $code: ${e.message}');
-        await PendingAnswers.remove(id);
-        continue;
-      } catch (_) {
-        return; // No network (or the server is down): it stays, for the next attempt.
-      }
-      await PendingAnswers.remove(id);
-    }
-    if (touched.isEmpty) return;
-    // Everything went over: the screens that were waiting for exactly this are
-    // told, so the lesson's state changes on its own (see syncTick).
-    syncTick.value++;
-    for (final lessonId in touched) {
-      // Only once NOTHING is left for this lesson. The queue's LAST entry is the
-      // pass's own finish, and the server only counts the pass when that lands --
-      // so forgetting the device's own result here (and fetching the server's
-      // still-unfinished copy) is exactly what flashed "0% / пройдите заново"
-      // right after a sync, before the finish arrived. Until the finish is gone,
-      // the local result stands and the card keeps saying it is syncing.
-      if (PendingAnswers.forLesson(lessonId).isNotEmpty) continue;
-      LessonScoreOverlay.forget(lessonId);
-      unawaited(() async {
-        try {
-          await fetchLesson(lessonId);
-        } catch (_) {
-          // The device's copy refreshes the next time the lesson is opened.
-        }
-      }());
-    }
-  }
-
-  /// Ticks every time the device's own lesson work actually goes over to the
-  /// server. Screens that show a lesson's state listen to it, so «Синхронизируется
-  /// с сервером…» turns into the confirmed result by itself -- no reload, no
-  /// reopening the app: the whole point is that the user never has to do anything
-  /// for the truth to arrive.
-  final ValueNotifier<int> syncTick = ValueNotifier<int>(0);
-
-  /// Retries the device's pending lesson work every few seconds while the app is
-  /// running.
-  ///
-  /// A pass played with no network has to reach the server as soon as there IS
-  /// one: without this, the work would sit on the phone until the app was
-  /// reopened, and the lesson would look unplayed (and its words untouched) in
-  /// the meantime.
-  ///
-  /// FIVE seconds, and it starts ITSELF the first time anything is queued (see
-  /// [_ensurePendingFlush]) -- it used to be thirty and, worse, nothing ever called
-  /// it, so a finished pass could sit on the device indefinitely: the user waited
-  /// for a sync that was never scheduled.
-  void startPendingFlush({Duration every = const Duration(seconds: 5)}) {
-    if (_pendingFlushTimer != null) return;
-    _pendingFlushTimer = Timer.periodic(every, (_) async {
-      if (await PendingAnswers.hasWork()) await flushPendingAnswers();
-    });
-  }
-
-  /// Starts the retry loop if it is not running: called from the one place that
-  /// knows there is something to hand over.
-  void _ensurePendingFlush() => startPendingFlush();
-
-  Timer? _pendingFlushTimer;
-
-  /// Waits for the answers that are on their way right now (they are sent in the
-  /// background so an exercise never waits on the network). Called before a pass
-  /// is finished, so the server has every one of them.
   Future<void> flushLessonAnswers() => Future.wait(List<Future<void>>.of(_pendingLessonAnswers));
 
   // --- Профиль и Достижения ------------------------------------------------

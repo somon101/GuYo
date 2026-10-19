@@ -1772,49 +1772,6 @@ export async function getTextCheckRun(id: number): Promise<TextCheckRunDetail> {
   return data;
 }
 
-/** One sync packet as the list shows it. */
-export interface SyncJournalEntry {
-  id: number;
-  user_id: number | null;
-  user_login: string;
-  lesson_id: number | null;
-  action: string;
-  exercise_key: string | null;
-  word_id: number | null;
-  accepted: boolean;
-  outcome: string | null;
-  created_at: string;
-  summary: string;
-}
-
-/** One sync packet in full -- what the device sent and the server's verdict. */
-export interface SyncJournalDetail extends SyncJournalEntry {
-  payload: Record<string, unknown> | null;
-}
-
-export async function listSyncJournal(
-  filters: { lessonId?: number; userId?: number; onlyRejected?: boolean } = {},
-  limit = 50,
-  offset = 0,
-): Promise<{ total: number; entries: SyncJournalEntry[] }> {
-  const { data } = await api.get("/admin/analytics/sync-journal", {
-    params: {
-      limit,
-      offset,
-      ...(filters.lessonId !== undefined ? { lesson_id: filters.lessonId } : {}),
-      ...(filters.userId !== undefined ? { user_id: filters.userId } : {}),
-      ...(filters.onlyRejected ? { only_rejected: true } : {}),
-    },
-  });
-  return data;
-}
-
-export async function getSyncJournalEntry(id: number): Promise<SyncJournalDetail> {
-  const { data } = await api.get(`/admin/analytics/sync-journal/${id}`);
-  return data;
-}
-
-/** Одно слово, которого нет в словаре, но которое нужно фразам. */
 export interface ContentAuditMissingWord {
   word: string;
   phrases: number;

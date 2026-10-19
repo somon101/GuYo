@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { UserHistorySection } from "../components/UserHistorySection";
 import { MiniPhraseAnalytics } from "../components/MiniPhraseAnalytics";
 import { MemoryReviewSection } from "../components/MemoryReviewSection";
-import { SyncJournal } from "./SyncJournal";
 import {
   getUserPhraseAnalytics,
   listAnalyticsDictionaries,
@@ -155,7 +154,6 @@ export function UserAnalyticsPage() {
                 <MiniPhraseAnalytics userId={selectedUserId} dictionaryId={selectedDictionaryId} />
               )}
 
-              <SyncJournal />
             </div>
           )}
         </>

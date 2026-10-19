@@ -43,20 +43,6 @@ class WordLevelView {
     final index = levelId == null ? -1 : levels.indexWhere((l) => l.id == levelId);
     return WordLevelView(name: levelName, color: wordLevelColor(index, levels.length));
   }
-
-  /// The level [score] falls into, by the SERVER's exact rule: the first level
-  /// (lowest min_points first) whose range covers the score, where a level may
-  /// have no upper bound ([maxPoints] null). Mirrors backend/app/word_levels/
-  /// service.py's `level_for_score_in`, so an offline pass classifies a word
-  /// exactly as the server will when its answers arrive.
-  static WordLevelSummary? forScore(int score, List<WordLevelSummary> levels) {
-    for (final level in levels) {
-      if (level.minPoints <= score && (level.maxPoints == null || score <= level.maxPoints!)) {
-        return level;
-      }
-    }
-    return null;
-  }
 }
 
 /// The app's ONE word row, used by every list that shows words (Мои слова,

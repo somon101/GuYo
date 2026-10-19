@@ -645,18 +645,4 @@ const Map<String, (String, String)> uiStrings = {
   'Проверять пунктуацию: выкл': ('Тафтиши аломатҳои китобат: ғайрифаъол', 'Tinish belgilarini tekshirish: oʻchiq'),
   'Пунктуацию не проверяю': ('Аломатҳои китобатро тафтиш намекунам', 'Tinish belgilarini tekshirmayman'),
   'Проверяю пунктуацию': ('Аломатҳои китобатро тафтиш мекунам', 'Tinish belgilarini tekshiraman'),
-
-  // Подготовка урока: создаётся и скачивается с интернетом, дальше проходится
-  // без него (см. lib/services/lesson_preparation.dart).
-  'Подготавливаем урок': ('Дарс омода карда мешавад', 'Dars tayyorlanmoqda'),
-  'Готовим для работы без интернета': ('Барои кор бе интернет омода мекунем', 'Internetsiz ishlash uchun tayyorlayapmiz'),
-  'Синхронизируется с сервером…': ('Бо сервер ҳамоҳанг мешавад…', 'Server bilan sinxronlanmoqda…'),
-  'Готовим урок для офлайна': ('Дарсро барои офлайн омода мекунем', 'Darsni oflayn uchun tayyorlayapmiz'),
-  'Готовим упражнения': ('Машқҳоро омода мекунем', 'Mashqlarni tayyorlayapmiz'),
-  'Скачиваем озвучку и картинки': ('Овоз ва расмҳоро боргирӣ мекунем', 'Ovoz va rasmlarni yuklayapmiz'),
-  'Правила начисления': ('Қоидаҳои ҳисоб', 'Hisoblash qoidalari'),
-  'Урок готов': ('Дарс омода аст', 'Dars tayyor'),
-  'После этого урок открывается мгновенно и работает без интернета.': ('Баъд аз ин дарс фавран кушода мешавад ва бе интернет кор мекунад.', 'Shundan soʻng dars bir zumda ochiladi va internetsiz ishlaydi.'),
-  'Не удалось подготовить урок. Проверьте интернет.': ('Дарс омода нашуд. Интернетро тафтиш кунед.', 'Darsni tayyorlab boʻlmadi. Internetni tekshiring.'),
-  'Урок создаётся и подготавливается с интернетом, а потом проходится без него.': ('Дарс бо интернет сохта ва омода мешавад, баъд бе он гузаронида мешавад.', 'Dars internet bilan yaratiladi va tayyorlanadi, keyin usiz oʻtiladi.'),
 };

@@ -9,32 +9,16 @@ import '../models/word.dart';
 import '../theme/app_colors.dart';
 import '../widgets/word_card.dart';
 import 'lesson_run_screen.dart' show lessonExerciseLabels;
-import '../services/local_achievements.dart';
 import 'achievement_celebration_screen.dart';
-
-/// The server's own version of a pass that has just gone over: the lesson as
-/// it now stands (GET /lessons/{id}) and the statistics it counted.
-///
-/// Handed to [LessonResultsScreen] as a future so the screen can OPEN on the
-/// numbers the phone worked out for itself and swap these in the moment they
-/// arrive -- see LessonRunScreen, which hands the pass over behind the
-/// results instead of in front of them.
-class LessonResultsRefresh {
-  final Lesson lesson;
-  final LessonPassStats? stats;
-
-  const LessonResultsRefresh(this.lesson, this.stats);
-}
 
 /// Shown once a "Начать урок" run has walked every available exercise type
 /// (see LessonRunScreen) -- the ONE place a lesson's
 /// pass/fail outcome is decided and shown, with the real, per-word reason
 /// why. Never computes "is this word learned" itself: `lesson.words` here
-/// is either the server's own copy (GET /lessons/{id}) or -- while the pass
-/// has not gone over yet -- the device's, scored by the same rules (see
-/// LessonScoring), so `isLearned`/`score`/`wordLevelName` are exactly what
-/// the backend's own WordProgress/WordLevel ladder says -- the same ladder
-/// "Мои слова" renders (GET /word-levels), never a second one.
+/// is a FRESH fetch (GET /lessons/{id}) taken right after the exercise
+/// sequence finished, so `isLearned`/`score`/`wordLevelName` are exactly
+/// what the backend's own WordProgress/WordLevel ladder says -- the same
+/// ladder "Мои слова" renders (GET /word-levels), never a second one.
 ///
 /// Pops `true` if the user chooses "Повторить урок" (the caller re-runs
 /// the exact same exercise sequence; the new pass covers only the words
@@ -45,12 +29,7 @@ class LessonResultsScreen extends StatefulWidget {
 
   /// The pass's statistics; null (couldn't be loaded) just hides them.
   final LessonPassStats? stats;
-
-  /// The server's version of this pass, when it is still on its way: the
-  /// screen shows [lesson]/[stats] at once and replaces them with these when
-  /// they land. Null when there is nothing more to wait for.
-  final Future<LessonResultsRefresh?>? refresh;
-  const LessonResultsScreen({super.key, required this.lesson, this.stats, this.refresh});
+  const LessonResultsScreen({super.key, required this.lesson, this.stats});
 
   @override
   State<LessonResultsScreen> createState() => _LessonResultsScreenState();
@@ -59,23 +38,10 @@ class LessonResultsScreen extends StatefulWidget {
 class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTickerProviderStateMixin {
   late Future<List<WordLevelSummary>> _levelsFuture;
 
-  /// The lesson on screen. Starts as the one the runner handed over (the
-  /// device's own, scored here, when the pass is still on the phone) and is
-  /// replaced by the server's own copy the moment it arrives.
-  late Lesson _lesson = widget.lesson;
-
-  /// The pass's own numbers. Starts as whatever the runner had (the phone's own
-  /// score, or null: see [_loadStats]) and fills in a moment later, in place.
-  LessonPassStats? _stats;
-
   /// Achievements this lesson earned, fetched WHILE the results are on screen
   /// so the celebration can be shown the instant the user leaves -- never as a
   /// dialog on top of the results themselves.
   Future<List<UserAchievement>>? _newAchievements;
-
-  /// What this lesson provably opens, worked out on the device -- used when the
-  /// server has nothing to report yet (a pass that has not gone over).
-  List<UserAchievement> _predictedAchievements = const [];
 
   /// The opening sequence: the centre ring, then the rings around it one
   /// by one, then the cards below one by one, each bar filling as its card
@@ -96,77 +62,13 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTi
   @override
   void initState() {
     super.initState();
-    _stats = widget.stats;
-    // Best-effort -- but the DEVICE's own ladder is the fallback, never an empty
-    // one: with no network the fetch fails, and an empty ladder meant each word's
-    // level fell back to the value the server last stored for it -- "0 — новое"
-    // next to a "+85" gain this very pass had just earned.
-    _levelsFuture = ApiClient.instance
-        .fetchWordLevels()
-        .catchError((_) => ApiClient.instance.cachedWordLevels() ?? <WordLevelSummary>[]);
+    // Best-effort only -- the per-word level BADGE is a nice-to-have on
+    // top of the always-shown score/progress bar, never required to
+    // render the pass/fail outcome itself.
+    _levelsFuture = ApiClient.instance.fetchWordLevels().catchError((_) => <WordLevelSummary>[]);
     // Started here, awaited only when the user leaves: the celebration is the
     // LAST thing this lesson shows, exactly as asked.
     _newAchievements = takeNewAchievements();
-    // And the same for a lesson played with no network: the server has not been
-    // told about this pass yet, so the achievements it provably opens are worked
-    // out here from the profile's counters plus this pass's own result. The
-    // server checks them properly when the pass goes over -- anything it does not
-    // confirm simply closes again, without a word about the correction.
-    _predictedAchievements = _predict(_lesson, _stats);
-    // The pass numbers are fetched HERE, by the screen itself, rather than
-    // before it opens: the results appear the moment the lesson runner has the
-    // fresh lesson, and the tiles and gains fill in a beat later instead of
-    // holding the whole screen back.
-    _loadStats();
-    // And, when the runner is still handing the pass over, the server's own
-    // version of everything above arrives here -- replacing the numbers the
-    // phone worked out for itself, in place, without the screen ever waiting
-    // for the network (see LessonResultsRefresh).
-    unawaited(_applyRefresh());
-  }
-
-  /// What the device can prove this lesson opened, from the numbers on screen
-  /// (see LocalAchievements): the fallback for a pass whose achievements the
-  /// server has not reported -- or has not been told about yet.
-  List<UserAchievement> _predict(Lesson lesson, LessonPassStats? stats) => LocalAchievements.afterLesson(
-        all: ApiClient.instance.cachedMyAchievements() ?? const [],
-        profile: ApiClient.instance.cachedMyProfile(),
-        newWordsLearned: stats?.newlyLearned ?? 0,
-        newLessonsCompleted: lesson.isCompleted ? 1 : 0,
-        newMiniPhrasesDone: lesson.miniPhrases.length,
-      );
-
-  /// Takes the server's own version of this pass, when it arrives.
-  ///
-  /// Never throws and never blocks anything: the screen is already complete
-  /// without it, and the runner has already scored the pass on the device when
-  /// the server could not be reached at all.
-  Future<void> _applyRefresh() async {
-    final incoming = await widget.refresh;
-    if (!mounted || incoming == null) return;
-    setState(() {
-      _lesson = incoming.lesson;
-      if (incoming.stats != null) _stats = incoming.stats;
-      // The device's own guess is replaced by what the server actually counted
-      // (see _predictedAchievements).
-      _predictedAchievements = _predict(_lesson, _stats);
-    });
-    // The pass has only NOW gone over, so the server's list of what this lesson
-    // earned is only now complete: ask again. The device's own answer above
-    // stays as the fallback for a pass that never gets there (see _leave).
-    _newAchievements = takeNewAchievements();
-  }
-
-  Future<void> _loadStats() async {
-    if (_stats != null) return;
-    try {
-      final stats = await ApiClient.instance.fetchLessonPassStats(widget.lesson.id);
-      if (!mounted) return;
-      setState(() => _stats = stats);
-    } catch (_) {
-      // The screen already works without them: it falls back to the words'
-      // own learned/not-learned state (see `hasStats`).
-    }
   }
 
   /// Leaves the results: any achievement earned this lesson is celebrated
@@ -177,13 +79,10 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTi
     if (pending != null) {
       // Already on its way; the timeout only stops a very slow network from
       // making the button feel stuck.
-      var achievements = await pending.timeout(
+      final achievements = await pending.timeout(
         const Duration(seconds: 2),
         onTimeout: () => const <UserAchievement>[],
       );
-      // Nothing from the server (offline, or genuinely nothing new): this is
-      // where the lesson's own achievements show instead.
-      if (achievements.isEmpty) achievements = _predictedAchievements;
       if (achievements.isNotEmpty && mounted) {
         await Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => AchievementCelebrationScreen(achievements: achievements)),
@@ -196,8 +95,8 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTi
 
   @override
   Widget build(BuildContext context) {
-    final lesson = _lesson;
-    final stats = _stats;
+    final lesson = widget.lesson;
+    final stats = widget.stats;
     final learnedCount = lesson.words.where((w) => w.isLearned).length;
     final total = lesson.words.length;
     final allLearned = lesson.isCompleted || (total > 0 && learnedCount == total);
@@ -984,15 +883,7 @@ class _WordProgressRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // The level this word's score falls into NOW -- the pass already moved the
-    // word, so `word.score` IS the score after the pass (both online, from the
-    // server's fresh copy, and offline, from the local scoring). Looking it up
-    // from `word.score + gained` counted the gain twice and pushed the number
-    // past every range, which is how a finished word still read "0 — новое".
-    final resolved = WordLevelView.forScore(word.score, levels);
-    final level = resolved != null
-        ? WordLevelView.resolve(resolved.id, resolved.name, levels)
-        : WordLevelView.resolve(word.wordLevelId, word.wordLevelName, levels);
+    final level = WordLevelView.resolve(word.wordLevelId, word.wordLevelName, levels);
     final color = word.isLearned ? AppColors.success : level.color;
 
     return WordCard(

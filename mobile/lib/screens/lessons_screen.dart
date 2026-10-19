@@ -2,8 +2,6 @@ import 'dart:async';
 import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
-import '../services/lesson_scoring.dart';
-import '../services/pending_answers.dart';
 import '../services/session_cache.dart';
 import '../models/dictionary.dart';
 import '../models/lesson.dart';
@@ -11,7 +9,6 @@ import '../theme/app_colors.dart';
 import 'lesson_create_screen.dart';
 import 'lesson_detail_screen.dart';
 import 'lesson_run_screen.dart';
-import '../widgets/in_app_banner.dart';
 import '../widgets/skeleton.dart';
 
 /// "Уроки": the new primary progress system's own tab. Shows this
@@ -59,37 +56,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
       _lessons = cached;
       _isLoading = false;
     }
-    // The moment the device's own pass work reaches the server, this list is
-    // reloaded by itself: «Синхронизируется с сервером…» turns into the confirmed
-    // result without the user reloading anything (see ApiClient.syncTick).
-    ApiClient.instance.syncTick.addListener(_onSynced);
-    // And the same happens the moment the app comes back to the foreground: a pass
-    // played offline is handed over AT ONCE rather than waiting for the 30-second
-    // retry, and the list then shows what the server confirmed -- including the
-    // next lesson becoming creatable. Nothing is polled; this only runs on the
-    // transition, so opening the app IS the trigger.
-    _lifecycle = AppLifecycleListener(
-      onResume: () {
-        if (!mounted) return;
-        unawaited(ApiClient.instance.flushPendingAnswers());
-        unawaited(_load());
-      },
-    );
     _load();
-  }
-
-  /// Kept only so it can be removed in [dispose]; created in [initState].
-  AppLifecycleListener? _lifecycle;
-
-  void _onSynced() {
-    if (mounted) unawaited(_load());
-  }
-
-  @override
-  void dispose() {
-    _lifecycle?.dispose();
-    ApiClient.instance.syncTick.removeListener(_onSynced);
-    super.dispose();
   }
 
   Future<void> _load() async {
@@ -109,14 +76,6 @@ class _LessonsScreenState extends State<LessonsScreen> {
         _lessons = lessons;
         _isLoading = false;
       });
-      // A pass that is still on the device goes over in the background (see
-      // fetchLessons); one quiet re-check a few seconds later is what turns
-      // "проверяем результаты" back into "можно создавать урок".
-      if (_awaitingCheckLessonId != null) {
-        Future<void>.delayed(const Duration(seconds: 4), () {
-          if (mounted) setState(() {});
-        });
-      }
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -176,31 +135,13 @@ class _LessonsScreenState extends State<LessonsScreen> {
   }
 
   Future<void> _continueLessonNow(int lessonId) async {
-    // The DEVICE's own copy first, and immediately: it was fetched when the lesson
-    // was created and kept on disk, and a pass needs nothing from the network.
-    // Asking the server first meant that with no connection the tap did nothing
-    // visible for seconds (the request waited on the operating system's own
-    // timeout), which reads as a dead button -- and invites more taps.
-    Lesson? lesson = SessionCache.take<Lesson>('lesson-$lessonId') ?? ApiClient.instance.cachedLesson(lessonId);
-    if (lesson != null) {
-      // Refreshed behind the lesson: the next open, and the word list, get the
-      // server's newer copy without this one waiting for it.
-      unawaited(() async {
-        try {
-          await ApiClient.instance.fetchLesson(lessonId);
-        } catch (_) {
-          // Offline, or the server is down: the device's copy stands.
-        }
-      }());
-    } else {
-      // Nothing on the device: the server is the only way, with a short wait so a
-      // dead network fails fast instead of freezing the screen.
-      for (var attempt = 0; lesson == null && attempt < 2; attempt++) {
-        try {
-          lesson = await ApiClient.instance.fetchLesson(lessonId).timeout(kOfflineActionTimeout);
-        } catch (_) {
-          if (attempt == 0) await Future<void>.delayed(const Duration(milliseconds: 800));
-        }
+    Lesson? lesson = SessionCache.take<Lesson>('lesson-$lessonId');
+    // A network blip shouldn't stop the lesson: one quiet second try.
+    for (var attempt = 0; lesson == null && attempt < 2; attempt++) {
+      try {
+        lesson = await ApiClient.instance.fetchLesson(lessonId);
+      } catch (_) {
+        if (attempt == 0) await Future<void>.delayed(const Duration(milliseconds: 800));
       }
     }
     if (lesson == null) {
@@ -217,63 +158,9 @@ class _LessonsScreenState extends State<LessonsScreen> {
     await _runLesson(lesson);
   }
 
-  /// The lesson whose pass this device scored for itself and the server has not
-  /// confirmed -- or null when everything is settled.
-  ///
-  /// Two things count, and BOTH matter for the card that offers to create the
-  /// next lesson:
-  ///  * work still queued to be handed over ([PendingAnswers]);
-  ///  * a pass that went over but whose result the device has not had confirmed
-  ///    yet (the local score copy in [LessonScoreOverlay]). Without this one, the
-  ///    cached list -- taken before the pass, so it still shows the PREVIOUS
-  ///    lesson as the newest -- offered "Создать урок 21" for a lesson the server
-  ///    already had, and the lesson the user had just finished looked unpassed.
-  ///
-  /// The hand-over happens by itself (every 30 seconds, and whenever this list is
-  /// loaded), so the state is short-lived.
-  int? get _awaitingCheckLessonId {
-    // The QUEUE first, and by its own lesson id: it knows which lesson its work
-    // belongs to, while the list on screen may be older than that lesson. This is
-    // exactly how "Доступен для создания Урок 31" appeared for a lesson that
-    // already existed and was half-played: the cached list was taken before it was
-    // created, so the loop below never saw it.
-    for (final action in PendingAnswers.all) {
-      final id = action['lesson_id'];
-      if (id is int) return id;
-    }
-    for (final lesson in _lessons) {
-      if (LessonScoreOverlay.scoresFor(lesson.id).isNotEmpty) return lesson.id;
-    }
-    return null;
-  }
-
-  /// How many of this lesson's words are at their level once the pass THIS device
-  /// scored for itself is counted -- or null when there is nothing local to add.
-  ///
-  /// The server's own list is short by exactly that work, so a lesson played with
-  /// no network read "Изучено 0 из 5" with its words already learned, right next
-  /// to a note saying the pass was done.
-  int? _locallyLearned(int lessonId) {
-    if (LessonScoreOverlay.scoresFor(lessonId).isEmpty) return null;
-    final full = ApiClient.instance.cachedLesson(lessonId);
-    final rules = ApiClient.instance.cachedExerciseScoring();
-    if (full == null || rules == null) return null;
-    return LessonScoreOverlay.applied(full, rules).words.where((w) => w.isLearned).length;
-  }
-
   /// Word selection, then -- when "Начать урок" there creates the lesson
   /// -- straight into it.
   Future<void> _createNextLesson() async {
-    // Nothing may be created while a pass is still waiting to be checked: the
-    // lesson it belongs to is not really finished yet.
-    if (_awaitingCheckLessonId != null) {
-      InAppBanner.show(
-        body: tr('Сначала проверяются результаты прошлого урока'),
-        visibleFor: InAppBanner.confirmationVisibleFor,
-        opensInbox: false,
-      );
-      return;
-    }
     final lesson = await Navigator.of(context).push<Lesson>(
       MaterialPageRoute(builder: (_) => LessonCreateScreen(dictionary: widget.dictionary)),
     );
@@ -320,18 +207,10 @@ class _LessonsScreenState extends State<LessonsScreen> {
     }
 
     final lessons = _lessons;
-    // The lesson whose pass is still on the device, waiting to be handed over
-    // and checked by the server. Until that happens its results -- and the
-    // words it moved -- are not real yet, so no new lesson may be created
-    // (mirroring the backend's own creation rule); the way forward is to play
-    // that lesson again.
-    final awaitingCheckId = _awaitingCheckLessonId;
-    final awaitingLesson =
-        awaitingCheckId == null ? null : lessons.firstWhere((l) => l.id == awaitingCheckId, orElse: () => lessons.first);
     // A new card is only ever added once the current last lesson is fully
     // complete -- exactly the backend's own creation rule (POST /lessons
     // 409s otherwise), mirrored here purely for what the list displays.
-    final canCreateNext = (lessons.isEmpty || lessons.last.isCompleted) && awaitingCheckId == null;
+    final canCreateNext = lessons.isEmpty || lessons.last.isCompleted;
     final nextNumber = lessons.isEmpty ? 1 : lessons.last.number + 1;
     final completedCount = lessons.where((l) => l.isCompleted).length;
 
@@ -364,46 +243,15 @@ class _LessonsScreenState extends State<LessonsScreen> {
             progress: null,
             onTap: _createNextLesson,
           ),
-        // ONE card per lesson, always -- the lesson whose pass is still waiting
-        // to be confirmed gets no card of its own, or the same lesson shows up
-        // twice (which is exactly what happened). Only what its own card says
-        // changes: passed by the app's own count, all that is missing is the
-        // server's confirmation and it says so; not passed, the ordinary
-        // "continue and earn the points" card.
         for (final lesson in reversedLessons)
           _LessonCard(
             state: lesson.isCompleted ? _LessonCardState.completed : _LessonCardState.inProgress,
             number: lesson.number,
             title: tr('Урок {0}', [lesson.number]),
-            // Waiting for the server's confirmation with the points already there:
-            // ONLY that -- no percentage, no "continue" (a finished lesson must not
-            // look unfinished). "Passed" MUST count the pass this device scored for
-            // itself: offline the server's own list still calls the lesson
-            // unfinished, and that is exactly how a lesson played to the end showed
-            // "100%" next to a "Продолжить" button instead of this note.
-            subtitle: lesson.id == awaitingLesson?.id &&
-                    lesson.wordCount > 0 &&
-                    (_locallyLearned(lesson.id) ?? lesson.learnedCount) >= lesson.wordCount
-                ? tr('Синхронизируется с сервером…')
-                : tr('Изучено {0} из {1} слов', [
-                    _locallyLearned(lesson.id) ?? lesson.learnedCount,
-                    lesson.wordCount,
-                  ]),
-            progress: lesson.id == awaitingLesson?.id &&
-                    lesson.wordCount > 0 &&
-                    (_locallyLearned(lesson.id) ?? lesson.learnedCount) >= lesson.wordCount
-                ? null
-                : (lesson.wordCount == 0
-                    ? 0.0
-                    : ((_locallyLearned(lesson.id) ?? lesson.learnedCount) / lesson.wordCount).clamp(0.0, 1.0)),
+            subtitle: tr('Изучено {0} из {1} слов', [lesson.learnedCount, lesson.wordCount]),
+            progress: lesson.wordCount == 0 ? 0.0 : lesson.learnedCount / lesson.wordCount,
             onTap: () => _openLesson(lesson.id),
-            // Points NOT earned: the ordinary "continue and earn them" card.
-            // Confirmed complete: no button either. Only the still-unconfirmed
-            // one offers a repeat, so nobody is stuck without a network.
-            onContinue: lesson.wordCount > 0 &&
-                    (_locallyLearned(lesson.id) ?? lesson.learnedCount) >= lesson.wordCount
-                ? (lesson.id == awaitingLesson?.id ? () => _continueLesson(lesson.id) : null)
-                : () => _continueLesson(lesson.id),
+            onContinue: lesson.isCompleted ? null : () => _continueLesson(lesson.id),
           ),
       ],
     );
@@ -528,25 +376,9 @@ class _LessonCard extends StatelessWidget {
                             ),
                           ],
                         )
-                      else if (subtitle == tr('Синхронизируется с сервером…'))
-                        // Waiting for the server: a spinner and the note, nothing
-                        // else. A percentage here would be the DEVICE's own count
-                        // dressed up as the server's, and a button would invite the
-                        // user to redo a pass that is already done.
-                        Row(
-                          children: [
-                            SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(subtitle, style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
-                          ],
-                        )
                       else
                         Text(subtitle, style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
-                      if (isActive && subtitle != tr('Синхронизируется с сервером…')) ...[
+                      if (isActive) ...[
                         const SizedBox(height: 10),
                         Row(
                           children: [

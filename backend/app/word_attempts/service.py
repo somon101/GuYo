@@ -5,8 +5,6 @@ attempt is recorded once, from the same call that already computed the
 new score, never re-derived or duplicated anywhere else.
 """
 
-from datetime import datetime
-
 from sqlalchemy.orm import Session
 
 from app.models.word_attempt import WordAttempt
@@ -25,7 +23,6 @@ def record_word_attempt(
     duration_ms: int | None = None,
     timed_out: bool = False,
     given_answer: str | None = None,
-    answered_at: datetime | None = None,
     phrase_id: int | None = None,
     mini_phrase_id: int | None = None,
     review_list_id: int | None = None,
@@ -52,14 +49,6 @@ def record_word_attempt(
         mini_phrase_id=mini_phrase_id,
         review_list_id=review_list_id,
     )
-    # WHEN the answer was really given, when the caller knows it. An answer made
-    # with no network reaches the server days later, and the memory model reads
-    # DAYS (app/memory/service.py groups the history by date): without this, a
-    # week of offline practice collapses into one day and the intervals it
-    # computes are simply wrong. The caller clamps it (never in the future, never
-    # before the pass began).
-    if answered_at is not None:
-        fields["created_at"] = answered_at
     db.add(WordAttempt(**fields))
     db.flush()
 

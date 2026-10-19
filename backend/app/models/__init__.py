@@ -32,7 +32,6 @@ from app.models.status import StatusEmoji, StatusPhrase
 from app.models.premium import PremiumGrant, PremiumSettings
 from app.models.promo import PromoActivation, PromoCode, PromoLink
 from app.models.text_check import TextCheckCache, TextCheckRun, TextCheckSettings
-from app.models.sync_journal import SyncJournal
 
 __all__ = [
     "StatusEmoji",

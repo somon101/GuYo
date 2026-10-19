@@ -37,50 +37,6 @@ class MediaCache {
     }
   }
 
-  /// Downloads every url and WAITS for all of them, reporting progress.
-  ///
-  /// Unlike [prefetch] this is what lesson preparation uses: once a lesson is
-  /// prepared it has to work with no network at all, so nothing may be left to
-  /// load later. A file that fails is counted and skipped rather than thrown --
-  /// one broken recording must never block a lesson.
-  ///
-  /// Returns how many files could not be downloaded (0 = everything is here).
-  Future<int> downloadAll(Iterable<String> urls, {void Function(int done, int total)? onProgress}) async {
-    final unique = {for (final url in urls) if (url.isNotEmpty) fullUrl(url)};
-    final pending = [for (final url in unique) if (!_localFiles.containsKey(url)) url];
-    final total = unique.length;
-    var done = total - pending.length;
-    var failed = 0;
-    onProgress?.call(done, total);
-    for (final url in pending) {
-      await _download(url);
-      if (!_localFiles.containsKey(url)) failed++;
-      done++;
-      onProgress?.call(done, total);
-    }
-    return failed;
-  }
-
-  /// Fills the map from the ON-DISK cache without touching the network.
-  ///
-  /// The files are still there after the app is closed, but [_localFiles]
-  /// starts empty on every launch -- without this, a prepared lesson's
-  /// recordings would be streamed (and so fail with no connection) even though
-  /// they are sitting on the phone.
-  Future<void> warm(Iterable<String> urls) async {
-    final manager = DefaultCacheManager();
-    for (final url in {for (final u in urls) if (u.isNotEmpty) fullUrl(u)}) {
-      if (_localFiles.containsKey(url)) continue;
-      try {
-        final info = await manager.getFileFromCache(url);
-        if (info != null) _localFiles[url] = info.file.path;
-      } catch (e) {
-        // Not cached: it streams, or fails, exactly as it did before.
-        debugPrint('Warm failed for $url: $e');
-      }
-    }
-  }
-
   Future<void> _download(String url) async {
     try {
       final file = await DefaultCacheManager().getSingleFile(url);

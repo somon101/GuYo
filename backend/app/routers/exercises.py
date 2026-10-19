@@ -150,6 +150,10 @@ def set_exercise_settings(
     )
 
 
+# Kept ONLY for app builds from the offline-lesson period (Oct 14-19, 2026):
+# they fetch these rules before a lesson and refuse to start without them.
+# The current app plays lessons online and never calls this -- remove it once
+# those builds are no longer in use.
 @router.get("/exercises/scoring", response_model=ExerciseScoringOut)
 def get_exercise_scoring(
     db: Session = Depends(get_db),

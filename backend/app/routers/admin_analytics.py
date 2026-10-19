@@ -601,56 +601,6 @@ def get_retention(
     )
 
 
-# --- «Синхронизация» ---------------------------------------------------------
-
-
-@router.get("/sync-journal")
-def list_sync_journal(
-    lesson_id: int | None = Query(default=None),
-    user_id: int | None = Query(default=None),
-    only_rejected: bool = Query(default=False),
-    limit: int = Query(default=50, ge=1, le=200),
-    offset: int = Query(default=0, ge=0),
-    db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
-):
-    """Every packet a device sent to sync a lesson pass, in the order it arrived.
-    Each row says WHAT was sent (the action and its payload) and WHAT the server
-    did with it (accepted, or the reason it was not)."""
-    from app.models.sync_journal import SyncJournal
-
-    query = db.query(SyncJournal)
-    if lesson_id is not None:
-        query = query.filter(SyncJournal.lesson_id == lesson_id)
-    if user_id is not None:
-        query = query.filter(SyncJournal.user_id == user_id)
-    if only_rejected:
-        query = query.filter(SyncJournal.accepted.is_(False))
-    total = query.with_entities(func.count(SyncJournal.id)).scalar() or 0
-    rows = query.order_by(SyncJournal.id.desc()).offset(offset).limit(limit).all()
-    return {
-        "total": total,
-        "entries": [
-            {
-                "id": row.id,
-                "user_id": row.user_id,
-                "user_login": row.user_login,
-                "lesson_id": row.lesson_id,
-                "action": row.action,
-                "exercise_key": row.exercise_key,
-                "word_id": row.word_id,
-                "accepted": row.accepted,
-                "outcome": row.outcome,
-                "created_at": row.created_at,
-                # Enough to recognise the packet without shipping every payload
-                # with the list; the full payload is one request away.
-                "summary": (row.outcome or row.action),
-            }
-            for row in rows
-        ],
-    }
-
-
 @router.get("/languages/{language}/words")
 def language_words(
     language: str,
@@ -808,29 +758,6 @@ def multilingual_status(db: Session = Depends(get_db), _admin=Depends(get_curren
         "sample": sample,
         "checks": checks,
         "checks_failed": sum(1 for c in checks if not c["ok"]),
-    }
-
-
-@router.get("/sync-journal/{entry_id}")
-def get_sync_journal_entry(entry_id: int, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
-    """One sync packet in full: everything the device sent and the server's verdict."""
-    from app.models.sync_journal import SyncJournal
-
-    row = db.get(SyncJournal, entry_id)
-    if row is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Запись не найдена")
-    return {
-        "id": row.id,
-        "user_id": row.user_id,
-        "user_login": row.user_login,
-        "lesson_id": row.lesson_id,
-        "action": row.action,
-        "exercise_key": row.exercise_key,
-        "word_id": row.word_id,
-        "payload": row.payload,
-        "accepted": row.accepted,
-        "outcome": row.outcome,
-        "created_at": row.created_at,
     }
 
 
