@@ -37,6 +37,24 @@ class MediaCache {
     }
   }
 
+  /// Fills the map from the ON-DISK cache without touching the network.
+  ///
+  /// The files are still there after the app is closed, but [_localFiles]
+  /// starts empty on every launch -- without this, a recording already on the
+  /// phone would be downloaded again.
+  Future<void> warm(Iterable<String> urls) async {
+    final manager = DefaultCacheManager();
+    for (final url in {for (final u in urls) if (u.isNotEmpty) fullUrl(u)}) {
+      if (_localFiles.containsKey(url)) continue;
+      try {
+        final info = await manager.getFileFromCache(url);
+        if (info != null) _localFiles[url] = info.file.path;
+      } catch (e) {
+        debugPrint('Warm failed for $url: $e');
+      }
+    }
+  }
+
   Future<void> _download(String url) async {
     try {
       final file = await DefaultCacheManager().getSingleFile(url);
