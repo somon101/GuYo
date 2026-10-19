@@ -89,8 +89,21 @@ def _user_personal_quests(db: Session, user: User, dictionary_id: int) -> list[Q
         if first is None:
             continue
         word = db.get(Word, first[0])
-        if word is not None and word.dictionary_id == dictionary_id:
-            result.append(quest)
+        if word is None or word.dictionary_id != dictionary_id:
+            continue
+        # A finished personal quest is shown as done on the day it was
+        # finished, then leaves the list (it used to stay there forever).
+        completed, target = personal_quest_progress(db, quest)
+        if target and completed >= target:
+            last_day = (
+                db.query(UserQuestWordDay.used_date)
+                .filter(UserQuestWordDay.quest_id == quest.id)
+                .order_by(UserQuestWordDay.used_date.desc())
+                .first()
+            )
+            if last_day is not None and last_day[0] < dushanbe_today():
+                continue
+        result.append(quest)
     return result
 
 
