@@ -17,6 +17,7 @@ import 'speaking_word_screen.dart';
 import 'true_or_false_screen.dart';
 import '../models/mini_phrase.dart';
 import '../widgets/mini_phrases/mini_phrase_session.dart';
+import '../widgets/instant_route.dart';
 
 /// The human-readable name of each exercise type, for the run's title bar.
 Map<String, String> get lessonExerciseLabels => {
@@ -33,8 +34,9 @@ abstract class LessonRunDriver {
   /// Freezes this pass's words (POST /lessons/{id}/pass).
   Future<void> startPass(int lessonId);
 
-  /// Makes a pass played to the end count (its answers were held back).
-  Future<void> finishPass(int lessonId);
+  /// Makes a pass played to the end count (its answers were held back), and
+  /// returns what the results show -- null when they must be fetched apart.
+  Future<(Lesson, LessonPassStats?)?> finishPass(int lessonId);
 
   /// Every exercise's round for this pass, plus the media they use --
   /// fetched once, up front, so the pass then runs without a request or a
@@ -62,7 +64,7 @@ class ApiLessonRunDriver implements LessonRunDriver {
   Future<void> startPass(int lessonId) => ApiClient.instance.startLessonPass(lessonId);
 
   @override
-  Future<void> finishPass(int lessonId) => ApiClient.instance.finishLessonPass(lessonId);
+  Future<(Lesson, LessonPassStats?)?> finishPass(int lessonId) => ApiClient.instance.finishLessonPass(lessonId);
 
   @override
   Future<LessonRounds> prepareRounds(int lessonId, List<String> exerciseKeys) =>
@@ -99,7 +101,7 @@ class ApiLessonRunDriver implements LessonRunDriver {
   @override
   Future<bool?> showResults(BuildContext context, Lesson lesson, LessonPassStats? stats) {
     return Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => LessonResultsScreen(lesson: lesson, stats: stats)),
+      instantRoute((_) => LessonResultsScreen(lesson: lesson, stats: stats)),
     );
   }
 }
@@ -282,26 +284,30 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
     _reachedResults = true;
     // Played to the end: the pass's answers count now -- before the
     // results are read, so they show the real new scores.
+    Lesson? fresh;
+    LessonPassStats? stats;
     if (ApiClient.instance.deferredLessonId == widget.lessonId) {
       try {
-        await widget.driver.finishPass(widget.lessonId);
+        final finished = await widget.driver.finishPass(widget.lessonId);
         ApiClient.instance.deferredLessonId = null;
+        if (finished != null) (fresh, stats) = finished;
       } catch (_) {
         if (mounted) setState(() => _failed = true);
         return;
       }
     }
-    // Both at once: the wait before the results is one round trip, not two.
-    final statsFuture = widget.driver.fetchPassStats(widget.lessonId);
-    final Lesson fresh;
-    try {
-      fresh = await widget.driver.fetchLesson(widget.lessonId);
-    } catch (_) {
-      if (mounted) setState(() => _failed = true);
-      return;
+    if (fresh == null) {
+      // Both at once: one round trip, not two.
+      final statsFuture = widget.driver.fetchPassStats(widget.lessonId);
+      try {
+        fresh = await widget.driver.fetchLesson(widget.lessonId);
+      } catch (_) {
+        if (mounted) setState(() => _failed = true);
+        return;
+      }
+      stats = await statsFuture;
     }
     _miniPhrases = fresh.miniPhrases;
-    final stats = await statsFuture;
     if (!mounted) return;
     final repeat = await widget.driver.showResults(context, fresh, stats);
     if (!mounted) return;

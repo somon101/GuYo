@@ -44,7 +44,10 @@ class _FakeDriver implements LessonRunDriver {
   int finished = 0;
 
   @override
-  Future<void> finishPass(int lessonId) async => finished++;
+  Future<(Lesson, LessonPassStats?)?> finishPass(int lessonId) async {
+    finished++;
+    return null;
+  }
 
   int prepared = 0;
 

@@ -59,6 +59,9 @@ class LessonOut(BaseModel):
     # streak day (the app plays the flame lighting up), and the streak now.
     streak_lit_now: bool = False
     streak_days: int = 0
+    # Only on POST /lessons/{id}/pass/finish: how this pass went, so the
+    # results open without a second request.
+    pass_stats: "LessonPassStatsOut | None" = None
 
 
 class PassExerciseStatOut(BaseModel):
@@ -199,3 +202,6 @@ class ListenWordRoundOut(BaseModel):
     dictionary_id: int
     available_count: int
     items: list[ListenWordItemOut]
+
+
+LessonOut.model_rebuild()

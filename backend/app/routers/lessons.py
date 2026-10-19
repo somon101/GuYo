@@ -345,6 +345,10 @@ def get_lesson_pass_stats(
     nothing here changes any score. A lesson no pass was ever started for
     reports every answer ever given in it, measured from zero."""
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
+    return _pass_stats(db, user, lesson)
+
+
+def _pass_stats(db: Session, user: User, lesson: Lesson) -> LessonPassStatsOut:
     threshold = get_threshold(db)
 
     attempts_q = db.query(WordAttempt).filter(WordAttempt.user_id == user.id, WordAttempt.lesson_id == lesson.id)
@@ -765,6 +769,9 @@ def finish_lesson_pass(
     out = _lesson_to_out(db, lesson, threshold)
     out.streak_lit_now = lit_now
     out.streak_days = streak_days_count(db, user)
+    # The results screen's numbers in the same response: the app shows the
+    # results after ONE round trip instead of three.
+    out.pass_stats = _pass_stats(db, user, lesson)
     return out
 
 

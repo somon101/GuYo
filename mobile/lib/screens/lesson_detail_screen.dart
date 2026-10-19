@@ -8,6 +8,7 @@ import '../widgets/word_card.dart';
 import 'lesson_run_screen.dart';
 import 'word_detail_screen.dart';
 import '../widgets/skeleton.dart';
+import '../widgets/instant_route.dart';
 
 /// One lesson's own screen: its fixed word set, each word's own cumulative
 /// score/learned status, and one "Начать урок" button. Reached by tapping a
@@ -101,7 +102,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
     if (lesson == null || _isRunning) return;
     setState(() => _isRunning = true);
     try {
-      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => LessonRunScreen.forLesson(lesson)));
+      await Navigator.of(context).push(instantRoute((_) => LessonRunScreen.forLesson(lesson)));
     } finally {
       if (mounted) setState(() => _isRunning = false);
       await _load();

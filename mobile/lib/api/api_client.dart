@@ -790,14 +790,23 @@ class ApiClient {
   int? deferredLessonId;
 
   /// The pass was played to the end: its answers count now.
-  Future<void> finishLessonPass(int lessonId) async {
+  /// Makes the pass count, and returns the lesson as it now is together with
+  /// the pass's statistics -- everything the results screen needs, in this one
+  /// response (stats are null on a server that does not send them yet).
+  Future<(Lesson, LessonPassStats?)> finishLessonPass(int lessonId) async {
     // Every answer of the pass must be on the server before it counts.
     await flushLessonAnswers();
     final res = await http.post(_uri('/lessons/$lessonId/pass/finish'), headers: await _authHeaders());
     await _throwWithDetail(res);
+    final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
     try {
-      reportStreakResult(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+      reportStreakResult(body);
     } catch (_) {}
+    final stats = body['pass_stats'];
+    return (
+      Lesson.fromJson(body),
+      stats is Map<String, dynamic> ? LessonPassStats.fromJson(stats) : null,
+    );
   }
 
   Future<Lesson> startLessonPass(int lessonId) async {

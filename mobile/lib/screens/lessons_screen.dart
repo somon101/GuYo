@@ -10,6 +10,7 @@ import 'lesson_create_screen.dart';
 import 'lesson_detail_screen.dart';
 import 'lesson_run_screen.dart';
 import '../widgets/skeleton.dart';
+import '../widgets/instant_route.dart';
 
 /// "Уроки": the new primary progress system's own tab. Shows this
 /// dictionary's FULL, permanent lesson history as a flat list of cards --
@@ -87,7 +88,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
 
   Future<void> _openLesson(int lessonId) async {
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => LessonDetailScreen(lessonId: lessonId)),
+      instantRoute((_) => LessonDetailScreen(lessonId: lessonId)),
     );
     await _load();
   }
@@ -95,7 +96,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
   /// Plays [lesson] start to finish (LessonRunScreen), then refreshes the
   /// chain -- the lesson may have just been completed.
   Future<void> _runLesson(Lesson lesson) async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => LessonRunScreen.forLesson(lesson)));
+    await Navigator.of(context).push(instantRoute((_) => LessonRunScreen.forLesson(lesson)));
     await _load();
   }
 
@@ -162,7 +163,7 @@ class _LessonsScreenState extends State<LessonsScreen> {
   /// -- straight into it.
   Future<void> _createNextLesson() async {
     final lesson = await Navigator.of(context).push<Lesson>(
-      MaterialPageRoute(builder: (_) => LessonCreateScreen(dictionary: widget.dictionary)),
+      instantRoute((_) => LessonCreateScreen(dictionary: widget.dictionary)),
     );
     if (lesson != null && mounted) {
       await _runLesson(lesson);
