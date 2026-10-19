@@ -20,6 +20,7 @@ from app.models.mini_phrase import (
     MiniPhrasePart,
     MiniPhraseTemplate,
 )
+from app.mini_phrases.texts import explanations_of, set_explanations, set_translations, translations_of
 from app.models.word import Word, WordForm
 from app.schemas.mini_phrase import (
     MiniPhraseAdminOut,
@@ -62,6 +63,8 @@ def _template_out(db: Session, t: MiniPhraseTemplate) -> MiniPhraseTemplateOut:
         id=t.id,
         name=t.name,
         kind=t.kind,
+        language=t.language,
+        explanations=explanations_of(t),
         explanation_ru=t.explanation_ru,
         explanation_tg=t.explanation_tg,
         explanation_uz=t.explanation_uz,
@@ -71,14 +74,20 @@ def _template_out(db: Session, t: MiniPhraseTemplate) -> MiniPhraseTemplateOut:
     )
 
 
-def _apply_template(t: MiniPhraseTemplate, payload: MiniPhraseTemplateIn) -> None:
+def _apply_template(db: Session, t: MiniPhraseTemplate, payload: MiniPhraseTemplateIn) -> None:
     if payload.kind not in TEMPLATE_KINDS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown kind '{payload.kind}'")
     t.name = payload.name.strip()
     t.kind = payload.kind
-    t.explanation_ru = (payload.explanation_ru or "").strip() or None
-    t.explanation_tg = (payload.explanation_tg or "").strip() or None
-    t.explanation_uz = (payload.explanation_uz or "").strip() or None
+    if payload.language is not None:
+        t.language = payload.language.strip() or None
+    values: dict[str, str | None] = {}
+    for code in ("ru", "tg", "uz"):
+        legacy = getattr(payload, f"explanation_{code}")
+        if legacy is not None:
+            values[code] = legacy
+    values.update(payload.explanations or {})
+    set_explanations(db, t, values)
     t.distractor_count = payload.distractor_count
     t.enabled = payload.enabled
 
@@ -91,7 +100,7 @@ def list_templates(db: Session = Depends(get_db), _admin=Depends(get_current_adm
 @router.post("/mini-phrase-templates", response_model=MiniPhraseTemplateOut, status_code=status.HTTP_201_CREATED)
 def create_template(payload: MiniPhraseTemplateIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
     t = MiniPhraseTemplate()
-    _apply_template(t, payload)
+    _apply_template(db, t, payload)
     db.add(t)
     db.commit()
     db.refresh(t)
@@ -105,7 +114,7 @@ def update_template(
     t = db.get(MiniPhraseTemplate, template_id)
     if t is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
-    _apply_template(t, payload)
+    _apply_template(db, t, payload)
     db.commit()
     db.refresh(t)
     return _template_out(db, t)
@@ -142,6 +151,8 @@ def _mini_phrase_out(mp: MiniPhrase) -> MiniPhraseAdminOut:
         template_id=mp.template_id,
         template_name=mp.template.name if mp.template is not None else None,
         text=mp.text,
+        language=mp.language,
+        translations=translations_of(mp),
         translation_tg=mp.translation_tg,
         translation_uz=mp.translation_uz,
         translation_en=mp.translation_en,
@@ -188,9 +199,20 @@ def _apply_mini_phrase(db: Session, mp: MiniPhrase, dictionary_id: int, payload:
         )
     mp.template_id = payload.template_id
     mp.text = text
-    mp.translation_tg = payload.translation_tg.strip()
-    mp.translation_uz = (payload.translation_uz or "").strip() or None
-    mp.translation_en = (payload.translation_en or "").strip() or None
+    if payload.language:
+        mp.language = payload.language.strip()
+    elif mp.language is None:
+        dictionary = db.get(Dictionary, dictionary_id)
+        mp.language = (dictionary.language if dictionary is not None else None) or "ru"
+    values: dict[str, str | None] = {}
+    for code in ("tg", "uz", "en"):
+        legacy = getattr(payload, f"translation_{code}")
+        if legacy is not None:
+            values[code] = legacy
+    values.update(payload.translations or {})
+    set_translations(db, mp, values)
+    if mp.translation_tg is None:
+        mp.translation_tg = ""
     mp.enabled = payload.enabled
     mp.parts.clear()
     db.flush()  # free the (mini_phrase_id, position) slots before re-adding

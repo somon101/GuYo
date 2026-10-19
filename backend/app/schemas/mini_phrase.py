@@ -66,6 +66,12 @@ class MiniPhraseRoleOut(BaseModel):
 class MiniPhraseTemplateIn(BaseModel):
     name: str = Field(min_length=1, max_length=128)
     kind: str = "ordered_parts"
+    # The studied language this template belongs to (its phrases are in it).
+    language: str | None = None
+    # Explanations by reading language, for every language in the database
+    # ({"ru": ..., "tg": ..., "en": ...}). The three old fields are still
+    # accepted from older pages and mean the same as their keys here.
+    explanations: dict[str, str] | None = None
     explanation_ru: str | None = None
     explanation_tg: str | None = None
     explanation_uz: str | None = None
@@ -88,7 +94,13 @@ class MiniPhrasePartIn(BaseModel):
 class MiniPhraseIn(BaseModel):
     template_id: int | None = None
     text: str = Field(min_length=1, max_length=500)
-    translation_tg: str = Field(min_length=1, max_length=500)
+    # The studied language the phrase is written in; None keeps the current
+    # one (or the dictionary's language for a new phrase).
+    language: str | None = None
+    # Hints by reading language, for every language in the database. The three
+    # old fields are still accepted and mean the same as their keys here.
+    translations: dict[str, str] | None = None
+    translation_tg: str | None = Field(default=None, max_length=500)
     translation_uz: str | None = Field(default=None, max_length=500)
     translation_en: str | None = Field(default=None, max_length=500)
     enabled: bool = True
@@ -112,6 +124,8 @@ class MiniPhraseAdminOut(BaseModel):
     template_id: int | None
     template_name: str | None
     text: str
+    language: str | None = None
+    translations: dict[str, str] = {}
     translation_tg: str
     translation_uz: str | None
     translation_en: str | None

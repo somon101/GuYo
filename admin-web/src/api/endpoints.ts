@@ -2251,9 +2251,10 @@ export interface MiniPhrasePartInput {
 export interface MiniPhraseInput {
   template_id: number | null;
   text: string;
-  translation_tg: string;
-  translation_uz: string | null;
-  translation_en: string | null;
+  /** The studied language the phrase is written in. */
+  language?: string | null;
+  /** Hints by reading language — every language in the database. */
+  translations: Record<string, string>;
   enabled: boolean;
   parts: MiniPhrasePartInput[];
 }

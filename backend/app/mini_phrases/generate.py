@@ -712,9 +712,10 @@ def check_candidates(db: Session, dictionary: Dictionary, raw: list[dict], allow
                 reason = f"Слово «{overused[0]}» уже в {WORD_USE_CAP} мини-фразах — возьмите другие слова"
         if not reason and normalize_answer(text) in existing_texts:
             reason = "Такая мини-фраза уже есть"
+        # Подсказки на все языки из базы приходят отдельным словарём
+        # (translations); таджикская больше не обязательна -- чего не хватает,
+        # покажет проверка полноты языка (app/languages/readiness.py).
         tg = str(item.get("tg") or "").strip()
-        if not reason and not tg:
-            reason = "Нет перевода на таджикский"
         roles = [p["role"] for p in parts]
         name = _template_name(roles) if parts else ""
         ids = {p["word_id"] for p in parts}
@@ -1025,8 +1026,8 @@ def save(db: Session, dictionary: Dictionary, items: list[dict]) -> dict:
             existing = {normalize_answer(t) for (t,) in db.query(MiniPhrase.text).filter(MiniPhrase.dictionary_id == dictionary.id)}
             if checked["broken"] or item.get("broken"):
                 checked["reason"] = "Есть слово не из словаря — такую фразу нельзя сохранить"
-            elif not checked["translation_tg"]:
-                checked["reason"] = "Нет перевода на таджикский"
+            elif not checked["translation_tg"] and not translations:
+                checked["reason"] = "Нет ни одного перевода-подсказки"
             elif normalize_answer(checked["text"]) in existing:
                 checked["reason"] = "Такая мини-фраза уже есть"
             else:
@@ -1077,7 +1078,7 @@ def save(db: Session, dictionary: Dictionary, items: list[dict]) -> dict:
             template_id=template.id,
             text=checked["text"],
             language=phrase_language(dictionary),
-            translation_tg=checked["translation_tg"],
+            translation_tg=checked["translation_tg"] or translations.get("tg", ""),
             translation_uz=checked["translation_uz"],
             translation_en=checked["translation_en"],
             enabled=True,

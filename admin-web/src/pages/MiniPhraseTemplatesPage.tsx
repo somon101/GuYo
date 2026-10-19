@@ -12,6 +12,7 @@ import {
   type MiniPhraseTemplateInput,
 } from "../api/endpoints";
 import { MiniPhrasePhonePreview } from "../components/MiniPhrasePhonePreview";
+import { PerLanguageFields } from "../components/PerLanguageFields";
 import type {
   Dictionary,
   MiniPhrase,
@@ -407,7 +408,18 @@ function TemplateEditor({
   onSave: (input: MiniPhraseTemplateInput) => Promise<void>;
   onCancel: () => void;
 }) {
-  const [input, setInput] = useState(initial);
+  // Texts live by language now; the old three fields fill in what is missing.
+  const [input, setInput] = useState<MiniPhraseTemplateInput>(() => ({
+    ...initial,
+    explanations: {
+      ...Object.fromEntries(
+        (["ru", "tg", "uz"] as const)
+          .map((code) => [code, initial[`explanation_${code}`] ?? ""])
+          .filter(([, text]) => text),
+      ),
+      ...(initial.explanations ?? {}),
+    },
+  }));
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -415,28 +427,18 @@ function TemplateEditor({
     setError(null);
     setIsSaving(true);
     try {
-      await onSave(input);
+      // Only the per-language texts are sent: the old fields are derived from them.
+      const { explanation_ru: _ru, explanation_tg: _tg, explanation_uz: _uz, ...rest } = input;
+      void _ru;
+      void _tg;
+      void _uz;
+      await onSave(rest as MiniPhraseTemplateInput);
     } catch (e) {
       setError(errorText(e, "Не удалось сохранить"));
     } finally {
       setIsSaving(false);
     }
   }
-
-  const area = (
-    key: "explanation_tg" | "explanation_uz" | "explanation_ru",
-    label: string,
-  ) => (
-    <label className="block text-sm text-slate-700">
-      <span className="mb-1 block text-xs text-slate-500">{label}</span>
-      <textarea
-        rows={3}
-        className="field w-full px-3 py-2 text-sm"
-        value={input[key] ?? ""}
-        onChange={(e) => setInput({ ...input, [key]: e.target.value })}
-      />
-    </label>
-  );
 
   return (
     <div className="card mt-4 flex flex-col gap-4 p-4">
@@ -470,12 +472,12 @@ function TemplateEditor({
           {"{pronoun.tr}"}), баъд {"{verb}"}. Натиҷа: {"{phrase}"}
         </p>
       </div>
-      {area("explanation_tg", "Объяснение — таджикский интерфейс")}
-      {area("explanation_uz", "Объяснение — узбекский интерфейс")}
-      {area(
-        "explanation_ru",
-        "Объяснение — русский интерфейс (и запасной вариант)",
-      )}
+      <PerLanguageFields
+        multiline
+        values={input.explanations ?? {}}
+        onChange={(explanations) => setInput({ ...input, explanations })}
+        label={(l) => `Объяснение — для читающих на языке: ${l.name}${l.code === "ru" ? " (и запасной вариант)" : ""}`}
+      />
       <div className="flex flex-wrap items-end gap-5">
         <label className="text-sm text-slate-700">
           <span className="mb-1 block text-xs text-slate-500">

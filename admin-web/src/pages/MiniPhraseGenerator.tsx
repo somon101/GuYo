@@ -726,8 +726,6 @@ function Card({
         <p className="mt-1.5 text-xs text-slate-500">
           Шаблон: {item.template_name || "—"}
           {item.template_name && !item.template_exists && " (будет создан)"}
-          {item.translation_uz && ` · uz: ${item.translation_uz}`}
-          {item.translation_en && ` · en: ${item.translation_en}`}
         </p>
         {item.reason && (
           <p className="mt-1 text-xs font-medium text-red-600">{item.reason}</p>

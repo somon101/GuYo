@@ -714,6 +714,10 @@ export interface MiniPhraseTemplate {
   id: number;
   name: string;
   kind: string;
+  /** The studied language this template belongs to. */
+  language?: string | null;
+  /** Explanations by reading language — every language in the database. */
+  explanations?: Record<string, string>;
   explanation_ru: string | null;
   explanation_tg: string | null;
   explanation_uz: string | null;
@@ -739,6 +743,10 @@ export interface MiniPhrase {
   template_id: number | null;
   template_name: string | null;
   text: string;
+  /** The studied language the phrase is written in. */
+  language?: string | null;
+  /** Hints by reading language — every language in the database. */
+  translations?: Record<string, string>;
   translation_tg: string;
   translation_uz: string | null;
   translation_en: string | null;

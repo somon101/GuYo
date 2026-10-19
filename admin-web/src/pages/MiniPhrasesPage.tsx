@@ -17,6 +17,7 @@ import { LanguageSectionTabs } from "../components/LanguageSectionTabs";
 import { MiniPhrasePhonePreview } from "../components/MiniPhrasePhonePreview";
 import { SearchBox, useSearchQuery } from "../components/SearchBox";
 import { matches } from "../utils/search";
+import { PerLanguageFields } from "../components/PerLanguageFields";
 import type {
   Dictionary,
   MiniPhrase,
@@ -42,9 +43,8 @@ interface Draft {
   id: number | null;
   template_id: number | null;
   text: string;
-  translation_tg: string;
-  translation_uz: string;
-  translation_en: string;
+  language: string | null;
+  translations: Record<string, string>;
   enabled: boolean;
   parts: PartDraft[];
 }
@@ -53,9 +53,8 @@ const EMPTY: Draft = {
   id: null,
   template_id: null,
   text: "",
-  translation_tg: "",
-  translation_uz: "",
-  translation_en: "",
+  language: null,
+  translations: {},
   enabled: true,
   parts: [],
 };
@@ -80,9 +79,8 @@ export function MiniPhrasesPage() {
     matches(
       query,
       mp.text,
+      ...Object.values(mp.translations ?? {}),
       mp.translation_tg,
-      mp.translation_uz,
-      mp.translation_en,
       mp.template_name,
       ...mp.parts.map((p) => `${p.text} ${p.word}`),
     ),
@@ -130,9 +128,15 @@ export function MiniPhrasesPage() {
       id: mp.id,
       template_id: mp.template_id,
       text: mp.text,
-      translation_tg: mp.translation_tg,
-      translation_uz: mp.translation_uz ?? "",
-      translation_en: mp.translation_en ?? "",
+      language: mp.language ?? null,
+      translations: {
+        ...Object.fromEntries(
+          (["tg", "uz", "en"] as const)
+            .map((code) => [code, mp[`translation_${code}`] ?? ""])
+            .filter(([, text]) => text),
+        ),
+        ...(mp.translations ?? {}),
+      },
       enabled: mp.enabled,
       parts: mp.parts.map((p) => ({
         text: p.text,
@@ -372,9 +376,8 @@ function Editor({
     const input: MiniPhraseInput = {
       template_id: draft.template_id,
       text: draft.text,
-      translation_tg: draft.translation_tg,
-      translation_uz: draft.translation_uz || null,
-      translation_en: draft.translation_en || null,
+      language: draft.language,
+      translations: draft.translations,
       enabled: draft.enabled,
       parts: draft.parts.map((p) => ({
         text: p.text,
@@ -394,20 +397,6 @@ function Editor({
       setIsBusy(false);
     }
   }
-
-  const input = (
-    key: "translation_tg" | "translation_uz" | "translation_en",
-    label: string,
-  ) => (
-    <label className="block text-sm text-slate-700">
-      <span className="mb-1 block text-xs text-slate-500">{label}</span>
-      <input
-        className="field w-full px-3 py-2 text-sm"
-        value={draft[key]}
-        onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
-      />
-    </label>
-  );
 
   return (
     <div className="card mb-6 flex flex-col gap-4 p-4">
@@ -519,10 +508,18 @@ function Editor({
         </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        {input("translation_tg", "Перевод — таджикский *")}
-        {input("translation_uz", "Перевод — узбекский")}
-        {input("translation_en", "Перевод — английский")}
+      <div>
+        <p className="mb-2 text-xs text-slate-500">
+          Подсказка-перевод под фразой — на каждом языке, на котором читают пользователи
+        </p>
+        <div>
+          <PerLanguageFields
+            values={draft.translations}
+            onChange={(translations) => setDraft({ ...draft, translations })}
+            label={(l) => `Перевод — ${l.name}`}
+            exclude={draft.language}
+          />
+        </div>
       </div>
 
       <div className="flex flex-wrap items-end gap-5">
@@ -561,7 +558,9 @@ function Editor({
         <button
           onClick={save}
           disabled={
-            isBusy || !draft.text.trim() || !draft.translation_tg.trim()
+            isBusy ||
+            !draft.text.trim() ||
+            !Object.values(draft.translations).some((t) => t.trim())
           }
           className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
         >
