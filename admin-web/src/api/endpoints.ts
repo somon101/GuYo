@@ -1832,6 +1832,40 @@ export interface LanguageDetail {
   forms: number;
   phrase_entries: number;
   created_at: string;
+  learn_published: boolean;
+  native_published: boolean;
+  last_check: LanguageCheck | null;
+}
+
+export interface ReadinessIssue {
+  code: string;
+  text: string;
+  count: number;
+  examples: string[];
+  section: string;
+}
+
+export interface LanguageCheck {
+  checked_at: string;
+  learn: ReadinessIssue[];
+  native: ReadinessIssue[];
+  unpublished?: { kind: "learn" | "native"; at: string; reason: string[] }[];
+  kept?: ("learn" | "native")[];
+}
+
+export async function checkLanguage(code: string): Promise<LanguageCheck> {
+  const { data } = await api.get(`/admin/languages/${code}/readiness`);
+  return data;
+}
+
+export async function publishLanguage(code: string, kind: "learn" | "native"): Promise<LanguageDetail> {
+  const { data } = await api.post(`/admin/languages/${code}/publish`, null, { params: { kind } });
+  return data;
+}
+
+export async function unpublishLanguage(code: string, kind: "learn" | "native"): Promise<LanguageDetail> {
+  const { data } = await api.post(`/admin/languages/${code}/unpublish`, null, { params: { kind } });
+  return data;
 }
 
 export async function listLanguages(): Promise<LanguageDetail[]> {

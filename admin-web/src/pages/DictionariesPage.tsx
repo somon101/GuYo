@@ -11,6 +11,7 @@ import {
   type LanguageDetail,
 } from "../api/endpoints";
 import type { Dictionary } from "../types";
+import { LanguagePublication } from "../components/LanguagePublication";
 
 /** Раздел «Языки».
  *
@@ -271,6 +272,8 @@ export function DictionariesPage() {
               </p>
 
               <AlphabetField language={l} onSave={(value) => handleAlphabet(l, value)} />
+
+              <LanguagePublication language={l} onChanged={load} />
 
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <Link

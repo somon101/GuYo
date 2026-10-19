@@ -125,5 +125,25 @@ async def _sweep_forever() -> None:
             from app.priority.background_prep import run_prep_once
 
             await asyncio.to_thread(run_prep_once)
+            # Published languages that lost something get unpublished, with the
+            # reason kept for Admin Web (app/languages/readiness.py).
+            await asyncio.to_thread(recheck_languages_once)
         await asyncio.to_thread(backfill_memory_once)
         await asyncio.sleep(SEASON_SYNC_INTERVAL_SECONDS)
+
+
+def recheck_languages_once() -> None:
+    """One language readiness sweep in its own session; never raises."""
+    from app.database import SessionLocal
+    from app.languages.readiness import recheck_published
+
+    db = SessionLocal()
+    try:
+        removed = recheck_published(db)
+        if removed:
+            logger.info("languages unpublished: %s", removed)
+    except Exception:
+        logger.exception("language readiness check failed")
+        db.rollback()
+    finally:
+        db.close()

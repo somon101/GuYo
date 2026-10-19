@@ -16,7 +16,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Integer, String, func
+from sqlalchemy import JSON, Boolean, DateTime, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -41,6 +41,13 @@ class Language(Base):
     # строками показывал бы русский текст под своими кнопками. Изучать и
     # читать такой язык по-прежнему можно -- это про подписи, не про слова.
     ui_ready: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    # Опубликован ли язык для ИЗУЧЕНИЯ и как язык ПЕРЕВОДА. Опубликовать можно
+    # только язык без недостатков (app/languages/readiness.py); фоновая
+    # перепроверка снимает публикацию, если недостатки появились.
+    learn_published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    native_published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # Последняя проверка: недостатки по обоим видам, время, и что и почему снято.
+    last_check: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # Порядок в списках: русский первым, дальше по возрастанию.
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

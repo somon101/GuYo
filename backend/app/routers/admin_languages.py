@@ -68,6 +68,9 @@ def _detail(db: Session, language: Language) -> LanguageDetail:
             db.query(func.count(PhraseEntry.id)).filter(PhraseEntry.language == language.code).scalar() or 0
         ),
         created_at=language.created_at,
+        learn_published=language.learn_published,
+        native_published=language.native_published,
+        last_check=language.last_check,
     )
 
 
@@ -146,6 +149,75 @@ def update_language(
     # Список языков кэшируется на полминуты; правка должна применяться сразу.
     from app.core.languages_in_db import forget
 
+    forget()
+    return _detail(db, language)
+
+
+# --- Публикация ---------------------------------------------------------------
+#
+# Язык предлагается людям только без недостатков (app/languages/readiness.py):
+# отдельно для изучения и как язык перевода.
+
+
+def _language_or_404(db: Session, code: str) -> Language:
+    language = db.get(Language, code)
+    if language is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Язык не найден")
+    return language
+
+
+def _kind_or_422(kind: str) -> str:
+    from app.languages.readiness import KIND_LEARN, KIND_NATIVE
+
+    if kind not in (KIND_LEARN, KIND_NATIVE):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="kind: learn или native")
+    return kind
+
+
+@router.get("/{code}/readiness")
+def language_readiness(code: str, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    """Проверяет язык по обоим видам публикации и запоминает результат."""
+    from app.languages.readiness import store_check
+
+    language = _language_or_404(db, code)
+    result = store_check(db, language)
+    db.commit()
+    return result
+
+
+@router.post("/{code}/publish", response_model=LanguageDetail)
+def publish_language(code: str, kind: str, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    """Публикует язык, только если проверка не нашла ни одного недостатка;
+    иначе 409 со списком того, что исправить."""
+    from app.core.languages_in_db import forget
+    from app.languages.readiness import KIND_LEARN, store_check
+
+    kind = _kind_or_422(kind)
+    language = _language_or_404(db, code)
+    result = store_check(db, language)
+    if result[kind]:
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"message": "Язык не готов к публикации", "issues": result[kind]},
+        )
+    setattr(language, "learn_published" if kind == KIND_LEARN else "native_published", True)
+    db.commit()
+    db.refresh(language)
+    forget()
+    return _detail(db, language)
+
+
+@router.post("/{code}/unpublish", response_model=LanguageDetail)
+def unpublish_language(code: str, kind: str, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    from app.core.languages_in_db import forget
+    from app.languages.readiness import KIND_LEARN
+
+    kind = _kind_or_422(kind)
+    language = _language_or_404(db, code)
+    setattr(language, "learn_published" if kind == KIND_LEARN else "native_published", False)
+    db.commit()
+    db.refresh(language)
     forget()
     return _detail(db, language)
 

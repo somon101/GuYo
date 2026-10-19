@@ -258,7 +258,14 @@ def _profile_out(db: Session, user: User) -> UserProfileOut:
         learning_topics=user.learning_topics,
         ui_language=user.ui_language,
         translation_language=user.translation_language,
+        language_unavailable=_unavailable(db, user),
     )
+
+
+def _unavailable(db: Session, user: User) -> list[str]:
+    from app.languages.readiness import unavailable_for
+
+    return unavailable_for(db, user)
 
 
 @router.get("/me/streak")
@@ -328,6 +335,12 @@ def update_my_profile(
     previous_native = user.translation_language
     previous_learning = user.learning_language
 
+    from app.languages.readiness import KIND_LEARN, KIND_NATIVE, require_published
+
+    if fields.get("translation_language") and fields["translation_language"] != user.translation_language:
+        require_published(db, fields["translation_language"], KIND_NATIVE)
+    if "learning_language" in fields and fields["learning_language"] != user.learning_language:
+        require_published(db, fields["learning_language"], KIND_LEARN)
     if fields.get("translation_language"):
         user.translation_language = fields["translation_language"]
     if fields.get("ui_language"):

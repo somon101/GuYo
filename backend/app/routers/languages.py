@@ -33,6 +33,10 @@ def list_languages(db: Session = Depends(get_db)):
             "name": row.name,
             "native_name": row.native_name or row.name,
             "ui_ready": row.ui_ready,
+            # Только опубликованное можно выбрать: изучать (`learnable`) и
+            # читать подсказки на нём (`native_ok`) -- app/languages/readiness.py.
+            "learnable": row.learn_published,
+            "native_ok": row.native_published,
         }
         for row in rows
     ]

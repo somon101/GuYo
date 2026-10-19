@@ -96,6 +96,12 @@ def register_user(payload: RegisterIn, db: Session = Depends(get_db)):
         if db.query(User).filter(User.email == identity["email"]).first() is not None:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_EMAIL_TAKEN)
 
+    # Only published languages can be picked (app/languages/readiness.py).
+    from app.core.content_language import reading_language as _reading
+    from app.languages.readiness import KIND_LEARN, KIND_NATIVE, require_published
+
+    require_published(db, payload.learning_language, KIND_LEARN)
+    require_published(db, _reading(payload.ui_language, payload.translation_language), KIND_NATIVE)
     user = new_user_row(
         db,
         login=payload.login,
@@ -207,6 +213,11 @@ def google_register(payload: GoogleRegisterIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Этот Google-аккаунт уже зарегистрирован")
     if db.query(User).filter(User.email == identity["email"]).first() is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_EMAIL_TAKEN)
+    from app.core.content_language import reading_language as _reading
+    from app.languages.readiness import KIND_LEARN, KIND_NATIVE, require_published
+
+    require_published(db, payload.learning_language, KIND_LEARN)
+    require_published(db, _reading(payload.ui_language, payload.translation_language), KIND_NATIVE)
     user = new_user_row(
         db,
         login=payload.login.strip(),

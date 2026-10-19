@@ -270,3 +270,6 @@ class UserProfileOut(BaseModel):
     learning_topics: list[str] | None = None
     ui_language: str = "ru"
     translation_language: str = "tg"
+    # Which of this person's languages were unpublished ("learning", "native"):
+    # the app asks them to pick another, published one.
+    language_unavailable: list[str] = []

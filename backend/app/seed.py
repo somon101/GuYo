@@ -279,6 +279,10 @@ def seed_languages() -> None:
                         alphabet=alphabet,
                         sort_order=order,
                         ui_ready=ui_ready,
+                        # Published at first; the background readiness check
+                        # unpublishes whatever is incomplete, with the reason.
+                        learn_published=True,
+                        native_published=True,
                     )
                 )
                 added += 1

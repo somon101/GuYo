@@ -50,6 +50,11 @@ class LanguageDetail(LanguageOut):
     forms: int
     phrase_entries: int
     created_at: datetime
+    # Публикация: можно ли выбрать язык для изучения / как язык перевода, и
+    # последняя проверка полноты (недостатки, что и почему снято).
+    learn_published: bool = False
+    native_published: bool = False
+    last_check: dict | None = None
 
 
 class LanguageFormOut(BaseModel):
