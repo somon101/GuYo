@@ -3,8 +3,6 @@ import { Link } from "react-router-dom";
 import { getExerciseSettings, setExerciseSettings } from "../../api/endpoints";
 
 const EXERCISE_KEY = "listen_word";
-const DEFAULT_CORRECT_POINTS = 15;
-const DEFAULT_INCORRECT_POINTS = 5;
 const DEFAULT_OPTION_COUNT = 4;
 
 // Same reasoning as SpeakingWordSettingsPage: "Услышь слово" always plays
@@ -17,8 +15,6 @@ const FIXED_WORD_COUNT = 10;
 export function ListenWordSettingsPage() {
   const [enabled, setEnabled] = useState(true);
   const [optionCount, setOptionCount] = useState<number | null>(null);
-  const [correctPoints, setCorrectPoints] = useState<number | null>(null);
-  const [incorrectPoints, setIncorrectPoints] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -34,8 +30,6 @@ export function ListenWordSettingsPage() {
         if (cancelled) return;
         setEnabled(s.enabled ?? true);
         setOptionCount(s.option_count ?? DEFAULT_OPTION_COUNT);
-        setCorrectPoints(s.correct_points ?? DEFAULT_CORRECT_POINTS);
-        setIncorrectPoints(s.incorrect_points ?? DEFAULT_INCORRECT_POINTS);
       })
       .catch(() => {
         if (!cancelled) setLoadError("Не удалось загрузить настройки");
@@ -57,13 +51,9 @@ export function ListenWordSettingsPage() {
         wordCount: FIXED_WORD_COUNT,
         enabled,
         optionCount,
-        correctPoints,
-        incorrectPoints,
       });
       setEnabled(updated.enabled ?? true);
       setOptionCount(updated.option_count ?? DEFAULT_OPTION_COUNT);
-      setCorrectPoints(updated.correct_points ?? DEFAULT_CORRECT_POINTS);
-      setIncorrectPoints(updated.incorrect_points ?? DEFAULT_INCORRECT_POINTS);
       setSavedNotice(true);
       setTimeout(() => setSavedNotice(false), 3000);
     } catch {
@@ -115,35 +105,7 @@ export function ListenWordSettingsPage() {
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="text-sm font-medium text-slate-700" htmlFor="listen-word-correct-points">
-                Баллов за правильный ответ
-              </label>
-              <input
-                id="listen-word-correct-points"
-                type="number"
-                min={0}
-                max={100}
-                className="w-24 field px-3 py-1.5 text-sm"
-                value={correctPoints ?? ""}
-                onChange={(e) => setCorrectPoints(e.target.value ? Number(e.target.value) : null)}
-              />
-            </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="text-sm font-medium text-slate-700" htmlFor="listen-word-incorrect-points">
-                Баллов снимается за неправильный ответ
-              </label>
-              <input
-                id="listen-word-incorrect-points"
-                type="number"
-                min={0}
-                max={100}
-                className="w-24 field px-3 py-1.5 text-sm"
-                value={incorrectPoints ?? ""}
-                onChange={(e) => setIncorrectPoints(e.target.value ? Number(e.target.value) : null)}
-              />
-            </div>
 
             <div className="flex items-center gap-3">
               <button

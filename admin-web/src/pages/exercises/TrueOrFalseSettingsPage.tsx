@@ -8,13 +8,9 @@ const EXERCISE_KEY = "true_or_false";
 // does not share a form/component with the other exercise settings pages --
 // each exercise's settings evolve independently, so a future field added
 // here should never require touching Matching's or Build-Word's page.
-const DEFAULT_CORRECT_POINTS = 10;
-const DEFAULT_INCORRECT_POINTS = 5;
 
 export function TrueOrFalseSettingsPage() {
   const [wordCount, setWordCount] = useState<number | null>(null);
-  const [correctPoints, setCorrectPoints] = useState<number | null>(null);
-  const [incorrectPoints, setIncorrectPoints] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -29,8 +25,6 @@ export function TrueOrFalseSettingsPage() {
       .then((s) => {
         if (cancelled) return;
         setWordCount(s.word_count);
-        setCorrectPoints(s.correct_points ?? DEFAULT_CORRECT_POINTS);
-        setIncorrectPoints(s.incorrect_points ?? DEFAULT_INCORRECT_POINTS);
       })
       .catch(() => {
         if (!cancelled) setLoadError("Не удалось загрузить настройки");
@@ -49,10 +43,8 @@ export function TrueOrFalseSettingsPage() {
     setSaveError(null);
     setSavedNotice(false);
     try {
-      const updated = await setExerciseSettings(EXERCISE_KEY, { wordCount, correctPoints, incorrectPoints });
+      const updated = await setExerciseSettings(EXERCISE_KEY, { wordCount });
       setWordCount(updated.word_count);
-      setCorrectPoints(updated.correct_points ?? DEFAULT_CORRECT_POINTS);
-      setIncorrectPoints(updated.incorrect_points ?? DEFAULT_INCORRECT_POINTS);
       setSavedNotice(true);
       setTimeout(() => setSavedNotice(false), 3000);
     } catch {
@@ -94,35 +86,7 @@ export function TrueOrFalseSettingsPage() {
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="text-sm font-medium text-slate-700" htmlFor="true-or-false-correct-points">
-                Баллов за правильный ответ
-              </label>
-              <input
-                id="true-or-false-correct-points"
-                type="number"
-                min={0}
-                max={100}
-                className="w-24 field px-3 py-1.5 text-sm"
-                value={correctPoints ?? ""}
-                onChange={(e) => setCorrectPoints(e.target.value ? Number(e.target.value) : null)}
-              />
-            </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="text-sm font-medium text-slate-700" htmlFor="true-or-false-incorrect-points">
-                Баллов снимается за неправильный ответ
-              </label>
-              <input
-                id="true-or-false-incorrect-points"
-                type="number"
-                min={0}
-                max={100}
-                className="w-24 field px-3 py-1.5 text-sm"
-                value={incorrectPoints ?? ""}
-                onChange={(e) => setIncorrectPoints(e.target.value ? Number(e.target.value) : null)}
-              />
-            </div>
 
             <div className="flex items-center gap-3">
               <button

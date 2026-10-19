@@ -86,7 +86,6 @@ export function WordLevelsSettingsPage() {
     }
   }
 
-  const topLevel = [...levels].filter((l) => l.enabled).sort((a, b) => b.min_points - a.min_points)[0];
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -95,14 +94,10 @@ export function WordLevelsSettingsPage() {
       </Link>
       <h1 className="mb-1 mt-3 text-[26px] font-bold tracking-tight text-slate-900">Уровни слов</h1>
       <p className="mb-6 text-sm text-slate-500">
-        Диапазоны очков закрепления не должны пересекаться. Самый верхний включённый уровень считается «изученным» --
-        именно его нижняя граница используется как проходной порог во всём приложении.
-        {topLevel && (
-          <>
-            {" "}
-            Сейчас это «<span className="font-medium text-slate-700">{topLevel.name}</span>» (от {topLevel.min_points}).
-          </>
-        )}
+        Уровень слова показывает, насколько долго слово держится в памяти. Слово находится на уровне, если его
+        память держится не меньше указанного числа дней. Если слово начинает забываться, уровень на 1 ниже, если
+        сильно забыто — на 2 ниже; после повторения уровень сразу возвращается. «Изучено» от уровня не зависит:
+        слово изучено, когда урок доказал знание, и это навсегда.
       </p>
 
       <button
@@ -132,7 +127,7 @@ export function WordLevelsSettingsPage() {
         <p className="text-sm text-red-600">{loadError}</p>
       ) : levels.length === 0 ? (
         <p className="text-sm text-slate-500">
-          Уровней пока нет -- используется старый единый порог ({"≥"} 60), пока вы не настроите лестницу.
+          Уровней пока нет — добавьте их, чтобы у слов был уровень.
         </p>
       ) : (
         <ul className={`flex flex-col gap-2 ${isReordering ? "opacity-60" : ""}`}>
@@ -148,9 +143,7 @@ export function WordLevelsSettingsPage() {
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-slate-900">{level.name}</p>
                 <p className="text-xs text-slate-500">
-                  {level.min_points} – {level.max_points ?? "∞"}
-                  {" · вклад в Priority: "}
-                  {level.priority_weight}
+                  от {level.min_days} дн. памяти
                   {!level.enabled && " · отключён"}
                 </p>
               </div>
@@ -184,11 +177,8 @@ function WordLevelForm({
   onCancel: () => void;
 }) {
   const [name, setName] = useState(level?.name ?? "");
-  const [minPoints, setMinPoints] = useState(level?.min_points ?? 0);
-  const [hasMax, setHasMax] = useState(level ? level.max_points !== null : false);
-  const [maxPoints, setMaxPoints] = useState(level?.max_points ?? 100);
+  const [minDays, setMinDays] = useState(level?.min_days ?? 0);
   const [enabled, setEnabled] = useState(level?.enabled ?? true);
-  const [priorityWeight, setPriorityWeight] = useState(level?.priority_weight ?? 0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -199,17 +189,11 @@ function WordLevelForm({
       setError("Заполните название");
       return;
     }
-    if (hasMax && maxPoints < minPoints) {
-      setError("Верхняя граница меньше нижней");
-      return;
-    }
     const input: WordLevelInput = {
       name: name.trim(),
-      minPoints,
-      maxPoints: hasMax ? maxPoints : null,
+      minDays,
       enabled,
       order: level?.order ?? 0,
-      priorityWeight,
     };
     setIsSubmitting(true);
     try {
@@ -236,44 +220,19 @@ function WordLevelForm({
         />
       </div>
 
-      <div className="flex flex-wrap gap-4">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Мин. очков</label>
-          <input
-            type="number"
-            min={0}
-            className="w-28 field px-3 py-2 text-sm"
-            value={minPoints}
-            onChange={(e) => setMinPoints(Number(e.target.value))}
-          />
-        </div>
-        <div>
-          <label className="mb-1 flex items-center gap-2 text-sm font-medium text-slate-700">
-            <input type="checkbox" checked={hasMax} onChange={(e) => setHasMax(e.target.checked)} className="switch" />
-            Макс. очков
-          </label>
-          <input
-            type="number"
-            min={0}
-            disabled={!hasMax}
-            className="w-28 field px-3 py-2 text-sm disabled:bg-slate-100"
-            value={maxPoints}
-            onChange={(e) => setMaxPoints(Number(e.target.value))}
-            placeholder="без границы"
-          />
-        </div>
-      </div>
-
       <div>
-        <label className="mb-1 block text-sm font-medium text-slate-700">Вклад в Priority</label>
+        <label className="mb-1 block text-sm font-medium text-slate-700">С какого числа дней памяти</label>
         <input
           type="number"
+          min={0}
           step="any"
           className="w-28 field px-3 py-2 text-sm"
-          value={priorityWeight}
-          onChange={(e) => setPriorityWeight(Number(e.target.value))}
+          value={minDays}
+          onChange={(e) => setMinDays(Number(e.target.value))}
         />
-        <p className="mt-1 text-xs text-slate-400">Насколько слово на этом уровне повышает свой Priority Score (см. страницу «Приоритет»).</p>
+        <p className="mt-1 text-xs text-slate-400">
+          Например: 0 — новое, 1 — день, 3, 7 — неделя, 30 — месяц.
+        </p>
       </div>
 
       <label className="flex items-center gap-2 text-sm font-medium text-slate-700">

@@ -17,9 +17,23 @@ from app.schemas.word_level import (
     WordLevelOut,
     WordLevelUpdateIn,
 )
-from app.word_levels import assert_level_range_free
 
 router = APIRouter(prefix="/admin/word-levels", tags=["admin-word-levels"])
+
+
+def _assert_days_free(db: Session, min_days: float, enabled: bool, exclude_id: int | None = None) -> None:
+    """Two enabled levels cannot start at the same number of memory days."""
+    if not enabled:
+        return
+    query = db.query(WordLevel).filter(WordLevel.enabled.is_(True), WordLevel.min_days == min_days)
+    if exclude_id is not None:
+        query = query.filter(WordLevel.id != exclude_id)
+    clash = query.first()
+    if clash is not None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Уровень «{clash.name}» уже начинается с {min_days:g} дн.",
+        )
 
 
 def _out(level: WordLevel) -> WordLevelOut:
@@ -39,10 +53,7 @@ def list_word_levels(db: Session = Depends(get_db), _admin=Depends(get_current_a
 def create_word_level(payload: WordLevelCreateIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
     if payload.max_points is not None and payload.max_points < payload.min_points:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Верхняя граница меньше нижней")
-    try:
-        assert_level_range_free(db, min_points=payload.min_points, max_points=payload.max_points, enabled=payload.enabled)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+    _assert_days_free(db, payload.min_days, payload.enabled)
 
     level = WordLevel(
         name=payload.name.strip(), min_points=payload.min_points, max_points=payload.max_points,
@@ -78,10 +89,9 @@ def update_word_level(
 
     if new_max is not None and new_max < new_min:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Верхняя граница меньше нижней")
-    try:
-        assert_level_range_free(db, min_points=new_min, max_points=new_max, enabled=new_enabled, exclude_id=level.id)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+    _assert_days_free(
+        db, payload.min_days if payload.min_days is not None else level.min_days, new_enabled, exclude_id=level.id
+    )
 
     if payload.name is not None:
         level.name = payload.name.strip()

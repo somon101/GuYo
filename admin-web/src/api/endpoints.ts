@@ -934,23 +934,18 @@ export async function listWordLevels(): Promise<WordLevel[]> {
 
 export interface WordLevelInput {
   name: string;
-  minPoints: number;
-  maxPoints: number | null;
+  /** The level starts once a word's memory holds this many days. */
+  minDays: number;
   enabled: boolean;
   order: number;
-  priorityWeight: number;
 }
 
 function wordLevelBody(input: WordLevelInput) {
   return {
     name: input.name,
-    min_points: input.minPoints,
-    ...(input.maxPoints === null
-      ? { clear_max_points: true }
-      : { max_points: input.maxPoints }),
+    min_days: input.minDays,
     enabled: input.enabled,
     order: input.order,
-    priority_weight: input.priorityWeight,
   };
 }
 
@@ -958,13 +953,7 @@ export async function createWordLevel(
   input: WordLevelInput,
 ): Promise<WordLevel> {
   const { data } = await api.post("/admin/word-levels", {
-    name: input.name,
-    min_points: input.minPoints,
-    ...(input.maxPoints !== null ? { max_points: input.maxPoints } : {}),
-    enabled: input.enabled,
-    order: input.order,
-    priority_weight: input.priorityWeight,
-  });
+    ...wordLevelBody(input),  });
   return data;
 }
 

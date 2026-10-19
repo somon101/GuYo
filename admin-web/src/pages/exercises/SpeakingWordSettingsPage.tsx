@@ -3,8 +3,6 @@ import { Link } from "react-router-dom";
 import { getExerciseSettings, setExerciseSettings } from "../../api/endpoints";
 
 const EXERCISE_KEY = "speaking_word";
-const DEFAULT_CORRECT_POINTS = 15;
-const DEFAULT_INCORRECT_POINTS = 5;
 const DEFAULT_MATCH_THRESHOLD = 70;
 
 // "Произнеси слово" always uses every word of the lesson it's part of (same
@@ -18,8 +16,6 @@ const FIXED_WORD_COUNT = 10;
 
 export function SpeakingWordSettingsPage() {
   const [enabled, setEnabled] = useState(true);
-  const [correctPoints, setCorrectPoints] = useState<number | null>(null);
-  const [incorrectPoints, setIncorrectPoints] = useState<number | null>(null);
   const [matchThreshold, setMatchThreshold] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -35,8 +31,6 @@ export function SpeakingWordSettingsPage() {
       .then((s) => {
         if (cancelled) return;
         setEnabled(s.enabled ?? true);
-        setCorrectPoints(s.correct_points ?? DEFAULT_CORRECT_POINTS);
-        setIncorrectPoints(s.incorrect_points ?? DEFAULT_INCORRECT_POINTS);
         setMatchThreshold(s.speech_match_threshold ?? DEFAULT_MATCH_THRESHOLD);
       })
       .catch(() => {
@@ -58,13 +52,9 @@ export function SpeakingWordSettingsPage() {
       const updated = await setExerciseSettings(EXERCISE_KEY, {
         wordCount: FIXED_WORD_COUNT,
         enabled,
-        correctPoints,
-        incorrectPoints,
         speechMatchThreshold: matchThreshold,
       });
       setEnabled(updated.enabled ?? true);
-      setCorrectPoints(updated.correct_points ?? DEFAULT_CORRECT_POINTS);
-      setIncorrectPoints(updated.incorrect_points ?? DEFAULT_INCORRECT_POINTS);
       setMatchThreshold(updated.speech_match_threshold ?? DEFAULT_MATCH_THRESHOLD);
       setSavedNotice(true);
       setTimeout(() => setSavedNotice(false), 3000);
@@ -102,35 +92,7 @@ export function SpeakingWordSettingsPage() {
               Упражнение включено
             </label>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="text-sm font-medium text-slate-700" htmlFor="speaking-word-correct-points">
-                Баллов за правильный ответ
-              </label>
-              <input
-                id="speaking-word-correct-points"
-                type="number"
-                min={0}
-                max={100}
-                className="w-24 field px-3 py-1.5 text-sm"
-                value={correctPoints ?? ""}
-                onChange={(e) => setCorrectPoints(e.target.value ? Number(e.target.value) : null)}
-              />
-            </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="text-sm font-medium text-slate-700" htmlFor="speaking-word-incorrect-points">
-                Баллов снимается за неправильный ответ
-              </label>
-              <input
-                id="speaking-word-incorrect-points"
-                type="number"
-                min={0}
-                max={100}
-                className="w-24 field px-3 py-1.5 text-sm"
-                value={incorrectPoints ?? ""}
-                onChange={(e) => setIncorrectPoints(e.target.value ? Number(e.target.value) : null)}
-              />
-            </div>
 
             <div className="flex flex-wrap items-center gap-3">
               <label className="text-sm font-medium text-slate-700" htmlFor="speaking-word-match-threshold">

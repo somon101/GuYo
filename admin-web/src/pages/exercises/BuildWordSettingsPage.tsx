@@ -3,8 +3,6 @@ import { Link } from "react-router-dom";
 import { getExerciseSettings, setExerciseSettings } from "../../api/endpoints";
 
 const EXERCISE_KEY = "build_word";
-const DEFAULT_CORRECT_POINTS = 30;
-const DEFAULT_INCORRECT_POINTS = 15;
 
 // This page owns only "Собери слово"'s own settings -- see
 // TrueOrFalseSettingsPage.tsx for why each exercise gets its own page
@@ -15,8 +13,6 @@ export function BuildWordSettingsPage() {
   const [wrongLetterCount, setWrongLetterCount] = useState<number | null>(null);
   const [minWordLength, setMinWordLength] = useState<number | null>(null);
   const [caseSensitive, setCaseSensitive] = useState(false);
-  const [correctPoints, setCorrectPoints] = useState<number | null>(null);
-  const [incorrectPoints, setIncorrectPoints] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -34,8 +30,6 @@ export function BuildWordSettingsPage() {
         setWrongLetterCount(s.wrong_letter_count);
         setMinWordLength(s.min_word_length);
         setCaseSensitive(s.case_sensitive ?? false);
-        setCorrectPoints(s.correct_points ?? DEFAULT_CORRECT_POINTS);
-        setIncorrectPoints(s.incorrect_points ?? DEFAULT_INCORRECT_POINTS);
       })
       .catch(() => {
         if (!cancelled) setLoadError("Не удалось загрузить настройки");
@@ -59,15 +53,11 @@ export function BuildWordSettingsPage() {
         wrongLetterCount,
         minWordLength,
         caseSensitive,
-        correctPoints,
-        incorrectPoints,
       });
       setWordCount(updated.word_count);
       setWrongLetterCount(updated.wrong_letter_count);
       setMinWordLength(updated.min_word_length);
       setCaseSensitive(updated.case_sensitive ?? false);
-      setCorrectPoints(updated.correct_points ?? DEFAULT_CORRECT_POINTS);
-      setIncorrectPoints(updated.incorrect_points ?? DEFAULT_INCORRECT_POINTS);
       setSavedNotice(true);
       setTimeout(() => setSavedNotice(false), 3000);
     } catch {
@@ -149,35 +139,7 @@ export function BuildWordSettingsPage() {
               Учитывать регистр
             </label>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="text-sm font-medium text-slate-700" htmlFor="build-word-correct-points">
-                Баллов за правильный ответ
-              </label>
-              <input
-                id="build-word-correct-points"
-                type="number"
-                min={0}
-                max={100}
-                className="w-24 field px-3 py-1.5 text-sm"
-                value={correctPoints ?? ""}
-                onChange={(e) => setCorrectPoints(e.target.value ? Number(e.target.value) : null)}
-              />
-            </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="text-sm font-medium text-slate-700" htmlFor="build-word-incorrect-points">
-                Баллов снимается за неправильный ответ
-              </label>
-              <input
-                id="build-word-incorrect-points"
-                type="number"
-                min={0}
-                max={100}
-                className="w-24 field px-3 py-1.5 text-sm"
-                value={incorrectPoints ?? ""}
-                onChange={(e) => setIncorrectPoints(e.target.value ? Number(e.target.value) : null)}
-              />
-            </div>
 
             <div className="flex items-center gap-3">
               <button

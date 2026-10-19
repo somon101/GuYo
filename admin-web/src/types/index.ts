@@ -387,6 +387,8 @@ export interface WordLevel {
   name: string;
   min_points: number;
   max_points: number | null;
+  /** The level starts once a word's memory holds this many days. */
+  min_days: number;
   order: number;
   enabled: boolean;
   // How much a word at this level contributes to its own Priority Score

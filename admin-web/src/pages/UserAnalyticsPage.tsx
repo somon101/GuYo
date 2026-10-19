@@ -197,7 +197,7 @@ function WordsSection({ userId, words }: { userId: number; words: UserWordProgre
               </div>
               <div className="flex shrink-0 items-center gap-3 text-xs">
                 <span className="text-slate-400">{w.total_attempts} попыт.</span>
-                <span className="font-medium text-slate-600">{w.score} очк.</span>
+                <span className="font-medium text-slate-600">{w.score >= 100 ? "изучено" : "в процессе"}</span>
                 <span
                   className={`rounded-full border px-2 py-0.5 font-medium ${
                     w.level ? "border-indigo-200 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-slate-50 text-slate-500"

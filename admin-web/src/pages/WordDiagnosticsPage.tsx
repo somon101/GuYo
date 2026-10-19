@@ -13,7 +13,6 @@ import {
   GREEN,
   ProportionBar,
   RED,
-  ScoreOverTimeChart,
 } from "../components/MiniCharts";
 import { ProgressRing } from "../components/ProgressRing";
 import { InfoTooltip } from "../components/InfoTooltip";
@@ -112,7 +111,6 @@ export function WordDiagnosticsPage() {
   });
 
   const activityBuckets = bucketByDay(data.history);
-  const scorePoints = data.history.map((a) => ({ label: dayBucketKey(a.created_at), score: a.score_after }));
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -228,12 +226,6 @@ export function WordDiagnosticsPage() {
               <ActivityOverTimeChart buckets={activityBuckets} />
             </div>
           )}
-          {scorePoints.length > 1 && (
-            <div>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">Очки слова во времени</p>
-              <ScoreOverTimeChart points={scorePoints} />
-            </div>
-          )}
         </div>
       </Section>
 
@@ -289,11 +281,6 @@ function recentErrorCount(history: WordAttempt[], window: number): { errors: num
  * its 4 factors, and when this word was last touched — the facts an
  * admin wants before reading the detailed sections below. */
 function DiagnosticsPanel({ data, config }: { data: WordDiagnostics; config: PriorityConfig | null }) {
-  const range = data.level
-    ? data.level.max_points != null
-      ? `${data.level.min_points}–${data.level.max_points}`
-      : `от ${data.level.min_points}`
-    : null;
 
   const roles = config ? priorityRoleBands(config.levelBands) : null;
   const currentRoleEffect = roles && data.priority_level
@@ -318,28 +305,21 @@ function DiagnosticsPanel({ data, config }: { data: WordDiagnostics; config: Pri
               <p className="mb-2 font-medium text-slate-900">Уровень слова</p>
               {data.level ? (
                 <>
-                  <p className="mb-2">
-                    Сейчас — «{data.level.name}», диапазон {data.level.min_points}–{data.level.max_points ?? "∞"} очков
-                    (границы и очки за упражнения редактируются на странице «Уровни слов»).
-                  </p>
                   <p>
-                    Вклад этого уровня в Priority: {data.level.priority_weight} — один из 4 факторов, см. подсказку у
-                    «Priority» ниже.
+                    Сейчас — «{data.level.name}». Уровень считает модель памяти: сколько дней слово держится в
+                    памяти, на 1–2 ниже, если оно забывается (границы — на странице «Уровни слов»).
                   </p>
                 </>
               ) : (
-                <p>Для текущих очков ({data.score}) нет подходящего диапазона в лестнице уровней.</p>
+                <p>У слова ещё нет истории ответов — уровня нет.</p>
               )}
             </InfoTooltip>
           </div>
           <div className="font-medium text-slate-900">{data.level ? data.level.name : "—"}</div>
         </div>
         <div>
-          <div className="text-xs text-slate-500">Очки</div>
-          <div className="font-medium text-slate-900">
-            {data.score}
-            {range && <span className="ml-1 font-normal text-slate-400">({range})</span>}
-          </div>
+          <div className="text-xs text-slate-500">Изучено</div>
+          <div className="font-medium text-slate-900">{data.score >= 100 ? "Да — навсегда в «Моих словах»" : "Ещё нет"}</div>
         </div>
         <div>
           <div className="text-xs text-slate-500">Последняя попытка</div>

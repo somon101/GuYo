@@ -76,7 +76,7 @@ export function MemoryWordPage() {
             {st.recall_now != null && st.recall_now < target && st.learned
               ? `Шанс вспомнить уже ${pct(st.recall_now)} (< ${pct(target)}) — попадёт в следующий список, когда наберётся ${data.settings.list_size} таких слов и в очереди будет место.`
               : !st.learned
-                ? `Слово ещё не выучено (балл ${st.score} < ${data.settings.learned_threshold}) — в повторение берутся только выученные.`
+                ? "Слово ещё не изучено — в повторение берутся только изученные."
                 : `Шанс вспомнить ${pct(st.recall_now)} — не ниже ${pct(target)}.`}
           </p>
         ) : (
@@ -137,7 +137,7 @@ export function MemoryWordPage() {
           <Stat label="Шанс вспомнить" value={pct(st.recall_now)} hint={`порог ${pct(target)}`} bad={st.recall_now != null && st.recall_now < target} />
           <Stat label="Прочность" value={`${num(st.stability)} дн.`} hint="через сколько дней шанс упадёт до 90%" />
           <Stat label="Трудность" value={num(st.difficulty)} hint="1 — легко, 10 — очень трудно" />
-          <Stat label="Балл слова" value={String(st.score)} hint={st.learned ? "выучено" : `не выучено (< ${data.settings.learned_threshold})`} />
+          <Stat label="Изучено" value={st.learned ? "да" : "нет"} hint={st.learned ? "навсегда в «Моих словах»" : "урок ещё не доказал знание"} />
           <Stat label="Последний повтор" value={dateTime(st.last_review)} />
           <Stat label="Дней повторения" value={String(st.review_days)} />
           <Stat label={`Ниже ${pct(target)}`} value={dateTime(st.falls_below_at)} hint="когда шанс опустится ниже порога" />
@@ -228,7 +228,6 @@ function AttemptsTable({ attempts, withDate }: { attempts: MemoryAttempt[]; with
             <th className="px-2">Результат</th>
             <th className="px-2">Ответ</th>
             <th className="px-2">Думал</th>
-            <th className="px-2">Балл</th>
           </tr>
         </thead>
         <tbody>
@@ -256,7 +255,6 @@ function AttemptsTable({ attempts, withDate }: { attempts: MemoryAttempt[]; with
               </td>
               <td className="px-2 py-2 text-slate-600">{a.given_answer ?? "—"}</td>
               <td className="px-2 py-2 text-slate-600">{a.duration_ms != null ? `${(a.duration_ms / 1000).toFixed(1)} с` : "—"}</td>
-              <td className="px-2 py-2 text-slate-600">{a.score_after}</td>
             </tr>
           ))}
         </tbody>

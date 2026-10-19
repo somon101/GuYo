@@ -19,7 +19,8 @@ class WordLevelOut(BaseModel):
 
 class WordLevelCreateIn(BaseModel):
     name: str = Field(min_length=1, max_length=100)
-    min_points: int = Field(ge=0)
+    # Old points range: no longer used (levels follow the memory model).
+    min_points: int = Field(default=0, ge=0)
     max_points: int | None = Field(default=None, ge=0)
     min_days: float = Field(default=0, ge=0)
     enabled: bool = True
