@@ -26,6 +26,9 @@ def record_word_attempt(
     timed_out: bool = False,
     given_answer: str | None = None,
     answered_at: datetime | None = None,
+    phrase_id: int | None = None,
+    mini_phrase_id: int | None = None,
+    review_list_id: int | None = None,
 ) -> None:
     """Logs one real answer for Admin Web's «Аналитика» -- purely additive
     bookkeeping alongside whatever the caller already did to WordProgress/
@@ -45,6 +48,9 @@ def record_word_attempt(
         duration_ms=duration_ms,
         timed_out=timed_out,
         given_answer=(given_answer or None) and given_answer[:255],
+        phrase_id=phrase_id,
+        mini_phrase_id=mini_phrase_id,
+        review_list_id=review_list_id,
     )
     # WHEN the answer was really given, when the caller knows it. An answer made
     # with no network reaches the server days later, and the memory model reads

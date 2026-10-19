@@ -167,6 +167,10 @@ class PracticeAnswerIn(BaseModel):
     # What the learner actually did, for the server's own verdict (see
     # app/exercises/verify.py). Older apps don't send it.
     answer: dict | None = None
+    # Where the word was shown, when the app knows (WordAttempt.phrase_id /
+    # mini_phrase_id). Older apps don't send it.
+    phrase_id: int | None = None
+    mini_phrase_id: int | None = None
 
 
 @router.post("/answers", status_code=status.HTTP_204_NO_CONTENT)
@@ -189,9 +193,13 @@ def record_practice_answer(
     progress = (
         db.query(WordProgress).filter(WordProgress.user_id == user.id, WordProgress.word_id == word.id).first()
     )
-    # Decided before this answer updates the memory model: a right answer
-    # makes the word no longer due, so it can earn at most once per cycle.
-    was_due = _is_due_for_review(db, progress)
+    # «Повторить сегодня»: is this word still to do in the active list? Only
+    # such an answer ticks the list (and earns review points, at most once
+    # per list); ordinary lessons never touch it.
+    from app.memory.review_lists import pending_entry, record_review_answer
+
+    entry = pending_entry(db, user.id, dictionary_id, word.id)
+    was_due = entry is not None and _review_points_allowed(db, progress)
     record_word_attempt(
         db,
         user_id=user.id,
@@ -203,26 +211,24 @@ def record_practice_answer(
         duration_ms=payload.duration_ms,
         timed_out=payload.timed_out,
         given_answer=payload.given_answer,
+        phrase_id=payload.phrase_id,
+        mini_phrase_id=payload.mini_phrase_id,
+        review_list_id=entry.list_id if entry is not None else None,
     )
     if payload.is_correct and was_due:
         _grant_review_points(db, user, word.id)
+    if entry is not None:
+        record_review_answer(db, entry, payload.is_correct)
+    from app.priority.background_prep import touch_activity
+
+    touch_activity(db, user, dictionary_id)
     db.commit()
 
 
-def _is_due_for_review(db: Session, progress: WordProgress | None) -> bool:
-    """The same rule GET /review-due lists words by: learned, and the
-    memory model's recall chance now below the target retention."""
-    from app.core.dates import utc_now
-    from app.memory.service import recall_probability
-    from app.priority.settings import get_priority_settings
-
-    if progress is None or progress.score < get_threshold(db):
-        return False
-    settings = get_priority_settings(db)
-    if not settings.memory_enabled:
-        return False
-    r = recall_probability(progress, utc_now())
-    return r is not None and r < settings.memory_target_retention
+def _review_points_allowed(db: Session, progress: WordProgress | None) -> bool:
+    """A word still counts as learned (review points are for learned words
+    being forgotten, never for new ones)."""
+    return progress is not None and progress.score >= get_threshold(db)
 
 
 def _grant_review_points(db: Session, user: User, word_id: int) -> None:
@@ -241,55 +247,29 @@ def _grant_review_points(db: Session, user: User, word_id: int) -> None:
 
 @router.get("/review-due")
 def get_review_due(dictionary_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """"Повторить сегодня": learned words of this dictionary the memory
-    model says are being forgotten right now (recall below the target
-    retention) -- the moment a review helps most. `word_ids` are the most
-    forgotten first, at most one practice round's worth."""
+    """"Повторить сегодня": the user's ACTIVE fixed list (see
+    app/memory/review_lists.py) -- `count` is how many of its words are
+    still to do, `word_ids` those words, most forgotten first. A list is
+    frozen when it is made, so lessons in between never change it; the
+    next list in the queue appears only once this one is fully done."""
     _get_dictionary_or_404(db, dictionary_id)
-    due = review_due_word_ids(db, user.id, dictionary_id)
-    # The card appears by RULE at the next entry: at least the admin's threshold
-    # of words are due. It is NOT gated on the push having been delivered -- the
-    # push is the away-time nudge, while the card is what anyone who opens the
-    # app sees when there really is something worth reviewing. This keeps the
-    # feature alive even when notifications are turned off.
-    from app.notifications.reminders import get_reminder_settings
+    from app.memory.review_lists import refresh_lists, remaining_word_ids
 
-    minimum = get_reminder_settings(db).review_push_min_words
-    if len(due) < minimum:
+    active = refresh_lists(db, user.id, dictionary_id)
+    db.commit()
+    if active is None:
         return {"count": 0, "word_ids": []}
-    return {"count": len(due), "word_ids": due[:ROUND_SIZE]}
+    left = remaining_word_ids(db, active)
+    return {"count": len(left), "word_ids": left[:ROUND_SIZE], "list_id": active.id}
 
 
 def review_due_word_ids(db: Session, user_id: int, dictionary_id: int) -> list[int]:
     """Learned words of this dictionary whose recall is below the target
-    retention, most forgotten first -- «Повтори слово». Also used by the
-    background sweep for its push (app/priority/background_prep.py)."""
-    from app.core.dates import utc_now
-    from app.memory.service import recall_probability
-    from app.priority.settings import get_priority_settings
+    retention right now, most forgotten first -- what new lists are made
+    from (app/memory/review_lists.py)."""
+    from app.memory.service import due_progress_rows
 
-    settings = get_priority_settings(db)
-    if not settings.memory_enabled:
-        return []
-    threshold = get_threshold(db)
-    now = utc_now()
-    rows = (
-        db.query(WordProgress)
-        .join(Word, Word.id == WordProgress.word_id)
-        .filter(
-            WordProgress.user_id == user_id,
-            WordProgress.score >= threshold,
-            Word.dictionary_id == dictionary_id,
-        )
-        .all()
-    )
-    due = []
-    for p in rows:
-        r = recall_probability(p, now)
-        if r is not None and r < settings.memory_target_retention:
-            due.append((r, p.word_id))
-    due.sort()
-    return [word_id for _, word_id in due]
+    return [p.word_id for _, p in due_progress_rows(db, user_id, dictionary_id)]
 
 
 

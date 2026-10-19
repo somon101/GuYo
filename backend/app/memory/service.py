@@ -175,3 +175,138 @@ def secured_word_ids(db: Session, user_id: int, word_ids: list[int] | None, thre
         if r is None or r >= settings.memory_target_retention:
             secured.add(p.word_id)
     return secured
+
+
+def due_progress_rows(db: Session, user_id: int, dictionary_id: int) -> list[tuple[float, WordProgress]]:
+    """Learned words of this dictionary whose recall is below the target
+    retention right now, most forgotten first, with that recall."""
+    from app.exercises.common import get_threshold
+    from app.models.word import Word
+    from app.priority.settings import get_priority_settings
+
+    settings = get_priority_settings(db)
+    if not settings.memory_enabled:
+        return []
+    now = utc_now()
+    rows = (
+        db.query(WordProgress)
+        .join(Word, Word.id == WordProgress.word_id)
+        .filter(
+            WordProgress.user_id == user_id,
+            WordProgress.score >= get_threshold(db),
+            Word.dictionary_id == dictionary_id,
+        )
+        .all()
+    )
+    due = []
+    for p in rows:
+        r = recall_probability(p, now)
+        if r is not None and r < settings.memory_target_retention:
+            due.append((r, p))
+    due.sort(key=lambda item: (item[0], item[1].word_id))
+    return due
+
+
+GRADE_NAMES = {Rating.Again: "again", Rating.Hard: "hard", Rating.Good: "good", Rating.Easy: "easy"}
+
+
+def day_grade_reason(attempts: list[WordAttempt]) -> str:
+    """The same rule as day_grade, said in words for Admin Web."""
+    real = [a for a in attempts if not a.timed_out]
+    misses = sum(1 for a in real if not a.is_correct)
+    hits = len(real) - misses
+    timeouts = sum(1 for a in attempts if a.timed_out)
+    if real and misses > hits:
+        return f"Ошибок ({misses}) больше, чем верных ответов ({hits}) — слово не вспомнилось"
+    if real and not real[-1].is_correct:
+        return "Последний ответ дня неверный — слово не вспомнилось"
+    if misses:
+        return f"{misses} ошибк. среди {hits} верных, но день закончился верным ответом — вспомнил с трудом"
+    if timeouts:
+        return f"Ошибок нет, но {timeouts} раз не успел ответить — вспомнил медленно"
+    if any(a.exercise_key in RECALL_EXERCISES for a in attempts):
+        return "Всё верно, и слово было собрано или произнесено самим — вспомнил хорошо"
+    return "Всё верно, но только узнавание из вариантов (без «Собери слово» и речи) — слабое доказательство"
+
+
+def _card_r(card: Card, at: datetime) -> float:
+    return _scheduler.get_card_retrievability(card, _utc(at))
+
+
+def explain_days(attempts: list[WordAttempt]) -> list[dict]:
+    """Every review day as the model saw it: the day's answers, its grade
+    and why, the chance of recall just before the day, and the state
+    after it."""
+    out = []
+    card = Card()
+    prev_first = None
+    for day, day_attempts in _days(attempts).items():
+        first = day_attempts[0].created_at
+        r_before = _card_r(card, first) if prev_first is not None else None
+        grade = day_grade(day_attempts)
+        card, _ = _scheduler.review_card(card, grade, review_datetime=_utc(first))
+        out.append(
+            {
+                "day": day,
+                "first_at": first,
+                "grade": GRADE_NAMES[grade],
+                "reason": day_grade_reason(day_attempts),
+                "recall_before": r_before,
+                "days_since_previous": (first - prev_first).total_seconds() / 86400 if prev_first else None,
+                "stability_after": card.stability,
+                "difficulty_after": card.difficulty,
+                "attempts": day_attempts,
+            }
+        )
+        prev_first = first
+    return out
+
+
+def recall_curve(attempts: list[WordAttempt], until: datetime, max_points: int = 120) -> list[dict]:
+    """R day by day (end of each Dushanbe day) from the first review up to
+    `until` -- the forgetting curve, with the jumps the reviews made."""
+    from datetime import timedelta
+
+    days = list(_days(attempts).items())
+    if not days:
+        return []
+    start = days[0][1][0].created_at.astimezone(DUSHANBE_TZ).replace(hour=23, minute=59, second=0, microsecond=0)
+    total = max(0, (until.astimezone(DUSHANBE_TZ) - start).days + 1)
+    step = max(1, -(-total // max_points))
+    points = []
+    t = start
+    while t <= until.astimezone(DUSHANBE_TZ) + timedelta(days=step):
+        at = min(t, until.astimezone(DUSHANBE_TZ))
+        card, count = replay(attempts, until=at)
+        if card is not None:
+            points.append({"at": at, "recall": _card_r(card, at)})
+        if at >= until.astimezone(DUSHANBE_TZ):
+            break
+        t += timedelta(days=step)
+    return points
+
+
+def falls_below_at(progress: WordProgress, target: float) -> datetime | None:
+    """When this pair's recall drops below `target` (it decays steadily
+    until the next review)."""
+    from datetime import timedelta
+
+    if progress.memory_stability is None or progress.memory_last_review is None:
+        return None
+    card = Card(
+        state=State.Review,
+        stability=progress.memory_stability,
+        difficulty=progress.memory_difficulty,
+        last_review=_utc(progress.memory_last_review),
+    )
+    lo, hi = 0.0, 3650.0
+    start = _utc(progress.memory_last_review)
+    if _card_r(card, start + timedelta(days=hi)) >= target:
+        return None
+    for _ in range(40):
+        mid = (lo + hi) / 2
+        if _card_r(card, start + timedelta(days=mid)) >= target:
+            lo = mid
+        else:
+            hi = mid
+    return start + timedelta(days=hi)

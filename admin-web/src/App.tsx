@@ -36,6 +36,7 @@ import { QuestsPage } from "./pages/QuestsPage";
 import { UserAnalyticsPage } from "./pages/UserAnalyticsPage";
 import { RetentionPage } from "./pages/RetentionPage";
 import { WordDiagnosticsPage } from "./pages/WordDiagnosticsPage";
+import { MemoryWordPage } from "./pages/MemoryWordPage";
 import { AchievementsPage } from "./pages/AchievementsPage";
 import { ApiKeysPage } from "./pages/ApiKeysPage";
 import { RatingPage } from "./pages/RatingPage";
@@ -403,6 +404,16 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <UserAnalyticsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/analytics/users/:userId/memory/:wordId"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <MemoryWordPage />
                 </Layout>
               </ProtectedRoute>
             }

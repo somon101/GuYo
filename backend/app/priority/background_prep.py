@@ -70,6 +70,21 @@ def mark_for_prep(db: Session, user: User, dictionary_id: int) -> None:
         state.pending = True
 
 
+def touch_activity(db: Session, user: User, dictionary_id: int) -> None:
+    """The user is here (a Practice / «Повторить сегодня» answer): the
+    away-time clock restarts, but no auto lesson is asked for. Does not
+    commit."""
+    state = (
+        db.query(UserPrepState)
+        .filter(UserPrepState.user_id == user.id, UserPrepState.dictionary_id == dictionary_id)
+        .first()
+    )
+    if state is None:
+        db.add(UserPrepState(user_id=user.id, dictionary_id=dictionary_id, last_activity_at=utc_now(), pending=False))
+    else:
+        state.last_activity_at = utc_now()
+
+
 def _quiet_now(settings) -> bool:
     """The admin's own quiet window (Admin Web -> Напоминания): no background
     preparation goes out inside it. Reads the settings rather than the old
@@ -88,7 +103,6 @@ def run_prep(db: Session) -> int:
     from app.notifications.reminders import get_reminder_settings
     from app.notifications.service import send_notification
     from app.priority import maybe_create_adaptive_lesson, maybe_create_personal_quest
-    from app.routers.practice import review_due_word_ids
 
     settings = get_reminder_settings(db)
     if not settings.prep_enabled or _quiet_now(settings):
@@ -96,10 +110,28 @@ def run_prep(db: Session) -> int:
     cutoff = utc_now() - timedelta(minutes=settings.prep_delay_minutes)
     today = dushanbe_today()
     sent = 0
+    from app.models.review_list import STATUS_ACTIVE, ReviewList
+
+    # An active «Повторить сегодня» list nobody has been told about yet.
+    unnotified = (
+        db.query(ReviewList.id)
+        .filter(
+            ReviewList.user_id == UserPrepState.user_id,
+            ReviewList.dictionary_id == UserPrepState.dictionary_id,
+            ReviewList.status == STATUS_ACTIVE,
+            ReviewList.notified_at.is_(None),
+        )
+        .exists()
+    )
     states = (
         db.query(UserPrepState)
         .filter(UserPrepState.last_activity_at <= cutoff)
-        .filter((UserPrepState.pending.is_(True)) | (UserPrepState.review_notified_on.is_(None)) | (UserPrepState.review_notified_on < today))
+        .filter(
+            (UserPrepState.pending.is_(True))
+            | (UserPrepState.review_notified_on.is_(None))
+            | (UserPrepState.review_notified_on < today)
+            | unnotified
+        )
         .limit(500)
         .all()
     )
@@ -129,14 +161,33 @@ def run_prep(db: Session) -> int:
                         title, body = _text("quest", user, 0)
                         send_notification(db, user, body, title=title, source=SOURCE_PREP_READY, dedupe_key=f"prep:quest:{quest.id}")
                         sent += 1
+                # «Повторить сегодня»: freeze new lists (once a day here; also
+                # whenever the app asks), then one push per active list,
+                # once the user has been away long enough (practice answers
+                # count as activity too -- see touch_activity).
+                from app.memory.review_lists import refresh_lists, remaining_word_ids
+
                 if state.review_notified_on is None or state.review_notified_on < today:
-                    due = review_due_word_ids(db, user.id, state.dictionary_id)
-                    if len(due) >= settings.review_push_min_words:
-                        state.review_notified_on = today
-                        title, body = _text("review", user, len(due))
+                    state.review_notified_on = today
+                    active = refresh_lists(db, user.id, state.dictionary_id)
+                else:
+                    active = (
+                        db.query(ReviewList)
+                        .filter(
+                            ReviewList.user_id == user.id,
+                            ReviewList.dictionary_id == state.dictionary_id,
+                            ReviewList.status == STATUS_ACTIVE,
+                        )
+                        .first()
+                    )
+                if active is not None and active.notified_at is None:
+                    left = remaining_word_ids(db, active)
+                    if left:
+                        active.notified_at = utc_now()
+                        title, body = _text("review", user, len(left))
                         send_notification(
                             db, user, body, title=title, source=SOURCE_REVIEW_DUE,
-                            dedupe_key=f"review:{state.dictionary_id}:{today.isoformat()}",
+                            dedupe_key=f"review:list:{active.id}",
                         )
                         sent += 1
         except Exception:

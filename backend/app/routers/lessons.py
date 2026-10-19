@@ -737,6 +737,8 @@ def _hold_answer_for_pass(db: Session, user: User, lesson: Lesson, exercise_key:
         timed_out=payload.timed_out,
         given_answer=payload.given_answer,
         answered_at=_answered_at(lesson, payload),
+        phrase_id=payload.phrase_id,
+        mini_phrase_id=payload.mini_phrase_id,
     )
     db.commit()
     return SubmitAnswerOut(
@@ -946,6 +948,8 @@ def submit_answer(
         timed_out=payload.timed_out,
         given_answer=payload.given_answer,
         answered_at=_answered_at(lesson, payload),
+        phrase_id=payload.phrase_id,
+        mini_phrase_id=payload.mini_phrase_id,
     )
 
     threshold = get_threshold(db)

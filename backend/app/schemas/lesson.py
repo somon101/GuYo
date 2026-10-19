@@ -142,6 +142,10 @@ class SubmitAnswerIn(BaseModel):
     # real moment is what gets recorded, clamped by the server (see
     # app/routers/lessons.py): never in the future, never before the pass began.
     answered_at_ms: int | None = Field(default=None, ge=0)
+    # Where the word was shown, when the app knows (WordAttempt.phrase_id /
+    # mini_phrase_id). Older apps don't send it.
+    phrase_id: int | None = None
+    mini_phrase_id: int | None = None
 
 
 class SubmitAnswerOut(BaseModel):

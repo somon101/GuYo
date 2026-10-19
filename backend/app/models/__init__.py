@@ -119,3 +119,5 @@ from app.models.concept import (
 )
 # Языки как данные: завести новый язык можно из админки, без правки кода.
 from app.models.language import Language
+# «Повторить сегодня»: зафиксированные списки (app/memory/review_lists.py).
+from app.models.review_list import ReviewList, ReviewListWord

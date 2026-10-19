@@ -58,5 +58,14 @@ class WordAttempt(Base):
     # What the learner actually gave when it differs from a tap on right/
     # wrong: the picked option, the built letters, the recognized speech.
     given_answer: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Where the word was shown, when the app says: the phrase / mini-phrase
+    # of the exercise, and the «Повторить сегодня» list it was reviewed in.
+    phrase_id: Mapped[int | None] = mapped_column(ForeignKey("phrases.id", ondelete="SET NULL"), nullable=True)
+    mini_phrase_id: Mapped[int | None] = mapped_column(
+        ForeignKey("mini_phrases.id", ondelete="SET NULL"), nullable=True
+    )
+    review_list_id: Mapped[int | None] = mapped_column(
+        ForeignKey("review_lists.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     timed_out: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)

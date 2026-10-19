@@ -2600,3 +2600,125 @@ export async function setApiKeyEnabled(
 export async function deleteApiKey(id: number): Promise<void> {
   await api.delete(`/admin/api-keys/${id}`);
 }
+
+// --- Аналитика → «Память» (GET /admin/memory/...) ---------------------------
+
+export interface MemorySettings {
+  memory_enabled: boolean;
+  target: number;
+  learned_threshold: number;
+  list_size: number;
+  max_open_lists: number;
+}
+
+export interface ReviewListWordInfo {
+  word_id: number;
+  word: string;
+  translation: string | null;
+  position: number;
+  recall_at_entry: number;
+  recall_now: number | null;
+  target: number;
+  done_at: string | null;
+}
+
+export interface ReviewListInfo {
+  id: number;
+  status: "active" | "queued" | "closed";
+  size: number;
+  created_at: string;
+  activated_at: string | null;
+  closed_at: string | null;
+  notified_at: string | null;
+  done: number;
+  words: ReviewListWordInfo[];
+}
+
+export interface UserReviewLists {
+  settings: MemorySettings;
+  open: ReviewListInfo[];
+  closed: ReviewListInfo[];
+}
+
+export async function getUserReviewLists(userId: number, dictionaryId: number): Promise<UserReviewLists> {
+  const { data } = await api.get(`/admin/memory/users/${userId}/lists`, { params: { dictionary_id: dictionaryId } });
+  return data;
+}
+
+export interface MemoryAttempt {
+  id: number;
+  created_at: string;
+  exercise_key: string;
+  is_correct: boolean;
+  timed_out: boolean;
+  given_answer: string | null;
+  duration_ms: number | null;
+  score_after: number;
+  source: "lesson" | "quest" | "practice" | "review";
+  review_list_id: number | null;
+  lesson_id: number | null;
+  lesson_number: number | null;
+  phrase: string | null;
+  mini_phrase: string | null;
+}
+
+export interface MemoryDay {
+  day: string;
+  first_at: string;
+  grade: "again" | "hard" | "good" | "easy";
+  reason: string;
+  recall_before: number | null;
+  days_since_previous: number | null;
+  stability_after: number;
+  difficulty_after: number;
+  correct: number;
+  errors: number;
+  attempts: MemoryAttempt[];
+}
+
+export interface MemoryWordList {
+  list_id: number;
+  status: "active" | "queued" | "closed";
+  created_at: string;
+  activated_at: string | null;
+  closed_at: string | null;
+  position: number;
+  list_size: number;
+  recall_at_entry: number;
+  target: number;
+  stability_at_entry: number | null;
+  difficulty_at_entry: number | null;
+  last_review_at_entry: string | null;
+  review_days_at_entry: number;
+  score_at_entry: number;
+  done_at: string | null;
+}
+
+export interface MemoryWord {
+  user_id: number;
+  user_login: string;
+  word_id: number;
+  word: string;
+  translation: string | null;
+  settings: MemorySettings;
+  state: {
+    score: number;
+    learned: boolean;
+    recall_now: number | null;
+    stability: number | null;
+    difficulty: number | null;
+    last_review: string | null;
+    review_days: number;
+    falls_below_at: string | null;
+  };
+  lists: MemoryWordList[];
+  days: MemoryDay[];
+  errors_by_exercise: { exercise_key: string; total: number; errors: number; timeouts: number }[];
+  recent_errors: MemoryAttempt[];
+  curve: { at: string; recall: number }[];
+}
+
+export async function getMemoryWord(userId: number, wordId: number): Promise<MemoryWord> {
+  const { data } = await api.get(`/admin/memory/users/${userId}/words/${wordId}`);
+  return data;
+}

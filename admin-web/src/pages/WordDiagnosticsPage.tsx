@@ -133,6 +133,10 @@ export function WordDiagnosticsPage() {
         </div>
         <p className="text-sm text-slate-500">
           Пользователь: <span className="font-medium text-slate-700">{data.user_login}</span>
+          {" · "}
+          <Link to={`/analytics/users/${data.user_id}/memory/${data.word_id}`} className="font-medium text-indigo-600 hover:text-indigo-700">
+            Разбор памяти →
+          </Link>
         </p>
       </div>
 
