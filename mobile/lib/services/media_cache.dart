@@ -90,8 +90,32 @@ class MediaCache {
     }
   }
 
+  /// What an AudioPlayer should play for [url], always a file on the phone:
+  /// one not cached yet is downloaded first (by Dart, off the main thread).
+  /// Null when it can't be had -- then there is simply no sound.
+  ///
+  /// Never a UrlSource: Android's MediaPlayer opens a network URL on the
+  /// platform main thread, and on a slow connection that froze the whole
+  /// app ("Application Not Responding") seconds into an online lesson,
+  /// while the same lesson offline played its cached files fine.
+  Future<Source?> playableSource(String url, {Duration timeout = const Duration(seconds: 10)}) async {
+    final full = fullUrl(url);
+    if (!_localFiles.containsKey(full)) {
+      await warm([full]);
+    }
+    if (!_localFiles.containsKey(full)) {
+      try {
+        await _download(full).timeout(timeout);
+      } on TimeoutException {
+        return null;
+      }
+    }
+    final local = _localFiles[full];
+    return local != null ? DeviceFileSource(local) : null;
+  }
+
   /// What an AudioPlayer should play for [url]: the downloaded file when
-  /// there is one, the network otherwise.
+  /// there is one, the network otherwise. Prefer [playableSource].
   Source audioSource(String url) {
     final full = fullUrl(url);
     final local = _localFiles[full];

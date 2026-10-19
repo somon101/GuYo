@@ -62,7 +62,12 @@ class _ListenWordExerciseState extends State<ListenWordExercise> {
         if (mounted) setState(() => _isPlayingAudio = false);
       });
       await _player.setPlaybackRate(slow ? 0.6 : 1.0);
-      await _player.play(MediaCache.instance.audioSource(url));
+      final source = await MediaCache.instance.playableSource(url);
+      if (source == null) {
+        if (mounted) setState(() => _isPlayingAudio = false);
+        return;
+      }
+      await _player.play(source);
     } catch (_) {
       if (mounted) setState(() => _isPlayingAudio = false);
     }

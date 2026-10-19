@@ -54,7 +54,12 @@ class _AudioButtonState extends State<AudioButton> {
       _completeSub = _player.onPlayerComplete.listen((_) {
         if (mounted) setState(() => _isPlaying = false);
       });
-      await _player.play(MediaCache.instance.audioSource(widget.url));
+      final source = await MediaCache.instance.playableSource(widget.url);
+      if (source == null) {
+        if (mounted) setState(() => _isPlaying = false);
+        return;
+      }
+      await _player.play(source);
     } catch (_) {
       if (mounted) setState(() => _isPlaying = false);
     }
