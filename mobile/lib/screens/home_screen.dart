@@ -199,8 +199,67 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _nativeLanguage = profile.translationLanguage;
         _learningLanguage = profile.learningLanguage ?? _dictionaryLanguage;
       });
+      // A language this person uses was unpublished (something is missing in
+      // it): ask them to pick another one, once per launch.
+      if (profile.languageUnavailable.isNotEmpty && !_askedLanguageAgain) {
+        _askedLanguageAgain = true;
+        unawaited(_askForAnotherLanguage(profile.languageUnavailable));
+      }
     } catch (_) {
       // Тихо -- см. выше.
+    }
+  }
+
+  bool _askedLanguageAgain = false;
+
+  /// The language this person learns (or reads hints in) is no longer
+  /// available: one sheet per such language, with the published ones to pick.
+  Future<void> _askForAnotherLanguage(List<String> which) async {
+    for (final kind in which) {
+      if (!mounted) return;
+      final learning = kind == 'learning';
+      final options = _languages
+          .where((l) => learning ? l.learnable && l.code != _nativeLanguage : l.nativeOk && l.code != _learningLanguage)
+          .toList();
+      if (options.isEmpty) continue;
+      final picked = await showModalBottomSheet<GuyoLanguage>(
+        context: context,
+        isDismissible: false,
+        enableDrag: false,
+        builder: (context) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                child: Text(
+                  learning
+                      ? tr('Этот язык сейчас недоступен для изучения. Выберите другой')
+                      : tr('Этот язык перевода сейчас недоступен. Выберите другой'),
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              for (final l in options)
+                ListTile(title: Text(l.label), onTap: () => Navigator.of(context).pop(l)),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      );
+      if (picked == null || !mounted) continue;
+      if (learning) {
+        await _selectLearningLanguage(picked);
+      } else {
+        try {
+          final saved = await ApiClient.instance.updateMyProfile(translationLanguage: picked.code);
+          ApiClient.instance.forgetCachedContent();
+          if (mounted) setState(() => _nativeLanguage = saved.translationLanguage);
+          await _refreshDictionariesInBackground();
+        } catch (_) {
+          // Asked again on the next launch.
+        }
+      }
     }
   }
 
@@ -210,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// Что можно изучать: всё, КРОМЕ текущего родного языка. Иначе подсказка была
   /// бы на том же языке, что и ответ, -- такой вариант не показываем вовсе.
   List<GuyoLanguage> get _learningOptions =>
-      _languages.where((language) => language.code != _nativeLanguage).toList();
+      _languages.where((language) => language.code != _nativeLanguage && language.learnable).toList();
 
   /// Смена изучаемого языка: сохраняем в профиле, сбрасываем кэш урока и слов
   /// (они были на прежнем языке) и перечитываем контент.

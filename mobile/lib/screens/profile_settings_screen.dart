@@ -44,6 +44,9 @@ const List<({String code, String label})> _translationLanguages = [
 
 class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   late UserProfile _profile;
+  /// From the server (published translation languages); the built-in list
+  /// until it arrives.
+  List<({String code, String label})> _nativeOptions = _translationLanguages;
   /// Идёт удаление аккаунта: кнопка показывает кружок и не нажимается дважды.
   bool _isDeleting = false;
 
@@ -58,6 +61,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   void initState() {
     super.initState();
     _profile = widget.profile;
+    // The translation languages the server offers (published ones only).
+    ApiClient.instance.fetchLanguages().then((list) {
+      final offered = [for (final l in list) if (l.nativeOk) (code: l.code, label: l.label)];
+      if (mounted && offered.isNotEmpty) setState(() => _nativeOptions = offered);
+    }, onError: (_) {});
     ApiClient.instance.fetchStudyTimes().then((t) {
       if (mounted) setState(() => _studyTimes = t);
     }, onError: (_) {});
@@ -240,11 +248,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     // не предлагается.
     final learning = _profile.learningLanguage;
     final options = learning == null
-        ? _translationLanguages
-        : _translationLanguages.where((l) => l.code != learning).toList();
+        ? _nativeOptions
+        : _nativeOptions.where((l) => l.code != learning).toList();
     final code = await _pickOne(
       tr('Язык перевода'),
-      options.isEmpty ? _translationLanguages : options,
+      options.isEmpty ? _nativeOptions : options,
       _profile.translationLanguage,
     );
     if (code == null || code == (_translationShown ?? _profile.translationLanguage)) return;

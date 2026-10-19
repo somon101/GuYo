@@ -12,11 +12,18 @@ class GuyoLanguage {
   /// строк-то нет.
   final bool uiReady;
 
+  /// Опубликован ли язык для изучения и как язык перевода. Неопубликованный
+  /// (чего-то не хватает -- решает проверка в админке) выбрать нельзя.
+  final bool learnable;
+  final bool nativeOk;
+
   const GuyoLanguage({
     required this.code,
     required this.name,
     required this.nativeName,
     this.uiReady = true,
+    this.learnable = true,
+    this.nativeOk = true,
   });
 
   /// Показываем самоназвание: человеку понятнее «Тоҷикӣ», чем «Таджикский».
@@ -27,5 +34,8 @@ class GuyoLanguage {
         name: json['name'] as String? ?? json['code'] as String,
         nativeName: json['native_name'] as String? ?? '',
         uiReady: json['ui_ready'] as bool? ?? true,
+        // An older server does not send these: everything stays selectable.
+        learnable: json['learnable'] as bool? ?? true,
+        nativeOk: json['native_ok'] as bool? ?? true,
       );
 }

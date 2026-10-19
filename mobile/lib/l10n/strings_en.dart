@@ -327,6 +327,8 @@ const Map<String, String> enStrings = {
   'Ответы уже сохранены. Урок можно продолжить позже.': 'Your answers are saved. You can continue the lesson later.',
   'Открыть профиль': 'Open profile',
   'Отлично!': 'Great!',
+  'Этот язык сейчас недоступен для изучения. Выберите другой': 'This language is not available for learning right now. Choose another one',
+  'Этот язык перевода сейчас недоступен. Выберите другой': 'This translation language is not available right now. Choose another one',
   'Отмена': 'Cancel',
   'Очки': 'Points',
   'Очки закрепления слова: {0}': 'Word mastery points: {0}',

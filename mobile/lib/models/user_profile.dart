@@ -47,6 +47,9 @@ class UserProfile {
   /// изучаемый (этот)» решает, что он видит: ответ -- на изучаемом языке,
   /// подсказка -- на родном. Null = язык словаря (как было до многоязычности).
   final String? learningLanguage;
+  /// Which of this person's languages were unpublished ("learning",
+  /// "native"): the app asks them to pick another one.
+  final List<String> languageUnavailable;
 
   UserProfile({
     required this.id,
@@ -65,6 +68,7 @@ class UserProfile {
     this.uiLanguage = 'ru',
     this.translationLanguage = 'tg',
     this.learningLanguage,
+    this.languageUnavailable = const [],
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -85,6 +89,7 @@ class UserProfile {
       uiLanguage: json['ui_language'] as String? ?? 'ru',
       translationLanguage: json['translation_language'] as String? ?? 'tg',
       learningLanguage: json['learning_language'] as String?,
+      languageUnavailable: (json['language_unavailable'] as List<dynamic>?)?.cast<String>() ?? const [],
     );
   }
 }

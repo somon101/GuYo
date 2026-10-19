@@ -269,6 +269,8 @@ const Map<String, (String, String)> uiStrings = {
   'Нажмите, чтобы открыть': ('Барои кушодан пахш кунед', 'Ochish uchun bosing'),
   'Осталось нажатий: {0}': ('Пахшҳои боқимонда: {0}', 'Qolgan bosishlar: {0}'),
   'Отлично!': ('Аъло!', 'Ajoyib!'),
+  'Этот язык сейчас недоступен для изучения. Выберите другой': ('Ин забон ҳоло барои омӯзиш дастрас нест. Забони дигарро интихоб кунед', 'Bu til hozircha oʻrganish uchun mavjud emas. Boshqasini tanlang'),
+  'Этот язык перевода сейчас недоступен. Выберите другой': ('Ин забони тарҷума ҳоло дастрас нест. Забони дигарро интихоб кунед', 'Bu tarjima tili hozircha mavjud emas. Boshqasini tanlang'),
   'Логин должен быть не короче 3 символов': ('Логин бояд на кам аз 3 аломат бошад', 'Login kamida 3 belgidan iborat boʻlishi kerak'),
   'Сохранено': ('Сабт шуд', 'Saqlandi'),
   'Не удалось сохранить изменения': ('Тағйирот сабт нашуд', 'Oʻzgarishlarni saqlab boʻlmadi'),

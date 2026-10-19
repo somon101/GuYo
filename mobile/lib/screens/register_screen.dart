@@ -450,7 +450,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return _LanguageStep(
           isLoading: _isLoadingLanguages,
           error: _languagesError,
-          languages: _languages,
+          // Only languages published for learning can be picked.
+          languages: _languages.where((l) => l.learnable).toList(),
           selected: _selectedLanguage,
           showAll: _showAllLanguages,
           onRetry: _loadLanguages,
@@ -466,7 +467,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           // могут совпадать, иначе подсказка была бы на языке ответа.
           options: [
             for (final l in _languages)
-              if (l.code != _selectedLanguage) (code: l.code, label: l.label),
+              if (l.code != _selectedLanguage && l.nativeOk) (code: l.code, label: l.label),
           ],
           selected: _translationLanguage,
           onSelect: (code) => setState(() => _translationLanguage = code),
