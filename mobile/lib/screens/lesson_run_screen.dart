@@ -30,6 +30,9 @@ Map<String, String> get lessonExerciseLabels => {
 
 /// Everything the run needs from outside -- the backend and the screens --
 /// behind one seam, so a test can drive the whole sequence without either.
+/// The longest the results wait for the server before offering «Повторить».
+const Duration _resultsTimeout = Duration(seconds: 10);
+
 abstract class LessonRunDriver {
   /// Freezes this pass's words (POST /lessons/{id}/pass).
   Future<void> startPass(int lessonId);
@@ -288,7 +291,10 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
     LessonPassStats? stats;
     if (ApiClient.instance.deferredLessonId == widget.lessonId) {
       try {
-        final finished = await widget.driver.finishPass(widget.lessonId);
+        // Bounded: on a bad connection the person gets «Повторить» instead of
+        // the mark breathing forever. Finishing again is safe -- the server
+        // applies a pass only once.
+        final finished = await widget.driver.finishPass(widget.lessonId).timeout(_resultsTimeout);
         ApiClient.instance.deferredLessonId = null;
         if (finished != null) (fresh, stats) = finished;
       } catch (_) {
@@ -300,12 +306,12 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
       // Both at once: one round trip, not two.
       final statsFuture = widget.driver.fetchPassStats(widget.lessonId);
       try {
-        fresh = await widget.driver.fetchLesson(widget.lessonId);
+        fresh = await widget.driver.fetchLesson(widget.lessonId).timeout(_resultsTimeout);
       } catch (_) {
         if (mounted) setState(() => _failed = true);
         return;
       }
-      stats = await statsFuture;
+      stats = await statsFuture.timeout(_resultsTimeout, onTimeout: () => null);
     }
     _miniPhrases = fresh.miniPhrases;
     if (!mounted) return;
