@@ -53,10 +53,16 @@ def _utc(value: datetime) -> datetime:
 
 
 def day_grade(attempts: list[WordAttempt]) -> Rating:
-    real_misses = [a for a in attempts if not a.is_correct and not a.timed_out]
-    if real_misses:
+    """One review day as one FSRS grade. Forgotten (Again) only when the
+    day's real misses outnumber its right answers, or the day ended on a
+    miss: a single slip among right answers (a mixed-up pair in Matching)
+    used to count as forgetting the word and drove stability to hours."""
+    real = [a for a in attempts if not a.timed_out]
+    misses = sum(1 for a in real if not a.is_correct)
+    hits = len(real) - misses
+    if real and (misses > hits or not real[-1].is_correct):
         return Rating.Again
-    if any(a.timed_out for a in attempts):
+    if misses or any(a.timed_out for a in attempts):
         return Rating.Hard
     if any(a.exercise_key in RECALL_EXERCISES for a in attempts):
         return Rating.Good
