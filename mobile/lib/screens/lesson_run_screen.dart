@@ -33,6 +33,13 @@ Map<String, String> get lessonExerciseLabels => {
 /// The longest the results wait for the server before offering «Повторить».
 const Duration _resultsTimeout = Duration(seconds: 10);
 
+/// How many times the words answered wrong are re-asked at the end of a pass.
+const int _maxRetryRounds = 3;
+
+/// Which exercise re-asks a wrong word: from memory first. Сопоставление is
+/// last -- it needs at least two words.
+const List<String> _retryOrder = ['build_word', 'true_or_false', 'listen_word', 'matching'];
+
 abstract class LessonRunDriver {
   /// Freezes this pass's words (POST /lessons/{id}/pass).
   Future<void> startPass(int lessonId);
@@ -45,6 +52,13 @@ abstract class LessonRunDriver {
   /// fetched once, up front, so the pass then runs without a request or a
   /// loading screen between exercises.
   Future<LessonRounds> prepareRounds(int lessonId, List<String> exerciseKeys);
+
+  /// One exercise's round for only these words -- the words answered wrong
+  /// in this pass, asked again at its end.
+  Future<LessonRounds> retryRounds(int lessonId, String key, Set<int> wordIds);
+
+  /// Words answered wrong (latest answer) in this pass.
+  Set<int> mistakes(int lessonId);
 
   /// The exercise itself, given its prepared round. It ends by calling
   /// finishExercise().
@@ -72,6 +86,13 @@ class ApiLessonRunDriver implements LessonRunDriver {
   @override
   Future<LessonRounds> prepareRounds(int lessonId, List<String> exerciseKeys) =>
       LessonRounds.prepare(lessonId, exerciseKeys);
+
+  @override
+  Future<LessonRounds> retryRounds(int lessonId, String key, Set<int> wordIds) =>
+      LessonRounds.prepare(lessonId, [key], wordIds: wordIds);
+
+  @override
+  Set<int> mistakes(int lessonId) => ApiClient.instance.lessonMistakes(lessonId);
 
   @override
   Widget buildExercise(int lessonId, int lessonNumber, String key, LessonRounds rounds) {
@@ -232,6 +253,7 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
     // earlier unfinished pass held). If starting failed, answers count one
     // by one as before rather than risk being lost.
     ApiClient.instance.deferredLessonId = null;
+    ApiClient.instance.startLessonAnswers(widget.lessonId);
     try {
       await driver.startPass(widget.lessonId);
       ApiClient.instance.deferredLessonId = widget.lessonId;
@@ -259,6 +281,40 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
       if (!rounds.hasWork(key)) continue;
       setState(() {
         _index = i;
+        _showingExercise = false;
+      });
+      final done = Completer<void>();
+      _current = done;
+      setState(() => _showingExercise = true);
+      await done.future;
+    }
+
+    // A word answered wrong is asked again at the end of the same pass, until
+    // it is right: a word is learned only when its last answer is right.
+    // From memory ("Собери слово") first, else another exercise.
+    for (var round = 0; round < _maxRetryRounds; round++) {
+      if (!mounted) return;
+      final wrong = driver.mistakes(widget.lessonId);
+      if (wrong.isEmpty) break;
+      String? retryKey;
+      LessonRounds? retry;
+      for (final key in _retryOrder) {
+        if (!widget.exerciseKeys.contains(key)) continue;
+        try {
+          final candidate = await driver.retryRounds(widget.lessonId, key, wrong);
+          if (candidate.hasWork(key)) {
+            retryKey = key;
+            retry = candidate;
+            break;
+          }
+        } catch (_) {
+          // Try the next exercise.
+        }
+      }
+      if (retryKey == null || retry == null || !mounted) break;
+      _rounds = retry;
+      setState(() {
+        _index = widget.exerciseKeys.indexOf(retryKey!);
         _showingExercise = false;
       });
       final done = Completer<void>();

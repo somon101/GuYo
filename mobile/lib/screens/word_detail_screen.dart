@@ -125,9 +125,10 @@ class WordDetailScreen extends StatelessWidget {
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: level.color),
                     ),
                   ),
+                  // No points: only whether the word is learned (100 = learned).
                   if (score != null)
                     Text(
-                      '$score / 100',
+                      score! >= 100 ? tr('Изучено') : tr('В процессе'),
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondaryText),
                     ),
                 ],

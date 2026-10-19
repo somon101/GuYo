@@ -82,16 +82,16 @@ class LessonRounds {
   /// media they use. Call right after the pass is started (its word set is
   /// frozen for the whole pass, so rounds fetched now are the ones each
   /// exercise would have fetched itself).
-  static Future<LessonRounds> prepare(int lessonId, List<String> exerciseKeys) async {
+  static Future<LessonRounds> prepare(int lessonId, List<String> exerciseKeys, {Iterable<int>? wordIds}) async {
     final api = ApiClient.instance;
     Future<Object?> fetch(String key) async {
       try {
         return switch (key) {
-          'true_or_false' => await api.fetchLessonTrueOrFalseRound(lessonId),
-          'matching' => await api.fetchLessonMatchingWords(lessonId),
-          'build_word' => await api.fetchLessonBuildWordRound(lessonId),
-          'speaking_word' => await api.fetchLessonSpeakingWordRound(lessonId),
-          'listen_word' => await api.fetchLessonListenWordRound(lessonId),
+          'true_or_false' => await api.fetchLessonTrueOrFalseRound(lessonId, wordIds: wordIds),
+          'matching' => await api.fetchLessonMatchingWords(lessonId, wordIds: wordIds),
+          'build_word' => await api.fetchLessonBuildWordRound(lessonId, wordIds: wordIds),
+          'speaking_word' => await api.fetchLessonSpeakingWordRound(lessonId, wordIds: wordIds),
+          'listen_word' => await api.fetchLessonListenWordRound(lessonId, wordIds: wordIds),
           _ => null,
         };
       } catch (_) {

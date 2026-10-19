@@ -112,8 +112,15 @@ def lesson_words_pending(db: Session, lesson: Lesson, threshold: int) -> list[Wo
     old behavior: the words below the threshold right now."""
     if lesson.pass_word_ids is not None:
         frozen = set(lesson.pass_word_ids)
-        return [lw.word for lw in lesson.words if lw.word_id in frozen]
-    return lesson_words_below_threshold(db, lesson, threshold)
+        words = [lw.word for lw in lesson.words if lw.word_id in frozen]
+    else:
+        words = lesson_words_below_threshold(db, lesson, threshold)
+    # A round asked for only some words (the app re-asking a word answered
+    # wrong earlier in the pass): see app/routers/lessons.py's `word_ids`.
+    only = getattr(lesson, "only_word_ids", None)
+    if only is not None:
+        words = [w for w in words if w.id in only]
+    return words
 
 
 def lesson_words_below_threshold(db: Session, lesson: Lesson, threshold: int) -> list[Word]:

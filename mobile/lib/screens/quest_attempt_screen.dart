@@ -196,7 +196,6 @@ class _QuestResultView extends StatelessWidget {
             style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
           ),
           const SizedBox(height: 6),
-          Text(tr('Очки закрепления слова: {0}', [result.score]), style: TextStyle(color: AppColors.secondaryText)),
           if (result.rewardGranted > 0) ...[
             const SizedBox(height: 10),
             Container(

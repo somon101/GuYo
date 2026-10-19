@@ -178,7 +178,7 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTi
                       allLearned: allLearned,
                       learnedCount: learnedCount,
                       total: total,
-                      scoreGained: hasStats ? stats.scoreGained : null,
+                      newlyLearned: hasStats ? stats.newlyLearned : null,
                     ),
                   ),
                   if (hasStats) ...[
@@ -246,7 +246,7 @@ class _LessonResultsScreenState extends State<LessonResultsScreen> with SingleTi
                   for (final word in lesson.words)
                     _Reveal(
                       animation: _at(0.85, 1.0),
-                      child: _WordProgressRow(word: word, levels: levels, gained: stats?.forWord(word.wordId)?.gained),
+                      child: _WordProgressRow(word: word, levels: levels),
                     ),
                   const SizedBox(height: 8),
                 ],
@@ -609,8 +609,9 @@ class _OutcomeCard extends StatelessWidget {
   final bool allLearned;
   final int learnedCount;
   final int total;
-  final int? scoreGained;
-  const _OutcomeCard({required this.allLearned, required this.learnedCount, required this.total, this.scoreGained});
+  /// Words this pass made learned, when the statistics loaded.
+  final int? newlyLearned;
+  const _OutcomeCard({required this.allLearned, required this.learnedCount, required this.total, this.newlyLearned});
 
   @override
   Widget build(BuildContext context) {
@@ -635,7 +636,7 @@ class _OutcomeCard extends StatelessWidget {
             child: Icon(allLearned ? Icons.emoji_events_rounded : Icons.trending_up_rounded, color: color, size: 22),
           ),
           const SizedBox(width: 10),
-          if (scoreGained != null)
+          if (newlyLearned != null && newlyLearned! > 0)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
@@ -644,7 +645,7 @@ class _OutcomeCard extends StatelessWidget {
                 border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
               ),
               child: Text(
-                tr('+{0} очков', [scoreGained!]),
+                tr('+{0} изучено', [newlyLearned!]),
                 style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.success),
               ),
             ),
@@ -847,39 +848,12 @@ class _ExerciseTile extends StatelessWidget {
 /// its required level. The score and the level are the backend's own
 /// (see the class docstring); only the bar is drawn here.
 class _WordProgressRow extends StatelessWidget {
-  Widget? _trailing() {
-    final check = word.isLearned ? Icon(Icons.check_circle, color: AppColors.success, size: 18) : null;
-    final g = gained;
-    if (g == null || g == 0) return check;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-          decoration: BoxDecoration(
-            color: g > 0 ? AppColors.successLight : AppColors.dangerLight,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            g > 0 ? '+$g' : '$g',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: g > 0 ? AppColors.success : AppColors.danger,
-            ),
-          ),
-        ),
-        if (check != null) ...[const SizedBox(width: 6), check],
-      ],
-    );
-  }
+  Widget? _trailing() =>
+      word.isLearned ? Icon(Icons.check_circle, color: AppColors.success, size: 18) : null;
 
   final LessonWord word;
   final List<WordLevelSummary> levels;
-
-  /// Score gained in this pass, when the statistics loaded.
-  final int? gained;
-  const _WordProgressRow({required this.word, required this.levels, this.gained});
+  const _WordProgressRow({required this.word, required this.levels});
 
   @override
   Widget build(BuildContext context) {
@@ -893,24 +867,11 @@ class _WordProgressRow extends StatelessWidget {
       audioUrl: word.wordAudioUrl,
       level: level,
       trailing: _trailing(),
-      footer: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(5),
-            child: LinearProgressIndicator(
-              value: (word.score / 100).clamp(0.0, 1.0),
-              minHeight: 5,
-              backgroundColor: AppColors.cardBorder,
-              valueColor: AlwaysStoppedAnimation(color),
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            word.isLearned ? tr('Закреплено') : tr('Нужно ещё · {0}/100', [word.score]),
-            style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
-          ),
-        ],
+      // No points: the word is either learned (for good) or still to prove
+      // in the next pass; its level is the memory model's.
+      footer: Text(
+        word.isLearned ? tr('Изучено') : tr('Ещё не изучено — повторите урок'),
+        style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
       ),
     );
   }

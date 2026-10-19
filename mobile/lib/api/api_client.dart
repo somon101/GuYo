@@ -835,9 +835,9 @@ class ApiClient {
     return Lesson.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
-  Future<TrueOrFalseRound> fetchLessonTrueOrFalseRound(int lessonId) async {
+  Future<TrueOrFalseRound> fetchLessonTrueOrFalseRound(int lessonId, {Iterable<int>? wordIds}) async {
     final res = await http.get(
-      _uri('/lessons/$lessonId/exercises/true-or-false'),
+      _lessonRoundUri(lessonId, 'true-or-false', wordIds),
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
@@ -846,9 +846,9 @@ class ApiClient {
 
   /// Same generic shape as [fetchExerciseLearnedWords], sourced from this
   /// lesson's fixed word set instead of the dictionary's learned words.
-  Future<List<GuyoWord>> fetchLessonMatchingWords(int lessonId) async {
+  Future<List<GuyoWord>> fetchLessonMatchingWords(int lessonId, {Iterable<int>? wordIds}) async {
     final res = await http.get(
-      _uri('/lessons/$lessonId/exercises/matching'),
+      _lessonRoundUri(lessonId, 'matching', wordIds),
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
@@ -857,27 +857,27 @@ class ApiClient {
     return list.map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<BuildWordRound> fetchLessonBuildWordRound(int lessonId) async {
+  Future<BuildWordRound> fetchLessonBuildWordRound(int lessonId, {Iterable<int>? wordIds}) async {
     final res = await http.get(
-      _uri('/lessons/$lessonId/exercises/build-word'),
+      _lessonRoundUri(lessonId, 'build-word', wordIds),
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
     return BuildWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
-  Future<SpeakingWordRound> fetchLessonSpeakingWordRound(int lessonId) async {
+  Future<SpeakingWordRound> fetchLessonSpeakingWordRound(int lessonId, {Iterable<int>? wordIds}) async {
     final res = await http.get(
-      _uri('/lessons/$lessonId/exercises/speaking-word'),
+      _lessonRoundUri(lessonId, 'speaking-word', wordIds),
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
     return SpeakingWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
-  Future<ListenWordRound> fetchLessonListenWordRound(int lessonId) async {
+  Future<ListenWordRound> fetchLessonListenWordRound(int lessonId, {Iterable<int>? wordIds}) async {
     final res = await http.get(
-      _uri('/lessons/$lessonId/exercises/listen-word'),
+      _lessonRoundUri(lessonId, 'listen-word', wordIds),
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
@@ -984,7 +984,26 @@ class ApiClient {
   /// once (it already judged the answer itself) and the server gets it a
   /// moment later -- tried twice, then given up on. [flushLessonAnswers]
   /// waits for whatever is still on its way.
+  Uri _lessonRoundUri(int lessonId, String path, Iterable<int>? wordIds) {
+    final uri = _uri('/lessons/$lessonId/exercises/$path');
+    if (wordIds == null) return uri;
+    return uri.replace(queryParameters: {...uri.queryParameters, 'word_ids': wordIds.join(',')});
+  }
+
+  /// Each word's latest answer in the current pass of a lesson: the words
+  /// whose latest answer is wrong are asked again at the end of the pass.
+  final Map<int, Map<int, bool>> _passAnswers = {};
+
+  void startLessonAnswers(int lessonId) => _passAnswers[lessonId] = {};
+
+  /// Words answered wrong (latest answer) in this lesson's current pass.
+  Set<int> lessonMistakes(int lessonId) => {
+        for (final e in (_passAnswers[lessonId] ?? const <int, bool>{}).entries)
+          if (!e.value) e.key,
+      };
+
   void queueLessonAnswer(int lessonId, String exerciseKey, {required int wordId, required bool isCorrect}) {
+    (_passAnswers[lessonId] ??= {})[wordId] = isCorrect;
     // Taken now, before the next question resets them.
     final signals = AnswerSignals.take();
     final deferred = deferredLessonId == lessonId;

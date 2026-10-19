@@ -58,6 +58,13 @@ class _FakeDriver implements LessonRunDriver {
   }
 
   @override
+  Future<LessonRounds> retryRounds(int lessonId, String key, Set<int> wordIds) async =>
+      const LessonRounds.availability({});
+
+  @override
+  Set<int> mistakes(int lessonId) => const {};
+
+  @override
   Widget buildExercise(int lessonId, int lessonNumber, String key, LessonRounds rounds) {
     built.add(key);
     return _FakeExercise(key);

@@ -25,7 +25,7 @@ whether it's complete) and dispatches to that module by exercise_key.
 """
 import random
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -587,13 +587,23 @@ def build_lesson(
 # for the actual round shape/logic.
 
 
+def _only_words(lesson: Lesson, word_ids: str | None) -> None:
+    """`word_ids=1,2,3`: the round covers only these words of the pass --
+    the app re-asks words answered wrong, at the end of the same pass, until
+    they are right. Nothing is stored."""
+    if word_ids:
+        lesson.only_word_ids = {int(x) for x in word_ids.split(",") if x.strip().isdigit()}
+
+
 @router.get("/lessons/{lesson_id}/exercises/true-or-false", response_model=TrueOrFalseRoundOut)
 def get_lesson_true_or_false_round(
     lesson_id: int,
+    word_ids: str | None = Query(default=None),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
+    _only_words(lesson, word_ids)
     _require_lesson_exercise(db, lesson.id, true_or_false.KEY)
     return true_or_false.build_round(db, lesson, get_threshold(db))
 
@@ -601,10 +611,12 @@ def get_lesson_true_or_false_round(
 @router.get("/lessons/{lesson_id}/exercises/matching", response_model=ExerciseWordsOut)
 def get_lesson_matching_round(
     lesson_id: int,
+    word_ids: str | None = Query(default=None),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
+    _only_words(lesson, word_ids)
     _require_lesson_exercise(db, lesson.id, matching.KEY)
     return matching.build_round(db, lesson, get_threshold(db))
 
@@ -612,10 +624,12 @@ def get_lesson_matching_round(
 @router.get("/lessons/{lesson_id}/exercises/build-word", response_model=BuildWordRoundOut)
 def get_lesson_build_word_round(
     lesson_id: int,
+    word_ids: str | None = Query(default=None),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
+    _only_words(lesson, word_ids)
     _require_lesson_exercise(db, lesson.id, build_word.KEY)
     return build_word.build_round(db, lesson, get_threshold(db))
 
@@ -623,10 +637,12 @@ def get_lesson_build_word_round(
 @router.get("/lessons/{lesson_id}/exercises/speaking-word", response_model=SpeakingWordRoundOut)
 def get_lesson_speaking_word_round(
     lesson_id: int,
+    word_ids: str | None = Query(default=None),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
+    _only_words(lesson, word_ids)
     _require_lesson_exercise(db, lesson.id, speaking_word.KEY)
     return speaking_word.build_round(db, lesson, get_threshold(db))
 
@@ -634,10 +650,12 @@ def get_lesson_speaking_word_round(
 @router.get("/lessons/{lesson_id}/exercises/listen-word", response_model=ListenWordRoundOut)
 def get_lesson_listen_word_round(
     lesson_id: int,
+    word_ids: str | None = Query(default=None),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
+    _only_words(lesson, word_ids)
     _require_lesson_exercise(db, lesson.id, listen_word.KEY)
     return listen_word.build_round(db, lesson, get_threshold(db))
 
