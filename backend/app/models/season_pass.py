@@ -31,6 +31,8 @@ class PassSettings(Base):
     xp_review: Mapped[int] = mapped_column(Integer, nullable=False, default=2, server_default="2")
     xp_quest: Mapped[int] = mapped_column(Integer, nullable=False, default=15, server_default="15")
     xp_streak: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
+    # Bonus XP for coming back after a break of COMEBACK_DAYS or more.
+    xp_comeback: Mapped[int] = mapped_column(Integer, nullable=False, default=20, server_default="20")
     xp_daily_goal: Mapped[int] = mapped_column(Integer, nullable=False, default=15, server_default="15")
     # New seasons are created on their own, one per calendar month.
     # The most streak freezes a person can hold at once.

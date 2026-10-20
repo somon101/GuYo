@@ -70,8 +70,25 @@ def get_reminder_settings(db: Session) -> ReminderSettings:
     return settings
 
 
-def render(text: str, days: int) -> str:
-    return text.replace("{дни+1}", str(days + 1)).replace("{дни}", str(days))
+def render(text: str, days: int, words: int | None = None) -> str:
+    text = text.replace("{дни+1}", str(days + 1)).replace("{дни}", str(days))
+    return text if words is None else text.replace("{слов}", str(words))
+
+
+def due_word_count(db: Session, user: User) -> int:
+    """Learned words the person has forgotten enough to repeat right now."""
+    from app.memory.service import due_progress_rows
+    from app.models.word import Word
+    from app.models.word_progress import WordProgress
+
+    dictionary_ids = [
+        r[0]
+        for r in db.query(Word.dictionary_id)
+        .join(WordProgress, WordProgress.word_id == Word.id)
+        .filter(WordProgress.user_id == user.id, WordProgress.mastered_at.isnot(None))
+        .distinct()
+    ]
+    return sum(len(due_progress_rows(db, user.id, d)) for d in dictionary_ids)
 
 
 def _enabled_rules(db: Session, kind: str) -> list[ReminderRule]:
@@ -80,11 +97,13 @@ def _enabled_rules(db: Session, kind: str) -> list[ReminderRule]:
 
 def _send(db: Session, user: User, variants: list[ReminderRule], days: int, source: str, dedupe_key: str):
     rule = random.choice(variants)
+    # "{слов}" = words due for repeating; counted only for texts that use it.
+    words = due_word_count(db, user) if "{слов}" in f"{rule.title or ''}{rule.body}" else None
     return send_notification(
         db,
         user,
-        render(rule.body, days),
-        title=render(rule.title, days) if rule.title else None,
+        render(rule.body, days, words),
+        title=render(rule.title, days, words) if rule.title else None,
         source=source,
         dedupe_key=dedupe_key,
     )

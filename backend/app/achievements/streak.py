@@ -9,12 +9,17 @@ what it already does.
 
 from datetime import date, timedelta
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.achievements.service import check_and_grant_achievements
 from app.core.dates import dushanbe_today
 from app.models.achievement import UserActivityDay, UserStreakFreeze
 from app.models.user import User
+
+
+# A break of this many days (or more) earns a welcome-back bonus.
+COMEBACK_DAYS = 3
 
 
 def record_activity(db: Session, user: User) -> bool:
@@ -32,6 +37,11 @@ def record_activity(db: Session, user: User) -> bool:
     )
     if exists:
         return False
+    previous = (
+        db.query(func.max(UserActivityDay.activity_date))
+        .filter(UserActivityDay.user_id == user.id, UserActivityDay.activity_date < today)
+        .scalar()
+    )
     db.add(UserActivityDay(user_id=user.id, activity_date=today))
     db.flush()  # this session's autoflush is off -- streak_days_count below must see today's own row
     apply_freezes(db, user, today)
@@ -40,6 +50,8 @@ def record_activity(db: Session, user: User) -> bool:
     from app.seasonpass import award_xp  # season XP: a lit streak day
 
     award_xp(db, user, "streak", f"streak:{today.isoformat()}")
+    if previous is not None and (today - previous).days >= COMEBACK_DAYS:
+        award_xp(db, user, "comeback", f"comeback:{today.isoformat()}")
 
     from app.notifications.reminders import congratulate_streak  # app.notifications imports this package
 

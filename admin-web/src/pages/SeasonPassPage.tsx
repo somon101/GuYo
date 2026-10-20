@@ -112,6 +112,7 @@ function SettingsSection() {
     { key: "xp_quest", label: "За выполненное задание квеста" },
     { key: "xp_streak", label: "За день серии" },
     { key: "xp_daily_goal", label: "За цель дня" },
+    { key: "xp_comeback", label: "За возвращение (после 3+ дней)" },
     { key: "freeze_cap", label: "Больше заморозок серии у человека не бывает" },
     { key: "team_size", label: "Больше людей в одной команде не бывает" },
   ];
