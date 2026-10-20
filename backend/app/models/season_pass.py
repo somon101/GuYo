@@ -35,6 +35,11 @@ class PassSettings(Base):
     # Weekly friend duels: on/off and the winner's bonus XP.
     duels_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     xp_duel_win: Mapped[int] = mapped_column(Integer, nullable=False, default=50, server_default="50")
+    # Chest of the day: on/off, the XP range, and the chance (percent) of a streak freeze instead.
+    chest_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    chest_xp_min: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
+    chest_xp_max: Mapped[int] = mapped_column(Integer, nullable=False, default=40, server_default="40")
+    chest_freeze_chance: Mapped[int] = mapped_column(Integer, nullable=False, default=5, server_default="5")
     xp_comeback: Mapped[int] = mapped_column(Integer, nullable=False, default=20, server_default="20")
     xp_daily_goal: Mapped[int] = mapped_column(Integer, nullable=False, default=15, server_default="15")
     # New seasons are created on their own, one per calendar month.

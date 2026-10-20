@@ -2762,6 +2762,10 @@ export interface PassSettings {
   xp_comeback: number;
   xp_duel_win: number;
   duels_enabled: boolean;
+  chest_enabled: boolean;
+  chest_xp_min: number;
+  chest_xp_max: number;
+  chest_freeze_chance: number;
   freeze_cap: number;
   team_size: number;
   auto_monthly_seasons: boolean;

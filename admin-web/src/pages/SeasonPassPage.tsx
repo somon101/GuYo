@@ -117,6 +117,9 @@ function SettingsSection() {
     { key: "xp_daily_goal", label: "За цель дня" },
     { key: "xp_comeback", label: "За возвращение (после 3+ дней)" },
     { key: "xp_duel_win", label: "За победу в дуэли" },
+    { key: "chest_xp_min", label: "Сундук дня: XP от" },
+    { key: "chest_xp_max", label: "Сундук дня: XP до" },
+    { key: "chest_freeze_chance", label: "Сундук дня: шанс заморозки, %" },
     { key: "freeze_cap", label: "Больше заморозок серии у человека не бывает" },
     { key: "team_size", label: "Больше людей в одной команде не бывает" },
   ];
@@ -164,6 +167,14 @@ function SettingsSection() {
             onChange={(e) => setS({ ...s, duels_enabled: e.target.checked })}
           />
           Дуэли друзей на неделю
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={s.chest_enabled}
+            onChange={(e) => setS({ ...s, chest_enabled: e.target.checked })}
+          />
+          Сундук дня: случайный бонус после первого занятия
         </label>
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input

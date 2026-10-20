@@ -247,6 +247,7 @@ def xp_for(settings: PassSettings, source: str) -> int:
         "daily_goal": settings.xp_daily_goal,
         "comeback": settings.xp_comeback,
         "duel": settings.xp_duel_win,
+        "chest": 0,  # chest XP is rolled, so it always passes an explicit amount
     }.get(source, 0)
 
 

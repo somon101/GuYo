@@ -33,6 +33,7 @@ import '../models/word.dart';
 import '../models/word_check.dart';
 import '../models/season_pass.dart';
 import '../models/season_summary.dart';
+import '../models/chest.dart';
 import '../models/daily_goal.dart';
 import '../models/duel.dart';
 import '../models/my_progress.dart';
@@ -855,6 +856,23 @@ class ApiClient {
     } catch (_) {
       return null;
     }
+  }
+
+  /// The chest of the day; null on any failure.
+  Future<ChestState?> fetchChest() async {
+    try {
+      final res = await http.get(_uri('/chest'), headers: await _authHeaders());
+      if (res.statusCode >= 400) return null;
+      return ChestState.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<ChestState> openChest() async {
+    final res = await http.post(_uri('/chest/open'), headers: await _authHeaders());
+    await _throwWithDetail(res);
+    return ChestState.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
   /// This week's duel and the recent ones; null on any failure.
