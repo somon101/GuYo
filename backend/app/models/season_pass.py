@@ -32,6 +32,9 @@ class PassSettings(Base):
     xp_quest: Mapped[int] = mapped_column(Integer, nullable=False, default=15, server_default="15")
     xp_streak: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
     # Bonus XP for coming back after a break of COMEBACK_DAYS or more.
+    # Weekly friend duels: on/off and the winner's bonus XP.
+    duels_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    xp_duel_win: Mapped[int] = mapped_column(Integer, nullable=False, default=50, server_default="50")
     xp_comeback: Mapped[int] = mapped_column(Integer, nullable=False, default=20, server_default="20")
     xp_daily_goal: Mapped[int] = mapped_column(Integer, nullable=False, default=15, server_default="15")
     # New seasons are created on their own, one per calendar month.

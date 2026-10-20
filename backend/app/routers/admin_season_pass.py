@@ -30,6 +30,8 @@ class SettingsIO(BaseModel):
     xp_streak: int = Field(ge=0, le=10000)
     xp_daily_goal: int = Field(default=15, ge=0, le=10000)
     xp_comeback: int = Field(default=20, ge=0, le=10000)
+    xp_duel_win: int = Field(default=50, ge=0, le=10000)
+    duels_enabled: bool = True
     freeze_cap: int = Field(default=3, ge=1, le=30)
     team_size: int = Field(default=5, ge=2, le=20)
     auto_monthly_seasons: bool = True
@@ -80,7 +82,7 @@ def get_settings(db: Session = Depends(get_db), _admin=Depends(get_current_admin
     db.commit()
     return SettingsIO(
         xp_word=s.xp_word, xp_lesson=s.xp_lesson, xp_review=s.xp_review, xp_quest=s.xp_quest,
-        xp_streak=s.xp_streak, xp_daily_goal=s.xp_daily_goal, xp_comeback=s.xp_comeback, freeze_cap=s.freeze_cap, team_size=s.team_size, auto_monthly_seasons=s.auto_monthly_seasons,
+        xp_streak=s.xp_streak, xp_daily_goal=s.xp_daily_goal, xp_comeback=s.xp_comeback, xp_duel_win=s.xp_duel_win, duels_enabled=s.duels_enabled, freeze_cap=s.freeze_cap, team_size=s.team_size, auto_monthly_seasons=s.auto_monthly_seasons,
         reminders_enabled=s.reminders_enabled,
     )
 

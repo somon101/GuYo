@@ -116,6 +116,7 @@ function SettingsSection() {
     { key: "xp_streak", label: "За день серии" },
     { key: "xp_daily_goal", label: "За цель дня" },
     { key: "xp_comeback", label: "За возвращение (после 3+ дней)" },
+    { key: "xp_duel_win", label: "За победу в дуэли" },
     { key: "freeze_cap", label: "Больше заморозок серии у человека не бывает" },
     { key: "team_size", label: "Больше людей в одной команде не бывает" },
   ];
@@ -155,6 +156,14 @@ function SettingsSection() {
             onChange={(e) => setS({ ...s, auto_monthly_seasons: e.target.checked })}
           />
           Создавать сезоны сами, по одному на календарный месяц (текущий и следующий)
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={s.duels_enabled}
+            onChange={(e) => setS({ ...s, duels_enabled: e.target.checked })}
+          />
+          Дуэли друзей на неделю
         </label>
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input

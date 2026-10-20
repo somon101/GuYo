@@ -281,6 +281,12 @@ def send_weekly_digest(db: Session, today: date, hour: int, settings: ReminderSe
     return send_weekly_digests(db, today, hour, settings.default_hour, settings.weekly_digest_enabled)
 
 
+def finish_duels(db: Session) -> int:
+    from app.seasonpass.duels import finish_due
+
+    return finish_due(db)
+
+
 def send_season_summaries(db: Session) -> int:
     from app.seasonpass.reminders import send_season_summaries as send
 
@@ -297,6 +303,7 @@ def run_reminders(db: Session) -> int:
         + send_pass_reminders(db, now.hour, settings.default_hour)
         + send_season_summaries(db)
         + send_weekly_digest(db, now.date(), now.hour, settings)
+        + finish_duels(db)
     )
 
 

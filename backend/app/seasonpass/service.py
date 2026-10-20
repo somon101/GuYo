@@ -246,6 +246,7 @@ def xp_for(settings: PassSettings, source: str) -> int:
         "streak": settings.xp_streak,
         "daily_goal": settings.xp_daily_goal,
         "comeback": settings.xp_comeback,
+        "duel": settings.xp_duel_win,
     }.get(source, 0)
 
 

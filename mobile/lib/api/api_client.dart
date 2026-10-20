@@ -34,6 +34,7 @@ import '../models/word_check.dart';
 import '../models/season_pass.dart';
 import '../models/season_summary.dart';
 import '../models/daily_goal.dart';
+import '../models/duel.dart';
 import '../models/my_progress.dart';
 import '../models/team.dart';
 import '../services/answer_signals.dart';
@@ -854,6 +855,33 @@ class ApiClient {
     } catch (_) {
       return null;
     }
+  }
+
+  /// This week's duel and the recent ones; null on any failure.
+  Future<DuelState?> fetchDuels() async {
+    try {
+      final res = await http.get(_uri('/duels'), headers: await _authHeaders());
+      if (res.statusCode >= 400) return null;
+      return DuelState.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<DuelState> challengeFriend(int friendId) async {
+    final res = await http.post(
+      _uri('/duels'),
+      headers: {...await _authHeaders(), 'Content-Type': 'application/json'},
+      body: jsonEncode({'friend_id': friendId}),
+    );
+    await _throwWithDetail(res);
+    return DuelState.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  Future<DuelState> answerDuel(int id, {required bool accept}) async {
+    final res = await http.post(_uri('/duels/$id/${accept ? 'accept' : 'decline'}'), headers: await _authHeaders());
+    await _throwWithDetail(res);
+    return DuelState.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
   /// «Мой путь»: words learned per week; null on any failure.

@@ -2760,6 +2760,8 @@ export interface PassSettings {
   xp_streak: number;
   xp_daily_goal: number;
   xp_comeback: number;
+  xp_duel_win: number;
+  duels_enabled: boolean;
   freeze_cap: number;
   team_size: number;
   auto_monthly_seasons: boolean;

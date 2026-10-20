@@ -413,6 +413,9 @@ def _notify(db: Session, user: User, kind: str, key: str, **fields) -> None:
 def after_xp(db: Session, user: User, season: Season) -> None:
     """Called after a person earned season XP: if that finished a team goal,
     every member is told once. Best effort, never raises."""
+    from app.seasonpass.duels import after_xp as duel_after_xp
+
+    duel_after_xp(db, user)
     try:
         member = membership(db, user)
         if member is None:
