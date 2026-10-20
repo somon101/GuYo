@@ -5,7 +5,9 @@ import '../l10n/l10n.dart';
 import '../models/season_pass.dart';
 import '../theme/app_colors.dart';
 import '../widgets/season_pass_ui.dart';
+import '../models/team.dart';
 import 'cosmetics_screen.dart';
+import 'team_screen.dart';
 
 String passSeasonName(SeasonPass pass) {
   final lang = appLanguage.value;
@@ -146,6 +148,7 @@ class _SeasonPassScreenState extends State<SeasonPassScreen> with SingleTickerPr
       children: [
         _Hero(pass: pass),
         const SizedBox(height: 14),
+        const TeamEntryCard(),
         if (pass.levels.isNotEmpty) _GrandPrize(pass: pass),
         if (pass.premiumEnabled && !pass.isPremium) const _PremiumBanner(),
         const SizedBox(height: 6),
@@ -654,6 +657,86 @@ class _TaskCard extends StatelessWidget {
                 child: Text('+${task.xp} XP', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primary)),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The way into «Команда» from the pass: the team's name and goals waiting to be
+/// claimed, or an invitation to make one. Hides itself if it can't load.
+class TeamEntryCard extends StatefulWidget {
+  const TeamEntryCard({super.key});
+
+  @override
+  State<TeamEntryCard> createState() => _TeamEntryCardState();
+}
+
+class _TeamEntryCardState extends State<TeamEntryCard> {
+  TeamState? _state;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final s = await ApiClient.instance.fetchMyTeam();
+    if (mounted) setState(() => _state = s);
+  }
+
+  Future<void> _open() async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TeamScreen()));
+    _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = _state;
+    if (state == null) return const SizedBox.shrink();
+    final team = state.team;
+    final waiting = team?.claimableCount ?? 0;
+    final invites = state.invites.length;
+    final String title = team?.name ?? tr('Командные цели');
+    final String subtitle = team == null
+        ? (invites > 0 ? tr('Приглашений: {0}', [invites]) : tr('Соберите команду из друзей'))
+        : (waiting > 0 ? tr('Наград к получению: {0}', [waiting]) : tr('В команде: {0} из {1}', [team.members.length, state.capacity]));
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: _open,
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF14B8A6), Color(0xFF2563EB)]),
+            boxShadow: [BoxShadow(color: const Color(0xFF2563EB).withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 6))],
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.groups_rounded, size: 40, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Colors.white)),
+                    Text(subtitle, style: TextStyle(fontSize: 12.5, color: Colors.white.withValues(alpha: 0.9))),
+                  ],
+                ),
+              ),
+              if (waiting > 0 || invites > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), gradient: const LinearGradient(colors: [Color(0xFFFFE066), Color(0xFFFFA000)])),
+                  child: Text('${waiting + invites}', style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF5A3B00))),
+                )
+              else
+                const Icon(Icons.chevron_right_rounded, color: Colors.white),
+            ],
+          ),
         ),
       ),
     );

@@ -31,6 +31,7 @@ import '../models/user_rating.dart';
 import '../models/word.dart';
 import '../models/word_check.dart';
 import '../models/season_pass.dart';
+import '../models/team.dart';
 import '../services/answer_signals.dart';
 
 /// package:http's MultipartFile.fromBytes defaults to
@@ -825,6 +826,71 @@ class ApiClient {
     } catch (_) {
       return null;
     }
+  }
+
+  // --- Teams ---------------------------------------------------------------
+
+  Future<TeamState> _teamCall(Future<http.Response> Function(Map<String, String> h) send) async {
+    final res = await send(await _authHeaders());
+    await _throwWithDetail(res);
+    return TeamState.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  /// This person's team (null inside), their invitations and the team size cap;
+  /// null on any failure.
+  Future<TeamState?> fetchMyTeam() async {
+    try {
+      final res = await http.get(_uri('/teams/me'), headers: await _authHeaders());
+      if (res.statusCode >= 400) return null;
+      return TeamState.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<List<OpenTeam>> fetchOpenTeams() async {
+    final res = await http.get(_uri('/teams/open'), headers: await _authHeaders());
+    await _throwWithDetail(res);
+    return (jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>)
+        .map((e) => OpenTeam.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<TeamState> createTeam(String name, {required bool isOpen}) => _teamCall(
+        (h) => http.post(_uri('/teams'), headers: h, body: jsonEncode({'name': name, 'is_open': isOpen})),
+      );
+
+  Future<TeamState> updateTeam({String? name, bool? isOpen}) => _teamCall(
+        (h) => http.put(_uri('/teams/me'), headers: h, body: jsonEncode({'name': name, 'is_open': isOpen})),
+      );
+
+  Future<TeamState> inviteToTeam(int userId) =>
+      _teamCall((h) => http.post(_uri('/teams/me/invite'), headers: h, body: jsonEncode({'user_id': userId})));
+
+  Future<TeamState> acceptTeamInvite(int teamId) =>
+      _teamCall((h) => http.post(_uri('/teams/invites/$teamId/accept'), headers: h));
+
+  Future<TeamState> declineTeamInvite(int teamId) =>
+      _teamCall((h) => http.post(_uri('/teams/invites/$teamId/decline'), headers: h));
+
+  Future<TeamState> joinTeam(int teamId) => _teamCall((h) => http.post(_uri('/teams/$teamId/join'), headers: h));
+
+  Future<TeamState> leaveTeam() => _teamCall((h) => http.post(_uri('/teams/me/leave'), headers: h));
+
+  Future<TeamState> kickTeamMember(int userId) =>
+      _teamCall((h) => http.delete(_uri('/teams/me/members/$userId'), headers: h));
+
+  /// Takes this person's share of a finished team goal: the bonus XP, the
+  /// goal's reward (if any) and the refreshed team.
+  Future<({TeamState state, int xp})> claimTeamGoal(String scope, String goalId) async {
+    final res = await http.post(
+      _uri('/teams/goals/claim'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'scope': scope, 'goal_id': goalId}),
+    );
+    await _throwWithDetail(res);
+    final map = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    return (state: TeamState.fromJson(map['state'] as Map<String, dynamic>), xp: (map['xp'] as int?) ?? 0);
   }
 
   /// The badges and titles this person has earned and which they wear.

@@ -10,6 +10,8 @@ import {
   getPassSettings,
   getSeasonPassDef,
   listPassTemplates,
+  listTeams,
+  type AdminTeam,
   listSeasons,
   makePassTemplateDefault,
   updatePassSettings,
@@ -20,6 +22,7 @@ import {
   type PassReward,
   type PassSettings,
   type PassTaskDef,
+  type PassTeamGoalDef,
   type PassTemplate,
 } from "../api/endpoints";
 import type { Season } from "../types";
@@ -74,6 +77,7 @@ export function SeasonPassPage() {
       <SettingsSection />
       <TemplatesSection />
       <SeasonsSection />
+      <TeamsSection />
     </div>
   );
 }
@@ -108,6 +112,7 @@ function SettingsSection() {
     { key: "xp_quest", label: "За выполненное задание квеста" },
     { key: "xp_streak", label: "За день серии" },
     { key: "freeze_cap", label: "Больше заморозок серии у человека не бывает" },
+    { key: "team_size", label: "Больше людей в одной команде не бывает" },
   ];
 
   async function save() {
@@ -344,7 +349,127 @@ function DefinitionEditor({
           + Добавить задание
         </button>
       </div>
+
+      <div>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Командные цели недели (цель = число на человека × число людей в команде)
+        </p>
+        {(value.team_goals ?? []).map((g, i) => (
+          <TeamGoalRow
+            key={i}
+            goal={g}
+            onChange={(ng) => onChange({ ...value, team_goals: (value.team_goals ?? []).map((x, j) => (j === i ? ng : x)) })}
+            onRemove={() => onChange({ ...value, team_goals: (value.team_goals ?? []).filter((_, j) => j !== i) })}
+          />
+        ))}
+        <button
+          className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+          onClick={() =>
+            onChange({
+              ...value,
+              team_goals: [
+                ...(value.team_goals ?? []),
+                { id: `tg${Date.now() % 100000}`, metric: "word", target_per_member: 5, xp: 60, reward: null },
+              ],
+            })
+          }
+        >
+          + Добавить командную цель недели
+        </button>
+      </div>
+
+      <div>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Командная цель сезона</p>
+        {value.team_season_goal ? (
+          <TeamGoalRow
+            goal={value.team_season_goal}
+            onChange={(ng) => onChange({ ...value, team_season_goal: ng })}
+            onRemove={() => onChange({ ...value, team_season_goal: null })}
+          />
+        ) : (
+          <button
+            className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+            onClick={() =>
+              onChange({
+                ...value,
+                team_season_goal: { id: "season", metric: "word", target_per_member: 40, xp: 300, reward: null },
+              })
+            }
+          >
+            + Добавить цель сезона
+          </button>
+        )}
+      </div>
     </div>
+  );
+}
+
+function TeamGoalRow({
+  goal,
+  onChange,
+  onRemove,
+}: {
+  goal: PassTeamGoalDef;
+  onChange: (g: PassTeamGoalDef) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="mb-3 flex flex-wrap items-start gap-2 rounded-lg border border-slate-100 p-2 text-sm">
+      <select className={`${inputClass} w-56`} value={goal.metric} onChange={(e) => onChange({ ...goal, metric: e.target.value as PassTeamGoalDef["metric"] })}>
+        {Object.entries(METRIC_LABELS).map(([k, v]) => (
+          <option key={k} value={k}>
+            {v}
+          </option>
+        ))}
+      </select>
+      <label className="flex items-center gap-1 text-slate-600">
+        на человека
+        <input type="number" min={1} className={`${inputClass} w-16`} value={goal.target_per_member} onChange={(e) => onChange({ ...goal, target_per_member: Math.max(1, Number(e.target.value) || 1) })} />
+      </label>
+      <label className="flex items-center gap-1 text-slate-600">
+        XP каждому
+        <input type="number" min={0} className={`${inputClass} w-16`} value={goal.xp} onChange={(e) => onChange({ ...goal, xp: Math.max(0, Number(e.target.value) || 0) })} />
+      </label>
+      <div className="flex items-center gap-1 text-slate-600">
+        награда
+        <RewardEditor value={goal.reward ?? null} onChange={(r) => onChange({ ...goal, reward: r })} />
+      </div>
+      <button className="text-xs text-red-600 hover:underline" onClick={onRemove}>
+        убрать
+      </button>
+    </div>
+  );
+}
+
+// --- Teams (read only) ----------------------------------------------------------
+
+function TeamsSection() {
+  const [teams, setTeams] = useState<AdminTeam[] | null>(null);
+
+  useEffect(() => {
+    listTeams()
+      .then(setTeams)
+      .catch(() => setTeams([]));
+  }, []);
+
+  return (
+    <Section title="Команды">
+      {teams === null ? (
+        <p className="text-sm text-slate-500">Загрузка…</p>
+      ) : teams.length === 0 ? (
+        <p className="text-sm text-slate-500">Команд пока нет.</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {teams.map((t) => (
+            <div key={t.id} className="card p-3">
+              <span className="font-medium text-slate-900">{t.name}</span>
+              <span className="ml-2 text-xs text-slate-500">{t.is_open ? "открыта" : "по приглашению"}</span>
+              <p className="text-xs text-slate-500">{t.members.join(", ")}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </Section>
   );
 }
 

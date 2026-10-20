@@ -29,12 +29,15 @@ class SettingsIO(BaseModel):
     xp_quest: int = Field(ge=0, le=10000)
     xp_streak: int = Field(ge=0, le=10000)
     freeze_cap: int = Field(default=3, ge=1, le=30)
+    team_size: int = Field(default=5, ge=2, le=20)
     auto_monthly_seasons: bool = True
 
 
 class DefinitionIO(BaseModel):
     levels: list[dict]
     tasks: list[dict] = []
+    team_goals: list[dict] = []
+    team_season_goal: dict | None = None
 
 
 class TemplateIn(BaseModel):
@@ -74,7 +77,7 @@ def get_settings(db: Session = Depends(get_db), _admin=Depends(get_current_admin
     db.commit()
     return SettingsIO(
         xp_word=s.xp_word, xp_lesson=s.xp_lesson, xp_review=s.xp_review, xp_quest=s.xp_quest,
-        xp_streak=s.xp_streak, freeze_cap=s.freeze_cap, auto_monthly_seasons=s.auto_monthly_seasons,
+        xp_streak=s.xp_streak, freeze_cap=s.freeze_cap, team_size=s.team_size, auto_monthly_seasons=s.auto_monthly_seasons,
     )
 
 
@@ -198,6 +201,33 @@ def apply_season_template(
     sp = apply_template(db, season, _get_template(db, template_id))
     db.commit()
     return _season_out(sp, season)
+
+
+class AdminTeamOut(BaseModel):
+    id: int
+    name: str
+    is_open: bool
+    members: list[str]
+
+
+@router.get("/teams", response_model=list[AdminTeamOut])
+def list_teams(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    """Every team with its members' logins (read only)."""
+    from app.models.team import Team, TeamMember
+    from app.models.user import User
+
+    teams = db.query(Team).order_by(Team.id.desc()).limit(200).all()
+    out = []
+    for t in teams:
+        logins = [
+            login
+            for (login,) in db.query(User.login)
+            .join(TeamMember, TeamMember.user_id == User.id)
+            .filter(TeamMember.team_id == t.id)
+            .order_by(TeamMember.joined_at)
+        ]
+        out.append(AdminTeamOut(id=t.id, name=t.name, is_open=t.is_open, members=logins))
+    return out
 
 
 @router.post("/ensure-seasons")

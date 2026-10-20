@@ -72,7 +72,25 @@ def default_definition() -> dict:
         {"id": "quests", "metric": "quest", "target": 3, "xp": 40},
         {"id": "review", "metric": "review", "target": 20, "xp": 40},
     ]
-    return {"levels": levels, "tasks": tasks}
+    team_goals = [
+        {"id": "t_words", "metric": "word", "target_per_member": 5, "xp": 60, "reward": None},
+        {"id": "t_lessons", "metric": "lesson", "target_per_member": 3, "xp": 60, "reward": None},
+    ]
+    team_season_goal = {
+        "id": "s_words",
+        "metric": "word",
+        "target_per_member": 40,
+        "xp": 300,
+        "reward": {
+            "type": "badge",
+            "amount": 1,
+            "key": "shield",
+            "text": "Командный чемпион",
+            "text_tg": "Қаҳрамони даста",
+            "text_uz": "Jamoa chempioni",
+        },
+    }
+    return {"levels": levels, "tasks": tasks, "team_goals": team_goals, "team_season_goal": team_season_goal}
 
 
 def validate_definition(definition: dict) -> dict:
@@ -104,36 +122,74 @@ def validate_definition(definition: dict) -> dict:
         if target < 1 or xp < 0:
             raise PassError(f"Задание «{task_id}»: цель должна быть больше 0")
         out_tasks.append({"id": task_id, "metric": t["metric"], "target": target, "xp": xp})
-    return {"levels": out_levels, "tasks": out_tasks}
+    out = {"levels": out_levels, "tasks": out_tasks}
+    out["team_goals"] = [_team_goal(g) for g in definition.get("team_goals") or []]
+    ids = [g["id"] for g in out["team_goals"]]
+    if len(ids) != len(set(ids)):
+        raise PassError("У командных целей должны быть разные id")
+    season_goal = definition.get("team_season_goal")
+    out["team_season_goal"] = _team_goal(season_goal) if season_goal else None
+    return out
 
 
-def _reward(value: dict | None, level: int) -> dict | None:
+def _team_goal(g: dict) -> dict:
+    goal_id = str(g.get("id") or "").strip()
+    if not goal_id:
+        raise PassError("У командной цели должен быть id")
+    if g.get("metric") not in METRICS:
+        raise PassError(f"Командная цель «{goal_id}»: неизвестная метрика")
+    per_member, xp = int(g.get("target_per_member", 0)), int(g.get("xp", 0))
+    if per_member < 1 or xp < 0:
+        raise PassError(f"Командная цель «{goal_id}»: цель на человека должна быть больше 0")
+    return {
+        "id": goal_id,
+        "metric": g["metric"],
+        "target_per_member": per_member,
+        "xp": xp,
+        "reward": _reward(g.get("reward"), f"командной цели «{goal_id}»"),
+    }
+
+
+def _reward(value: dict | None, level) -> dict | None:
     if not value or not value.get("type"):
         return None
     if value["type"] not in REWARD_TYPES:
-        raise PassError(f"Уровень {level}: неизвестная награда")
+        raise PassError(f"Награда {level}: неизвестная награда" if isinstance(level, str) else f"Уровень {level}: неизвестная награда")
     if value["type"] in ("badge", "title"):
         from app.seasonpass.cosmetics import BADGE_KEYS
 
         text = str(value.get("text") or "").strip()
         if not text:
-            raise PassError(f"Уровень {level}: у значка или титула нужно название")
+            raise PassError(f"Награда {level}: у значка или титула нужно название" if isinstance(level, str) else f"Уровень {level}: у значка или титула нужно название")
         out = {"type": value["type"], "amount": 1, "text": text[:120]}
         for lang in ("text_tg", "text_uz"):
             if str(value.get(lang) or "").strip():
                 out[lang] = str(value[lang]).strip()[:120]
         if value["type"] == "badge":
             if value.get("key") not in BADGE_KEYS:
-                raise PassError(f"Уровень {level}: выберите вид значка")
+                raise PassError(f"Награда {level}: выберите вид значка" if isinstance(level, str) else f"Уровень {level}: выберите вид значка")
             out["key"] = value["key"]
         return out
     amount = int(value.get("amount", 0))
     if amount < 1:
-        raise PassError(f"Уровень {level}: количество награды должно быть больше 0")
+        raise PassError(f"Награда {level}: количество должно быть больше 0" if isinstance(level, str) else f"Уровень {level}: количество награды должно быть больше 0")
     return {"type": value["type"], "amount": amount}
 
 
 # --- Templates and a season's copy -------------------------------------------
+
+
+def _with_team_goals(definition: dict) -> dict:
+    """A definition saved before teams existed gets the standard team goals,
+    once; one that already has the keys (even empty) is left as the admin set it."""
+    if "team_goals" in definition and "team_season_goal" in definition:
+        return definition
+    base = default_definition()
+    return {
+        **definition,
+        "team_goals": definition.get("team_goals", base["team_goals"]),
+        "team_season_goal": definition.get("team_season_goal", base["team_season_goal"]),
+    }
 
 
 def default_template(db: Session) -> PassTemplate:
@@ -143,6 +199,9 @@ def default_template(db: Session) -> PassTemplate:
     if template is None:
         template = PassTemplate(name="Стандартный", is_default=True, definition=default_definition())
         db.add(template)
+        db.flush()
+    elif "team_goals" not in template.definition:
+        template.definition = _with_team_goals(template.definition)
         db.flush()
     return template
 
@@ -155,6 +214,9 @@ def season_pass(db: Session, season: Season) -> SeasonPass:
         template = default_template(db)
         sp = SeasonPass(season_id=season.id, template_id=template.id, definition=copy.deepcopy(template.definition))
         db.add(sp)
+        db.flush()
+    elif "team_goals" not in sp.definition:
+        sp.definition = _with_team_goals(sp.definition)
         db.flush()
     return sp
 
@@ -204,6 +266,9 @@ def award_xp(db: Session, user: User, source: str, key: str, amount: int | None 
                 db.flush()
         except IntegrityError:
             return 0
+        from app.seasonpass.teams import after_xp
+
+        after_xp(db, user, season)
         return amount
     except Exception:  # XP is a bonus: a failure here must never lose a lesson
         return 0

@@ -2690,9 +2690,32 @@ export interface PassTaskDef {
   xp: number;
 }
 
+export interface PassTeamGoalDef {
+  id: string;
+  metric: "word" | "lesson" | "review" | "quest" | "streak";
+  /** The goal is this many per member (times the members of the team). */
+  target_per_member: number;
+  xp: number;
+  reward?: PassReward | null;
+}
+
 export interface PassDefinition {
   levels: PassLevelDef[];
   tasks: PassTaskDef[];
+  team_goals?: PassTeamGoalDef[];
+  team_season_goal?: PassTeamGoalDef | null;
+}
+
+export interface AdminTeam {
+  id: number;
+  name: string;
+  is_open: boolean;
+  members: string[];
+}
+
+export async function listTeams(): Promise<AdminTeam[]> {
+  const { data } = await api.get("/admin/season-pass/teams");
+  return data;
 }
 
 export interface PassTemplate {
@@ -2717,6 +2740,7 @@ export interface PassSettings {
   xp_quest: number;
   xp_streak: number;
   freeze_cap: number;
+  team_size: number;
   auto_monthly_seasons: boolean;
 }
 
