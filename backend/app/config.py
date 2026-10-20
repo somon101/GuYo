@@ -29,7 +29,10 @@ class Settings(BaseSettings):
 
     jwt_secret: str = "insecure-dev-secret-change-me"
     jwt_algorithm: str = "HS256"
-    jwt_expire_minutes: int = 1440
+    jwt_expire_minutes: int = 1440  # admins: the browser panel
+    # Learners stay signed in practically for good (10 years); they leave only
+    # by pressing "Выйти" or deleting the account.
+    user_jwt_expire_minutes: int = 5_256_000
 
     allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     # The oldest app build (the "+N" of the app's version) still allowed to
