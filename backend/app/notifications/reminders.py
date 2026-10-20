@@ -256,6 +256,12 @@ def send_pass_reminders(db: Session, hour: int, default_hour: int) -> int:
     return send(db, hour, default_hour)
 
 
+def send_season_summaries(db: Session) -> int:
+    from app.seasonpass.reminders import send_season_summaries as send
+
+    return send(db)
+
+
 def run_reminders(db: Session) -> int:
     now = utc_now().astimezone(DUSHANBE_TZ)
     settings = get_reminder_settings(db)
@@ -264,6 +270,7 @@ def run_reminders(db: Session) -> int:
         + send_streak_risk_reminders(db, now.date(), now.hour, settings)
         + send_study_reminders(db, now, settings)
         + send_pass_reminders(db, now.hour, settings.default_hour)
+        + send_season_summaries(db)
     )
 
 

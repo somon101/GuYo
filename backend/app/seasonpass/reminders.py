@@ -116,3 +116,32 @@ def send_pass_reminders(db: Session, hour: int, default_hour: int) -> int:
         except Exception:
             logger.exception("pass reminder failed for user %s", user.id)
     return sent
+
+
+_SUMMARY_TEXTS = {
+    "ru": ("Сезон завершён", "Посмотрите итоги сезона «{name}»: уровень, слова и награды"),
+    "tg": ("Мавсим ба итмом расид", "Натиҷаҳои мавсими «{name}»-ро бинед: сатҳ, калимаҳо ва мукофотҳо"),
+    "uz": ("Mavsum yakunlandi", "«{name}» mavsumi natijalarini ko'ring: daraja, so'zlar va mukofotlar"),
+    "en": ("The season is over", "See your “{name}” recap: level, words and rewards"),
+}
+SUMMARY_WINDOW_DAYS = 7
+
+
+def send_season_summaries(db: Session) -> int:
+    """Once to everyone who earned XP in a season that ended in the last week."""
+    if not service.get_pass_settings(db).reminders_enabled:
+        return 0
+    since = utc_now() - timedelta(days=SUMMARY_WINDOW_DAYS)
+    seasons = db.query(Season).filter(Season.status == "completed", Season.ends_at >= since).all()
+    sent = 0
+    for season in seasons:
+        ids = {r[0] for r in db.query(PassXpEvent.user_id).filter(PassXpEvent.season_id == season.id).distinct()}
+        for user in db.query(User).filter(User.id.in_(ids), User.deleted_at.is_(None)).all():
+            lang = user.ui_language if user.ui_language in _SUMMARY_TEXTS else "ru"
+            title, body = _SUMMARY_TEXTS[lang]
+            name = {"tg": season.name_tg, "uz": season.name_uz}.get(lang) or season.name
+            if send_notification(
+                db, user, body.format(name=name), title=title, source=SOURCE, dedupe_key=f"summary:{season.id}"
+            ):
+                sent += 1
+    return sent

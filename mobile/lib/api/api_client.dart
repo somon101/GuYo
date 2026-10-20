@@ -32,6 +32,7 @@ import '../models/user_rating.dart';
 import '../models/word.dart';
 import '../models/word_check.dart';
 import '../models/season_pass.dart';
+import '../models/season_summary.dart';
 import '../models/team.dart';
 import '../services/answer_signals.dart';
 
@@ -826,6 +827,18 @@ class ApiClient {
       Lesson.fromJson(body),
       stats is Map<String, dynamic> ? LessonPassStats.fromJson(stats) : null,
     );
+  }
+
+  /// The recap of the last finished season; null if there is none (or on failure).
+  Future<SeasonSummary?> fetchSeasonSummary() async {
+    try {
+      final res = await http.get(_uri('/season-pass/summary'), headers: await _authHeaders());
+      if (res.statusCode >= 400) return null;
+      final body = jsonDecode(utf8.decode(res.bodyBytes));
+      return body is Map<String, dynamic> ? SeasonSummary.fromJson(body) : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// The season pass; null while no season is live (or on any failure).

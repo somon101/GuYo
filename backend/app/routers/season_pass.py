@@ -108,6 +108,39 @@ def get_pass(db: Session = Depends(get_db), user: User = Depends(get_current_use
     return state
 
 
+class TitleOut(BaseModel):
+    text: str
+    text_tg: str | None = None
+    text_uz: str | None = None
+
+
+class SummaryOut(BaseModel):
+    season_id: int
+    season_name: str
+    season_name_tg: str | None = None
+    season_name_uz: str | None = None
+    starts_at: datetime
+    ends_at: datetime
+    xp: int
+    level: int
+    max_level: int
+    words_learned: int
+    active_days: int
+    rewards_claimed: int
+    rank_name: str | None = None
+    season_points: int | None = None
+    badges: list[str]
+    titles: list[TitleOut]
+
+
+@router.get("/summary", response_model=SummaryOut | None)
+def get_summary(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """The recap of the last finished season the person played; null if none."""
+    from app.seasonpass.summary import season_summary
+
+    return season_summary(db, user)
+
+
 @router.get("/cosmetics", response_model=CollectionOut)
 def get_collection(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return collection(db, user)

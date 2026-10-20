@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
@@ -7,6 +8,7 @@ import '../theme/app_colors.dart';
 import '../widgets/season_pass_ui.dart';
 import '../models/team.dart';
 import 'cosmetics_screen.dart';
+import 'season_summary_screen.dart';
 import 'team_screen.dart';
 
 String passSeasonName(SeasonPass pass) {
@@ -93,6 +95,20 @@ class _SeasonPassScreenState extends State<SeasonPassScreen> with SingleTickerPr
       _pass = pass;
       _loading = false;
     });
+    _showSummaryOnce();
+  }
+
+  /// The first time the pass is opened after a season ended: the recap.
+  Future<void> _showSummaryOnce() async {
+    const storage = FlutterSecureStorage();
+    try {
+      final summary = await ApiClient.instance.fetchSeasonSummary();
+      if (summary == null || !mounted) return;
+      if (await storage.read(key: 'guyo_summary_seen') == '${summary.seasonId}') return;
+      await storage.write(key: 'guyo_summary_seen', value: '${summary.seasonId}');
+      if (!mounted) return;
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => SeasonSummaryScreen(initial: summary)));
+    } catch (_) {}
   }
 
   Future<void> _claim(Future<SeasonPass> Function() action, {required RewardStyle style, required String text}) async {
@@ -122,6 +138,11 @@ class _SeasonPassScreenState extends State<SeasonPassScreen> with SingleTickerPr
         backgroundColor: Colors.transparent,
         scrolledUnderElevation: 0,
         actions: [
+          IconButton(
+            tooltip: tr('Итоги сезона'),
+            icon: const Icon(Icons.insights_rounded),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SeasonSummaryScreen())),
+          ),
           IconButton(
             tooltip: tr('Мои награды'),
             icon: const Icon(Icons.military_tech_rounded),
