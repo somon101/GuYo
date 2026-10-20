@@ -37,6 +37,8 @@ class PassSettings(Base):
     team_size: Mapped[int] = mapped_column(Integer, nullable=False, default=5, server_default="5")
     freeze_cap: Mapped[int] = mapped_column(Integer, nullable=False, default=3, server_default="3")
     auto_monthly_seasons: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    # "Reward is waiting" / "season ends soon" / "team goal is close" messages.
+    reminders_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
 
 
 class PassTemplate(Base):

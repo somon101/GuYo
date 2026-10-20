@@ -250,6 +250,12 @@ def congratulate_streak(db: Session, user: User) -> None:
         _send(db, user, variants, streak, SOURCE_STREAK_MILESTONE, f"{streak}:{streak_start.isoformat()}")
 
 
+def send_pass_reminders(db: Session, hour: int, default_hour: int) -> int:
+    from app.seasonpass.reminders import send_pass_reminders as send
+
+    return send(db, hour, default_hour)
+
+
 def run_reminders(db: Session) -> int:
     now = utc_now().astimezone(DUSHANBE_TZ)
     settings = get_reminder_settings(db)
@@ -257,6 +263,7 @@ def run_reminders(db: Session) -> int:
         send_inactivity_reminders(db, now.date(), now.hour, settings)
         + send_streak_risk_reminders(db, now.date(), now.hour, settings)
         + send_study_reminders(db, now, settings)
+        + send_pass_reminders(db, now.hour, settings.default_hour)
     )
 
 

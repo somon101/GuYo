@@ -151,6 +151,14 @@ function SettingsSection() {
           />
           Создавать сезоны сами, по одному на календарный месяц (текущий и следующий)
         </label>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={s.reminders_enabled}
+            onChange={(e) => setS({ ...s, reminders_enabled: e.target.checked })}
+          />
+          Напоминать про пропуск: награда ждёт, сезон заканчивается, цель команды близко
+        </label>
         <div className="flex items-center gap-3">
           <button onClick={save} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
             Сохранить

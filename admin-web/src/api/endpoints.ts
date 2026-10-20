@@ -2742,6 +2742,7 @@ export interface PassSettings {
   freeze_cap: number;
   team_size: number;
   auto_monthly_seasons: boolean;
+  reminders_enabled: boolean;
 }
 
 export async function getPassSettings(): Promise<PassSettings> {
