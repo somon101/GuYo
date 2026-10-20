@@ -34,6 +34,10 @@ def record_activity(db: Session, user: User) -> bool:
     db.flush()  # this session's autoflush is off -- streak_days_count below must see today's own row
     check_and_grant_achievements(db, user, "streak_days")
 
+    from app.seasonpass import award_xp  # season XP: a lit streak day
+
+    award_xp(db, user, "streak", f"streak:{today.isoformat()}")
+
     from app.notifications.reminders import congratulate_streak  # app.notifications imports this package
 
     congratulate_streak(db, user)

@@ -19,6 +19,7 @@ import '../widgets/quest_ui.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/user_name.dart';
 import 'season_quests_screen.dart';
+import '../widgets/season_pass_card.dart';
 import '../widgets/skeleton.dart';
 import 'text_check_screen.dart';
 
@@ -211,6 +212,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             onOpenLessons: widget.onOpenLessons,
             onOpenRating: widget.onOpenRating,
           ),
+        // The season pass: level, XP and rewards waiting.
+        const SeasonPassCard(),
       ],
     );
   }

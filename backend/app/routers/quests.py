@@ -32,6 +32,7 @@ from app.quests import (
     quest_completions_today,
 )
 from app.learning.mastery import learned_ids
+from app.seasonpass import award_xp
 from app.word_attempts import record_word_attempt
 from app.priority.background_prep import mark_for_prep
 from app.rating import (
@@ -355,6 +356,8 @@ def submit_quest_answer(
     rating_before = get_or_create_user_rating(db, user.id).total_points
 
     complete_quest_attempt(db, user, quest, word, payload.is_correct)
+    if payload.is_correct:
+        award_xp(db, user, "quest", f"quest:{quest.id}:{word.id}:{dushanbe_today().isoformat()}")
 
     # Analytics only -- see app/models/word_attempt.py's own note. Never
     # read by any scoring/level/achievement/rating decision.

@@ -175,6 +175,12 @@ def record_review_answer(db: Session, entry: ReviewListWord, is_correct: bool) -
     entry.done_at = now
     db.flush()
     review_list = db.get(ReviewList, entry.list_id)
+    from app.models.user import User
+    from app.seasonpass import award_xp
+
+    owner = db.get(User, review_list.user_id)
+    if owner is not None:
+        award_xp(db, owner, "review", f"review:{entry.id}")
     left = (
         db.query(ReviewListWord.id)
         .filter(ReviewListWord.list_id == review_list.id, ReviewListWord.done_at.is_(None))

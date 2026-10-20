@@ -40,6 +40,7 @@ import { MemoryWordPage } from "./pages/MemoryWordPage";
 import { AchievementsPage } from "./pages/AchievementsPage";
 import { ApiKeysPage } from "./pages/ApiKeysPage";
 import { RatingPage } from "./pages/RatingPage";
+import { SeasonPassPage } from "./pages/SeasonPassPage";
 import { ReviewPage } from "./pages/ReviewPage";
 import { AiToolsPage } from "./pages/AiToolsPage";
 
@@ -444,6 +445,16 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <AchievementsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/season-pass"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SeasonPassPage />
                 </Layout>
               </ProtectedRoute>
             }

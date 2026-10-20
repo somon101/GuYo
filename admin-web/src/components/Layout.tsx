@@ -36,6 +36,7 @@ const navGroups = [
     title: "Игра",
     items: [
       { to: "/rating", icon: "podium", label: "Рейтинг" },
+      { to: "/season-pass", icon: "crown", label: "Пропуск сезона" },
       { to: "/achievements", icon: "trophy", label: "Достижения" },
       { to: "/quests", icon: "target", label: "Квесты" },
       { to: "/review", icon: "repeat", label: "Повтори слово" },

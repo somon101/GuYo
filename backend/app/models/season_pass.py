@@ -1,0 +1,95 @@
+"""The season pass («Пропуск сезона»): XP earned by studying fills a ladder of
+levels, each with a free reward and a Premium reward, plus small weekly tasks.
+
+A *definition* -- the levels and the weekly tasks -- is plain JSON:
+
+    {"levels": [{"level": 1, "xp": 80,
+                 "free": {"type": "rating_points", "amount": 20},
+                 "premium": {"type": "premium_days", "amount": 1}}, ...],
+     "tasks":  [{"id": "words", "metric": "word", "target": 5, "xp": 50}, ...]}
+
+It lives on a PassTemplate (any number, one is the default) and a copy of it
+on each Season, so editing a template never changes a running season.
+"""
+
+from datetime import datetime
+
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.database import Base
+
+
+class PassSettings(Base):
+    """Single row (id=1): how much XP each kind of study action is worth."""
+
+    __tablename__ = "pass_settings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    xp_word: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
+    xp_lesson: Mapped[int] = mapped_column(Integer, nullable=False, default=20, server_default="20")
+    xp_review: Mapped[int] = mapped_column(Integer, nullable=False, default=2, server_default="2")
+    xp_quest: Mapped[int] = mapped_column(Integer, nullable=False, default=15, server_default="15")
+    xp_streak: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
+    # New seasons are created on their own, one per calendar month.
+    auto_monthly_seasons: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+
+
+class PassTemplate(Base):
+    __tablename__ = "pass_templates"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    definition: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class SeasonPass(Base):
+    """A season's own copy of a pass definition, taken from a template the
+    first time the season needs it."""
+
+    __tablename__ = "season_passes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    season_id: Mapped[int] = mapped_column(
+        ForeignKey("seasons.id", ondelete="CASCADE"), nullable=False, unique=True, index=True
+    )
+    template_id: Mapped[int | None] = mapped_column(ForeignKey("pass_templates.id", ondelete="SET NULL"), nullable=True)
+    definition: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PassXpEvent(Base):
+    """One XP award. `dedupe_key` makes every award happen at most once per
+    (user, season): the same learned word, lesson or streak day can be
+    reported any number of times. `source` is also what weekly tasks count."""
+
+    __tablename__ = "pass_xp_events"
+    __table_args__ = (UniqueConstraint("user_id", "season_id", "dedupe_key", name="uq_pass_xp_once"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id", ondelete="CASCADE"), nullable=False, index=True)
+    source: Mapped[str] = mapped_column(String(16), nullable=False)
+    amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    dedupe_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class PassClaim(Base):
+    """A reward the user took. kind: "free" / "premium" (ref = level) or
+    "task" (ref = "<week start date>:<task id>")."""
+
+    __tablename__ = "pass_claims"
+    __table_args__ = (UniqueConstraint("user_id", "season_id", "kind", "ref", name="uq_pass_claim_once"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("seasons.id", ondelete="CASCADE"), nullable=False, index=True)
+    kind: Mapped[str] = mapped_column(String(8), nullable=False)
+    ref: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

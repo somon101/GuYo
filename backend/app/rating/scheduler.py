@@ -29,6 +29,7 @@ from app.database import SessionLocal, engine
 from app.notifications.reminders import run_reminders_once
 from app.memory.service import rebuild_pending_memories
 from app.rating import refresh_rank_positions, sync_season_states
+from app.seasonpass import ensure_monthly_seasons
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,7 @@ def sync_once() -> bool:
     kill the loop, because the next one would have fixed the same thing."""
     db = SessionLocal()
     try:
+        ensure_monthly_seasons(db)
         return sync_season_states(db)
     except Exception:
         logger.exception("season sync failed")

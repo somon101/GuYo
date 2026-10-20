@@ -35,6 +35,7 @@ from app.core.storage import url_for_key
 from app.database import get_db
 from app.achievements import check_and_grant_achievements, record_activity
 from app.rating import award_word_points_if_new
+from app.seasonpass import award_xp
 from app.exercises import EXERCISE_TYPES, build_word, listen_word, matching, speaking_word, true_or_false
 from app.exercises.common import (
     fill_word_progress,
@@ -718,6 +719,7 @@ def finish_lesson_pass(
         lesson.completed_by_pass = True
         db.flush()
         check_and_grant_achievements(db, user, "lessons_completed")
+        award_xp(db, user, "lesson", f"lesson:{lesson.id}")
     # Auto lesson/quest are built quietly later (app/priority/background_prep.py).
     mark_for_prep(db, user, lesson.dictionary_id)
     if newly_learned:
@@ -728,6 +730,7 @@ def finish_lesson_pass(
         if not _pass_too_fast(db, user.id, lesson):
             for word_id in newly_learned:
                 award_word_points_if_new(db, user, word_id)
+                award_xp(db, user, "word", f"word:{word_id}")
     # The lesson's mini-phrases were gone through on this pass: they're
     # open now (Практика) and never attached to another lesson.
     from app.mini_phrases import mark_done
@@ -812,6 +815,7 @@ def submit_answer(
     if newly_learned:
         check_and_grant_achievements(db, user, "words_learned")
         points_awarded = award_word_points_if_new(db, user, payload.word_id)
+        award_xp(db, user, "word", f"word:{payload.word_id}")
 
     db.commit()
     return SubmitAnswerOut(

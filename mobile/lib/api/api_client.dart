@@ -30,6 +30,7 @@ import '../models/user_profile.dart';
 import '../models/user_rating.dart';
 import '../models/word.dart';
 import '../models/word_check.dart';
+import '../models/season_pass.dart';
 import '../services/answer_signals.dart';
 
 /// package:http's MultipartFile.fromBytes defaults to
@@ -808,6 +809,39 @@ class ApiClient {
       Lesson.fromJson(body),
       stats is Map<String, dynamic> ? LessonPassStats.fromJson(stats) : null,
     );
+  }
+
+  /// The season pass; null while no season is live (or on any failure).
+  Future<SeasonPass?> fetchSeasonPass() async {
+    try {
+      final res = await http.get(_uri('/season-pass'), headers: await _authHeaders());
+      if (res.statusCode >= 400) return null;
+      return SeasonPass.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Takes a level's reward ([track] is 'free' or 'premium'); returns the
+  /// refreshed pass, or throws an [ApiException] with the reason.
+  Future<SeasonPass> claimPassLevel(int level, String track) async {
+    final res = await http.post(
+      _uri('/season-pass/claim'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'level': level, 'track': track}),
+    );
+    await _throwWithDetail(res);
+    return SeasonPass.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  Future<SeasonPass> claimPassTask(String taskId) async {
+    final res = await http.post(
+      _uri('/season-pass/tasks/claim'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'task_id': taskId}),
+    );
+    await _throwWithDetail(res);
+    return SeasonPass.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
   /// The check shown before a lesson's first pass (null on any failure: the

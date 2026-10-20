@@ -33,6 +33,8 @@ from app.routers import (
     learning,
     lessons,
     lesson_check,
+    season_pass,
+    admin_season_pass,
     notifications,
     phrase_categories,
     phrases,
@@ -137,6 +139,8 @@ app.include_router(learning.router)
 app.include_router(exercises.router)
 app.include_router(lessons.router)
 app.include_router(lesson_check.router)
+app.include_router(season_pass.router)
+app.include_router(admin_season_pass.router)
 app.include_router(practice.router)
 app.include_router(admin_analytics.router)
 app.include_router(admin_priority.router)

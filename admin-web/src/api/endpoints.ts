@@ -2662,3 +2662,117 @@ export async function updateLearningSettings(input: Partial<LearningSettings>): 
   const { data } = await api.put("/learning-settings", input);
   return data;
 }
+
+// --- Пропуск сезона (/admin/season-pass) -------------------------------------
+
+export interface PassReward {
+  type: "rating_points" | "premium_days";
+  amount: number;
+}
+
+export interface PassLevelDef {
+  level: number;
+  xp: number;
+  free: PassReward | null;
+  premium: PassReward | null;
+}
+
+export interface PassTaskDef {
+  id: string;
+  metric: "word" | "lesson" | "review" | "quest" | "streak";
+  target: number;
+  xp: number;
+}
+
+export interface PassDefinition {
+  levels: PassLevelDef[];
+  tasks: PassTaskDef[];
+}
+
+export interface PassTemplate {
+  id: number;
+  name: string;
+  is_default: boolean;
+  definition: PassDefinition;
+}
+
+export interface SeasonPassDef {
+  season_id: number;
+  season_name: string;
+  status: string;
+  template_id: number | null;
+  definition: PassDefinition;
+}
+
+export interface PassSettings {
+  xp_word: number;
+  xp_lesson: number;
+  xp_review: number;
+  xp_quest: number;
+  xp_streak: number;
+  auto_monthly_seasons: boolean;
+}
+
+export async function getPassSettings(): Promise<PassSettings> {
+  const { data } = await api.get("/admin/season-pass/settings");
+  return data;
+}
+
+export async function updatePassSettings(input: PassSettings): Promise<PassSettings> {
+  const { data } = await api.put("/admin/season-pass/settings", input);
+  return data;
+}
+
+export async function listPassTemplates(): Promise<PassTemplate[]> {
+  const { data } = await api.get("/admin/season-pass/templates");
+  return data;
+}
+
+export async function getDefaultPassDefinition(): Promise<PassDefinition> {
+  const { data } = await api.get("/admin/season-pass/default-definition");
+  return data;
+}
+
+export async function createPassTemplate(name: string, definition: PassDefinition): Promise<PassTemplate> {
+  const { data } = await api.post("/admin/season-pass/templates", { name, definition });
+  return data;
+}
+
+export async function updatePassTemplate(id: number, name: string, definition: PassDefinition): Promise<PassTemplate> {
+  const { data } = await api.put(`/admin/season-pass/templates/${id}`, { name, definition });
+  return data;
+}
+
+export async function copyPassTemplate(id: number): Promise<PassTemplate> {
+  const { data } = await api.post(`/admin/season-pass/templates/${id}/copy`);
+  return data;
+}
+
+export async function makePassTemplateDefault(id: number): Promise<PassTemplate> {
+  const { data } = await api.post(`/admin/season-pass/templates/${id}/default`);
+  return data;
+}
+
+export async function deletePassTemplate(id: number): Promise<void> {
+  await api.delete(`/admin/season-pass/templates/${id}`);
+}
+
+export async function getSeasonPassDef(seasonId: number): Promise<SeasonPassDef> {
+  const { data } = await api.get(`/admin/season-pass/seasons/${seasonId}`);
+  return data;
+}
+
+export async function updateSeasonPassDef(seasonId: number, definition: PassDefinition): Promise<SeasonPassDef> {
+  const { data } = await api.put(`/admin/season-pass/seasons/${seasonId}`, definition);
+  return data;
+}
+
+export async function applyPassTemplate(seasonId: number, templateId: number): Promise<SeasonPassDef> {
+  const { data } = await api.post(`/admin/season-pass/seasons/${seasonId}/apply-template/${templateId}`);
+  return data;
+}
+
+export async function ensureMonthlySeasons(): Promise<{ created: number }> {
+  const { data } = await api.post("/admin/season-pass/ensure-seasons");
+  return data;
+}
