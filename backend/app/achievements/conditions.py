@@ -31,8 +31,8 @@ def phrases_opened_count(db: Session, user: User) -> int:
 def words_learned_count(db: Session, user: User) -> int:
     """How many words this user has learned, across every dictionary --
     reuses the exact same WordProgress.mastered_at.isnot(None) definition
-    "Мои слова" and the Lessons system already use (see app/exercises/
-    common.py's get_threshold), never a second "learned" definition."""
+    "Мои слова" and the Lessons system already use (see app/learning/
+    mastery.py), never a second "learned" definition."""
     return (
         db.query(func.count(WordProgress.id))
         .filter(WordProgress.user_id == user.id, WordProgress.mastered_at.isnot(None))
@@ -46,7 +46,7 @@ def lessons_completed_count(db: Session, user: User) -> int:
     every dictionary -- counts Lesson.completed_by_pass, set only when the
     user finished the lesson's pass (see app/routers/lessons.py's
     finish_lesson_pass). Deliberately NOT Lesson.is_completed, which also
-    flips the moment every word happens to be at threshold (e.g. words
+    flips the moment every word happens to be learned (e.g. words
     already known), so a lesson that auto-completed without a real
     playthrough never earns this achievement."""
     return (

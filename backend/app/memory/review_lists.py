@@ -65,7 +65,7 @@ def refresh_lists(db: Session, user_id: int, dictionary_id: int) -> ReviewList |
 
     lists = _open_lists(db, user_id, dictionary_id)
     settings = get_priority_settings(db)
-    if len(lists) < MAX_OPEN_LISTS and settings.memory_enabled:
+    if len(lists) < MAX_OPEN_LISTS:
         size = list_size(db)
         taken = set()
         if lists:
@@ -91,7 +91,6 @@ def refresh_lists(db: Session, user_id: int, dictionary_id: int) -> ReviewList |
                         difficulty=p.memory_difficulty,
                         last_review=p.memory_last_review,
                         review_days=p.memory_review_days or 0,
-                        score=100,
                     )
                 )
             lists.append(rl)

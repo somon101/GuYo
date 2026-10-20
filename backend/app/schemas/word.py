@@ -79,9 +79,7 @@ class WordOut(BaseModel):
     # quests/rounds.py, lessons.py, most of words.py). Only
     # learning.py's /learned-words populates these, by enriching the object
     # AFTER word_to_out() builds it, using word_levels' own
-    # ordered_enabled_levels/level_for_score_in so the level shown here is
-    # always the same one the rest of the app (Quests included) would pick
-    # for this score -- never a second, parallel classification.
+    # memory_levels_for. `score` is 100 (learned) or 0, for installed apps.
     score: int | None = None
     word_level_id: int | None = None
     word_level_name: str | None = None

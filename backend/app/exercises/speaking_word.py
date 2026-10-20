@@ -32,15 +32,15 @@ def get_match_threshold(db: Session) -> int:
     return DEFAULT_MATCH_THRESHOLD
 
 
-def is_available(db: Session, user: User, dictionary_id: int, lesson_word_ids: list[int], threshold: int) -> bool:
+def is_available(db: Session, user: User, dictionary_id: int, lesson_word_ids: list[int]) -> bool:
     """Every Lesson word can be read aloud -- the only real requirement is
     that the lesson has words at all (always true) and the exercise itself
     is enabled (checked centrally, see app/exercises/__init__.py)."""
     return len(lesson_word_ids) >= 1
 
 
-def build_round(db: Session, lesson: Lesson, threshold: int) -> SpeakingWordRoundOut:
-    words = lesson_words_pending(db, lesson, threshold)
+def build_round(db: Session, lesson: Lesson) -> SpeakingWordRoundOut:
+    words = lesson_words_pending(db, lesson)
     items = [
         SpeakingWordItemOut(
             word_id=w.id,

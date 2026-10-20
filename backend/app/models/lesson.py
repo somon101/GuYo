@@ -17,7 +17,7 @@ class Lesson(Base):
     (user, dictionary) -- the partial unique index below enforces that at
     the database level, mirroring LearningSession's own guarantee -- so a
     new lesson can never be created while the current one still has words
-    below the learning threshold."""
+    not learned yet."""
 
     __tablename__ = "lessons"
     __table_args__ = (
@@ -39,7 +39,7 @@ class Lesson(Base):
     is_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     # True only once the user actually PLAYED this lesson's pass to the end
     # (POST /lessons/{id}/pass/finish completed it) -- unlike is_completed,
-    # which also flips the moment every word happens to be at threshold
+    # which also flips the moment every word happens to be learned
     # (e.g. words already known from elsewhere), even mid-pass. Achievements
     # count this one, so "Первый урок" rewards a real playthrough, never a
     # lesson that auto-completed from already-learned words. is_completed is

@@ -23,7 +23,6 @@ PHRASE_UNLOCK_SHARE = 0.34
 
 
 def phrase_unlock_scores(db: Session, user: User, dictionary: Dictionary) -> dict[int, float]:
-    from app.exercises.common import get_threshold
     from app.mini_phrases.service import _learned_word_ids
     from app.routers.admin_analytics import _build_token_to_word, _get_learned_word_tokens, _phrase_progress
 
@@ -41,7 +40,7 @@ def phrase_unlock_scores(db: Session, user: User, dictionary: Dictionary) -> dic
         if missing and all(wid is not None for wid, _ in missing):
             credit([wid for wid, _ in missing])
 
-    learned = _learned_word_ids(db, user.id, dictionary.id, get_threshold(db))
+    learned = _learned_word_ids(db, user.id, dictionary.id)
     for mp in db.query(MiniPhrase).filter(MiniPhrase.dictionary_id == dictionary.id, MiniPhrase.enabled.is_(True)):
         credit(list({p.word_id for p in mp.parts if p.word_id not in learned}))
     return scores

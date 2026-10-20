@@ -82,16 +82,16 @@ def build_item(word: Word, alphabet: str, wrong_letter_count: int) -> BuildWordI
     )
 
 
-def is_available(db: Session, user: User, dictionary_id: int, lesson_word_ids: list[int], threshold: int) -> bool:
+def is_available(db: Session, user: User, dictionary_id: int, lesson_word_ids: list[int]) -> bool:
     _, min_word_length, _ = get_build_word_settings(db)
     words = db.query(Word).filter(Word.id.in_(lesson_word_ids)).all()
     return any(len(w.word) >= min_word_length for w in words)
 
 
-def build_round(db: Session, lesson: Lesson, threshold: int) -> BuildWordRoundOut:
+def build_round(db: Session, lesson: Lesson) -> BuildWordRoundOut:
     dictionary = db.get(Dictionary, lesson.dictionary_id)
     wrong_letter_count, min_word_length, case_sensitive = get_build_word_settings(db)
-    words = [w for w in lesson_words_pending(db, lesson, threshold) if len(w.word) >= min_word_length]
+    words = [w for w in lesson_words_pending(db, lesson) if len(w.word) >= min_word_length]
     alphabet = dictionary.alphabet or "" if dictionary else ""
 
     items = [build_item(w, alphabet, wrong_letter_count) for w in words]

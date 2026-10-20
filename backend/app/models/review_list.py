@@ -50,6 +50,5 @@ class ReviewListWord(Base):
     difficulty: Mapped[float | None] = mapped_column(Float, nullable=True)
     last_review: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     review_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     # The first right answer while reviewing this list; NULL = still to do.
     done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

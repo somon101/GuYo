@@ -15,8 +15,8 @@ JSON shape across all of them would only make every consumer (Flutter
 included) worse, not more "unified". What IS unified, and never
 per-type: settings storage (ExerciseSettings, keyed by `key`), the
 enabled/disabled gate (see `is_exercise_enabled` in common.py, applied
-centrally in create_lesson -- no exercise type re-implements this), points
-(`get_points`), and how an answer is scored/completes a lesson (the one
+centrally in create_lesson -- no exercise type re-implements this), and how
+an answer is recorded/completes a lesson (the one
 generic POST .../answers endpoint in lessons.py, unchanged by exercise_key).
 """
 

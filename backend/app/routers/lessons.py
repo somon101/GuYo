@@ -8,14 +8,10 @@ available for that exact set (see app.exercises.EXERCISE_TYPES). Nothing
 here duplicates Word -- every LessonWord is just a word_id reference, the
 same principle as every other exercise in this codebase.
 
-Each answer a user submits to one of this lesson's exercises moves that
-specific word_id's WordProgress.score (0-100, see app/models/
-word_progress.py) by that exercise's admin-configured points. Once a
-word's score reaches the admin's configured threshold (see
-app/models/learning_settings.py), it counts as learned; once every word
-in a lesson does, the lesson itself is complete and a new one can be
-created. This is the ONE place "is this word learned" is decided now --
-nothing here reads or writes the old LearnedWord table.
+Answers are recorded (WordAttempt); when a pass ends, the words its answers
+prove become learned (app/learning/mastery.py). Once every word in a lesson
+is learned, the lesson is complete and a new one can be created. This is
+the ONE place "is this word learned" is decided.
 
 This router is the ONE current caller of app.exercises (context=Lesson).
 Everything about a specific exercise type -- its own prerequisites, round
@@ -43,9 +39,8 @@ from app.exercises import EXERCISE_TYPES, build_word, listen_word, matching, spe
 from app.exercises.common import (
     fill_word_progress,
     get_eligible_words,
-    get_threshold,
     is_exercise_enabled,
-    lesson_words_below_threshold,
+    lesson_words_not_learned,
 )
 from app.models.dictionary import Dictionary
 from app.models.learning_settings import LearningSettings
@@ -84,18 +79,15 @@ from app.schemas.lesson import (
 router = APIRouter(tags=["lessons"])
 
 
+# What the `score` fields still sent to installed apps mean: learned.
+LEARNED = 100
+
+
 def _get_published_dictionary_or_404(db: Session, dictionary_id: int) -> Dictionary:
     dictionary = db.get(Dictionary, dictionary_id)
     if dictionary is None or not dictionary.is_published:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dictionary not found")
     return dictionary
-
-
-# Re-exported under these exact names because app/routers/learning.py,
-# app/routers/phrases.py and app/routers/admin_analytics.py already import
-# them from here -- the actual logic now lives in app.exercises.common.
-def _get_threshold(db: Session) -> int:
-    return get_threshold(db)
 
 
 def _get_active_lesson(db: Session, user_id: int, dictionary_id: int) -> Lesson | None:
@@ -126,7 +118,7 @@ def _require_lesson_exercise(db: Session, lesson_id: int, exercise_key: str) -> 
         )
 
 
-def _lesson_to_out(db: Session, lesson: Lesson, threshold: int) -> LessonOut:
+def _lesson_to_out(db: Session, lesson: Lesson) -> LessonOut:
     lesson_words = db.query(LessonWord).filter(LessonWord.lesson_id == lesson.id).order_by(LessonWord.id).all()
     word_ids = [lw.word_id for lw in lesson_words]
     learned = learned_ids(db, lesson.user_id, word_ids)
@@ -169,7 +161,7 @@ def _lesson_to_out(db: Session, lesson: Lesson, threshold: int) -> LessonOut:
 
         owner = db.get(User, lesson.user_id)
         if owner is not None:
-            mini_phrases = lesson_mini_phrases_out(db, owner, lesson, threshold)
+            mini_phrases = lesson_mini_phrases_out(db, owner, lesson)
 
     return LessonOut(
         id=lesson.id,
@@ -182,13 +174,13 @@ def _lesson_to_out(db: Session, lesson: Lesson, threshold: int) -> LessonOut:
     )
 
 
-def _lesson_to_summary(db: Session, lesson: Lesson, threshold: int) -> LessonSummaryOut:
+def _lesson_to_summary(db: Session, lesson: Lesson) -> LessonSummaryOut:
     """One row of the full lesson history -- see GET
     /dictionaries/{id}/lessons. Deliberately lighter than `_lesson_to_out`:
     just the counts the chain screen needs to render one link, not every
     word's own text/translation/score."""
     word_ids = [row[0] for row in db.query(LessonWord.word_id).filter(LessonWord.lesson_id == lesson.id).all()]
-    learned_count = len(secured_word_ids(db, lesson.user_id, word_ids, threshold)) if word_ids else 0
+    learned_count = len(secured_word_ids(db, lesson.user_id, word_ids)) if word_ids else 0
     return LessonSummaryOut(
         id=lesson.id,
         number=lesson.number,
@@ -198,7 +190,7 @@ def _lesson_to_summary(db: Session, lesson: Lesson, threshold: int) -> LessonSum
     )
 
 
-def _check_and_apply_lesson_completion(db: Session, lesson: Lesson, threshold: int) -> bool:
+def _check_and_apply_lesson_completion(db: Session, lesson: Lesson) -> bool:
     """A lesson is complete exactly when ALL its words are learned
     (app/learning/mastery.py), never "most of them"."""
     if lesson.is_completed:
@@ -206,7 +198,7 @@ def _check_and_apply_lesson_completion(db: Session, lesson: Lesson, threshold: i
     word_ids = [row[0] for row in db.query(LessonWord.word_id).filter(LessonWord.lesson_id == lesson.id).all()]
     if not word_ids:
         return False
-    if len(secured_word_ids(db, lesson.user_id, word_ids, threshold)) == len(word_ids):
+    if len(secured_word_ids(db, lesson.user_id, word_ids)) == len(word_ids):
         lesson.is_completed = True
         lesson.completed_at = func.now()
         log_event(db, lesson.user_id, "lesson_completed", lesson_id=lesson.id,
@@ -231,8 +223,7 @@ def get_lesson_candidate_words(
     (grouped by category client-side, same as the old "Мои слова"
     screen) with a checkbox each."""
     _get_published_dictionary_or_404(db, dictionary_id)
-    threshold = get_threshold(db)
-    words = get_eligible_words(db, user.id, dictionary_id, threshold)
+    words = get_eligible_words(db, user.id, dictionary_id)
     out = [word_to_out(w) for w in words]
     # So the picker's word cards carry the same score/level every other
     # word list shows -- the shared helper, never a second classification.
@@ -252,7 +243,7 @@ def get_active_lesson(
     lesson = _get_active_lesson(db, user.id, dictionary_id)
     if lesson is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active lesson")
-    return _lesson_to_out(db, lesson, get_threshold(db))
+    return _lesson_to_out(db, lesson)
 
 
 @router.get("/dictionaries/{dictionary_id}/lessons", response_model=LessonListOut)
@@ -268,7 +259,6 @@ def list_lessons(
     an empty list or an all-completed history is a normal, valid response,
     never a 404."""
     _get_published_dictionary_or_404(db, dictionary_id)
-    threshold = get_threshold(db)
     lessons = (
         db.query(Lesson)
         .filter(Lesson.user_id == user.id, Lesson.dictionary_id == dictionary_id)
@@ -277,7 +267,7 @@ def list_lessons(
     )
     return LessonListOut(
         dictionary_id=dictionary_id,
-        lessons=[_lesson_to_summary(db, lesson, threshold) for lesson in lessons],
+        lessons=[_lesson_to_summary(db, lesson) for lesson in lessons],
     )
 
 
@@ -288,7 +278,7 @@ def get_lesson(
     user: User = Depends(get_current_user),
 ):
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
-    return _lesson_to_out(db, lesson, get_threshold(db))
+    return _lesson_to_out(db, lesson)
 
 
 @router.post("/lessons/{lesson_id}/pass", response_model=LessonOut)
@@ -306,8 +296,7 @@ def start_lesson_pass(
     leaves it out. The app calls this at the start of every pass --
     first run and each "Повторить урок" alike. Changes no score."""
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
-    threshold = get_threshold(db)
-    lesson.pass_word_ids = [w.id for w in lesson_words_below_threshold(db, lesson, threshold)]
+    lesson.pass_word_ids = [w.id for w in lesson_words_not_learned(db, lesson)]
     # The baseline the end-of-pass statistics are measured against.
     lesson.pass_started_at = utc_now()
     lesson.pass_start_scores = {str(word_id): score for word_id, score in _word_scores(db, user.id, lesson).items()}
@@ -315,7 +304,7 @@ def start_lesson_pass(
     lesson.pass_pending_scores = None
     db.commit()
     db.refresh(lesson)
-    return _lesson_to_out(db, lesson, threshold)
+    return _lesson_to_out(db, lesson)
 
 
 def _word_scores(db: Session, user_id: int, lesson: Lesson) -> dict[int, int]:
@@ -342,7 +331,6 @@ def get_lesson_pass_stats(
 
 
 def _pass_stats(db: Session, user: User, lesson: Lesson) -> LessonPassStatsOut:
-    threshold = get_threshold(db)
 
     attempts_q = db.query(WordAttempt).filter(WordAttempt.user_id == user.id, WordAttempt.lesson_id == lesson.id)
     if lesson.pass_started_at is not None:
@@ -376,7 +364,7 @@ def _pass_stats(db: Session, user: User, lesson: Lesson) -> LessonPassStatsOut:
                 score_before=was,
                 score_after=now,
                 gained=0,  # no points any more: became_learned says what changed
-                became_learned=was < threshold <= now,
+                became_learned=was < LEARNED <= now,
             )
         )
 
@@ -442,8 +430,7 @@ def create_lesson(
     except LessonLimitReached as e:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e))
 
-    threshold = get_threshold(db)
-    eligible_words = get_eligible_words(db, user.id, dictionary.id, threshold)
+    eligible_words = get_eligible_words(db, user.id, dictionary.id)
     eligible_ids = {w.id for w in eligible_words}
     # With one or two words most exercises can't run, so a word can't reach
     # "learned" in a pass even with no mistakes -- a lesson takes at least
@@ -471,10 +458,10 @@ def create_lesson(
         count = min(max(payload.random_count, min_words), len(eligible_ids))
         selected_ids = [w.id for w in prioritized_words(db, user, eligible_words, count=count, dictionary=dictionary)[:count]]
 
-    lesson = build_lesson(db, user, dictionary, selected_ids, threshold)
+    lesson = build_lesson(db, user, dictionary, selected_ids)
     db.commit()
     db.refresh(lesson)
-    return _lesson_to_out(db, lesson, threshold)
+    return _lesson_to_out(db, lesson)
 
 
 MIN_LESSON_WORDS = 4
@@ -538,7 +525,7 @@ def prioritized_words(
 
 
 def build_lesson(
-    db: Session, user: User, dictionary: Dictionary, selected_ids: list[int], threshold: int, *, is_adaptive: bool = False
+    db: Session, user: User, dictionary: Dictionary, selected_ids: list[int], *, is_adaptive: bool = False
 ) -> Lesson:
     """The actual Lesson/LessonWord/LessonExercise construction, shared by
     the HTTP endpoint above and app.priority.lessons's auto-created
@@ -565,14 +552,14 @@ def build_lesson(
     for exercise_key, exercise_type in EXERCISE_TYPES.items():
         if not is_exercise_enabled(db, exercise_key):
             continue
-        if exercise_type.is_available(db, user, dictionary.id, selected_ids, threshold):
+        if exercise_type.is_available(db, user, dictionary.id, selected_ids):
             db.add(LessonExercise(lesson_id=lesson.id, exercise_key=exercise_key))
 
     # The mini-phrases this lesson's words open (with what's already known),
     # frozen with the lesson like its words -- see app/mini_phrases.
     from app.mini_phrases import attach_to_lesson
 
-    attach_to_lesson(db, user, lesson, list(selected_ids), threshold)
+    attach_to_lesson(db, user, lesson, list(selected_ids))
 
     log_event(db, user.id, "lesson_created", lesson_id=lesson.id,
               data={"number": lesson.number, "adaptive": is_adaptive, "words": len(selected_ids)})
@@ -605,7 +592,7 @@ def get_lesson_true_or_false_round(
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
     _only_words(lesson, word_ids)
     _require_lesson_exercise(db, lesson.id, true_or_false.KEY)
-    return true_or_false.build_round(db, lesson, get_threshold(db))
+    return true_or_false.build_round(db, lesson)
 
 
 @router.get("/lessons/{lesson_id}/exercises/matching", response_model=ExerciseWordsOut)
@@ -618,7 +605,7 @@ def get_lesson_matching_round(
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
     _only_words(lesson, word_ids)
     _require_lesson_exercise(db, lesson.id, matching.KEY)
-    return matching.build_round(db, lesson, get_threshold(db))
+    return matching.build_round(db, lesson)
 
 
 @router.get("/lessons/{lesson_id}/exercises/build-word", response_model=BuildWordRoundOut)
@@ -631,7 +618,7 @@ def get_lesson_build_word_round(
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
     _only_words(lesson, word_ids)
     _require_lesson_exercise(db, lesson.id, build_word.KEY)
-    return build_word.build_round(db, lesson, get_threshold(db))
+    return build_word.build_round(db, lesson)
 
 
 @router.get("/lessons/{lesson_id}/exercises/speaking-word", response_model=SpeakingWordRoundOut)
@@ -644,7 +631,7 @@ def get_lesson_speaking_word_round(
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
     _only_words(lesson, word_ids)
     _require_lesson_exercise(db, lesson.id, speaking_word.KEY)
-    return speaking_word.build_round(db, lesson, get_threshold(db))
+    return speaking_word.build_round(db, lesson)
 
 
 @router.get("/lessons/{lesson_id}/exercises/listen-word", response_model=ListenWordRoundOut)
@@ -657,7 +644,7 @@ def get_lesson_listen_word_round(
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
     _only_words(lesson, word_ids)
     _require_lesson_exercise(db, lesson.id, listen_word.KEY)
-    return listen_word.build_round(db, lesson, get_threshold(db))
+    return listen_word.build_round(db, lesson)
 
 
 def _pass_too_fast(db: Session, user_id: int, lesson: Lesson) -> bool:
@@ -686,7 +673,6 @@ def _hold_answer_for_pass(db: Session, user: User, lesson: Lesson, exercise_key:
         word_id=payload.word_id,
         exercise_key=exercise_key,
         is_correct=payload.is_correct,
-        score_after=0,
         lesson_id=lesson.id,
         duration_ms=payload.duration_ms,
         timed_out=payload.timed_out,
@@ -715,7 +701,6 @@ def finish_lesson_pass(
     """The pass was played to the end: the words it proved become learned,
     and everything that follows happens here."""
     lesson = _get_owned_lesson_or_404(db, user.id, lesson_id)
-    threshold = get_threshold(db)
     # A lesson (or adaptive lesson, or a repeat) played to the end lights
     # today's streak day.
     lit_now = record_activity(db, user)
@@ -725,7 +710,7 @@ def finish_lesson_pass(
     # achievements, lesson completion. Finishing twice changes nothing more.
     newly_learned = apply_pass(db, user.id, lesson)
     lesson.pass_pending_scores = None
-    lesson_completed = _check_and_apply_lesson_completion(db, lesson, threshold)
+    lesson_completed = _check_and_apply_lesson_completion(db, lesson)
     if lesson_completed and not lesson.completed_by_pass:
         # Finishing the pass is the one genuine "played to the end" signal --
         # the only place completed_by_pass is set, so the "lessons_completed"
@@ -754,7 +739,7 @@ def finish_lesson_pass(
     check_and_grant_achievements(db, user, "mini_phrases_done")
     db.commit()
     db.refresh(lesson)
-    out = _lesson_to_out(db, lesson, threshold)
+    out = _lesson_to_out(db, lesson)
     out.streak_lit_now = lit_now
     out.streak_days = streak_days_count(db, user)
     # The results screen's numbers in the same response: the app shows the
@@ -810,7 +795,6 @@ def submit_answer(
         word_id=payload.word_id,
         exercise_key=exercise_key,
         is_correct=payload.is_correct,
-        score_after=0,
         lesson_id=lesson.id,
         duration_ms=payload.duration_ms,
         timed_out=payload.timed_out,
@@ -818,9 +802,8 @@ def submit_answer(
         phrase_id=payload.phrase_id,
         mini_phrase_id=payload.mini_phrase_id,
     )
-    threshold = get_threshold(db)
     newly_learned = apply_pass(db, user.id, lesson, [payload.word_id])
-    lesson_completed = _check_and_apply_lesson_completion(db, lesson, threshold)
+    lesson_completed = _check_and_apply_lesson_completion(db, lesson)
     if lesson_completed:
         db.flush()
     is_learned = progress.mastered_at is not None
@@ -840,7 +823,7 @@ def submit_answer(
     )
 
 
-# --- Admin: global learning threshold --------------------------------------
+# --- Admin: learning settings --------------------------------------
 
 
 def max_lesson_words(db: Session) -> int:
@@ -851,7 +834,7 @@ def max_lesson_words(db: Session) -> int:
 
 @router.get("/learning-settings", response_model=LearningSettingsOut)
 def get_learning_settings(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
-    return LearningSettingsOut(threshold_score=get_threshold(db), max_lesson_words=max_lesson_words(db))
+    return LearningSettingsOut(max_lesson_words=max_lesson_words(db))
 
 
 @router.put("/learning-settings", response_model=LearningSettingsOut)
@@ -860,11 +843,9 @@ def set_learning_settings(
 ):
     settings = db.get(LearningSettings, 1)
     if settings is None:
-        settings = LearningSettings(id=1, threshold_score=60)
+        settings = LearningSettings(id=1)
         db.add(settings)
-    if payload.threshold_score is not None:
-        settings.threshold_score = payload.threshold_score
     if payload.max_lesson_words is not None:
         settings.max_lesson_words = payload.max_lesson_words
     db.commit()
-    return LearningSettingsOut(threshold_score=settings.threshold_score, max_lesson_words=settings.max_lesson_words)
+    return LearningSettingsOut(max_lesson_words=settings.max_lesson_words)

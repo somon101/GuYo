@@ -266,17 +266,15 @@ def list_learned_word_categories(
 ):
     """Only categories the user has at least one learned word in -- a
     category with zero learned words simply never appears, and a brand new
-    one shows up the moment its first word crosses the threshold, since
+    one shows up the moment its first word becomes learned, since
     this is a live count, not a stored list.
 
-    "Learned" now means WordProgress.score >= the admin's configured
-    threshold (see app/routers/lessons.py) -- the old LearnedWord flag from
-    the removed flashcard flow is no longer read here at all.
+    "Learned" is WordProgress.mastered_at (app/learning/mastery.py).
 
     `include_in_progress` opts into counting EVERY word with any progress
     at all, not just fully-learned ones -- used by the "Мои слова" screen so
-    it can show a word's current level even before it crosses the
-    threshold. Defaults to False so build_phrase_screen.dart's existing use
+    it can show a word's current level even before it is
+    learned. Defaults to False so build_phrase_screen.dart's existing use
     of this endpoint (which genuinely wants "fully learned only") is
     completely unaffected."""
     _get_published_dictionary_or_404(db, dictionary_id)
@@ -309,17 +307,14 @@ def list_learned_words(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Same threshold-based "learned" definition as the categories endpoint
+    """Same "learned" definition as the categories endpoint
     above -- see its docstring, `include_in_progress` included.
 
     When `include_in_progress` is set, each returned word also carries its
-    current score and word-reinforcement level (see app/schemas/word.py),
-    classified via word_levels' own ordered_enabled_levels/
-    level_for_score_in -- the exact same ladder Quests classifies words
-    against, fetched once and reused per word rather than requeried."""
+    learned flag (`score` 100/0) and memory level (see app/schemas/word.py)."""
     _get_published_dictionary_or_404(db, dictionary_id)
     query = (
-        db.query(Word, WordProgress.score)
+        db.query(Word)
         .join(WordProgress, WordProgress.word_id == Word.id)
         .filter(WordProgress.user_id == user.id, Word.dictionary_id == dictionary_id)
     )
@@ -330,15 +325,15 @@ def list_learned_words(
     elif category_id is not None:
         query = query.filter(Word.category_id == category_id)
 
-    rows = [(w, score) for w, score in query.order_by(Word.id).all() if content_language() == "tg" or has_translation(w)]
+    rows = [w for w in query.order_by(Word.id).all() if content_language() == "tg" or has_translation(w)]
 
     if not include_in_progress:
-        return [word_to_out(w) for w, _score in rows]
+        return [word_to_out(w) for w in rows]
 
-    levels = memory_levels_for(db, user.id, [w.id for w, _ in rows])
-    learned = learned_ids(db, user.id, [w.id for w, _ in rows])
+    levels = memory_levels_for(db, user.id, [w.id for w in rows])
+    learned = learned_ids(db, user.id, [w.id for w in rows])
     result = []
-    for w, _score in rows:
+    for w in rows:
         out = word_to_out(w)
         level = levels.get(w.id)
         out.score = 100 if w.id in learned else 0

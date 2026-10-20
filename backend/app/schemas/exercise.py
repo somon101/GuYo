@@ -13,13 +13,6 @@ class ExerciseSettingsOut(BaseModel):
     wrong_letter_count: int | None = None
     min_word_length: int | None = None
     case_sensitive: bool | None = None
-    # How much a right/wrong answer to this exercise moves a word's
-    # WordProgress.score (see app/models/word_progress.py). Null means "use
-    # this exercise_key's own code-level default" (see
-    # app/exercises/common.py's DEFAULT_POINTS), same fallback pattern as
-    # the fields above.
-    correct_points: int | None = None
-    incorrect_points: int | None = None
     # Whether this exercise_key can be picked for a new Lesson at all. Null
     # means enabled (same "unset = working default" convention as every
     # other field here) -- see app/exercises/__init__.py.
@@ -37,31 +30,21 @@ class ExerciseSettingsIn(BaseModel):
     wrong_letter_count: int | None = Field(default=None, ge=0, le=20)
     min_word_length: int | None = Field(default=None, ge=1, le=50)
     case_sensitive: bool | None = None
-    correct_points: int | None = Field(default=None, ge=0, le=100)
-    incorrect_points: int | None = Field(default=None, ge=0, le=100)
     enabled: bool | None = None
     option_count: int | None = Field(default=None, ge=2, le=10)
     speech_match_threshold: int | None = Field(default=None, ge=0, le=100)
 
 
 class ExercisePointsOut(BaseModel):
-    """What one right or wrong answer does to a word's score in this exercise."""
-
     correct: int
     incorrect: int
 
 
 class ExerciseScoringOut(BaseModel):
-    """The scoring rules the phone mirrors to score a lesson by itself when
-    there is no network -- downloaded when the lesson is prepared.
-
-    These numbers only decide what the user SEES immediately. The server still
-    recomputes every score from the answers it is sent, and its result is the
-    one that counts (app/routers/lessons.py): a phone claiming more than it
-    answered changes nothing."""
+    """Only for app builds from the offline-lesson period: words have no
+    points any more, so every value is 0."""
 
     points: dict[str, ExercisePointsOut]
-    # The score a word needs to count as learned (the top enabled level).
     threshold: int
 
 

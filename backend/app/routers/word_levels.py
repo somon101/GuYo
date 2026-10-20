@@ -17,16 +17,13 @@ router = APIRouter(prefix="/word-levels", tags=["word-levels"])
 
 @router.get("", response_model=list[WordLevelOut])
 def list_word_levels(db: Session = Depends(get_db), _user=Depends(get_current_user)):
-    """Enabled levels only, lowest score-range first -- the same ordering
+    """Enabled levels only, weakest memory first -- the same ordering
     used to determine a word's level in the first place (see
     app/word_levels/service.py's ordered_enabled_levels), so a client
     coloring a red-to-green gradient by this list's own index is always
     consistent with which level a word is actually shown as."""
     levels = ordered_enabled_levels(db)
     return [
-        WordLevelOut(
-            id=level.id, name=level.name, min_points=level.min_points, max_points=level.max_points, min_days=level.min_days,
-            order=level.order, enabled=level.enabled, priority_weight=level.priority_weight,
-        )
+        WordLevelOut(id=level.id, name=level.name, min_days=level.min_days, order=level.order, enabled=level.enabled)
         for level in levels
     ]

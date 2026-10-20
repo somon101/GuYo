@@ -56,15 +56,12 @@ def _translation(word: Word) -> str | None:
 
 
 def _settings(db: Session) -> dict:
-    from app.exercises.common import get_threshold
     from app.memory.review_lists import MAX_OPEN_LISTS, list_size
     from app.priority.settings import get_priority_settings
 
     s = get_priority_settings(db)
     return {
-        "memory_enabled": s.memory_enabled,
         "target": s.memory_target_retention,
-        "learned_threshold": get_threshold(db),
         "list_size": list_size(db),
         "max_open_lists": MAX_OPEN_LISTS,
     }
@@ -141,7 +138,6 @@ def _attempt_out(a: WordAttempt, lessons: dict, phrases: dict, minis: dict) -> d
         "timed_out": a.timed_out,
         "given_answer": a.given_answer,
         "duration_ms": a.duration_ms,
-        "score_after": a.score_after,
         "source": "review" if a.review_list_id is not None else a.source,
         "review_list_id": a.review_list_id,
         "lesson_id": a.lesson_id,
@@ -210,7 +206,6 @@ def get_memory_word(
             "difficulty_at_entry": e.difficulty,
             "last_review_at_entry": e.last_review,
             "review_days_at_entry": e.review_days,
-            "score_at_entry": e.score,
             "done_at": e.done_at,
         }
         for e, rl in entries
@@ -235,7 +230,6 @@ def get_memory_word(
         "translation": _translation(word),
         "settings": settings,
         "state": {
-            "score": 100 if progress is not None and progress.mastered_at is not None else 0,
             "learned": progress is not None and progress.mastered_at is not None,
             "learned_at": progress.mastered_at if progress is not None else None,
             "recall_now": recall_probability(progress, now) if progress is not None else None,

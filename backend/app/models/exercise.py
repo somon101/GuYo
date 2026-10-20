@@ -23,13 +23,6 @@ class ExerciseSettings(Base):
     exercise_key, same as any other exercise-specific setting a future one
     might need.
 
-    `correct_points`/`incorrect_points` are how much a right/wrong answer
-    to this exercise moves a word's WordProgress.score (see
-    app/models/word_progress.py) -- e.g. Сопоставление +20/-10, Правда или
-    ложь +10/-5. Nullable with a code-level default per exercise_key (see
-    app/exercises/common.py), same reasoning as the three columns above:
-    an admin can leave these unset and the exercise still works.
-
     `enabled` gates whether this exercise_key can ever be picked for a new
     Lesson at all (see app/exercises/__init__.py's EXERCISE_TYPES dispatch)
     -- null/true means enabled, same nullable-defaults-to-working pattern
@@ -47,8 +40,6 @@ class ExerciseSettings(Base):
     wrong_letter_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     min_word_length: Mapped[int | None] = mapped_column(Integer, nullable=True)
     case_sensitive: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
-    correct_points: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    incorrect_points: Mapped[int | None] = mapped_column(Integer, nullable=True)
     enabled: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     option_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     speech_match_threshold: Mapped[int | None] = mapped_column(Integer, nullable=True)

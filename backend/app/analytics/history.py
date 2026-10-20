@@ -69,7 +69,6 @@ def build_history(db: Session, user_id: int, days: int) -> dict:
                 "given_answer": a.given_answer,
                 "timed_out": a.timed_out,
                 "duration_ms": a.duration_ms,
-                "score_after": a.score_after,
                 "lesson_id": a.lesson_id,
                 "lesson_number": lesson_numbers.get(a.lesson_id),
             }

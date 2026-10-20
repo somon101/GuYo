@@ -17,15 +17,8 @@ import type { PriorityLevelBand, PrioritySettings } from "../types";
 const inputClass =
   "field px-3 py-2 text-sm";
 
-/** Every number app/priority/calculate.py reads on the backend, in one
- * place: the 4 factor weights + the 3 recent-error window weights (one
- * settings row), then the three range-based band lists (давность,
- * стабильность, итоговый Priority Level) — same range+contribution+order
- * shape WordLevelsSettingsPage already uses for word levels, whose own
- * "вклад в Priority" field lives on that page instead of here (one admin
- * decision, one place to make it). Nothing here is business math anyone
- * has signed off on — every value shown was seeded as a starting example
- * and is meant to be tuned. */
+/** Priority settings: the memory model's cut-offs, auto-quests and
+ * auto-lessons (one settings row), then the named Priority levels. */
 export function PrioritySettingsPage() {
   return (
     <div className="mx-auto max-w-3xl">
@@ -212,7 +205,7 @@ function WeightsSection() {
   );
 }
 
-// --- Давность ------------------------------------------------------------
+// --- Уровни Priority -----------------------------------------------------
 
 function LevelBandsSection() {
   const [bands, setBands] = useState<PriorityLevelBand[]>([]);

@@ -4,8 +4,6 @@ import {
   getPrioritySettings,
   getWordDiagnostics,
   listPriorityLevelBands,
-  listRecencyBands,
-  listStabilityBands,
 } from "../api/endpoints";
 import {
   ActivityOverTimeChart,
@@ -19,9 +17,7 @@ import { InfoTooltip } from "../components/InfoTooltip";
 import { PRIORITY_ROLE_EFFECTS, priorityRoleBands } from "../lib/priorityRoles";
 import type {
   PriorityLevelBand,
-  PriorityRecencyBand,
   PrioritySettings,
-  PriorityStabilityBand,
   WordAttempt,
   WordDiagnostics,
 } from "../types";
@@ -32,8 +28,6 @@ import type {
  * ../api/endpoints.ts), never re-derived or hardcoded here. */
 interface PriorityConfig {
   settings: PrioritySettings;
-  recencyBands: PriorityRecencyBand[];
-  stabilityBands: PriorityStabilityBand[];
   levelBands: PriorityLevelBand[];
 }
 
@@ -66,7 +60,7 @@ function dayBucketKey(iso: string): string {
   return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
 }
 
-/** «Диагностика слова»: WordProgress (level/score, re-derived fresh, never
+/** «Диагностика слова»: WordProgress (level / learned, re-derived fresh, never
  * cached) plus every WordAttempt this (user, word) pair has, already
  * aggregated by the backend — see GET /admin/analytics/users/{id}/words/
  * {wordId}. This page only renders what it's given; no total, average or
@@ -90,8 +84,8 @@ export function WordDiagnosticsPage() {
     // Config for the explanatory tooltips — not required for the page's
     // own numbers (those all come from getWordDiagnostics above), so a
     // failure here just means tooltips fall back to their generic text.
-    Promise.all([getPrioritySettings(), listRecencyBands(), listStabilityBands(), listPriorityLevelBands()])
-      .then(([settings, recencyBands, stabilityBands, levelBands]) => setConfig({ settings, recencyBands, stabilityBands, levelBands }))
+    Promise.all([getPrioritySettings(), listPriorityLevelBands()])
+      .then(([settings, levelBands]) => setConfig({ settings, levelBands }))
       .catch(() => {});
   }, [userId, wordId]);
 
@@ -142,39 +136,17 @@ export function WordDiagnosticsPage() {
 
       <Section title="Общая статистика">
         <div className="grid grid-cols-3 gap-3">
-          <StatCard
-            label="Попытки"
-            value={data.total_attempts}
-            tooltip={
-              <InfoTooltip label="Влияют ли попытки на Priority">
-                Само количество попыток НЕ добавляет Priority-баллы напрямую — оно влияет только косвенно, через
-                факторы «Недавние ошибки» и «Стабильность», которым эта история нужна, чтобы вообще было что считать.
-              </InfoTooltip>
-            }
-          />
+          <StatCard label="Попытки" value={data.total_attempts} />
           <StatCard label="Правильные" value={data.total_correct} valueClassName="text-emerald-600" />
-          <StatCard
-            label="Ошибки"
-            value={data.total_errors}
-            valueClassName="text-red-600"
-            tooltip={
-              <InfoTooltip label="Как считаются ошибки">
-                Все ошибки за всё время, по всем упражнениям вместе. В Priority Score напрямую не идёт — используется
-                только через факторы «Недавние ошибки» (последние 5/10/20 попыток) и «Стабильность». Разбивка по
-                упражнениям ниже — та же самая история, просто сгруппированная по типу, а не отдельный счётчик.
-              </InfoTooltip>
-            }
-          />
+          <StatCard label="Ошибки" value={data.total_errors} valueClassName="text-red-600" />
         </div>
       </Section>
 
       <Section
         title="Упражнения"
         titleExtra={
-          <InfoTooltip label="Учитываются ли ошибки по упражнениям в Priority">
-            Показывает, в каком именно упражнении слово даётся тяжелее всего — чисто для диагностики, чтобы понять
-            характер проблемы. Эти же ошибки уже один раз учтены в факторе «Недавние ошибки» (по всем упражнениям
-            вместе); здесь они не прибавляются к Priority Score повторно.
+          <InfoTooltip label="Что показывает разбивка по упражнениям">
+            В каком именно упражнении слово даётся тяжелее всего — для диагностики и персональных квестов.
           </InfoTooltip>
         }
       >
@@ -266,19 +238,8 @@ export function WordDiagnosticsPage() {
   );
 }
 
-/** Count of wrong answers among the LAST `window` attempts, oldest-first
- * `history` sliced from the end — pure display arithmetic (a count, not
- * a weighted score) backing the "Недавние ошибки" tooltip with this
- * word's real numbers; the actual weighted contribution always comes
- * from the backend's own recent_errors_contribution, never re-derived
- * here. */
-function recentErrorCount(history: WordAttempt[], window: number): { errors: number; total: number } {
-  const recent = history.slice(-window);
-  return { errors: recent.filter((a) => !a.is_correct).length, total: recent.length };
-}
-
-/** The "at a glance" diagnostic block: level, score/range, Priority and
- * its 4 factors, and when this word was last touched — the facts an
+/** The "at a glance" diagnostic block: level, learned, Priority (from the
+ * memory model), and when this word was last touched — the facts an
  * admin wants before reading the detailed sections below. */
 function DiagnosticsPanel({ data, config }: { data: WordDiagnostics; config: PriorityConfig | null }) {
 
@@ -287,12 +248,7 @@ function DiagnosticsPanel({ data, config }: { data: WordDiagnostics; config: Pri
     ? PRIORITY_ROLE_EFFECTS.find((r) => roles[r.key]?.id === data.priority_level!.id)
     : undefined;
 
-  const e5 = recentErrorCount(data.history, 5);
-  const e10 = recentErrorCount(data.history, 10);
-  const e20 = recentErrorCount(data.history, 20);
-
-  const stabilityWindow = config?.settings.stability_window ?? null;
-  const stabilityRecent = stabilityWindow != null ? data.history.slice(-stabilityWindow) : [];
+  const recall = data.recall_probability;
 
   return (
     <div className="mb-6 card p-4">
@@ -319,7 +275,7 @@ function DiagnosticsPanel({ data, config }: { data: WordDiagnostics; config: Pri
         </div>
         <div>
           <div className="text-xs text-slate-500">Изучено</div>
-          <div className="font-medium text-slate-900">{data.score >= 100 ? "Да — навсегда в «Моих словах»" : "Ещё нет"}</div>
+          <div className="font-medium text-slate-900">{data.is_learned ? "Да — навсегда в «Моих словах»" : "Ещё нет"}</div>
         </div>
         <div>
           <div className="text-xs text-slate-500">Последняя попытка</div>
@@ -337,18 +293,11 @@ function DiagnosticsPanel({ data, config }: { data: WordDiagnostics; config: Pri
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
             Priority
             <InfoTooltip label="Как считается Priority">
-              <p className="mb-2 font-medium text-slate-900">
-                {data.level_contribution} + {data.recent_errors_contribution} + {data.recency_contribution} +{" "}
-                {data.stability_contribution} = {data.priority_score.toFixed(1)}
+              <p className="mb-2">
+                Priority — шанс, что слово уже забыто: 100 − вероятность вспомнить его сейчас
+                {recall != null ? ` (сейчас ${Math.round(recall * 100)}%)` : ""}. Её считает модель памяти по истории
+                ответов; уровень Priority выбирается по порогам на странице «Приоритет».
               </p>
-              <TooltipFacts
-                rows={[
-                  { label: "Уровень слова", value: data.level_contribution },
-                  { label: "Недавние ошибки", value: data.recent_errors_contribution },
-                  { label: "Давность контакта", value: data.recency_contribution },
-                  { label: "Стабильность", value: data.stability_contribution },
-                ]}
-              />
               <p className="mt-2">
                 Итог попадает в диапазон «{data.priority_level?.name ?? "—"}»
                 {currentRoleEffect ? ` (роль «${currentRoleEffect.label}») — ${currentRoleEffect.effect}.` : "."}
@@ -363,59 +312,13 @@ function DiagnosticsPanel({ data, config }: { data: WordDiagnostics; config: Pri
         </div>
         <div>
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            Недавние ошибки
-            <InfoTooltip label="Как считаются недавние ошибки">
-              <p className="mb-2">
-                Доля ошибок отдельно в последних 5, 10 и 20 попытках, взвешенная по настроенным весам окон — чем
-                больше вес у меньшего окна, тем сильнее свежие результаты перевешивают старые.
-              </p>
-              <TooltipFacts
-                rows={[
-                  { label: "Последние 5", value: `${e5.errors}/${e5.total} ошибок` },
-                  { label: "Последние 10", value: `${e10.errors}/${e10.total} ошибок` },
-                  { label: "Последние 20", value: `${e20.errors}/${e20.total} ошибок` },
-                ]}
-              />
-              <p className="mt-2">Вклад в Priority: {data.recent_errors_contribution}.</p>
-            </InfoTooltip>
-          </div>
-          <div className="font-medium text-slate-900">{data.recent_errors_contribution}</div>
-        </div>
-        <div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            Стабильность
-            <InfoTooltip label="Как считается стабильность">
-              <p className="mb-2">
-                {stabilityWindow != null
-                  ? `Среди последних ${stabilityWindow} попыток по этому слову ${stabilityRecent.filter((a) => a.is_correct).length} правильных из ${stabilityRecent.length} → ${data.stability_percent ?? "—"}%.`
-                  : `Процент правильных среди последних попыток → ${data.stability_percent ?? "—"}%.`}
-              </p>
-              {data.stability_level && (
-                <p>
-                  Это попадает в диапазон «{data.stability_level.name}», вклад в Priority: {data.stability_contribution}.
-                </p>
-              )}
-            </InfoTooltip>
-          </div>
-          <div className="font-medium text-slate-900">
-            {data.stability_percent != null ? `${Math.round(data.stability_percent)}%` : "—"}
-            {data.stability_level && <span className="ml-1 font-normal text-slate-400">({data.stability_level.name})</span>}
-          </div>
-        </div>
-        <div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
             Давность контакта
             <InfoTooltip label="Как считается давность">
               <p className="mb-2">
                 {data.days_since_last_attempt == null
                   ? "По этому слову ещё не было попыток — давность не считается."
-                  : `С последней попытки прошло ${data.days_since_last_attempt} дн. Чем больше пройдёт времени без новой попытки, тем выше станет этот вклад — даже без единой новой попытки, просто при следующем пересчёте.`}
+                  : `С последней попытки прошло ${data.days_since_last_attempt} дн. Чем дольше без повторения, тем ниже вероятность вспомнить и выше Priority.`}
               </p>
-              {data.recency_level && (
-                <p className="mt-2">
-                  Это попадает в диапазон «{data.recency_level.name}», вклад в Priority: {data.recency_contribution}.
-                </p>
-              )}
             </InfoTooltip>
           </div>
           <div className="font-medium text-slate-900">
@@ -424,19 +327,6 @@ function DiagnosticsPanel({ data, config }: { data: WordDiagnostics; config: Pri
         </div>
       </div>
     </div>
-  );
-}
-
-function TooltipFacts({ rows }: { rows: { label: string; value: React.ReactNode }[] }) {
-  return (
-    <dl className="flex flex-col gap-1">
-      {rows.map((r, i) => (
-        <div key={i} className="flex items-baseline justify-between gap-3">
-          <dt className="text-slate-500">{r.label}</dt>
-          <dd className="font-medium text-slate-900">{r.value}</dd>
-        </div>
-      ))}
-    </dl>
   );
 }
 

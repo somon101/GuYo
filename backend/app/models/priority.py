@@ -1,15 +1,6 @@
-"""Priority: an analytics layer computed ON TOP of WordProgress/WordLevel/
-WordAttempt -- never a second progress system. Nothing here is read by
-scoring, levels, achievements or rating; app/priority/ is the only code
-that reads these tables, and it never writes to WordProgress/WordLevel's
-own score columns either.
-
-Every number an admin can tune lives in one of the four tables below.
-None of it is business math decided once and for all -- the seed values
-in the migration are explicitly starting examples (see that migration's
-own docstring), not a formula anyone signed off on. app/priority/
-calculate.py reads every threshold and weight from these rows; it never
-hardcodes one.
+"""Priority: an analytics layer computed ON TOP of WordProgress -- never a
+second progress system. app/priority/calculate.py maps the memory model's
+recall probability onto these named levels using the settings row below.
 """
 
 from datetime import datetime
@@ -24,29 +15,12 @@ class PrioritySettings(Base):
     """Single-row table (always id=1), same idiom as RatingSettings/
     LearningSettings -- created lazily with defaults on first read.
 
-    Holds the two things that don't belong to any one band list: how much
-    each of the 4 factors (word level, recent errors, recency, stability)
-    counts relative to the others, and how much each of the 3 fixed
-    recent-error windows (last 5 / last 10 / last 20 attempts) counts
-    relative to each other within the "recent errors" factor."""
+    Holds the memory model's cut-offs and the auto-quest / auto-lesson
+    numbers."""
 
     __tablename__ = "priority_settings"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-
-    weight_level: Mapped[float] = mapped_column(Float, nullable=False, default=1.0, server_default="1")
-    weight_recent_errors: Mapped[float] = mapped_column(Float, nullable=False, default=1.0, server_default="1")
-    weight_recency: Mapped[float] = mapped_column(Float, nullable=False, default=1.0, server_default="1")
-    weight_stability: Mapped[float] = mapped_column(Float, nullable=False, default=1.0, server_default="1")
-
-    window5_weight: Mapped[float] = mapped_column(Float, nullable=False, default=1.0, server_default="1")
-    window10_weight: Mapped[float] = mapped_column(Float, nullable=False, default=0.6, server_default="0.6")
-    window20_weight: Mapped[float] = mapped_column(Float, nullable=False, default=0.3, server_default="0.3")
-
-    # How many of the most recent attempts the stability factor looks at
-    # (the spec's own examples all use 10, but nothing says it must stay
-    # fixed -- kept here rather than hardcoded in app/priority/calculate.py).
-    stability_window: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
 
     # Personal auto-quests (see app/priority/quests_auto.py): a word counts
     # as "weak" in one exercise if it has at least this many attempts
@@ -72,10 +46,9 @@ class PrioritySettings(Base):
     # sooner.
     adaptive_lesson_min_words: Mapped[int] = mapped_column(Integer, nullable=False, default=5, server_default="5")
 
-    # The memory model (app/memory/). When on, a word's Priority level comes
-    # from its recall probability R instead of the four-factor score, and a
-    # learned word whose R fell below the target needs review again.
-    memory_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    # The memory model (app/memory/): a word's Priority level comes from its
+    # recall probability R, and a learned word whose R fell below the target
+    # needs review again.
     memory_target_retention: Mapped[float] = mapped_column(Float, nullable=False, default=0.9, server_default="0.9")
     memory_critical_below: Mapped[float] = mapped_column(Float, nullable=False, default=0.7, server_default="0.7")
     memory_high_below: Mapped[float] = mapped_column(Float, nullable=False, default=0.85, server_default="0.85")
@@ -87,59 +60,12 @@ class PrioritySettings(Base):
     )
 
 
-class PriorityRecencyBand(Base):
-    """One "haven't touched this word in N days" band -- exact same shape
-    as WordLevel (a range + a contribution + admin display order), just
-    over days-since-last-attempt instead of score. `max_days=None` means
-    no upper bound (the "11+ days" band)."""
-
-    __tablename__ = "priority_recency_bands"
-    __table_args__ = (
-        CheckConstraint("max_days IS NULL OR max_days >= min_days", name="ck_priority_recency_range_valid"),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    min_days: Mapped[int] = mapped_column(Integer, nullable=False)
-    max_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    contribution: Mapped[float] = mapped_column(Float, nullable=False, default=0, server_default="0")
-    order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
-    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
-
-
-class PriorityStabilityBand(Base):
-    """One "how steady are the recent results" band, by percent correct
-    among the last-N attempts considered (see app/priority/calculate.py).
-    Same range+contribution+order shape as every other band table here."""
-
-    __tablename__ = "priority_stability_bands"
-    __table_args__ = (
-        CheckConstraint("max_percent >= min_percent", name="ck_priority_stability_range_valid"),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    min_percent: Mapped[int] = mapped_column(Integer, nullable=False)
-    max_percent: Mapped[int] = mapped_column(Integer, nullable=False)
-    contribution: Mapped[float] = mapped_column(Float, nullable=False, default=0, server_default="0")
-    order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
-    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
-
-
 class PriorityLevelBand(Base):
-    """Maps a computed Priority Score to one of the five named levels
+    """Maps a word's Priority to one of the five named levels
     (Критический / Высокий / Средний / Низкий / Минимальный, though the
     names themselves are this table's own data, never hardcoded) --
-    same range+order shape as WordLevel, over the Priority Score's own
-    scale rather than WordProgress.score."""
+    ranked by min_score; app/priority/settings.py's priority_role_bands
+    gives each rank its role."""
 
     __tablename__ = "priority_level_bands"
     __table_args__ = (

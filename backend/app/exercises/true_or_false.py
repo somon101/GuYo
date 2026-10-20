@@ -21,15 +21,15 @@ from app.core.content_language import primary_translation
 KEY = "true_or_false"
 
 
-def is_available(db: Session, user: User, dictionary_id: int, lesson_word_ids: list[int], threshold: int) -> bool:
+def is_available(db: Session, user: User, dictionary_id: int, lesson_word_ids: list[int]) -> bool:
     """Requires at least one PREVIOUSLY learned word (never this lesson's
     own words) to draw wrong-answer candidates from."""
-    return len(get_learned_pool(db, user.id, dictionary_id, threshold)) >= 1
+    return len(get_learned_pool(db, user.id, dictionary_id)) >= 1
 
 
-def build_round(db: Session, lesson: Lesson, threshold: int) -> TrueOrFalseRoundOut:
-    lesson_words = [w for w in lesson_words_pending(db, lesson, threshold) if w.translations]
-    learned_pool = get_learned_pool(db, lesson.user_id, lesson.dictionary_id, threshold)
+def build_round(db: Session, lesson: Lesson) -> TrueOrFalseRoundOut:
+    lesson_words = [w for w in lesson_words_pending(db, lesson) if w.translations]
+    learned_pool = get_learned_pool(db, lesson.user_id, lesson.dictionary_id)
 
     def primary_text(word: Word) -> str:
         return primary_translation(word).text

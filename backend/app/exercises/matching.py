@@ -12,12 +12,12 @@ from app.schemas.exercise import ExerciseWordsOut
 KEY = "matching"
 
 
-def is_available(db: Session, user: User, dictionary_id: int, lesson_word_ids: list[int], threshold: int) -> bool:
+def is_available(db: Session, user: User, dictionary_id: int, lesson_word_ids: list[int]) -> bool:
     return len(lesson_word_ids) >= 2
 
 
-def build_round(db: Session, lesson: Lesson, threshold: int) -> ExerciseWordsOut:
-    words = [w for w in lesson_words_pending(db, lesson, threshold) if w.translations]
+def build_round(db: Session, lesson: Lesson) -> ExerciseWordsOut:
+    words = [w for w in lesson_words_pending(db, lesson) if w.translations]
     return ExerciseWordsOut(
         dictionary_id=lesson.dictionary_id,
         exercise_key=KEY,

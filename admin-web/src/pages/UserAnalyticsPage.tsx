@@ -164,7 +164,7 @@ export function UserAnalyticsPage() {
 
 /** Every Word this user has EVER attempted in this dictionary (a
  * WordProgress row exists for it) — the picker for «Диагностика слова».
- * Level/score/attempt-count are already computed server-side; this only
+ * Level/learned/attempt-count are already computed server-side; this only
  * lists and links them. */
 function WordsSection({ userId, words }: { userId: number; words: UserWordProgress[] }) {
   const [showAll, setShowAll] = useState(false);
@@ -197,7 +197,7 @@ function WordsSection({ userId, words }: { userId: number; words: UserWordProgre
               </div>
               <div className="flex shrink-0 items-center gap-3 text-xs">
                 <span className="text-slate-400">{w.total_attempts} попыт.</span>
-                <span className="font-medium text-slate-600">{w.score >= 100 ? "изучено" : "в процессе"}</span>
+                <span className="font-medium text-slate-600">{w.is_learned ? "изучено" : "в процессе"}</span>
                 <span
                   className={`rounded-full border px-2 py-0.5 font-medium ${
                     w.level ? "border-indigo-200 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-slate-50 text-slate-500"
@@ -233,7 +233,6 @@ function StatCards({ data }: { data: UserPhraseAnalytics }) {
     { label: "Слов изучено", value: `${data.learned_word_count} / ${data.total_word_count}` },
     { label: "Фраз открыто", value: `${data.open_phrase_count} / ${data.total_phrase_count}` },
     { label: "Осталось открыть", value: `${data.remaining_phrase_count}` },
-    { label: "Порог изучения слова", value: `${data.threshold}` },
   ];
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

@@ -117,35 +117,6 @@ export function ActivityOverTimeChart({
   );
 }
 
-/** The word's score right after each attempt, as a simple step line --
- * exactly what WordAttempt.score_after already records, point for point,
- * never interpolated or smoothed. */
-export function ScoreOverTimeChart({ points }: { points: { label: string; score: number }[] }) {
-  if (points.length === 0) return null;
-  const width = 640;
-  const height = 140;
-  const pad = 8;
-  const stepX = points.length > 1 ? (width - pad * 2) / (points.length - 1) : 0;
-  const y = (score: number) => pad + (1 - score / 100) * (height - pad * 2);
-
-  const path = points.map((p, i) => `${i === 0 ? "M" : "L"} ${pad + i * stepX} ${y(p.score)}`).join(" ");
-
-  return (
-    <div className="overflow-x-auto">
-      <svg width={width} height={height} role="img">
-        {/* Reference lines at 0/50/100 */}
-        {[0, 50, 100].map((v) => (
-          <line key={v} x1={pad} x2={width - pad} y1={y(v)} y2={y(v)} strokeWidth={1} style={{ stroke: TRACK }} />
-        ))}
-        <path d={path} fill="none" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" style={{ stroke: INDIGO }} />
-        {points.map((p, i) => (
-          <circle key={i} cx={pad + i * stepX} cy={y(p.score)} r={2.5} style={{ fill: INDIGO }} />
-        ))}
-      </svg>
-    </div>
-  );
-}
-
 /** One value per day as columns. A single series, so there is no legend --
  * the section title names what is plotted. Built from flex columns rather
  * than a fixed-width SVG so it fills any card width, down to a phone. The

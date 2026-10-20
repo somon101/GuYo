@@ -1,6 +1,6 @@
 """The ONE reusable mechanism that decides "has this user now earned any
 new achievements" -- called after any event that could move a
-condition_type's measured value (a word crossing the learned threshold for
+condition_type's measured value (a word becoming learned for
 phrases_opened/words_learned, a lesson becoming fully completed for
 lessons_completed, today's first recorded activity for streak_days -- see
 the call sites in app/routers/lessons.py and app/achievements/streak.py).

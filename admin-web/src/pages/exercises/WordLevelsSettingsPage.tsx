@@ -11,11 +11,9 @@ import {
 } from "../../api/endpoints";
 import type { WordLevel } from "../../types";
 
-// Replaces the old single "Проходной порог изучения слова" number with an
-// admin-defined ladder (see backend/app/word_levels/) -- the TOP enabled
-// level's own min_points becomes the new "word is learned" threshold
-// everywhere else in the app (Уроки completion, Мои слова, achievements,
-// rating). Nothing here is hardcoded in Flutter or backend logic.
+// The word-level ladder (backend/app/word_levels/): each level starts once
+// the memory model says a word holds this many days. Nothing here is
+// hardcoded in Flutter or backend logic.
 export function WordLevelsSettingsPage() {
   const [levels, setLevels] = useState<WordLevel[]>([]);
   const [isLoading, setIsLoading] = useState(true);

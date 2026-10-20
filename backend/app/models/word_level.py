@@ -1,51 +1,30 @@
-"""Word reinforcement levels: replaces the single global "learned
-threshold" (LearningSettings.threshold_score) with an admin-defined
-ladder. Mirrors app/models/rating.py's Rank exactly -- a definition table,
-never hardcoded level names/thresholds in Flutter or backend logic.
-
-The TOP enabled level (highest min_points) becomes the new "is this word
-learned" threshold -- see app/exercises/common.py's get_threshold(), whose
-call sites everywhere else are completely unchanged by this.
+"""Word levels: an admin-defined ladder a word climbs as the memory model
+says it is remembered longer (min_days). Names and cut-offs are this table's
+data, never hardcoded in Flutter or backend logic.
 """
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, Integer, String, func
+from sqlalchemy import Boolean, DateTime, Float, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 
 
 class WordLevel(Base):
-    """One level definition (e.g. "Закреплено", min_points=80) an admin
-    created. `max_points=None` means no upper bound (the top level).
-    `order` is the admin's own display ordering in Admin Web -- never
-    inferred from min_points, so ranges can be added/edited freely without
-    the list jumping around."""
+    """One level definition (e.g. "Закреплено", min_days=30) an admin
+    created. `order` is the admin's own display ordering in Admin Web."""
 
     __tablename__ = "word_levels"
-    __table_args__ = (
-        CheckConstraint("max_points IS NULL OR max_points >= min_points", name="ck_word_level_range_valid"),
-    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    min_points: Mapped[int] = mapped_column(Integer, nullable=False)
-    max_points: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # The memory-model ladder: a word is at this level while its memory
     # holds at least this many days (FSRS stability, app/memory/). Levels
-    # are ordered by it; points are no longer used.
+    # are ordered by it.
     min_days: Mapped[float] = mapped_column(Float, nullable=False, default=0, server_default="0")
     order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
-    # How much a word sitting at this level contributes to its own Priority
-    # Score (see app/priority/) -- a fresh word should push priority up,
-    # a consolidated one shouldn't. Admin-editable per level, on the SAME
-    # row as the level itself rather than a second lookup table, since a
-    # level and its priority weight are one admin decision, not two.
-    # Never read by anything in the existing score/threshold/achievement
-    # pipeline -- only app/priority/ looks at this column.
-    priority_weight: Mapped[float] = mapped_column(Float, nullable=False, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

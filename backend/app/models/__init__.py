@@ -23,7 +23,7 @@ from app.models.word import Word, WordForm, WordTopic, WordTranslation
 from app.models.word_level import WordLevel
 from app.models.word_progress import WordProgress
 from app.models.word_attempt import WordAttempt
-from app.models.priority import PrioritySettings, PriorityRecencyBand, PriorityStabilityBand, PriorityLevelBand
+from app.models.priority import PrioritySettings, PriorityLevelBand
 from app.models.api_key import ApiKey
 from app.models.notification import Notification, PushToken, ReminderRule, ReminderSettings, UserPrepState, UserStudyTime
 from app.models.quest import Quest, QuestWord, UserQuestWordDay
@@ -57,8 +57,6 @@ __all__ = [
     "WordProgress",
     "WordAttempt",
     "PrioritySettings",
-    "PriorityRecencyBand",
-    "PriorityStabilityBand",
     "PriorityLevelBand",
     "LearningSettings",
     "Achievement",

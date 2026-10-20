@@ -150,11 +150,11 @@ def memory_coverage(db: Session) -> tuple[int, int]:
     return modelled or 0, total or 0
 
 
-def secured_word_ids(db: Session, user_id: int, word_ids: list[int] | None, threshold: int = 0) -> set[int]:
+def secured_word_ids(db: Session, user_id: int, word_ids: list[int] | None) -> set[int]:
     """Words that need no more work in a lesson: the LEARNED ones
     (app/learning/mastery.py). Learned is for good -- a word the user is
     forgetting is reviewed through «Повторить сегодня» and Practice, it never
-    goes back into lessons. `threshold` is ignored (kept for old callers)."""
+    goes back into lessons."""
     from app.learning.mastery import learned_ids
 
     return learned_ids(db, user_id, word_ids)
@@ -167,8 +167,6 @@ def due_progress_rows(db: Session, user_id: int, dictionary_id: int) -> list[tup
     from app.priority.settings import get_priority_settings
 
     settings = get_priority_settings(db)
-    if not settings.memory_enabled:
-        return []
     now = utc_now()
     rows = (
         db.query(WordProgress)

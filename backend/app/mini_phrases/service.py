@@ -59,7 +59,7 @@ def get_mini_phrase_settings(db: Session) -> MiniPhraseSettings:
 # --- Choosing a lesson's mini-phrases ---------------------------------------
 
 
-def _learned_word_ids(db: Session, user_id: int, dictionary_id: int, threshold: int) -> set[int]:
+def _learned_word_ids(db: Session, user_id: int, dictionary_id: int) -> set[int]:
     rows = (
         db.query(WordProgress.word_id)
         .join(Word, Word.id == WordProgress.word_id)
@@ -70,7 +70,7 @@ def _learned_word_ids(db: Session, user_id: int, dictionary_id: int, threshold: 
 
 
 def select_for_lesson(
-    db: Session, user: User, dictionary_id: int, lesson_word_ids: list[int], threshold: int
+    db: Session, user: User, dictionary_id: int, lesson_word_ids: list[int]
 ) -> list[MiniPhrase]:
     """The mini-phrases a lesson with these words opens: every part's word is
     already learned or taught in this lesson, at least one of them IS from
@@ -85,7 +85,7 @@ def select_for_lesson(
     lesson_set = set(lesson_word_ids)
     if limit <= 0 or not lesson_set:
         return []
-    known = _learned_word_ids(db, user.id, dictionary_id, threshold) | lesson_set
+    known = _learned_word_ids(db, user.id, dictionary_id) | lesson_set
     done = {
         row[0]
         for row in db.query(UserMiniPhraseDone.mini_phrase_id).filter(UserMiniPhraseDone.user_id == user.id).all()
@@ -119,15 +119,15 @@ def select_for_lesson(
     return chosen
 
 
-def attach_to_lesson(db: Session, user: User, lesson: Lesson, lesson_word_ids: list[int], threshold: int) -> None:
-    for position, mp in enumerate(select_for_lesson(db, user, lesson.dictionary_id, lesson_word_ids, threshold)):
+def attach_to_lesson(db: Session, user: User, lesson: Lesson, lesson_word_ids: list[int]) -> None:
+    for position, mp in enumerate(select_for_lesson(db, user, lesson.dictionary_id, lesson_word_ids)):
         db.add(LessonMiniPhrase(lesson_id=lesson.id, mini_phrase_id=mp.id, position=position))
 
 
 # --- What the app shows -----------------------------------------------------
 
 
-def _distractors(db: Session, user: User, mp: MiniPhrase, count: int, threshold: int) -> list[dict]:
+def _distractors(db: Session, user: User, mp: MiniPhrase, count: int) -> list[dict]:
     if count <= 0:
         return []
     from app.exercises.common import get_learned_pool
@@ -139,7 +139,7 @@ def _distractors(db: Session, user: User, mp: MiniPhrase, count: int, threshold:
     language = mp.language or "ru"
     part_texts = {p.text.strip().lower() for p in mp.parts}
     pool = []
-    for word in get_learned_pool(db, user.id, mp.dictionary_id, threshold):
+    for word in get_learned_pool(db, user.id, mp.dictionary_id):
         if word.id in part_ids:
             continue
         entry = next((e for e in word.language_entries if e.language == language), None)
@@ -190,7 +190,7 @@ def _record_translation(db: Session, mp: MiniPhrase, reading: str) -> str | None
     return None
 
 
-def mini_phrase_out(db: Session, user: User, mp: MiniPhrase, threshold: int, *, with_distractors: bool = True) -> MiniPhraseOut:
+def mini_phrase_out(db: Session, user: User, mp: MiniPhrase, *, with_distractors: bool = True) -> MiniPhraseOut:
     translation = _record_translation(db, mp, content_language()) or mp.translation_tg
     parts = []
     for p in mp.parts:
@@ -221,18 +221,18 @@ def mini_phrase_out(db: Session, user: User, mp: MiniPhrase, threshold: int, *, 
         template_kind=template.kind if template is not None else KIND_ORDERED_PARTS,
         parts=parts,
         explanation=explanation,
-        distractors=_distractors(db, user, mp, count, threshold) if with_distractors else [],
+        distractors=_distractors(db, user, mp, count) if with_distractors else [],
     )
 
 
-def lesson_mini_phrases_out(db: Session, user: User, lesson: Lesson, threshold: int) -> list[MiniPhraseOut]:
+def lesson_mini_phrases_out(db: Session, user: User, lesson: Lesson) -> list[MiniPhraseOut]:
     rows = (
         db.query(LessonMiniPhrase)
         .filter(LessonMiniPhrase.lesson_id == lesson.id)
         .order_by(LessonMiniPhrase.position, LessonMiniPhrase.id)
         .all()
     )
-    return [mini_phrase_out(db, user, row.mini_phrase, threshold) for row in rows if row.mini_phrase.enabled]
+    return [mini_phrase_out(db, user, row.mini_phrase) for row in rows if row.mini_phrase.enabled]
 
 
 # --- Answers ----------------------------------------------------------------

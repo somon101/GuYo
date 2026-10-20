@@ -22,7 +22,6 @@ from app.core.storage import url_for_key
 from app.database import get_db
 from app.exercises.build_word import build_item as _build_word_item
 from app.exercises.build_word import get_build_word_settings as _get_build_word_settings
-from app.exercises.common import get_points, get_threshold
 from app.models.dictionary import Dictionary
 from app.models.exercise import ExerciseSettings
 from app.models.learning import LearnedWord
@@ -106,8 +105,6 @@ def get_exercise_settings(
         wrong_letter_count=settings.wrong_letter_count if settings else None,
         min_word_length=settings.min_word_length if settings else None,
         case_sensitive=settings.case_sensitive if settings else None,
-        correct_points=settings.correct_points if settings else None,
-        incorrect_points=settings.incorrect_points if settings else None,
         enabled=settings.enabled if settings else None,
         option_count=settings.option_count if settings else None,
         speech_match_threshold=settings.speech_match_threshold if settings else None,
@@ -130,8 +127,6 @@ def set_exercise_settings(
     settings.wrong_letter_count = payload.wrong_letter_count
     settings.min_word_length = payload.min_word_length
     settings.case_sensitive = payload.case_sensitive
-    settings.correct_points = payload.correct_points
-    settings.incorrect_points = payload.incorrect_points
     settings.enabled = payload.enabled
     settings.option_count = payload.option_count
     settings.speech_match_threshold = payload.speech_match_threshold
@@ -142,8 +137,6 @@ def set_exercise_settings(
         wrong_letter_count=payload.wrong_letter_count,
         min_word_length=payload.min_word_length,
         case_sensitive=payload.case_sensitive,
-        correct_points=payload.correct_points,
-        incorrect_points=payload.incorrect_points,
         enabled=payload.enabled,
         option_count=payload.option_count,
         speech_match_threshold=payload.speech_match_threshold,
@@ -159,20 +152,9 @@ def get_exercise_scoring(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """The rules behind every score the app shows, for scoring a lesson on the
-    phone with no network: how much a right and a wrong answer move a word's
-    score in each exercise, and the score that counts as learned.
-
-    Downloaded when a lesson is prepared (so the rules are always the ones in
-    force then) and mirrored on-device. Nothing here is trusted: the server
-    recomputes every score from the answers it receives (see
-    submit_answer/finish_lesson_pass), so a tampered app can only lie to
-    itself."""
-    points: dict[str, ExercisePointsOut] = {}
-    for key in LESSON_EXERCISE_KEYS:
-        correct, incorrect = get_points(db, key)
-        points[key] = ExercisePointsOut(correct=correct, incorrect=incorrect)
-    return ExerciseScoringOut(points=points, threshold=get_threshold(db))
+    """Words have no points any more; old builds only need the shape."""
+    points = {key: ExercisePointsOut(correct=0, incorrect=0) for key in LESSON_EXERCISE_KEYS}
+    return ExerciseScoringOut(points=points, threshold=0)
 
 
 @router.get("/dictionaries/{dictionary_id}/exercises/true-or-false", response_model=TrueOrFalseRoundOut)

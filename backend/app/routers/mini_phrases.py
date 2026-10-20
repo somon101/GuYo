@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from app.achievements import check_and_grant_achievements
 from app.core.deps import get_current_user
 from app.database import get_db
-from app.exercises.common import get_threshold
 from app.mini_phrases import award_points_once, check_answer, mark_done, mini_phrase_out
 from app.models.lesson import Lesson
 from app.models.mini_phrase import LessonMiniPhrase, MiniPhrase, UserMiniPhraseDone
@@ -39,8 +38,7 @@ def list_open_mini_phrases(dictionary_id: int, db: Session = Depends(get_db), us
         .order_by(UserMiniPhraseDone.created_at.desc(), MiniPhrase.id.desc())
         .all()
     )
-    threshold = get_threshold(db)
-    return [mini_phrase_out(db, user, mp, threshold) for mp in rows]
+    return [mini_phrase_out(db, user, mp) for mp in rows]
 
 
 @router.post("/mini-phrases/{mini_phrase_id}/answer", response_model=MiniPhraseAnswerOut)

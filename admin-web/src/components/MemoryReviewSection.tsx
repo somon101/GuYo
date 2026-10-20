@@ -38,7 +38,6 @@ export function MemoryReviewSection({ userId, dictionaryId }: { userId: number; 
           Список создаётся, когда набирается {data.settings.list_size} выученных слов с шансом вспомнить ниже{" "}
           {pct(data.settings.target)}; в очереди не больше {data.settings.max_open_lists}. Уроки список не меняют —
           слово уходит из него только после правильного ответа в повторении.
-          {!data.settings.memory_enabled && " Модель памяти сейчас выключена."}
         </p>
       )}
       {error ? (

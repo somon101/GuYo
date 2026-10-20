@@ -144,11 +144,6 @@ export interface ExerciseSettings {
   wrong_letter_count: number | null;
   min_word_length: number | null;
   case_sensitive: boolean | null;
-  // How much a right/wrong answer to this exercise moves a word's score
-  // within a lesson (see the "Уроки" system) -- null means "use this
-  // exercise's own built-in default".
-  correct_points: number | null;
-  incorrect_points: number | null;
   // Whether this exercise can be picked for a new Lesson at all. Null
   // means enabled -- same "unset = working default" convention as every
   // other field here.
@@ -209,7 +204,6 @@ export interface UserPhraseAnalytics {
   user_id: number;
   user_login: string;
   dictionary_id: number;
-  threshold: number;
   learned_word_count: number;
   total_word_count: number;
   open_phrase_count: number;
@@ -221,7 +215,7 @@ export interface UserPhraseAnalytics {
 }
 
 // --- Диагностика слова -------------------------------------------------
-// WordProgress (level/score) + WordAttempt (every real answer, in a
+// WordProgress (level / learned) + WordAttempt (every real answer, in a
 // Lesson or a Quest -- Practice writes none of this, see backend/app/
 // routers/practice.py). Every number here is already aggregated
 // server-side; this page only renders it.
@@ -229,9 +223,7 @@ export interface UserPhraseAnalytics {
 export interface WordLevelSummary {
   id: number;
   name: string;
-  min_points: number;
-  max_points: number | null;
-  priority_weight: number;
+  min_days: number;
 }
 
 export interface UserWordProgress {
@@ -239,7 +231,7 @@ export interface UserWordProgress {
   word: string;
   translation: string | null;
   dictionary_id: number;
-  score: number;
+  is_learned: boolean;
   level: WordLevelSummary | null;
   total_attempts: number;
   updated_at: string;
@@ -255,7 +247,6 @@ export interface ExerciseAttemptStats {
 export interface WordAttempt {
   exercise_key: string;
   is_correct: boolean;
-  score_after: number;
   created_at: string;
 }
 
@@ -265,7 +256,7 @@ export interface WordDiagnostics {
   word_id: number;
   word: string;
   translation: string | null;
-  score: number;
+  is_learned: boolean;
   level: WordLevelSummary | null;
   total_attempts: number;
   total_correct: number;
@@ -275,14 +266,9 @@ export interface WordDiagnostics {
   history: WordAttempt[];
   priority_score: number;
   priority_level: { id: number; name: string } | null;
-  stability_percent: number | null;
-  stability_level: { id: number; name: string } | null;
   days_since_last_attempt: number | null;
-  recency_level: { id: number; name: string } | null;
-  level_contribution: number;
-  recent_errors_contribution: number;
-  recency_contribution: number;
-  stability_contribution: number;
+  /** The memory model's chance of recalling the word right now (0-1). */
+  recall_probability: number | null;
   // Every exercise_key this word currently looks weak in (see
   // backend/app/priority/quests_auto.py) -- the same rule personal
   // auto-quests trigger on, surfaced here for one word.
@@ -375,42 +361,23 @@ export interface Season {
 }
 
 // --- Уровни слов и квесты -----------------------------------------------------
-// WordLevel replaces the old single "Проходной порог изучения слова" number
-// with an admin-defined ladder (app/word_levels/) -- the top enabled level's
-// min_points becomes the new "learned" threshold. Quests (app/quests/) are a
-// separate system again: reinforcement points stay on WordProgress (reused
-// from the exercise-settings points already configured per exercise_key),
-// only the rating reward is new.
+// WordLevel: an admin-defined ladder the memory model places words on
+// (app/word_levels/). Quests (app/quests/) grant only a rating reward.
 
 export interface WordLevel {
   id: number;
   name: string;
-  min_points: number;
-  max_points: number | null;
   /** The level starts once a word's memory holds this many days. */
   min_days: number;
   order: number;
   enabled: boolean;
-  // How much a word at this level contributes to its own Priority Score
-  // (see the "Приоритет" settings page) -- an analytics layer on top of
-  // this ladder, edited here alongside the level's own range.
-  priority_weight: number;
 }
 
 // --- Приоритет -------------------------------------------------------------
-// Every number app/priority/calculate.py reads on the backend, editable
-// here and nowhere else (see backend/app/priority/'s own module
-// docstring) -- word-level weights live on WordLevel itself, above.
+// Priority comes from the memory model (backend/app/priority/calculate.py);
+// these are its cut-offs plus the auto-quest / auto-lesson numbers.
 
 export interface PrioritySettings {
-  weight_level: number;
-  weight_recent_errors: number;
-  weight_recency: number;
-  weight_stability: number;
-  window5_weight: number;
-  window10_weight: number;
-  window20_weight: number;
-  stability_window: number;
   // Personal auto-quests (see backend/app/priority/quests_auto.py).
   personal_quest_min_attempts: number;
   personal_quest_weak_error_rate: number;
@@ -419,31 +386,10 @@ export interface PrioritySettings {
   personal_quest_reward_points: number;
   /** How many "critical" words must accumulate before an adaptive lesson is built automatically. */
   adaptive_lesson_min_words: number;
-  memory_enabled: boolean;
   memory_target_retention: number;
   memory_critical_below: number;
   memory_high_below: number;
   memory_minimal_above: number;
-}
-
-export interface PriorityRecencyBand {
-  id: number;
-  name: string;
-  min_days: number;
-  max_days: number | null;
-  contribution: number;
-  order: number;
-  enabled: boolean;
-}
-
-export interface PriorityStabilityBand {
-  id: number;
-  name: string;
-  min_percent: number;
-  max_percent: number;
-  contribution: number;
-  order: number;
-  enabled: boolean;
 }
 
 export interface PriorityLevelBand {

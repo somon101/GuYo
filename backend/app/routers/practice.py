@@ -31,7 +31,7 @@ from app.exercises.verify import judge
 from app.core.deps import get_current_user, require_current_app
 from app.database import get_db
 from app.exercises import build_word, listen_word, matching, speaking_word, true_or_false
-from app.exercises.common import get_learned_pool, get_threshold
+from app.exercises.common import get_learned_pool
 from app.models.dictionary import Dictionary
 from app.models.user import User
 from app.models.word import Word
@@ -66,14 +66,14 @@ def _get_dictionary_or_404(db: Session, dictionary_id: int) -> Dictionary:
 
 
 def _sample_feasible_words(
-    db: Session, user: User, dictionary_id: int, threshold: int, exercise_key: str, pool: list[Word]
+    db: Session, user: User, dictionary_id: int, exercise_key: str, pool: list[Word]
 ) -> tuple[list[Word], int]:
     """Feasibility-filters `pool` for `exercise_key` (mirrors each Lesson
     exercise module's own is_available, single-word) and returns a random
     sample of up to ROUND_SIZE of them, alongside how many were feasible
     in total -- the same "available_count vs len(items)" distinction every
     other round response already carries."""
-    feasible = [w for w in pool if is_quest_word_feasible(db, user, dictionary_id, threshold, exercise_key, w)]
+    feasible = [w for w in pool if is_quest_word_feasible(db, user, dictionary_id, exercise_key, w)]
     sample = feasible[:]
     random.shuffle(sample)
     return sample[:ROUND_SIZE], len(feasible)
@@ -84,10 +84,9 @@ def get_practice_true_or_false_round(
     dictionary_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
     _get_dictionary_or_404(db, dictionary_id)
-    threshold = get_threshold(db)
-    pool = get_learned_pool(db, user.id, dictionary_id, threshold)
-    selected, available_count = _sample_feasible_words(db, user, dictionary_id, threshold, true_or_false.KEY, pool)
-    items = [build_true_or_false_round(db, user, dictionary_id, threshold, w).items[0] for w in selected]
+    pool = get_learned_pool(db, user.id, dictionary_id)
+    selected, available_count = _sample_feasible_words(db, user, dictionary_id, true_or_false.KEY, pool)
+    items = [build_true_or_false_round(db, user, dictionary_id, w).items[0] for w in selected]
     return TrueOrFalseRoundOut(dictionary_id=dictionary_id, available_count=available_count, items=items)
 
 
@@ -98,8 +97,7 @@ def get_practice_matching_words(dictionary_id: int, db: Session = Depends(get_db
     have a translation by get_learned_pool) for the client to shuffle into
     a board -- the SAME MatchingBoard widget a Lesson uses to play one."""
     _get_dictionary_or_404(db, dictionary_id)
-    threshold = get_threshold(db)
-    pool = get_learned_pool(db, user.id, dictionary_id, threshold)
+    pool = get_learned_pool(db, user.id, dictionary_id)
     sample = pool[:]
     random.shuffle(sample)
     selected = sample[:ROUND_SIZE]
@@ -119,7 +117,6 @@ def get_practice_build_word_round(
     слова") -- any word of this dictionary with a translation, learned or
     not -- instead of a random sample of the learned ones."""
     _get_dictionary_or_404(db, dictionary_id)
-    threshold = get_threshold(db)
     if word_ids:
         pool = [
             w
@@ -127,8 +124,8 @@ def get_practice_build_word_round(
             if w.translations
         ]
     else:
-        pool = get_learned_pool(db, user.id, dictionary_id, threshold)
-    selected, available_count = _sample_feasible_words(db, user, dictionary_id, threshold, build_word.KEY, pool)
+        pool = get_learned_pool(db, user.id, dictionary_id)
+    selected, available_count = _sample_feasible_words(db, user, dictionary_id, build_word.KEY, pool)
     rounds = [build_build_word_round(db, dictionary_id, w) for w in selected]
     case_sensitive = rounds[0].case_sensitive if rounds else False
     items = [r.items[0] for r in rounds]
@@ -138,9 +135,8 @@ def get_practice_build_word_round(
 @router.get("/speaking-word", response_model=SpeakingWordRoundOut)
 def get_practice_speaking_word_round(dictionary_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     _get_dictionary_or_404(db, dictionary_id)
-    threshold = get_threshold(db)
-    pool = get_learned_pool(db, user.id, dictionary_id, threshold)
-    selected, available_count = _sample_feasible_words(db, user, dictionary_id, threshold, speaking_word.KEY, pool)
+    pool = get_learned_pool(db, user.id, dictionary_id)
+    selected, available_count = _sample_feasible_words(db, user, dictionary_id, speaking_word.KEY, pool)
     rounds = [build_speaking_word_round(db, dictionary_id, w) for w in selected]
     match_threshold = rounds[0].match_threshold if rounds else speaking_word.get_match_threshold(db)
     items = [r.items[0] for r in rounds]
@@ -150,10 +146,9 @@ def get_practice_speaking_word_round(dictionary_id: int, db: Session = Depends(g
 @router.get("/listen-word", response_model=ListenWordRoundOut)
 def get_practice_listen_word_round(dictionary_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     _get_dictionary_or_404(db, dictionary_id)
-    threshold = get_threshold(db)
-    pool = get_learned_pool(db, user.id, dictionary_id, threshold)
-    selected, available_count = _sample_feasible_words(db, user, dictionary_id, threshold, listen_word.KEY, pool)
-    items = [build_listen_word_round(db, user, dictionary_id, threshold, w).items[0] for w in selected]
+    pool = get_learned_pool(db, user.id, dictionary_id)
+    selected, available_count = _sample_feasible_words(db, user, dictionary_id, listen_word.KEY, pool)
+    items = [build_listen_word_round(db, user, dictionary_id, w).items[0] for w in selected]
     return ListenWordRoundOut(dictionary_id=dictionary_id, available_count=available_count, items=items)
 
 
@@ -206,7 +201,6 @@ def record_practice_answer(
         word_id=word.id,
         exercise_key=payload.exercise_key,
         is_correct=payload.is_correct,
-        score_after=0,
         source="practice",
         duration_ms=payload.duration_ms,
         timed_out=payload.timed_out,

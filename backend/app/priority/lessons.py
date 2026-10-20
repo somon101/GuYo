@@ -8,7 +8,6 @@ set instead of the user's own pick.
 
 from sqlalchemy.orm import Session
 
-from app.exercises.common import get_threshold
 from app.models.lesson import Lesson, LessonWord
 from app.models.user import User
 from app.models.word import Word
@@ -45,7 +44,7 @@ def _pending_word_ids_in_incomplete_adaptive_lessons(db: Session, user_id: int, 
     return {word_id for (word_id,) in rows}
 
 
-def pending_critical_words(db: Session, user_id: int, dictionary_id: int, threshold: int) -> list[tuple[Word, PriorityResult]]:
+def pending_critical_words(db: Session, user_id: int, dictionary_id: int) -> list[tuple[Word, PriorityResult]]:
     """Every word in this dictionary that:
     - the user has actually started (has a WordProgress row -- a word
       nobody has attempted yet is a Lesson's job to introduce, not this
@@ -70,7 +69,7 @@ def pending_critical_words(db: Session, user_id: int, dictionary_id: int, thresh
     )
     from app.memory import secured_word_ids
 
-    secured = secured_word_ids(db, user_id, [w.id for w in candidates], threshold)
+    secured = secured_word_ids(db, user_id, [w.id for w in candidates])
     candidates = [w for w in candidates if w.id not in secured]
 
     candidates = [word for word in candidates if word.id not in already_pending]
@@ -110,8 +109,7 @@ def maybe_create_adaptive_lesson(db: Session, user: User, dictionary_id: int) ->
     if _get_active_lesson(db, user.id, dictionary_id) is not None:
         return None
 
-    threshold = get_threshold(db)
-    candidates = pending_critical_words(db, user.id, dictionary_id, threshold)
+    candidates = pending_critical_words(db, user.id, dictionary_id)
     batch = get_priority_settings(db).adaptive_lesson_min_words or ADAPTIVE_LESSON_BATCH_SIZE
     if len(candidates) < batch:
         return None
@@ -122,4 +120,4 @@ def maybe_create_adaptive_lesson(db: Session, user: User, dictionary_id: int) ->
     word_ids = [word.id for word, _ in candidates[:batch]]
 
     dictionary = db.get(Dictionary, dictionary_id)
-    return build_lesson(db, user, dictionary, word_ids, threshold, is_adaptive=True)
+    return build_lesson(db, user, dictionary, word_ids, is_adaptive=True)

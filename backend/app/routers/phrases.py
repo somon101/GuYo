@@ -20,7 +20,7 @@ from app.models.phrase import Phrase, PhraseCategory, UserPhraseOpen
 from app.models.user import User
 from app.models.word import Word
 from app.models.word_progress import WordProgress
-from app.routers.lessons import _get_published_dictionary_or_404, _get_threshold
+from app.routers.lessons import _get_published_dictionary_or_404
 from app.routers.words import _add_audio_to_zip, _read_zip_audio
 from app.schemas.bulk import (
     ExportPhrase,
@@ -58,9 +58,8 @@ def _get_learned_word_tokens(db: Session, user_id: int, dictionary: Dictionary) 
     the dictionary's own language -- translation-language forms, e.g. "tg",
     describe a different language's grammar and are irrelevant to matching
     against `Phrase.original`, which is written in the dictionary's own
-    language). "Learned" reuses the exact same threshold-based definition
-    as /learned-words: WordProgress.score >= the admin's configured
-    threshold."""
+    language). "Learned" is the same as
+    /learned-words: WordProgress.mastered_at is set."""
     learned_words = (
         db.query(Word)
         .join(WordProgress, WordProgress.word_id == Word.id)

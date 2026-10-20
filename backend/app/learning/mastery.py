@@ -62,7 +62,7 @@ def progress_row(db: Session, user_id: int, word_id: int) -> WordProgress:
         db.query(WordProgress).filter(WordProgress.user_id == user_id, WordProgress.word_id == word_id).first()
     )
     if progress is None:
-        progress = WordProgress(user_id=user_id, word_id=word_id, score=0)
+        progress = WordProgress(user_id=user_id, word_id=word_id)
         db.add(progress)
         db.flush()
     return progress

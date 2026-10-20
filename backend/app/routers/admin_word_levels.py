@@ -1,7 +1,4 @@
-"""Admin Web's word-level ladder CRUD -- replaces the old single-number
-"Проходной порог изучения слова" page. Mirrors admin_rating.py's Rank
-endpoints (same overlap validation, same reorder endpoint shape), minus
-the icon/color fields Rank has and WordLevel doesn't need.
+"""Admin Web's word-level ladder CRUD: names and memory days per level.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -37,10 +34,7 @@ def _assert_days_free(db: Session, min_days: float, enabled: bool, exclude_id: i
 
 
 def _out(level: WordLevel) -> WordLevelOut:
-    return WordLevelOut(
-        id=level.id, name=level.name, min_points=level.min_points, max_points=level.max_points, min_days=level.min_days,
-        order=level.order, enabled=level.enabled, priority_weight=level.priority_weight,
-    )
+    return WordLevelOut(id=level.id, name=level.name, min_days=level.min_days, order=level.order, enabled=level.enabled)
 
 
 @router.get("", response_model=list[WordLevelOut])
@@ -51,13 +45,10 @@ def list_word_levels(db: Session = Depends(get_db), _admin=Depends(get_current_a
 
 @router.post("", response_model=WordLevelOut, status_code=status.HTTP_201_CREATED)
 def create_word_level(payload: WordLevelCreateIn, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
-    if payload.max_points is not None and payload.max_points < payload.min_points:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Верхняя граница меньше нижней")
     _assert_days_free(db, payload.min_days, payload.enabled)
 
     level = WordLevel(
-        name=payload.name.strip(), min_points=payload.min_points, max_points=payload.max_points,
-        min_days=payload.min_days, enabled=payload.enabled, order=payload.order, priority_weight=payload.priority_weight,
+        name=payload.name.strip(), min_days=payload.min_days, enabled=payload.enabled, order=payload.order,
     )
     db.add(level)
     db.commit()
@@ -78,30 +69,17 @@ def update_word_level(
 ):
     level = _get_level_or_404(db, level_id)
 
-    new_min = payload.min_points if payload.min_points is not None else level.min_points
-    if payload.clear_max_points:
-        new_max = None
-    elif payload.max_points is not None:
-        new_max = payload.max_points
-    else:
-        new_max = level.max_points
     new_enabled = payload.enabled if payload.enabled is not None else level.enabled
 
-    if new_max is not None and new_max < new_min:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Верхняя граница меньше нижней")
     _assert_days_free(
         db, payload.min_days if payload.min_days is not None else level.min_days, new_enabled, exclude_id=level.id
     )
 
     if payload.name is not None:
         level.name = payload.name.strip()
-    level.min_points = new_min
-    level.max_points = new_max
     level.enabled = new_enabled
     if payload.order is not None:
         level.order = payload.order
-    if payload.priority_weight is not None:
-        level.priority_weight = payload.priority_weight
     if payload.min_days is not None:
         level.min_days = payload.min_days
 

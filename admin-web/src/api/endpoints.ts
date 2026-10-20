@@ -26,9 +26,7 @@ import type {
   Phrase,
   PhraseCategory,
   PriorityLevelBand,
-  PriorityRecencyBand,
   PrioritySettings,
-  PriorityStabilityBand,
   Quest,
   Rank,
   RatingSettings,
@@ -577,11 +575,6 @@ export interface ExerciseSettingsInput {
   wrongLetterCount?: number | null;
   minWordLength?: number | null;
   caseSensitive?: boolean | null;
-  // How many points a right/wrong answer moves a word's score within a
-  // lesson -- every exercise has these. Omit to fall back to that
-  // exercise's own built-in default.
-  correctPoints?: number | null;
-  incorrectPoints?: number | null;
   // Whether this exercise can be picked for a new Lesson at all. Omit (or
   // null) to leave it enabled.
   enabled?: boolean | null;
@@ -601,8 +594,6 @@ export async function setExerciseSettings(
     wrong_letter_count: input.wrongLetterCount ?? null,
     min_word_length: input.minWordLength ?? null,
     case_sensitive: input.caseSensitive ?? null,
-    correct_points: input.correctPoints ?? null,
-    incorrect_points: input.incorrectPoints ?? null,
     enabled: input.enabled ?? null,
     option_count: input.optionCount ?? null,
     speech_match_threshold: input.speechMatchThreshold ?? null,
@@ -992,130 +983,6 @@ export async function updatePrioritySettings(
   input: PrioritySettings,
 ): Promise<PrioritySettings> {
   const { data } = await api.put("/admin/priority/settings", input);
-  return data;
-}
-
-export async function listRecencyBands(): Promise<PriorityRecencyBand[]> {
-  const { data } = await api.get("/admin/priority/recency-bands");
-  return data;
-}
-
-export interface RecencyBandInput {
-  name: string;
-  minDays: number;
-  maxDays: number | null;
-  contribution: number;
-  enabled: boolean;
-  order: number;
-}
-
-function recencyBandBody(input: RecencyBandInput) {
-  return {
-    name: input.name,
-    min_days: input.minDays,
-    ...(input.maxDays === null
-      ? { clear_max_days: true }
-      : { max_days: input.maxDays }),
-    contribution: input.contribution,
-    enabled: input.enabled,
-    order: input.order,
-  };
-}
-
-export async function createRecencyBand(
-  input: RecencyBandInput,
-): Promise<PriorityRecencyBand> {
-  const { data } = await api.post("/admin/priority/recency-bands", {
-    name: input.name,
-    min_days: input.minDays,
-    ...(input.maxDays !== null ? { max_days: input.maxDays } : {}),
-    contribution: input.contribution,
-    enabled: input.enabled,
-    order: input.order,
-  });
-  return data;
-}
-
-export async function updateRecencyBand(
-  id: number,
-  input: RecencyBandInput,
-): Promise<PriorityRecencyBand> {
-  const { data } = await api.patch(
-    `/admin/priority/recency-bands/${id}`,
-    recencyBandBody(input),
-  );
-  return data;
-}
-
-export async function deleteRecencyBand(id: number): Promise<void> {
-  await api.delete(`/admin/priority/recency-bands/${id}`);
-}
-
-export async function reorderRecencyBands(
-  ids: number[],
-): Promise<PriorityRecencyBand[]> {
-  const { data } = await api.put("/admin/priority/recency-bands/order", {
-    band_ids: ids,
-  });
-  return data;
-}
-
-export async function listStabilityBands(): Promise<PriorityStabilityBand[]> {
-  const { data } = await api.get("/admin/priority/stability-bands");
-  return data;
-}
-
-export interface StabilityBandInput {
-  name: string;
-  minPercent: number;
-  maxPercent: number;
-  contribution: number;
-  enabled: boolean;
-  order: number;
-}
-
-function stabilityBandBody(input: StabilityBandInput) {
-  return {
-    name: input.name,
-    min_percent: input.minPercent,
-    max_percent: input.maxPercent,
-    contribution: input.contribution,
-    enabled: input.enabled,
-    order: input.order,
-  };
-}
-
-export async function createStabilityBand(
-  input: StabilityBandInput,
-): Promise<PriorityStabilityBand> {
-  const { data } = await api.post(
-    "/admin/priority/stability-bands",
-    stabilityBandBody(input),
-  );
-  return data;
-}
-
-export async function updateStabilityBand(
-  id: number,
-  input: StabilityBandInput,
-): Promise<PriorityStabilityBand> {
-  const { data } = await api.patch(
-    `/admin/priority/stability-bands/${id}`,
-    stabilityBandBody(input),
-  );
-  return data;
-}
-
-export async function deleteStabilityBand(id: number): Promise<void> {
-  await api.delete(`/admin/priority/stability-bands/${id}`);
-}
-
-export async function reorderStabilityBands(
-  ids: number[],
-): Promise<PriorityStabilityBand[]> {
-  const { data } = await api.put("/admin/priority/stability-bands/order", {
-    band_ids: ids,
-  });
   return data;
 }
 
@@ -2136,7 +2003,6 @@ export interface UserHistoryItem {
   given_answer?: string | null;
   timed_out?: boolean;
   duration_ms?: number | null;
-  score_after?: number;
   lesson_id?: number | null;
   lesson_number?: number | null;
   quest_id?: number | null;
@@ -2585,9 +2451,7 @@ export async function deleteApiKey(id: number): Promise<void> {
 // --- Аналитика → «Память» (GET /admin/memory/...) ---------------------------
 
 export interface MemorySettings {
-  memory_enabled: boolean;
   target: number;
-  learned_threshold: number;
   list_size: number;
   max_open_lists: number;
 }
@@ -2634,7 +2498,6 @@ export interface MemoryAttempt {
   timed_out: boolean;
   given_answer: string | null;
   duration_ms: number | null;
-  score_after: number;
   source: "lesson" | "quest" | "practice" | "review";
   review_list_id: number | null;
   lesson_id: number | null;
@@ -2671,7 +2534,6 @@ export interface MemoryWordList {
   difficulty_at_entry: number | null;
   last_review_at_entry: string | null;
   review_days_at_entry: number;
-  score_at_entry: number;
   done_at: string | null;
 }
 
@@ -2683,7 +2545,6 @@ export interface MemoryWord {
   translation: string | null;
   settings: MemorySettings;
   state: {
-    score: number;
     learned: boolean;
     recall_now: number | null;
     stability: number | null;
@@ -2787,7 +2648,6 @@ export async function manualTemplate(
 // --- Уроки: общие настройки (GET/PUT /learning-settings) ---------------------
 
 export interface LearningSettings {
-  threshold_score: number;
   max_lesson_words: number;
 }
 

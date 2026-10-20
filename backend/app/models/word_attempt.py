@@ -1,14 +1,7 @@
-"""One row per real answer to a word, in a Lesson or a Quest -- the two
-places an answer actually changes WordProgress.score (see
-app/routers/lessons.py's submit_answer and app/routers/quests.py's
-submit_quest_answer). Practice deliberately writes nothing here: it never
-touches score/progress at all, so it has no "attempt" to record in this
-sense -- see app/routers/practice.py's own docstring.
-
-This is purely an analytics log for Admin Web's «Аналитика» -- nothing
-in the actual scoring/level/achievement/rating pipeline ever reads from
-it. Deleting every row here would not change what a single user's word
-score or level is; it would only make their history page blank.
+"""One row per real answer to a word (lesson, quest, practice, review).
+The memory model rebuilds a word's state from these (app/memory/), a lesson
+pass decides which words became learned from them (app/learning/mastery.py),
+and Admin Web's «Аналитика» shows them as history.
 """
 
 from datetime import datetime
@@ -33,14 +26,6 @@ class WordAttempt(Base):
     word_id: Mapped[int] = mapped_column(ForeignKey("words.id", ondelete="CASCADE"), nullable=False, index=True)
     exercise_key: Mapped[str] = mapped_column(String(64), nullable=False)
     is_correct: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    # WordProgress.score for this (user, word) immediately AFTER this
-    # attempt was scored -- captured at write time rather than replayed
-    # later from is_correct history, because the admin-configured
-    # correct/incorrect point deltas for an exercise_key can change over
-    # time; a replay using TODAY's settings would silently misdraw the
-    # history of an account that predates a settings change. This column
-    # is the one honest source for "what was the score at this moment".
-    score_after: Mapped[int] = mapped_column(Integer, nullable=False)
     # The lesson this answer was given in, for a lesson's own end-of-pass
     # statistics (GET /lessons/{id}/pass/stats). NULL for quest answers
     # and for every attempt recorded before this column existed.

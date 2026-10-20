@@ -1,18 +1,13 @@
-"""Does the memory model predict forgetting better than today's Priority?
+"""How well does the memory model predict forgetting?
 
 The test set is honest by construction: for every (user, word) pair, every
 review day after its first one, the FIRST answer of that day -- the moment
 the user meets the word again, before any same-day practice -- is the
-outcome to predict. Both predictors only see the history before it:
+outcome to predict, from the recall probability R the model gives at that
+moment (only the history before it is seen).
 
-- the memory model's recall probability R at that moment;
-- today's Priority Score at that moment (app/priority/calculate.py's own
-  formula and the admin's current bands), where a higher score should mean
-  a likelier miss.
-
-AUC compares how well each RANKS words (works for any score); log loss and
-the calibration table check whether R is a trustworthy probability, which
-only the memory model claims to be.
+AUC says how well R RANKS words; log loss and the calibration table check
+whether R is a trustworthy probability.
 """
 
 import math
@@ -23,14 +18,12 @@ from sqlalchemy.orm import Session
 
 from app.memory.service import _days, _scheduler, _utc, replay
 from app.models.word_attempt import WordAttempt
-from app.priority.calculate import _Attempt, _load_context, _score
 
 
 @dataclass
 class _Case:
     correct: bool
     recall: float
-    priority: float
     exercise_key: str
 
 
@@ -54,7 +47,6 @@ def _auc(scores: list[float], labels: list[bool]) -> float | None:
 
 
 def evaluate(db: Session, max_pairs: int = 20000) -> dict:
-    ctx = _load_context(db)
     rows = (
         db.query(WordAttempt)
         .order_by(WordAttempt.user_id, WordAttempt.word_id, WordAttempt.created_at, WordAttempt.id)
@@ -72,10 +64,7 @@ def evaluate(db: Session, max_pairs: int = 20000) -> dict:
             before = [a for a in attempts if a.created_at < first.created_at]
             card, _ = replay(before)
             recall = _scheduler.get_card_retrievability(card, _utc(first.created_at))
-            ctx.now = first.created_at
-            history = [_Attempt(a.is_correct, a.created_at) for a in reversed(before)]
-            priority = _score(ctx, before[-1].score_after, history).score
-            cases.append(_Case(first.is_correct and not first.timed_out, recall, priority, first.exercise_key))
+            cases.append(_Case(first.is_correct and not first.timed_out, recall, first.exercise_key))
 
     labels = [c.correct for c in cases]
     eps = 1e-6
@@ -108,7 +97,6 @@ def evaluate(db: Session, max_pairs: int = 20000) -> dict:
         by_exercise[key] = {
             "answers": len(subset),
             "auc_memory": _auc([c.recall for c in subset], [c.correct for c in subset]),
-            "auc_priority": _auc([-c.priority for c in subset], [c.correct for c in subset]),
         }
 
     return {
@@ -116,7 +104,6 @@ def evaluate(db: Session, max_pairs: int = 20000) -> dict:
         "test_answers": len(cases),
         "share_correct": base_rate,
         "auc_memory": _auc([c.recall for c in cases], labels),
-        "auc_priority": _auc([-c.priority for c in cases], labels),
         "log_loss_memory": log_loss,
         "log_loss_always_average": base_log_loss,
         "calibration": calibration,

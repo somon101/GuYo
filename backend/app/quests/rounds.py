@@ -33,17 +33,17 @@ from app.core.content_language import primary_translation
 MAX_SIBLINGS = 3
 
 
-def _siblings(db: Session, user: User, dictionary_id: int, threshold: int, target: Word, limit: int) -> list[Word]:
-    pool = [w for w in get_learned_pool(db, user.id, dictionary_id, threshold) if w.id != target.id]
+def _siblings(db: Session, user: User, dictionary_id: int, target: Word, limit: int) -> list[Word]:
+    pool = [w for w in get_learned_pool(db, user.id, dictionary_id) if w.id != target.id]
     return prefer_distractor_words(db, user.id, pool)[:limit]
 
 
-def is_quest_word_feasible(db: Session, user: User, dictionary_id: int, threshold: int, exercise_key: str, word: Word) -> bool:
+def is_quest_word_feasible(db: Session, user: User, dictionary_id: int, exercise_key: str, word: Word) -> bool:
     """Whether a round can actually be built for `word` with this
     exercise_key -- mirrors each exercise module's own `is_available`,
     adapted to a single target word instead of a whole lesson word set."""
     if exercise_key == matching.KEY:
-        return bool(word.translations) and len(_siblings(db, user, dictionary_id, threshold, word, 1)) >= 1
+        return bool(word.translations) and len(_siblings(db, user, dictionary_id, word, 1)) >= 1
     if exercise_key == true_or_false.KEY:
         return bool(word.translations)
     if exercise_key == build_word.KEY:
@@ -56,16 +56,16 @@ def is_quest_word_feasible(db: Session, user: User, dictionary_id: int, threshol
     return False
 
 
-def build_matching_round(db: Session, user: User, dictionary_id: int, threshold: int, target: Word) -> ExerciseWordsOut:
-    siblings = _siblings(db, user, dictionary_id, threshold, target, MAX_SIBLINGS)
+def build_matching_round(db: Session, user: User, dictionary_id: int, target: Word) -> ExerciseWordsOut:
+    siblings = _siblings(db, user, dictionary_id, target, MAX_SIBLINGS)
     words = [w for w in [target, *siblings] if w.translations]
     return ExerciseWordsOut(
         dictionary_id=dictionary_id, exercise_key=matching.KEY, available_count=len(words), words=[word_to_out(w) for w in words]
     )
 
 
-def build_true_or_false_round(db: Session, user: User, dictionary_id: int, threshold: int, target: Word) -> TrueOrFalseRoundOut:
-    learned_pool = get_learned_pool(db, user.id, dictionary_id, threshold)
+def build_true_or_false_round(db: Session, user: User, dictionary_id: int, target: Word) -> TrueOrFalseRoundOut:
+    learned_pool = get_learned_pool(db, user.id, dictionary_id)
     real_text = primary_translation(target).text
     show_real = random.random() < 0.5
 
@@ -113,9 +113,9 @@ def build_speaking_word_round(db: Session, dictionary_id: int, target: Word) -> 
     )
 
 
-def build_listen_word_round(db: Session, user: User, dictionary_id: int, threshold: int, target: Word) -> ListenWordRoundOut:
+def build_listen_word_round(db: Session, user: User, dictionary_id: int, target: Word) -> ListenWordRoundOut:
     option_count = listen_word.get_option_count(db)
-    siblings = _siblings(db, user, dictionary_id, threshold, target, option_count - 1)
+    siblings = _siblings(db, user, dictionary_id, target, option_count - 1)
     options = [ListenWordOptionOut(word_id=target.id, word=target.word)] + [
         ListenWordOptionOut(word_id=w.id, word=w.word) for w in siblings
     ]
@@ -124,15 +124,15 @@ def build_listen_word_round(db: Session, user: User, dictionary_id: int, thresho
     return ListenWordRoundOut(dictionary_id=dictionary_id, available_count=1, items=[item])
 
 
-def build_round_for_quest(db: Session, user: User, dictionary_id: int, threshold: int, exercise_key: str, target: Word):
+def build_round_for_quest(db: Session, user: User, dictionary_id: int, exercise_key: str, target: Word):
     if exercise_key == matching.KEY:
-        return build_matching_round(db, user, dictionary_id, threshold, target)
+        return build_matching_round(db, user, dictionary_id, target)
     if exercise_key == true_or_false.KEY:
-        return build_true_or_false_round(db, user, dictionary_id, threshold, target)
+        return build_true_or_false_round(db, user, dictionary_id, target)
     if exercise_key == build_word.KEY:
         return build_build_word_round(db, dictionary_id, target)
     if exercise_key == speaking_word.KEY:
         return build_speaking_word_round(db, dictionary_id, target)
     if exercise_key == listen_word.KEY:
-        return build_listen_word_round(db, user, dictionary_id, threshold, target)
+        return build_listen_word_round(db, user, dictionary_id, target)
     raise ValueError(f"Unknown exercise_key: {exercise_key}")

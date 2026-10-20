@@ -35,20 +35,20 @@ def get_option_count(db: Session) -> int:
     return DEFAULT_OPTION_COUNT
 
 
-def is_available(db: Session, user: User, dictionary_id: int, lesson_word_ids: list[int], threshold: int) -> bool:
+def is_available(db: Session, user: User, dictionary_id: int, lesson_word_ids: list[int]) -> bool:
     """Requires at least one lesson word with its own recording (something
     to play) and at least one PREVIOUSLY learned word (never this lesson's
     own words) to draw wrong-answer candidates from -- mirrors Правда или
     ложь's own external-pool requirement exactly."""
-    if not get_learned_pool(db, user.id, dictionary_id, threshold):
+    if not get_learned_pool(db, user.id, dictionary_id):
         return False
     words = db.query(Word).filter(Word.id.in_(lesson_word_ids)).all()
     return any(w.word_audio_key for w in words)
 
 
-def build_round(db: Session, lesson: Lesson, threshold: int) -> ListenWordRoundOut:
-    playable_words = [w for w in lesson_words_pending(db, lesson, threshold) if w.word_audio_key]
-    learned_pool = get_learned_pool(db, lesson.user_id, lesson.dictionary_id, threshold)
+def build_round(db: Session, lesson: Lesson) -> ListenWordRoundOut:
+    playable_words = [w for w in lesson_words_pending(db, lesson) if w.word_audio_key]
+    learned_pool = get_learned_pool(db, lesson.user_id, lesson.dictionary_id)
     option_count = get_option_count(db)
     pool_priorities = calculate_priorities(db, lesson.user_id, [w.id for w in learned_pool])
 

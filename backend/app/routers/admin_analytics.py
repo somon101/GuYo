@@ -28,7 +28,6 @@ from app.models.user import User
 from app.models.word import Word
 from app.models.word_attempt import WordAttempt
 from app.models.word_progress import WordProgress
-from app.routers.lessons import _get_threshold
 from app.routers.phrases import _get_learned_word_tokens, _tokenize
 from app.priority import calculate_priority, weak_exercises_for_word
 from app.schemas.analytics import (
@@ -130,7 +129,6 @@ def get_user_phrase_analytics(
     if dictionary is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dictionary not found")
 
-    threshold = _get_threshold(db)
     learned_tokens = _get_learned_word_tokens(db, user.id, dictionary)
     token_to_word, all_words = _build_token_to_word(db, dictionary)
 
@@ -198,7 +196,6 @@ def get_user_phrase_analytics(
         user_id=user.id,
         user_login=user.login,
         dictionary_id=dictionary.id,
-        threshold=threshold,
         learned_word_count=learned_word_count,
         total_word_count=len(all_words),
         open_phrase_count=len(open_phrases),
@@ -226,7 +223,7 @@ def get_user_mini_phrase_analytics(
     if db.get(Dictionary, dictionary_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dictionary not found")
 
-    learned = _learned_word_ids(db, user.id, dictionary_id, _get_threshold(db))
+    learned = _learned_word_ids(db, user.id, dictionary_id)
     minis = (
         db.query(MiniPhrase)
         .filter(MiniPhrase.dictionary_id == dictionary_id, MiniPhrase.enabled.is_(True))
@@ -308,10 +305,7 @@ def _word_level_summary(db: Session, user_id: int, word_id: int) -> WordLevelSum
     level = memory_levels_for(db, user_id, [word_id]).get(word_id)
     if level is None:
         return None
-    return WordLevelSummaryOut(
-        id=level.id, name=level.name, min_points=level.min_points, max_points=level.max_points,
-        priority_weight=level.priority_weight,
-    )
+    return WordLevelSummaryOut(id=level.id, name=level.name, min_days=level.min_days)
 
 
 @router.get("/users/{user_id}/words", response_model=list[UserWordProgressOut])
@@ -361,11 +355,8 @@ def list_user_word_progress(
                 word=word.word,
                 translation=primary,
                 dictionary_id=word.dictionary_id,
-                score=100 if progress.mastered_at is not None else 0,
-                level=WordLevelSummaryOut(
-                    id=level.id, name=level.name, min_points=level.min_points, max_points=level.max_points,
-                    priority_weight=level.priority_weight,
-                )
+                is_learned=progress.mastered_at is not None,
+                level=WordLevelSummaryOut(id=level.id, name=level.name, min_days=level.min_days)
                 if level is not None
                 else None,
                 total_attempts=attempt_counts.get(word.id, 0),
@@ -383,7 +374,7 @@ def get_word_diagnostics(
     _admin=Depends(get_current_admin),
 ):
     """The full «Диагностика слова» picture for one (user, word): current
-    level/score (re-derived from WordProgress, never cached), and every
+    level/learned state (re-derived from WordProgress, never cached), and every
     number below it computed by aggregating WordAttempt -- total, the
     per-exercise breakdown, the last attempt, and the complete history --
     never a second stored counter that could drift from it."""
@@ -395,7 +386,7 @@ def get_word_diagnostics(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Word not found")
 
     progress = db.query(WordProgress).filter(WordProgress.user_id == user_id, WordProgress.word_id == word_id).first()
-    score = 100 if progress is not None and progress.mastered_at is not None else 0
+    is_learned = progress is not None and progress.mastered_at is not None
 
     attempts = (
         db.query(WordAttempt)
@@ -415,7 +406,7 @@ def get_word_diagnostics(
     priority = calculate_priority(db, user_id, word_id)
 
     def _attempt_out(a: WordAttempt) -> WordAttemptOut:
-        return WordAttemptOut(exercise_key=a.exercise_key, is_correct=a.is_correct, score_after=a.score_after, created_at=a.created_at)
+        return WordAttemptOut(exercise_key=a.exercise_key, is_correct=a.is_correct, created_at=a.created_at)
 
     return WordDiagnosticsOut(
         user_id=user.id,
@@ -423,7 +414,7 @@ def get_word_diagnostics(
         word_id=word.id,
         word=word.word,
         translation=primary,
-        score=score,
+        is_learned=is_learned,
         level=_word_level_summary(db, user_id, word_id),
         total_attempts=len(attempts),
         total_correct=total_correct,
@@ -436,18 +427,7 @@ def get_word_diagnostics(
         history=[_attempt_out(a) for a in attempts],
         priority_score=priority.score,
         priority_level=PriorityBandSummaryOut(id=priority.level.id, name=priority.level.name) if priority.level else None,
-        stability_percent=priority.stability_percent,
-        stability_level=PriorityBandSummaryOut(id=priority.stability_band.id, name=priority.stability_band.name)
-        if priority.stability_band
-        else None,
         days_since_last_attempt=priority.days_since_last_attempt,
-        recency_level=PriorityBandSummaryOut(id=priority.recency_band.id, name=priority.recency_band.name)
-        if priority.recency_band
-        else None,
-        level_contribution=priority.level_contribution,
-        recent_errors_contribution=priority.recent_errors_contribution,
-        recency_contribution=priority.recency_contribution,
-        stability_contribution=priority.stability_contribution,
         weak_exercises=weak_exercises_for_word(db, user_id, word_id),
         # The memory model's own state (app/memory/): what «Повторить сегодня»
         # reads. A word is due when recall_probability falls below the configured

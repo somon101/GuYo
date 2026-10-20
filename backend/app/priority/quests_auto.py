@@ -142,7 +142,6 @@ def maybe_create_personal_quest(db: Session, user: User, dictionary_id: int) -> 
     # them back here at module level would be the same kind of cycle
     # maybe_create_adaptive_lesson already works around this way.
     from app.exercises import EXERCISE_TYPES
-    from app.exercises.common import get_threshold
     from app.quests.rounds import is_quest_word_feasible
 
     # Premium-only unless the admin switched that off (PremiumSettings).
@@ -178,10 +177,9 @@ def maybe_create_personal_quest(db: Session, user: User, dictionary_id: int) -> 
     # Most urgent (highest Priority Score) first, feasibility-checked
     # (e.g. listen_word needs its own recording) and capped.
     best_words.sort(key=lambda pair: -pair[1])
-    threshold = get_threshold(db)
     chosen: list[Word] = []
     for word, _score in best_words:
-        if is_quest_word_feasible(db, user, dictionary_id, threshold, best_exercise, word):
+        if is_quest_word_feasible(db, user, dictionary_id, best_exercise, word):
             chosen.append(word)
         if len(chosen) >= settings.personal_quest_max_words:
             break

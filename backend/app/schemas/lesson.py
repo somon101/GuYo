@@ -36,10 +36,7 @@ class LessonWordOut(BaseModel):
     translation: str | None
     score: int
     is_learned: bool
-    # Classified via the SAME word_levels.ordered_enabled_levels/
-    # level_for_score_in helpers "Мои слова" already uses (see
-    # app/routers/learning.py) -- never a second scoring/classification
-    # path, just the same ladder applied to a Lesson word's own score.
+    # The word's memory level -- same as "Мои слова" (app/word_levels/).
     word_level_id: int | None = None
     word_level_name: str | None = None
     # Carried so a lesson's word list can render the SAME shared word
@@ -124,8 +121,7 @@ class LessonListOut(BaseModel):
 
 class LessonCandidateWordsOut(BaseModel):
     """The pool a new lesson's word picker (random or manual) draws from --
-    every not-yet-learned word (WordProgress.score below the admin's
-    threshold, or no progress row at all) in this dictionary."""
+    every not-yet-learned word in this dictionary."""
 
     dictionary_id: int
     available_count: int
@@ -160,8 +156,8 @@ class SubmitAnswerOut(BaseModel):
     is_learned: bool
     lesson_completed: bool
     # Real rating points this exact answer just granted -- 0 on almost every
-    # answer, > 0 only when it is the one that pushes the word over the
-    # learned threshold for the first time. See
+    # answer, > 0 only when it is the one that makes the word learned for the
+    # first time. See
     # app/rating/service.py's award_word_points_if_new; this field is
     # purely that call's own return value, surfaced so a live in-round
     # counter can show real progress instead of inventing its own.
@@ -169,12 +165,10 @@ class SubmitAnswerOut(BaseModel):
 
 
 class LearningSettingsOut(BaseModel):
-    threshold_score: int
     max_lesson_words: int = 15
 
 
 class LearningSettingsIn(BaseModel):
-    threshold_score: int | None = Field(default=None, ge=0, le=100)
     max_lesson_words: int | None = Field(default=None, ge=4, le=MAX_LESSON_WORDS_CEILING)
 
 

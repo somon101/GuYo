@@ -47,11 +47,8 @@ class Quest(Base):
     from Priority, not a single level range, and are pinned individually
     in QuestWord below instead.
 
-    The word-reinforcement point change on success reuses that
-    exercise_key's OWN already-configured ExerciseSettings.correct_points
-    (see app/exercises/common.py's get_points) -- there is no second,
-    quest-specific reinforcement-points setting. `reward_points` is purely
-    the ADDITIONAL rating bonus on top of that (for a personal quest, this
+    A quest answer is memory evidence for its word only -- words have no
+    points. `reward_points` is the rating bonus for a success (for a personal quest, this
     is PrioritySettings.personal_quest_reward_points, copied in at
     creation time -- see quests_auto.py).
 

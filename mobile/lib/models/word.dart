@@ -16,25 +16,21 @@ class GuyoWordForm {
 }
 
 /// One rung of the word-reinforcement ladder -- mirrors the backend's
-/// WordLevelOut (GET /word-levels), enabled levels only, lowest
-/// score-range first. This list's own index is what "Мои слова" uses to
+/// WordLevelOut (GET /word-levels), enabled levels only, weakest
+/// memory first. This list's own index is what "Мои слова" uses to
 /// pick a word's red-to-green badge color: the backend decides which
 /// level a word is in and the levels' order; the color-per-position
 /// mapping is the only thing left to the client.
 class WordLevelSummary {
   final int id;
   final String name;
-  final int minPoints;
-  final int? maxPoints;
 
-  WordLevelSummary({required this.id, required this.name, required this.minPoints, required this.maxPoints});
+  WordLevelSummary({required this.id, required this.name});
 
   factory WordLevelSummary.fromJson(Map<String, dynamic> json) {
     return WordLevelSummary(
       id: json['id'] as int,
       name: json['name'] as String,
-      minPoints: json['min_points'] as int,
-      maxPoints: json['max_points'] as int?,
     );
   }
 }

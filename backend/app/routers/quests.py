@@ -11,12 +11,11 @@ from app.rating.names import season_name
 from app.achievements.conditions import streak_days_count
 from app.exercises.verify import judge
 from app.analytics.history import log_event
-from app.achievements import check_and_grant_achievements, record_activity
+from app.achievements import record_activity
 from app.core.dates import dushanbe_today, utc_now
 from app.core.deps import get_current_user, require_current_app
 from app.core.storage import url_for_key
 from app.database import get_db
-from app.exercises.common import get_threshold
 from app.models.quest import Quest, QuestWord, UserQuestWordDay
 from app.models.mini_phrase import MiniPhrase, UserMiniPhrasePoints
 from app.models.rating import Season, UserReviewPoints, UserWordPoints
@@ -32,10 +31,10 @@ from app.quests import (
     pick_quest_word,
     quest_completions_today,
 )
+from app.learning.mastery import learned_ids
 from app.word_attempts import record_word_attempt
 from app.priority.background_prep import mark_for_prep
 from app.rating import (
-    award_word_points_if_new,
     current_rank_for_points,
     get_active_season,
     get_or_create_user_rating,
@@ -355,7 +354,7 @@ def submit_quest_answer(
 
     rating_before = get_or_create_user_rating(db, user.id).total_points
 
-    new_score = complete_quest_attempt(db, user, quest, word, payload.is_correct)
+    complete_quest_attempt(db, user, quest, word, payload.is_correct)
 
     # Analytics only -- see app/models/word_attempt.py's own note. Never
     # read by any scoring/level/achievement/rating decision.
@@ -365,7 +364,6 @@ def submit_quest_answer(
         word_id=word.id,
         exercise_key=quest.exercise_key,
         is_correct=payload.is_correct,
-        score_after=new_score,
         source="quest",
         duration_ms=payload.duration_ms,
         timed_out=payload.timed_out,
@@ -380,21 +378,6 @@ def submit_quest_answer(
     # Built quietly later by the background sweep (app/priority/background_prep.py).
     mark_for_prep(db, user, dictionary_id)
 
-    # A quest can push a word's reinforcement score across the SAME
-    # learned threshold a Lesson answer would -- see app/exercises/
-    # common.py's get_threshold (now derived from the WordLevel ladder).
-    # When that happens here, it must trigger the exact same downstream
-    # effects a Lesson crossing already does (never a quest-only silo):
-    # the "words_learned" achievement and the existing per-learned-word
-    # rating bonus (app/rating/service.py's award_word_points_if_new) --
-    # both already idempotent per word, so calling them here is safe even
-    # if the word was already learned via a Lesson earlier. "phrases_opened"
-    # is NOT granted here: it now counts phrases the user actually opened
-    # (see POST .../phrases/{id}/open), not phrases that became available.
-    if new_score >= get_threshold(db):
-        check_and_grant_achievements(db, user, "words_learned")
-        award_word_points_if_new(db, user, word.id)
-
     lit_now = record_activity(db, user)
 
     rating_after = get_or_create_user_rating(db, user.id).total_points
@@ -403,7 +386,7 @@ def submit_quest_answer(
     db.commit()
     return QuestAnswerOut(
         word_id=word.id,
-        score=new_score,
+        score=100 if learned_ids(db, user.id, [word.id]) else 0,  # for installed apps
         is_correct=payload.is_correct,
         reward_granted=reward_granted,
         streak_lit_now=lit_now,

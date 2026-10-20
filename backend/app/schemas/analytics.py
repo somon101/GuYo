@@ -51,7 +51,6 @@ class UserPhraseAnalyticsOut(BaseModel):
     user_id: int
     user_login: str
     dictionary_id: int
-    threshold: int
 
     learned_word_count: int
     total_word_count: int
@@ -71,18 +70,11 @@ class UserPhraseAnalyticsOut(BaseModel):
 
 
 class WordLevelSummaryOut(BaseModel):
-    """The level a score currently falls in -- None when no enabled
-    WordLevel's range covers it (a gap in the ladder, or none configured
-    at all), rather than guessing a nearest level."""
+    """The word's level on the memory ladder (app/word_levels/)."""
 
     id: int
     name: str
-    min_points: int
-    max_points: int | None
-    # This level's own contribution to Priority (see app/priority/) --
-    # carried along so a diagnostics tooltip can explain the "Уровень
-    # слова" factor without a second fetch or re-deriving it.
-    priority_weight: float
+    min_days: int
 
 
 class UserWordProgressOut(BaseModel):
@@ -94,7 +86,7 @@ class UserWordProgressOut(BaseModel):
     word: str
     translation: str | None
     dictionary_id: int
-    score: int
+    is_learned: bool
     level: WordLevelSummaryOut | None
     total_attempts: int
     updated_at: datetime
@@ -113,12 +105,10 @@ class ExerciseAttemptStatsOut(BaseModel):
 
 class WordAttemptOut(BaseModel):
     """One row of WordAttempt, as-is -- the full, unfiltered history for
-    one (user, word). See app/models/word_attempt.py for what score_after
-    actually means."""
+    one (user, word)."""
 
     exercise_key: str
     is_correct: bool
-    score_after: int
     created_at: datetime
 
 
@@ -140,7 +130,7 @@ class WordDiagnosticsOut(BaseModel):
     word: str
     translation: str | None
 
-    score: int
+    is_learned: bool
     level: WordLevelSummaryOut | None
 
     total_attempts: int
@@ -151,18 +141,7 @@ class WordDiagnosticsOut(BaseModel):
     # app/priority/), computed fresh on every read, never stored.
     priority_score: float
     priority_level: PriorityBandSummaryOut | None
-    stability_percent: int | None
-    stability_level: PriorityBandSummaryOut | None
     days_since_last_attempt: int | None
-    recency_level: PriorityBandSummaryOut | None
-    # Each factor's own share of priority_score above (their sum), exactly
-    # as app/priority/calculate.py already computes them -- exposed so
-    # Admin Web's explanatory tooltips can show the real breakdown without
-    # ever re-deriving the formula client-side.
-    level_contribution: float
-    recent_errors_contribution: float
-    recency_contribution: float
-    stability_contribution: float
 
     # The MEMORY model's own state for this pair (see app/memory/): how well it
     # is remembered, when it was last reviewed, how many review days it has had,

@@ -1,11 +1,8 @@
 """Quest eligibility, round selection, and completion -- the one place a
-word gets picked for a quest and the one place a quest's dual effect
-(word reinforcement points + rating reward) gets applied. Entirely
-separate from Lessons (never touches LessonWord/LessonExercise) and from
-Achievements (never touches Achievement/UserAchievement); reuses only
-what's explicitly shared: WordProgress scoring (app/exercises/common.py's
-get_points, same as Lessons), and rating's own grant function
-(app/rating/service.py's grant_rating_points).
+word gets picked for a quest and the one place a quest's rating reward is
+granted. Entirely separate from Lessons and Achievements; a quest answer
+is only memory evidence for its word (recorded by the caller) and never
+makes a word learned.
 """
 
 import random
@@ -16,7 +13,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.dates import DUSHANBE_TZ, dushanbe_today
-from app.exercises.common import get_threshold
 from app.models.quest import Quest, QuestWord, UserQuestWordDay
 from app.priority.quests import order_candidates_by_priority
 from app.models.user import User
@@ -24,6 +20,7 @@ from app.models.word import Word
 from app.models.word_level import WordLevel
 from app.models.word_progress import WordProgress
 from app.quests.rounds import build_round_for_quest, is_quest_word_feasible
+from app.learning.mastery import progress_row
 from app.rating import grant_rating_points
 from app.core.content_language import only_translated
 
@@ -149,9 +146,8 @@ def pick_quest_word(db: Session, user: User, quest: Quest, dictionary_id: int) -
     candidates = order_candidates_by_priority(
         db, user.id, only_translated(candidate_words_for_quest(db, user, quest, dictionary_id))
     )
-    threshold = get_threshold(db)
     for word in candidates:
-        if is_quest_word_feasible(db, user, dictionary_id, threshold, quest.exercise_key, word):
+        if is_quest_word_feasible(db, user, dictionary_id, quest.exercise_key, word):
             return word
     return None
 
@@ -161,14 +157,13 @@ def is_quest_available(db: Session, user: User, quest: Quest, dictionary_id: int
 
 
 def build_quest_round(db: Session, user: User, quest: Quest, dictionary_id: int, word: Word):
-    threshold = get_threshold(db)
-    return build_round_for_quest(db, user, dictionary_id, threshold, quest.exercise_key, word)
+    return build_round_for_quest(db, user, dictionary_id, quest.exercise_key, word)
 
 
-def complete_quest_attempt(db: Session, user: User, quest: Quest, word: Word, is_correct: bool) -> int:
+def complete_quest_attempt(db: Session, user: User, quest: Quest, word: Word, is_correct: bool) -> None:
     """Only on success: grants the quest's rating reward and locks `word`
     out of every quest for the rest of today. No points -- the answer is
-    recorded by the caller as memory evidence. Returns 0 (kept for callers).
+    recorded by the caller as memory evidence.
 
     The daily lock is written inside its own SAVEPOINT (same pattern as
     app/rating/service.py's award_word_points_if_new) so a losing race
@@ -176,13 +171,7 @@ def complete_quest_attempt(db: Session, user: User, quest: Quest, word: Word, is
     means this attempt's reward is skipped rather than a 500 -- the
     UNIQUE(user_id, word_id, used_date) constraint is what actually
     decides "already used today" at the database level."""
-    # No points: the answer itself is the evidence (recorded by the caller
-    # for the memory model).
-    progress = db.query(WordProgress).filter(WordProgress.user_id == user.id, WordProgress.word_id == word.id).first()
-    if progress is None:
-        progress = WordProgress(user_id=user.id, word_id=word.id, score=0)
-        db.add(progress)
-        db.flush()
+    progress_row(db, user.id, word.id)  # the memory model keeps its state there
 
     if is_correct:
         try:
@@ -193,8 +182,6 @@ def complete_quest_attempt(db: Session, user: User, quest: Quest, word: Word, is
             # Lost a race against a concurrent quest completion for the
             # same word today -- the word is locked either way, but this
             # request's own reward is skipped rather than double-granted.
-            return 0
+            return
 
         grant_rating_points(db, user, quest.reward_points)
-
-    return 0
