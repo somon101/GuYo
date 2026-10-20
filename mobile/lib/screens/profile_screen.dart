@@ -589,8 +589,21 @@ class _ProfileHeader extends StatelessWidget {
               UserNameText(
                 profile.login,
                 isPremium: profile.isPremium,
+                badge: profile.badge,
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
               ),
+              if (profile.title != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 3, bottom: 1),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      gradient: const LinearGradient(colors: [Color(0xFF6EE7B7), Color(0xFF0E9F6E)]),
+                    ),
+                    child: Text(profile.title!, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.white)),
+                  ),
+                ),
               const SizedBox(height: 2),
               // The 9-digit account number -- `id` is internal and never
               // shown.

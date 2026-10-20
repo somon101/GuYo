@@ -262,6 +262,7 @@ class _Greeting extends StatelessWidget {
                     child: UserNameText(
                       login.isEmpty ? tr('Привет!') : tr('Привет, {0}', [login]),
                       isPremium: profile?.isPremium ?? false,
+                      badge: profile?.badge,
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,

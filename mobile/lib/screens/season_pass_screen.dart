@@ -5,6 +5,7 @@ import '../l10n/l10n.dart';
 import '../models/season_pass.dart';
 import '../theme/app_colors.dart';
 import '../widgets/season_pass_ui.dart';
+import 'cosmetics_screen.dart';
 
 String passSeasonName(SeasonPass pass) {
   final lang = appLanguage.value;
@@ -114,7 +115,18 @@ class _SeasonPassScreenState extends State<SeasonPassScreen> with SingleTickerPr
     final pass = _pass;
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      appBar: AppBar(title: Text(tr('Пропуск сезона')), backgroundColor: Colors.transparent, scrolledUnderElevation: 0),
+      appBar: AppBar(
+        title: Text(tr('Пропуск сезона')),
+        backgroundColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        actions: [
+          IconButton(
+            tooltip: tr('Мои награды'),
+            icon: const Icon(Icons.military_tech_rounded),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CosmeticsScreen())),
+          ),
+        ],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : pass == null

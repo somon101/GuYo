@@ -21,15 +21,17 @@ class RewardStyle {
 }
 
 RewardStyle rewardStyle(PassReward r) {
+  if (r.type == 'badge') {
+    final look = badgeLook(r.key ?? 'crown');
+    return RewardStyle(look.colors, look.icon ?? Icons.military_tech_rounded, (r.text ?? '').isEmpty ? tr('Значок') : r.text!);
+  }
   switch (r.type) {
     case 'premium_days':
       return RewardStyle(const [Color(0xFFFFD54F), Color(0xFFFF9800)], Icons.workspace_premium_rounded, tr('Дни Premium'));
     case 'streak_freeze':
       return RewardStyle(const [Color(0xFF7FDBFF), Color(0xFF3A7BFF)], Icons.ac_unit_rounded, tr('Заморозка серии'));
-    case 'badge':
-      return RewardStyle(const [Color(0xFFFF8AD8), Color(0xFF8E3CFF)], Icons.military_tech_rounded, tr('Значок'));
     case 'title':
-      return RewardStyle(const [Color(0xFF6EE7B7), Color(0xFF0E9F6E)], Icons.badge_rounded, tr('Титул'));
+      return RewardStyle(const [Color(0xFF6EE7B7), Color(0xFF0E9F6E)], Icons.badge_rounded, (r.text ?? '').isEmpty ? tr('Титул') : r.text!);
     default:
       return RewardStyle(const [Color(0xFFA48BFF), Color(0xFF5862DD)], Icons.star_rounded, tr('Очки рейтинга'));
   }
@@ -171,12 +173,19 @@ class RewardCard extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.25)),
-                      child: Icon(style.icon, size: 22, color: Colors.white),
-                    ),
+                    if (reward.type == 'badge')
+                      Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.9)),
+                        child: BadgeGlyph(badgeKey: reward.key ?? 'crown', size: 34),
+                      )
+                    else
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.25)),
+                        child: Icon(style.icon, size: 22, color: Colors.white),
+                      ),
                     const SizedBox(height: 4),
                     if (rewardAmountText(reward).isNotEmpty)
                       Text(
@@ -186,7 +195,13 @@ class RewardCard extends StatelessWidget {
                     Text(
                       style.label,
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.9)),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: (reward.type == 'badge' || reward.type == 'title') ? 13 : 11.5,
+                        fontWeight: (reward.type == 'badge' || reward.type == 'title') ? FontWeight.w800 : FontWeight.w600,
+                        color: Colors.white.withValues(alpha: 0.95),
+                      ),
                     ),
                     if (claimable) ...[
                       const SizedBox(height: 6),
@@ -369,4 +384,86 @@ class RewardDialogViewState extends State<RewardDialogView> with SingleTickerPro
       ),
     );
   }
+}
+
+
+/// How one badge looks: its colours and an icon (the crown is drawn by hand).
+class BadgeLook {
+  final List<Color> colors;
+  final IconData? icon; // null: the crown, painted
+  const BadgeLook(this.colors, this.icon);
+}
+
+BadgeLook badgeLook(String key) {
+  switch (key) {
+    case 'champion':
+      return const BadgeLook([Color(0xFFFFD54F), Color(0xFFFF8F00)], Icons.emoji_events_rounded);
+    case 'medal':
+      return const BadgeLook([Color(0xFF90CAF9), Color(0xFF3F7CFF)], Icons.military_tech_rounded);
+    case 'flame':
+      return const BadgeLook([Color(0xFFFFA06B), Color(0xFFE5391F)], Icons.local_fire_department_rounded);
+    case 'star':
+      return const BadgeLook([Color(0xFFFFE066), Color(0xFFFFA000)], Icons.star_rounded);
+    case 'diamond':
+      return const BadgeLook([Color(0xFF7FDBFF), Color(0xFF7C4DFF)], Icons.diamond_rounded);
+    case 'rocket':
+      return const BadgeLook([Color(0xFFFF8AB8), Color(0xFF8E3CFF)], Icons.rocket_launch_rounded);
+    case 'shield':
+      return const BadgeLook([Color(0xFF6EE7B7), Color(0xFF0E9F6E)], Icons.shield_rounded);
+    case 'bolt':
+      return const BadgeLook([Color(0xFFFFF176), Color(0xFFFFA000)], Icons.bolt_rounded);
+    case 'heart':
+      return const BadgeLook([Color(0xFFFF8A8A), Color(0xFFD62F4F)], Icons.favorite_rounded);
+    case 'leaf':
+      return const BadgeLook([Color(0xFFA5E887), Color(0xFF2E9E4F)], Icons.eco_rounded);
+    default: // crown
+      return const BadgeLook([Color(0xFFFFE066), Color(0xFFFF9800)], null);
+  }
+}
+
+/// A small round badge: the icon on its gradient. Shown next to a name and in
+/// the collection.
+class BadgeGlyph extends StatelessWidget {
+  final String badgeKey;
+  final double size;
+  const BadgeGlyph({super.key, required this.badgeKey, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    final look = badgeLook(badgeKey);
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: look.colors),
+        boxShadow: [BoxShadow(color: look.colors.last.withValues(alpha: 0.4), blurRadius: size * 0.3)],
+      ),
+      child: look.icon == null
+          ? CustomPaint(painter: _CrownPainter())
+          : Icon(look.icon, size: size * 0.62, color: Colors.white),
+    );
+  }
+}
+
+class _CrownPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final path = Path()
+      ..moveTo(w * 0.2, h * 0.68)
+      ..lineTo(w * 0.14, h * 0.36)
+      ..lineTo(w * 0.34, h * 0.5)
+      ..lineTo(w * 0.5, h * 0.28)
+      ..lineTo(w * 0.66, h * 0.5)
+      ..lineTo(w * 0.86, h * 0.36)
+      ..lineTo(w * 0.8, h * 0.68)
+      ..close();
+    final fill = Paint()..color = Colors.white;
+    canvas.drawPath(path, fill);
+    canvas.drawRRect(RRect.fromLTRBR(w * 0.2, h * 0.72, w * 0.8, h * 0.8, Radius.circular(w * 0.04)), fill);
+  }
+
+  @override
+  bool shouldRepaint(_CrownPainter old) => false;
 }

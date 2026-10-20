@@ -160,6 +160,8 @@ class LeaderboardEntryOut(BaseModel):
     is_me: bool
     # Draws the Premium checkmark next to the name.
     is_premium: bool = False
+    # The badge look the person wears (season pass), if any.
+    badge: str | None = None
     # Places moved in this person's latest move within their rank, if it
     # happened in the last day: +3 up, -2 down. Own-rank board only.
     position_change: int | None = None

@@ -34,6 +34,10 @@ class UserProfile {
   /// When GuYo Premium ends, or null when the user doesn't have it.
   final DateTime? premiumUntil;
 
+  /// What the person wears from the season pass: a badge look and a title.
+  final String? badge;
+  final String? title;
+
   bool get isPremium => premiumUntil != null;
 
   /// Topic codes from "Мои темы" (see models/learning_topics.dart).
@@ -69,6 +73,8 @@ class UserProfile {
     this.translationLanguage = 'tg',
     this.learningLanguage,
     this.languageUnavailable = const [],
+    this.badge,
+    this.title,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -90,6 +96,8 @@ class UserProfile {
       translationLanguage: json['translation_language'] as String? ?? 'tg',
       learningLanguage: json['learning_language'] as String?,
       languageUnavailable: (json['language_unavailable'] as List<dynamic>?)?.cast<String>() ?? const [],
+      badge: json['badge'] as String?,
+      title: json['title'] as String?,
     );
   }
 }

@@ -19,7 +19,7 @@ from app.models.user import User
 
 # What a weekly task counts: the `source` of the XP events.
 METRICS = ("word", "lesson", "review", "quest", "streak")
-REWARD_TYPES = ("rating_points", "premium_days", "streak_freeze")
+REWARD_TYPES = ("rating_points", "premium_days", "streak_freeze", "badge", "title")
 LEVEL_MAX = 100
 
 
@@ -40,23 +40,31 @@ def get_pass_settings(db: Session) -> PassSettings:
 
 
 def default_definition() -> dict:
-    """30 levels at 80 XP. Free: rating points, a Premium day every 5th level.
-    Premium: more points, a few days of Premium on the 5th levels."""
+    """30 levels at 80 XP. Free: rating points, a Premium day every 5th level;
+    Premium: more points, a few days of Premium on the 5th levels. A title at
+    level 10, a diamond badge (Premium) at 20 and the season's crown badge at
+    30 (with a title for Premium)."""
     levels = []
     for n in range(1, 31):
         milestone = n % 5 == 0
-        levels.append(
-            {
-                "level": n,
-                "xp": 80,
-                "free": {"type": "premium_days", "amount": 1 if n < 30 else 3}
-                if milestone
-                else {"type": "rating_points", "amount": 20},
-                "premium": {"type": "premium_days", "amount": 3 if n < 30 else 7}
-                if milestone
-                else {"type": "rating_points", "amount": 50},
-            }
+        free = (
+            {"type": "premium_days", "amount": 1 if n < 30 else 3}
+            if milestone
+            else {"type": "rating_points", "amount": 20}
         )
+        premium = (
+            {"type": "premium_days", "amount": 3 if n < 30 else 7}
+            if milestone
+            else {"type": "rating_points", "amount": 50}
+        )
+        if n == 10:
+            free = {"type": "title", "amount": 1, "text": "Знаток слов", "text_tg": "Донишманди калимаҳо", "text_uz": "So‘z bilimdoni"}
+        if n == 20:
+            premium = {"type": "badge", "amount": 1, "key": "diamond", "text": "Бриллиант сезона", "text_tg": "Алмоси мавсим", "text_uz": "Mavsum brilliant"}
+        if n == 30:
+            free = {"type": "badge", "amount": 1, "key": "crown", "text": "Чемпион сезона", "text_tg": "Қаҳрамони мавсим", "text_uz": "Mavsum chempioni"}
+            premium = {"type": "title", "amount": 1, "text": "Мастер слов", "text_tg": "Устоди калимаҳо", "text_uz": "So‘z ustasi"}
+        levels.append({"level": n, "xp": 80, "free": free, "premium": premium})
     tasks = [
         {"id": "words", "metric": "word", "target": 5, "xp": 50},
         {"id": "lessons", "metric": "lesson", "target": 3, "xp": 50},
@@ -104,6 +112,21 @@ def _reward(value: dict | None, level: int) -> dict | None:
         return None
     if value["type"] not in REWARD_TYPES:
         raise PassError(f"Уровень {level}: неизвестная награда")
+    if value["type"] in ("badge", "title"):
+        from app.seasonpass.cosmetics import BADGE_KEYS
+
+        text = str(value.get("text") or "").strip()
+        if not text:
+            raise PassError(f"Уровень {level}: у значка или титула нужно название")
+        out = {"type": value["type"], "amount": 1, "text": text[:120]}
+        for lang in ("text_tg", "text_uz"):
+            if str(value.get(lang) or "").strip():
+                out[lang] = str(value[lang]).strip()[:120]
+        if value["type"] == "badge":
+            if value.get("key") not in BADGE_KEYS:
+                raise PassError(f"Уровень {level}: выберите вид значка")
+            out["key"] = value["key"]
+        return out
     amount = int(value.get("amount", 0))
     if amount < 1:
         raise PassError(f"Уровень {level}: количество награды должно быть больше 0")
@@ -285,8 +308,11 @@ def user_state(db: Session, user: User) -> dict | None:
         taken = (kind, str(lv["level"])) in claimed
         unlocked = lv["level"] <= reached
         allowed = kind == "free" or has_premium
+        from app.seasonpass.cosmetics import label_for
+
         return {
             **reward,
+            "text": label_for(reward, user.ui_language) if reward.get("text") else None,
             "claimed": taken,
             "claimable": unlocked and allowed and not taken,
             "locked_by_premium": kind == "premium" and not has_premium,
@@ -331,7 +357,7 @@ def user_state(db: Session, user: User) -> dict | None:
     }
 
 
-def _give(db: Session, user: User, reward: dict, note: str) -> None:
+def _give(db: Session, user: User, reward: dict, note: str, season: Season | None = None) -> None:
     if reward["type"] == "rating_points":
         from app.rating import grant_rating_points
 
@@ -339,6 +365,10 @@ def _give(db: Session, user: User, reward: dict, note: str) -> None:
     elif reward["type"] == "streak_freeze":
         user.streak_freezes = (user.streak_freezes or 0) + reward["amount"]
         db.flush()
+    elif reward["type"] in ("badge", "title"):
+        from app.seasonpass.cosmetics import grant
+
+        grant(db, user, reward, season)
     elif reward["type"] == "premium_days":
         from app.premium.service import grant_premium
 
@@ -377,7 +407,7 @@ def claim_level(db: Session, user: User, level: int, track: str) -> dict:
         if (user.streak_freezes or 0) + reward["amount"] > cap:
             raise PassError(f"Запас заморозок полон (не больше {cap}). Награду можно забрать позже")
     _record_claim(db, user, season, track, str(level))
-    _give(db, user, reward, f"Пропуск сезона «{season.name}», уровень {level}")
+    _give(db, user, reward, f"Пропуск сезона «{season.name}», уровень {level}", season)
     return reward
 
 

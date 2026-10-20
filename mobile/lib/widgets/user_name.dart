@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'season_pass_ui.dart' show BadgeGlyph;
+
 /// The blue "verified" checkmark a GuYo Premium user carries next to their
 /// name, Instagram-style.
 class PremiumCheck extends StatelessWidget {
@@ -32,12 +34,16 @@ class UserNameText extends StatelessWidget {
   final TextStyle style;
   final TextAlign textAlign;
 
+  /// The badge look this person wears (season pass); null = none.
+  final String? badge;
+
   const UserNameText(
     this.name, {
     super.key,
     required this.isPremium,
     required this.style,
     this.textAlign = TextAlign.start,
+    this.badge,
   });
 
   @override
@@ -49,15 +55,21 @@ class UserNameText extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );
-    if (!isPremium) return text;
+    if (!isPremium && badge == null) return text;
     final fontSize = style.fontSize ?? 14;
     return Row(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: textAlign == TextAlign.center ? MainAxisAlignment.center : MainAxisAlignment.start,
       children: [
         Flexible(child: text),
-        SizedBox(width: fontSize * 0.25),
-        PremiumCheck(size: fontSize * 1.05),
+        if (badge != null) ...[
+          SizedBox(width: fontSize * 0.25),
+          BadgeGlyph(badgeKey: badge!, size: fontSize * 1.15),
+        ],
+        if (isPremium) ...[
+          SizedBox(width: fontSize * 0.25),
+          PremiumCheck(size: fontSize * 1.05),
+        ],
       ],
     );
   }

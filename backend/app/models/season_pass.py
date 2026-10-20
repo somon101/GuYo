@@ -95,3 +95,24 @@ class PassClaim(Base):
     kind: Mapped[str] = mapped_column(String(8), nullable=False)
     ref: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class UserCosmetic(Base):
+    """A badge or title a person earned (a season-pass reward). Kept for good:
+    what was earned in a past season stays in the collection. The badge's
+    look comes from `key` (an icon from a fixed set); a title is just its
+    text, in up to three languages."""
+
+    __tablename__ = "user_cosmetics"
+    __table_args__ = (UniqueConstraint("user_id", "kind", "key", "label", "season_id", name="uq_user_cosmetic_once"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    kind: Mapped[str] = mapped_column(String(8), nullable=False)  # "badge" | "title"
+    key: Mapped[str] = mapped_column(String(32), nullable=False, default="", server_default="")
+    label: Mapped[str] = mapped_column(String(120), nullable=False)
+    label_tg: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    label_uz: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    season_id: Mapped[int | None] = mapped_column(ForeignKey("seasons.id", ondelete="SET NULL"), nullable=True)
+    season_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

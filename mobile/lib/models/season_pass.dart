@@ -6,9 +6,15 @@ class PassReward {
   final bool claimable;
   final bool lockedByPremium;
 
+  /// A badge's look (an icon key) and a badge's / title's own name.
+  final String? key;
+  final String? text;
+
   const PassReward({
     required this.type,
     required this.amount,
+    this.key,
+    this.text,
     required this.claimed,
     required this.claimable,
     required this.lockedByPremium,
@@ -17,6 +23,8 @@ class PassReward {
   factory PassReward.fromJson(Map<String, dynamic> json) => PassReward(
         type: json['type'] as String,
         amount: json['amount'] as int,
+        key: json['key'] as String?,
+        text: json['text'] as String?,
         claimed: json['claimed'] as bool,
         claimable: json['claimable'] as bool,
         lockedByPremium: (json['locked_by_premium'] as bool?) ?? false,
@@ -123,4 +131,39 @@ class SeasonPass {
       tasks: (week['tasks'] as List<dynamic>).map((e) => PassTask.fromJson(e as Map<String, dynamic>)).toList(),
     );
   }
+}
+
+/// A badge or title earned in a season pass.
+class Cosmetic {
+  final int id;
+  final String kind; // badge | title
+  final String key;
+  final String label;
+  final String? seasonName;
+
+  const Cosmetic({required this.id, required this.kind, required this.key, required this.label, this.seasonName});
+
+  factory Cosmetic.fromJson(Map<String, dynamic> json) => Cosmetic(
+        id: json['id'] as int,
+        kind: json['kind'] as String,
+        key: json['key'] as String,
+        label: json['label'] as String,
+        seasonName: json['season_name'] as String?,
+      );
+}
+
+class CosmeticCollection {
+  final List<Cosmetic> badges;
+  final List<Cosmetic> titles;
+  final int? equippedBadgeId;
+  final int? equippedTitleId;
+
+  const CosmeticCollection({required this.badges, required this.titles, this.equippedBadgeId, this.equippedTitleId});
+
+  factory CosmeticCollection.fromJson(Map<String, dynamic> json) => CosmeticCollection(
+        badges: (json['badges'] as List<dynamic>).map((e) => Cosmetic.fromJson(e as Map<String, dynamic>)).toList(),
+        titles: (json['titles'] as List<dynamic>).map((e) => Cosmetic.fromJson(e as Map<String, dynamic>)).toList(),
+        equippedBadgeId: json['equipped_badge_id'] as int?,
+        equippedTitleId: json['equipped_title_id'] as int?,
+      );
 }

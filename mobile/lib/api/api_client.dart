@@ -827,6 +827,24 @@ class ApiClient {
     }
   }
 
+  /// The badges and titles this person has earned and which they wear.
+  Future<CosmeticCollection> fetchCosmetics() async {
+    final res = await http.get(_uri('/season-pass/cosmetics'), headers: await _authHeaders());
+    await _throwWithDetail(res);
+    return CosmeticCollection.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  /// Chooses what to wear; null takes that kind off.
+  Future<CosmeticCollection> equipCosmetics({int? badgeId, int? titleId}) async {
+    final res = await http.put(
+      _uri('/season-pass/cosmetics/equip'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'badge_id': badgeId, 'title_id': titleId}),
+    );
+    await _throwWithDetail(res);
+    return CosmeticCollection.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
   /// Takes a level's reward ([track] is 'free' or 'premium'); returns the
   /// refreshed pass, or throws an [ApiException] with the reason.
   Future<SeasonPass> claimPassLevel(int level, String track) async {

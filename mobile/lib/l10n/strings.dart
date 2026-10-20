@@ -690,4 +690,10 @@ const Map<String, (String, String)> uiStrings = {
   'Награда получена!': ('Мукофот гирифта шуд!', 'Mukofot olindi!'),
   'Главная награда сезона': ('Мукофоти асосии мавсим', 'Mavsumning asosiy mukofoti'),
   'Дней до обновления: {0}': ('Рӯзҳо то навсозӣ: {0}', 'Yangilanishgacha kunlar: {0}'),
+  'Мои награды': ('Мукофотҳои ман', 'Mukofotlarim'),
+  'Здесь будут значки и титулы из пропуска сезона': ('Дар ин ҷо нишонҳо ва унвонҳо аз гузариши мавсим пайдо мешаванд', 'Bu yerda mavsum o‘tkazmasidagi nishonlar va unvonlar bo‘ladi'),
+  'Значки': ('Нишонҳо', 'Nishonlar'),
+  'Титулы': ('Унвонҳо', 'Unvonlar'),
+  'Надет': ('Пӯшида', 'Taqilgan'),
+  'Надеть': ('Пӯшидан', 'Taqish'),
 };

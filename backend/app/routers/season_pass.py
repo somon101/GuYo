@@ -10,6 +10,7 @@ from app.core.deps import get_current_user
 from app.database import get_db
 from app.models.user import User
 from app.seasonpass import PassError, claim_level, claim_task, user_state
+from app.seasonpass.cosmetics import CosmeticError, collection, equip
 
 router = APIRouter(prefix="/season-pass", tags=["season-pass"])
 
@@ -17,6 +18,8 @@ router = APIRouter(prefix="/season-pass", tags=["season-pass"])
 class RewardOut(BaseModel):
     type: str
     amount: int
+    key: str | None = None
+    text: str | None = None
     claimed: bool
     claimable: bool
     locked_by_premium: bool = False
@@ -68,6 +71,26 @@ class ClaimLevelIn(BaseModel):
     track: str
 
 
+class CosmeticOut(BaseModel):
+    id: int
+    kind: str
+    key: str
+    label: str
+    season_name: str | None
+
+
+class CollectionOut(BaseModel):
+    badges: list[CosmeticOut]
+    titles: list[CosmeticOut]
+    equipped_badge_id: int | None
+    equipped_title_id: int | None
+
+
+class EquipIn(BaseModel):
+    badge_id: int | None = None
+    title_id: int | None = None
+
+
 class ClaimTaskIn(BaseModel):
     task_id: str
 
@@ -83,6 +106,22 @@ def get_pass(db: Session = Depends(get_db), user: User = Depends(get_current_use
     if state is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Сейчас нет активного сезона")
     return state
+
+
+@router.get("/cosmetics", response_model=CollectionOut)
+def get_collection(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return collection(db, user)
+
+
+@router.put("/cosmetics/equip", response_model=CollectionOut)
+def equip_cosmetics(payload: EquipIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    try:
+        equip(db, user, payload.badge_id, payload.title_id)
+    except CosmeticError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from None
+    db.commit()
+    return collection(db, user)
 
 
 @router.post("/claim", response_model=PassOut)

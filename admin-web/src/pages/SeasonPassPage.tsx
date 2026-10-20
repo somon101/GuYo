@@ -30,6 +30,21 @@ const REWARD_LABELS: Record<string, string> = {
   rating_points: "Очки рейтинга",
   premium_days: "Дни Premium",
   streak_freeze: "Заморозка серии",
+  badge: "Значок",
+  title: "Титул",
+};
+const BADGE_LOOKS: Record<string, string> = {
+  crown: "Корона",
+  champion: "Кубок",
+  medal: "Медаль",
+  flame: "Огонь",
+  star: "Звезда",
+  diamond: "Бриллиант",
+  rocket: "Ракета",
+  shield: "Щит",
+  bolt: "Молния",
+  heart: "Сердце",
+  leaf: "Лист",
 };
 const METRIC_LABELS: Record<string, string> = {
   word: "Выучить слов",
@@ -145,30 +160,70 @@ function SettingsSection() {
 // --- Definition editor -----------------------------------------------------------
 
 function RewardEditor({ value, onChange }: { value: PassReward | null; onChange: (v: PassReward | null) => void }) {
+  const isCosmetic = value?.type === "badge" || value?.type === "title";
   return (
-    <div className="flex items-center gap-1">
-      <select
-        className={`${inputClass} w-36`}
-        value={value?.type ?? ""}
-        onChange={(e) =>
-          onChange(e.target.value ? { type: e.target.value as PassReward["type"], amount: value?.amount ?? 1 } : null)
-        }
-      >
-        <option value="">— нет —</option>
-        {Object.entries(REWARD_LABELS).map(([k, v]) => (
-          <option key={k} value={k}>
-            {v}
-          </option>
-        ))}
-      </select>
-      {value && (
-        <input
-          type="number"
-          min={1}
-          className={`${inputClass} w-16`}
-          value={value.amount}
-          onChange={(e) => onChange({ ...value, amount: Math.max(1, Number(e.target.value) || 1) })}
-        />
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-1">
+        <select
+          className={`${inputClass} w-36`}
+          value={value?.type ?? ""}
+          onChange={(e) => {
+            const type = e.target.value as PassReward["type"] | "";
+            if (!type) return onChange(null);
+            if (type === "badge") return onChange({ type, amount: 1, key: "crown", text: "" });
+            if (type === "title") return onChange({ type, amount: 1, text: "" });
+            onChange({ type, amount: value && !isCosmetic ? value.amount : 1 });
+          }}
+        >
+          <option value="">— нет —</option>
+          {Object.entries(REWARD_LABELS).map(([k, v]) => (
+            <option key={k} value={k}>
+              {v}
+            </option>
+          ))}
+        </select>
+        {value && !isCosmetic && (
+          <input
+            type="number"
+            min={1}
+            className={`${inputClass} w-16`}
+            value={value.amount}
+            onChange={(e) => onChange({ ...value, amount: Math.max(1, Number(e.target.value) || 1) })}
+          />
+        )}
+        {value?.type === "badge" && (
+          <select className={`${inputClass} w-28`} value={value.key ?? "crown"} onChange={(e) => onChange({ ...value, key: e.target.value })}>
+            {Object.entries(BADGE_LOOKS).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+      {value && isCosmetic && (
+        <div className="flex flex-col gap-1">
+          <input
+            className={`${inputClass} w-64`}
+            placeholder="Название (по-русски)"
+            value={value.text ?? ""}
+            onChange={(e) => onChange({ ...value, text: e.target.value })}
+          />
+          <div className="flex gap-1">
+            <input
+              className={`${inputClass} w-32`}
+              placeholder="Тоҷикӣ"
+              value={value.text_tg ?? ""}
+              onChange={(e) => onChange({ ...value, text_tg: e.target.value })}
+            />
+            <input
+              className={`${inputClass} w-32`}
+              placeholder="Oʻzbekcha"
+              value={value.text_uz ?? ""}
+              onChange={(e) => onChange({ ...value, text_uz: e.target.value })}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

@@ -52,6 +52,9 @@ def _entries_out(
             ranks_cache[points] = rank_public_out(current_rank_for_points(db, points))
         return ranks_cache[points]
 
+    from app.seasonpass.cosmetics import badge_keys
+
+    badges = badge_keys(db, user_ids)
     entries = []
     for position, rating in enumerate(ratings, start=1):
         user = users.get(rating.user_id)
@@ -67,6 +70,7 @@ def _entries_out(
                 rank=rank_for(rating.total_points),
                 is_me=user.id == me.id,
                 is_premium=user.id in premium_ids,
+                badge=badges.get(user.id),
                 position_change=moves.get(user.id),
                 status_emoji_url=statuses.get(user.id, (None, None))[0],
                 status_text=statuses.get(user.id, (None, None))[1],

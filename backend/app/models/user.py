@@ -72,6 +72,9 @@ class User(Base):
     # Streak freezes in stock (earned in the season pass, app/seasonpass/):
     # one is spent automatically on each missed day the weekly forgiveness
     # does not cover, when the person comes back.
+    # The badge and title the person chose to show (UserCosmetic ids); NULL = none.
+    equipped_badge_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    equipped_title_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     streak_freezes: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)

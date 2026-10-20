@@ -676,4 +676,10 @@ const Map<String, String> enStrings = {
   'Награда получена!': 'Reward claimed!',
   'Главная награда сезона': 'Grand prize of the season',
   'Дней до обновления: {0}': 'Days until reset: {0}',
+  'Мои награды': 'My rewards',
+  'Здесь будут значки и титулы из пропуска сезона': 'Badges and titles from the season pass will appear here',
+  'Значки': 'Badges',
+  'Титулы': 'Titles',
+  'Надет': 'Worn',
+  'Надеть': 'Wear',
 };

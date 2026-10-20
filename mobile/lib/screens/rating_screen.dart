@@ -440,6 +440,7 @@ class _PodiumPlace extends StatelessWidget {
           UserNameText(
             person.login,
             isPremium: person.isPremium,
+            badge: person.badge,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: isFirst ? 15 : 13,
@@ -656,6 +657,7 @@ class LeaderboardRow extends StatelessWidget {
                   UserNameText(
                     entry.login,
                     isPremium: entry.isPremium,
+                    badge: entry.badge,
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: entry.isMe ? FontWeight.w800 : FontWeight.w600,

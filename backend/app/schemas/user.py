@@ -273,3 +273,6 @@ class UserProfileOut(BaseModel):
     # Which of this person's languages were unpublished ("learning", "native"):
     # the app asks them to pick another, published one.
     language_unavailable: list[str] = []
+    # What the person wears from the season pass: a badge look and a title.
+    badge: str | None = None
+    title: str | None = None
