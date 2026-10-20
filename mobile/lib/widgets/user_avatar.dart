@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../theme/app_colors.dart';
 import 'remote_image.dart';
 
 /// A small, fixed palette of GuYo-toned gradients a generated avatar picks
@@ -30,10 +32,34 @@ class UserAvatar extends StatelessWidget {
   final String login;
   final double size;
 
-  const UserAvatar({super.key, required this.avatarUrl, required this.login, this.size = 88});
+  /// The season-pass frame the person wears (a key from [frameColors]), if any.
+  final String? frame;
+
+  const UserAvatar({super.key, required this.avatarUrl, required this.login, this.size = 88, this.frame});
 
   @override
   Widget build(BuildContext context) {
+    final key = frame;
+    if (key == null || key.isEmpty) return _plain();
+    // The ring sits inside the same box, so layouts do not move.
+    final ring = size * 0.07 < 2.5 ? 2.5 : size * 0.07;
+    return Container(
+      width: size,
+      height: size,
+      padding: EdgeInsets.all(ring),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: SweepGradient(colors: [...frameColors(key), frameColors(key).first]),
+      ),
+      child: Container(
+        padding: EdgeInsets.all(ring * 0.35),
+        decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.surface),
+        child: UserAvatar(avatarUrl: avatarUrl, login: login, size: size - 2 * ring - ring * 0.7),
+      ),
+    );
+  }
+
+  Widget _plain() {
     final url = avatarUrl;
     if (url != null && url.isNotEmpty) {
       // RemoteImage persists this to disk the first time it loads, so every
@@ -86,5 +112,27 @@ class _DefaultAvatar extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// The colours of each avatar frame (the keys the server's FRAME_KEYS lists).
+List<Color> frameColors(String key) {
+  switch (key) {
+    case 'aurora':
+      return const [Color(0xFF6EE7B7), Color(0xFF60A5FA), Color(0xFFA78BFA)];
+    case 'fire':
+      return const [Color(0xFFFF7043), Color(0xFFFFB74D), Color(0xFFFF5252)];
+    case 'ocean':
+      return const [Color(0xFF38BDF8), Color(0xFF2563EB), Color(0xFF22D3EE)];
+    case 'emerald':
+      return const [Color(0xFF34D399), Color(0xFF059669), Color(0xFF6EE7B7)];
+    case 'royal':
+      return const [Color(0xFF8B5CF6), Color(0xFFFFD54F), Color(0xFF6D28D9)];
+    case 'rose':
+      return const [Color(0xFFF472B6), Color(0xFFFB7185), Color(0xFFFDA4AF)];
+    case 'ice':
+      return const [Color(0xFFBAE6FD), Color(0xFF7DD3FC), Color(0xFFE0F2FE)];
+    default: // gold
+      return const [Color(0xFFFFD54F), Color(0xFFFF9800), Color(0xFFFFE082)];
   }
 }

@@ -89,6 +89,9 @@ class LeaderboardEntry {
   /// The badge look this person wears (season pass), if any.
   final String? badge;
 
+  /// The avatar frame this person wears, if any.
+  final String? frame;
+
   /// Places moved in this person's latest move within their rank, if it
   /// was in the last day: +3 up, -2 down. Own-rank board only.
   final int? positionChange;
@@ -110,6 +113,7 @@ class LeaderboardEntry {
     required this.isMe,
     this.isPremium = false,
     this.badge,
+    this.frame,
     this.positionChange,
     this.statusEmojiUrl,
     this.statusText,
@@ -126,6 +130,7 @@ class LeaderboardEntry {
       isMe: json['is_me'] as bool,
       isPremium: json['is_premium'] as bool? ?? false,
       badge: json['badge'] as String?,
+      frame: json['frame'] as String?,
       positionChange: json['position_change'] as int?,
       statusEmojiUrl: json['status_emoji_url'] as String?,
       statusText: json['status_text'] as String?,

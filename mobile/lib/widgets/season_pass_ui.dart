@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
 import '../models/season_pass.dart';
+import 'user_avatar.dart' show frameColors;
 
 /// The hero gradient of the season pass: deep violet into electric blue.
 List<Color> passHeroGradient(bool dark) =>
@@ -30,6 +31,8 @@ RewardStyle rewardStyle(PassReward r) {
       return RewardStyle(const [Color(0xFFFFD54F), Color(0xFFFF9800)], Icons.workspace_premium_rounded, tr('Дни Premium'));
     case 'streak_freeze':
       return RewardStyle(const [Color(0xFF7FDBFF), Color(0xFF3A7BFF)], Icons.ac_unit_rounded, tr('Заморозка серии'));
+    case 'frame':
+      return RewardStyle(frameColors(r.key ?? 'gold').take(2).toList(), Icons.account_circle_outlined, (r.text ?? '').isEmpty ? tr('Рамка') : r.text!);
     case 'title':
       return RewardStyle(const [Color(0xFF6EE7B7), Color(0xFF0E9F6E)], Icons.badge_rounded, (r.text ?? '').isEmpty ? tr('Титул') : r.text!);
     default:

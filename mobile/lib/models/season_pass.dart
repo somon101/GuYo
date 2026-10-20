@@ -136,7 +136,7 @@ class SeasonPass {
 /// A badge or title earned in a season pass.
 class Cosmetic {
   final int id;
-  final String kind; // badge | title
+  final String kind; // badge | title | frame
   final String key;
   final String label;
   final String? seasonName;
@@ -155,15 +155,26 @@ class Cosmetic {
 class CosmeticCollection {
   final List<Cosmetic> badges;
   final List<Cosmetic> titles;
+  final List<Cosmetic> frames;
   final int? equippedBadgeId;
   final int? equippedTitleId;
+  final int? equippedFrameId;
 
-  const CosmeticCollection({required this.badges, required this.titles, this.equippedBadgeId, this.equippedTitleId});
+  const CosmeticCollection({
+    required this.badges,
+    required this.titles,
+    this.frames = const [],
+    this.equippedBadgeId,
+    this.equippedTitleId,
+    this.equippedFrameId,
+  });
 
   factory CosmeticCollection.fromJson(Map<String, dynamic> json) => CosmeticCollection(
         badges: (json['badges'] as List<dynamic>).map((e) => Cosmetic.fromJson(e as Map<String, dynamic>)).toList(),
         titles: (json['titles'] as List<dynamic>).map((e) => Cosmetic.fromJson(e as Map<String, dynamic>)).toList(),
+        frames: ((json['frames'] as List<dynamic>?) ?? const []).map((e) => Cosmetic.fromJson(e as Map<String, dynamic>)).toList(),
         equippedBadgeId: json['equipped_badge_id'] as int?,
         equippedTitleId: json['equipped_title_id'] as int?,
+        equippedFrameId: json['equipped_frame_id'] as int?,
       );
 }

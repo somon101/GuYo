@@ -36,6 +36,9 @@ class UserProfile {
 
   /// What the person wears from the season pass: a badge look and a title.
   final String? badge;
+
+  /// The avatar frame they wear (season pass).
+  final String? frame;
   final String? title;
 
   bool get isPremium => premiumUntil != null;
@@ -74,6 +77,7 @@ class UserProfile {
     this.learningLanguage,
     this.languageUnavailable = const [],
     this.badge,
+    this.frame,
     this.title,
   });
 
@@ -97,6 +101,7 @@ class UserProfile {
       learningLanguage: json['learning_language'] as String?,
       languageUnavailable: (json['language_unavailable'] as List<dynamic>?)?.cast<String>() ?? const [],
       badge: json['badge'] as String?,
+      frame: json['frame'] as String?,
       title: json['title'] as String?,
     );
   }

@@ -275,4 +275,6 @@ class UserProfileOut(BaseModel):
     language_unavailable: list[str] = []
     # What the person wears from the season pass: a badge look and a title.
     badge: str | None = None
+    # The avatar frame the person wears (season pass).
+    frame: str | None = None
     title: str | None = None

@@ -8,6 +8,8 @@ from app.models.season_pass import UserCosmetic
 from app.models.user import User
 
 # Every badge look the app can draw (mobile/lib/widgets/season_pass_ui.dart).
+# Avatar frames, drawn by the app as coloured rings (no pictures needed).
+FRAME_KEYS = ("gold", "aurora", "fire", "ocean", "emerald", "royal", "rose", "ice")
 BADGE_KEYS = ("crown", "champion", "medal", "flame", "star", "diamond", "rocket", "shield", "bolt", "heart", "leaf")
 
 
@@ -28,7 +30,7 @@ def grant(db: Session, user: User, reward: dict, season) -> UserCosmetic | None:
     """Puts a badge/title reward into the person's collection (once) and wears
     it if they wear nothing of that kind yet. Does not commit."""
     kind = reward["type"]
-    key = reward.get("key") or "" if kind == "badge" else ""
+    key = reward.get("key") or "" if kind in ("badge", "frame") else ""
     label = reward.get("text") or ""
     existing = (
         db.query(UserCosmetic)
@@ -59,6 +61,8 @@ def grant(db: Session, user: User, reward: dict, season) -> UserCosmetic | None:
         user.equipped_badge_id = item.id
     if kind == "title" and user.equipped_title_id is None:
         user.equipped_title_id = item.id
+    if kind == "frame" and user.equipped_frame_id is None:
+        user.equipped_frame_id = item.id
     db.flush()
     return item
 
@@ -78,8 +82,10 @@ def collection(db: Session, user: User) -> dict:
     return {
         "badges": [out(c) for c in items if c.kind == "badge"],
         "titles": [out(c) for c in items if c.kind == "title"],
+        "frames": [out(c) for c in items if c.kind == "frame"],
         "equipped_badge_id": user.equipped_badge_id,
         "equipped_title_id": user.equipped_title_id,
+        "equipped_frame_id": user.equipped_frame_id,
     }
 
 
@@ -87,9 +93,10 @@ class CosmeticError(Exception):
     pass
 
 
-def equip(db: Session, user: User, badge_id: int | None, title_id: int | None) -> None:
-    """Sets what the person wears (None takes it off). Only things they own."""
-    for kind, item_id in (("badge", badge_id), ("title", title_id)):
+def equip(db: Session, user: User, badge_id: int | None, title_id: int | None, frame_id=...) -> None:
+    """Sets what the person wears (None takes it off). Only things they own.
+    `frame_id` left out (older apps) keeps the frame as it is."""
+    for kind, item_id in (("badge", badge_id), ("title", title_id), ("frame", None if frame_id is ... else frame_id)):
         if item_id is None:
             continue
         owned = (
@@ -101,6 +108,8 @@ def equip(db: Session, user: User, badge_id: int | None, title_id: int | None) -
             raise CosmeticError("Этой награды нет в вашей коллекции")
     user.equipped_badge_id = badge_id
     user.equipped_title_id = title_id
+    if frame_id is not ...:
+        user.equipped_frame_id = frame_id
     db.flush()
 
 
@@ -118,6 +127,19 @@ def badge_keys(db: Session, user_ids: list[int]) -> dict[int, str]:
     rows = (
         db.query(User.id, UserCosmetic.key)
         .join(UserCosmetic, UserCosmetic.id == User.equipped_badge_id)
+        .filter(User.id.in_(user_ids))
+        .all()
+    )
+    return {uid: key for uid, key in rows}
+
+
+def frame_keys(db: Session, user_ids: list[int]) -> dict[int, str]:
+    """user id -> the key of the avatar frame they wear, for a whole list at once."""
+    if not user_ids:
+        return {}
+    rows = (
+        db.query(User.id, UserCosmetic.key)
+        .join(UserCosmetic, UserCosmetic.id == User.equipped_frame_id)
         .filter(User.id.in_(user_ids))
         .all()
     )

@@ -646,7 +646,7 @@ class LeaderboardRow extends StatelessWidget {
             AvatarWithStatus(
               emojiUrl: entry.statusEmojiUrl,
               badgeSize: 19,
-              child: UserAvatar(avatarUrl: entry.avatarUrl, login: entry.login, size: 36),
+              child: UserAvatar(avatarUrl: entry.avatarUrl, login: entry.login, size: 36, frame: entry.frame),
             ),
             const SizedBox(width: 10),
             Expanded(

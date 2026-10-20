@@ -37,6 +37,17 @@ const REWARD_LABELS: Record<string, string> = {
   streak_freeze: "Заморозка серии",
   badge: "Значок",
   title: "Титул",
+  frame: "Рамка аватара",
+};
+const FRAME_LOOKS: Record<string, string> = {
+  gold: "Золото",
+  aurora: "Северное сияние",
+  fire: "Огонь",
+  ocean: "Океан",
+  emerald: "Изумруд",
+  royal: "Королевская",
+  rose: "Роза",
+  ice: "Лёд",
 };
 const BADGE_LOOKS: Record<string, string> = {
   crown: "Корона",
@@ -198,7 +209,7 @@ function SettingsSection() {
 // --- Definition editor -----------------------------------------------------------
 
 function RewardEditor({ value, onChange }: { value: PassReward | null; onChange: (v: PassReward | null) => void }) {
-  const isCosmetic = value?.type === "badge" || value?.type === "title";
+  const isCosmetic = value?.type === "badge" || value?.type === "title" || value?.type === "frame";
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-1">
@@ -209,6 +220,7 @@ function RewardEditor({ value, onChange }: { value: PassReward | null; onChange:
             const type = e.target.value as PassReward["type"] | "";
             if (!type) return onChange(null);
             if (type === "badge") return onChange({ type, amount: 1, key: "crown", text: "" });
+            if (type === "frame") return onChange({ type, amount: 1, key: "gold", text: "" });
             if (type === "title") return onChange({ type, amount: 1, text: "" });
             onChange({ type, amount: value && !isCosmetic ? value.amount : 1 });
           }}
@@ -229,9 +241,13 @@ function RewardEditor({ value, onChange }: { value: PassReward | null; onChange:
             onChange={(e) => onChange({ ...value, amount: Math.max(1, Number(e.target.value) || 1) })}
           />
         )}
-        {value?.type === "badge" && (
-          <select className={`${inputClass} w-28`} value={value.key ?? "crown"} onChange={(e) => onChange({ ...value, key: e.target.value })}>
-            {Object.entries(BADGE_LOOKS).map(([k, v]) => (
+        {(value?.type === "badge" || value?.type === "frame") && (
+          <select
+            className={`${inputClass} w-28`}
+            value={value.key ?? (value.type === "frame" ? "gold" : "crown")}
+            onChange={(e) => onChange({ ...value, key: e.target.value })}
+          >
+            {Object.entries(value.type === "frame" ? FRAME_LOOKS : BADGE_LOOKS).map(([k, v]) => (
               <option key={k} value={k}>
                 {v}
               </option>

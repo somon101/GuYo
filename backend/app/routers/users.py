@@ -238,11 +238,12 @@ def set_text_check_unlimited(
 
 
 def _profile_out(db: Session, user: User) -> UserProfileOut:
-    from app.seasonpass.cosmetics import worn
+    from app.seasonpass.cosmetics import frame_keys, worn
 
     badge, title = worn(db, user)
     return UserProfileOut(
         badge=badge,
+        frame=frame_keys(db, [user.id]).get(user.id),
         title=title,
         id=user.id,
         public_id=user.public_id,

@@ -19,7 +19,7 @@ from app.models.user import User
 
 # What a weekly task counts: the `source` of the XP events.
 METRICS = ("word", "lesson", "review", "quest", "streak")
-REWARD_TYPES = ("rating_points", "premium_days", "streak_freeze", "badge", "title")
+REWARD_TYPES = ("rating_points", "premium_days", "streak_freeze", "badge", "title", "frame")
 LEVEL_MAX = 100
 
 
@@ -155,8 +155,8 @@ def _reward(value: dict | None, level) -> dict | None:
         return None
     if value["type"] not in REWARD_TYPES:
         raise PassError(f"Награда {level}: неизвестная награда" if isinstance(level, str) else f"Уровень {level}: неизвестная награда")
-    if value["type"] in ("badge", "title"):
-        from app.seasonpass.cosmetics import BADGE_KEYS
+    if value["type"] in ("badge", "title", "frame"):
+        from app.seasonpass.cosmetics import BADGE_KEYS, FRAME_KEYS
 
         text = str(value.get("text") or "").strip()
         if not text:
@@ -165,6 +165,10 @@ def _reward(value: dict | None, level) -> dict | None:
         for lang in ("text_tg", "text_uz"):
             if str(value.get(lang) or "").strip():
                 out[lang] = str(value[lang]).strip()[:120]
+        if value["type"] == "frame":
+            if value.get("key") not in FRAME_KEYS:
+                raise PassError(f"Награда {level}: выберите вид рамки" if isinstance(level, str) else f"Уровень {level}: выберите вид рамки")
+            out["key"] = value["key"]
         if value["type"] == "badge":
             if value.get("key") not in BADGE_KEYS:
                 raise PassError(f"Награда {level}: выберите вид значка" if isinstance(level, str) else f"Уровень {level}: выберите вид значка")
@@ -434,7 +438,7 @@ def _give(db: Session, user: User, reward: dict, note: str, season: Season | Non
     elif reward["type"] == "streak_freeze":
         user.streak_freezes = (user.streak_freezes or 0) + reward["amount"]
         db.flush()
-    elif reward["type"] in ("badge", "title"):
+    elif reward["type"] in ("badge", "title", "frame"):
         from app.seasonpass.cosmetics import grant
 
         grant(db, user, reward, season)

@@ -556,7 +556,7 @@ class _ProfileHeader extends StatelessWidget {
                       cacheWidth: cacheSize,
                     ),
                   )
-                : UserAvatar(avatarUrl: profile.avatarUrl, login: profile.login, size: size),
+                : UserAvatar(avatarUrl: profile.avatarUrl, login: profile.login, size: size, frame: profile.frame),
           ),
           if (isUpdatingAvatar)
             SkeletonPulse(

@@ -253,7 +253,7 @@ class _Greeting extends StatelessWidget {
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: onOpenProfile,
-            child: UserAvatar(avatarUrl: profile?.avatarUrl, login: login, size: 54),
+            child: UserAvatar(avatarUrl: profile?.avatarUrl, login: login, size: 54, frame: profile?.frame),
           ),
         ),
         const SizedBox(width: 14),

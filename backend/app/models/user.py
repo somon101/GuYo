@@ -75,6 +75,7 @@ class User(Base):
     # The badge and title the person chose to show (UserCosmetic ids); NULL = none.
     equipped_badge_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     equipped_title_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    equipped_frame_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Raised by "log out on other devices"; tokens carry the value they were issued with.
     # Words to practise per day (5, 10 or 20): the ring on the home screen.
     daily_goal: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")

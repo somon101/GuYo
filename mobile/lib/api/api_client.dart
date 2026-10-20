@@ -1009,11 +1009,11 @@ class ApiClient {
   }
 
   /// Chooses what to wear; null takes that kind off.
-  Future<CosmeticCollection> equipCosmetics({int? badgeId, int? titleId}) async {
+  Future<CosmeticCollection> equipCosmetics({int? badgeId, int? titleId, int? frameId}) async {
     final res = await http.put(
       _uri('/season-pass/cosmetics/equip'),
       headers: await _authHeaders(),
-      body: jsonEncode({'badge_id': badgeId, 'title_id': titleId}),
+      body: jsonEncode({'badge_id': badgeId, 'title_id': titleId, 'frame_id': frameId}),
     );
     await _throwWithDetail(res);
     return CosmeticCollection.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);

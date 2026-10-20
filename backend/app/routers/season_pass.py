@@ -82,13 +82,16 @@ class CosmeticOut(BaseModel):
 class CollectionOut(BaseModel):
     badges: list[CosmeticOut]
     titles: list[CosmeticOut]
+    frames: list[CosmeticOut] = []
     equipped_badge_id: int | None
     equipped_title_id: int | None
+    equipped_frame_id: int | None = None
 
 
 class EquipIn(BaseModel):
     badge_id: int | None = None
     title_id: int | None = None
+    frame_id: int | None = None
 
 
 class ClaimTaskIn(BaseModel):
@@ -149,7 +152,7 @@ def get_collection(db: Session = Depends(get_db), user: User = Depends(get_curre
 @router.put("/cosmetics/equip", response_model=CollectionOut)
 def equip_cosmetics(payload: EquipIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     try:
-        equip(db, user, payload.badge_id, payload.title_id)
+        equip(db, user, payload.badge_id, payload.title_id, payload.frame_id if 'frame_id' in payload.model_fields_set else ...)
     except CosmeticError as e:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from None

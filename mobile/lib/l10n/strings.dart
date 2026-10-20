@@ -138,6 +138,8 @@ const Map<String, (String, String)> uiStrings = {
   'Нажмите, чтобы открыть': ('Барои кушодан пахш кунед', 'Ochish uchun bosing'),
   'Сундук открыт!': ('Сандуқ кушода шуд!', 'Sandiq ochildi!'),
   'Заморозка серии +1': ('Яхкунии силсила +1', 'Seriya muzlatish +1'),
+  'Рамки аватара': ('Чорчӯбаҳои аватар', 'Avatar ramkalari'),
+  'Рамка': ('Чорчӯба', 'Ramka'),
   'Войдите заново': ('Дубора ворид шавед', 'Qaytadan kiring'),
   'Выйти на других устройствах': ('Аз дастгоҳҳои дигар баромадан', 'Boshqa qurilmalardan chiqish'),
   'Выйти на других устройствах?': ('Аз дастгоҳҳои дигар мебароед?', 'Boshqa qurilmalardan chiqasizmi?'),

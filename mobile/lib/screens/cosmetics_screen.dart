@@ -5,6 +5,7 @@ import '../l10n/l10n.dart';
 import '../models/season_pass.dart';
 import '../theme/app_colors.dart';
 import '../widgets/season_pass_ui.dart';
+import '../widgets/user_avatar.dart';
 
 /// «Мои награды»: the badges and titles earned in season passes. Tap one to
 /// wear it (it shows next to the name and in the rating), tap again to take it off.
@@ -41,11 +42,11 @@ class _CosmeticsScreenState extends State<CosmeticsScreen> {
     if (mounted) setState(() => _loading = false);
   }
 
-  Future<void> _wear({int? badgeId, int? titleId}) async {
+  Future<void> _wear({int? badgeId, int? titleId, int? frameId}) async {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final data = await ApiClient.instance.equipCosmetics(badgeId: badgeId, titleId: titleId);
+      final data = await ApiClient.instance.equipCosmetics(badgeId: badgeId, titleId: titleId, frameId: frameId);
       if (mounted) setState(() => _data = data);
     } on ApiException catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -64,7 +65,7 @@ class _CosmeticsScreenState extends State<CosmeticsScreen> {
       appBar: AppBar(title: Text(tr('Мои награды')), backgroundColor: Colors.transparent, scrolledUnderElevation: 0),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : data == null || (data.badges.isEmpty && data.titles.isEmpty)
+          : data == null || (data.badges.isEmpty && data.titles.isEmpty && data.frames.isEmpty)
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(28),
@@ -91,6 +92,27 @@ class _CosmeticsScreenState extends State<CosmeticsScreen> {
                           onTap: () => _wear(
                             badgeId: data.equippedBadgeId == b.id ? null : b.id,
                             titleId: data.equippedTitleId,
+                            frameId: data.equippedFrameId,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 22),
+                ],
+                if (data.frames.isNotEmpty) ...[
+                  _Title(tr('Рамки аватара')),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      for (final f in data.frames)
+                        _FrameTile(
+                          frame: f,
+                          worn: data.equippedFrameId == f.id,
+                          onTap: () => _wear(
+                            badgeId: data.equippedBadgeId,
+                            titleId: data.equippedTitleId,
+                            frameId: data.equippedFrameId == f.id ? null : f.id,
                           ),
                         ),
                     ],
@@ -106,6 +128,7 @@ class _CosmeticsScreenState extends State<CosmeticsScreen> {
                       onTap: () => _wear(
                         badgeId: data.equippedBadgeId,
                         titleId: data.equippedTitleId == t.id ? null : t.id,
+                        frameId: data.equippedFrameId,
                       ),
                     ),
                 ],
@@ -159,6 +182,50 @@ class _BadgeTile extends StatelessWidget {
             ),
             if (badge.seasonName != null)
               Text(badge.seasonName!, style: TextStyle(fontSize: 11, color: AppColors.secondaryText)),
+            const SizedBox(height: 4),
+            Text(
+              worn ? tr('Надет') : tr('Надеть'),
+              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: worn ? AppColors.success : AppColors.primary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FrameTile extends StatelessWidget {
+  final Cosmetic frame;
+  final bool worn;
+  final VoidCallback onTap;
+  const _FrameTile({required this.frame, required this.worn, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      key: ValueKey('frame-${frame.id}'),
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: Container(
+        width: 104,
+        padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: worn ? AppColors.primary : AppColors.cardBorder, width: worn ? 2.5 : 1),
+          boxShadow: AppShapes.cardShadow,
+        ),
+        child: Column(
+          children: [
+            UserAvatar(avatarUrl: null, login: 'G', size: 60, frame: frame.key),
+            const SizedBox(height: 8),
+            Text(
+              frame.label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+            ),
             const SizedBox(height: 4),
             Text(
               worn ? tr('Надет') : tr('Надеть'),

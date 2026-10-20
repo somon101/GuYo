@@ -142,6 +142,8 @@ const Map<String, String> enStrings = {
   'Нажмите, чтобы открыть': 'Tap to open',
   'Сундук открыт!': 'Chest opened!',
   'Заморозка серии +1': 'Streak freeze +1',
+  'Рамки аватара': 'Avatar frames',
+  'Рамка': 'Frame',
   'Войдите заново': 'Please log in again',
   'Выйти на других устройствах': 'Log out on other devices',
   'Выйти на других устройствах?': 'Log out on other devices?',
