@@ -27,6 +27,7 @@ Map<String, dynamic> _json() => {
     };
 
 void main() {
+  captureTests();
   test('parses the recap', () {
     final s = SeasonSummary.fromJson(_json());
     expect(s.level, 7);
@@ -45,5 +46,18 @@ void main() {
     expect(find.text('Серебро'), findsOneWidget);
     expect(find.text('Чемпион октября'), findsOneWidget);
     expect(find.byKey(const ValueKey('summary-share')), findsOneWidget);
+  });
+}
+
+void captureTests() {
+  testWidgets('the summary card can be captured as a picture', (tester) async {
+    tester.view.physicalSize = const Size(900, 2400);
+    addTearDown(tester.view.resetPhysicalSize);
+    await tester.pumpWidget(MaterialApp(home: SeasonSummaryScreen(initial: SeasonSummary.fromJson(_json()))));
+    await tester.pump();
+    final boundary = find.byType(RepaintBoundary).evaluate().map((e) => e.widget.key).whereType<GlobalKey>().first;
+    final bytes = await tester.runAsync(() => captureCard(boundary, pixelRatio: 1));
+    expect(bytes, isNotNull);
+    expect(bytes!.sublist(1, 4), [0x50, 0x4E, 0x47]); // "PNG"
   });
 }
