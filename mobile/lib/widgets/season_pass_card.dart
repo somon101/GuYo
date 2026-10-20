@@ -5,11 +5,11 @@ import '../l10n/l10n.dart';
 import '../models/season_pass.dart';
 import '../screens/season_pass_screen.dart';
 import '../theme/app_colors.dart';
-import 'guyo_ui.dart';
+import 'season_pass_ui.dart';
 
-/// The way into «Пропуск сезона» from Главная: the level and how close the
-/// next one is. Hides itself while no season is live or the pass can't load,
-/// so it never gets in the way of the rest of the screen.
+/// The way into «Пропуск сезона» from Главная: the level ring, how close the
+/// next level is and how many rewards wait. Hides itself while no season is
+/// live or the pass can't load, so it never gets in the way of the screen.
 class SeasonPassCard extends StatefulWidget {
   const SeasonPassCard({super.key});
 
@@ -40,57 +40,86 @@ class _SeasonPassCardState extends State<SeasonPassCard> {
   Widget build(BuildContext context) {
     final pass = _pass;
     if (pass == null) return const SizedBox.shrink();
+    return Padding(padding: const EdgeInsets.only(top: 14), child: SeasonPassCardView(pass: pass, onTap: _open));
+  }
+}
+
+/// The card itself, drawn from a loaded pass (also used by previews and tests).
+class SeasonPassCardView extends StatelessWidget {
+  final SeasonPass pass;
+  final VoidCallback onTap;
+  const SeasonPassCardView({super.key, required this.pass, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
     final next = pass.xpForNext;
     final value = next == null || next == 0 ? 1.0 : (pass.xpIntoLevel / next).clamp(0.0, 1.0);
     final waiting = pass.claimableCount;
-    return Padding(
-      padding: const EdgeInsets.only(top: 14),
-      child: GuyoCard(
-        onTap: _open,
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.violetSurface),
-              child: Text(
-                '${pass.level}',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primary),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(tr('Пропуск сезона'),
-                      style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
-                  const SizedBox(height: 6),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(5),
-                    child: LinearProgressIndicator(
-                      value: value,
-                      minHeight: 7,
-                      backgroundColor: AppColors.progressTrack,
-                      color: AppColors.primary,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: onTap,
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: passHeroGradient(AppColors.dark)),
+            boxShadow: [BoxShadow(color: const Color(0xFF5862DD).withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 6))],
+          ),
+          child: Row(
+            children: [
+              LevelRing(size: 64, progress: value, level: pass.level, stroke: 7, compact: true),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr('Пропуск сезона'),
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Colors.white),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    waiting > 0 ? tr('Наград к получению: {0}', [waiting]) : '${pass.xp} XP',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: waiting > 0 ? FontWeight.w700 : FontWeight.w400,
-                      color: waiting > 0 ? AppColors.success : AppColors.secondaryText,
+                    const SizedBox(height: 2),
+                    Text(
+                      '${passSeasonName(pass)} · ${pass.xp} XP',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12.5, color: Colors.white.withValues(alpha: 0.82)),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(5),
+                      child: LinearProgressIndicator(
+                        value: value,
+                        minHeight: 7,
+                        backgroundColor: Colors.white.withValues(alpha: 0.22),
+                        color: const Color(0xFFFFD54F),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Icon(Icons.chevron_right, color: AppColors.primary),
-          ],
+              const SizedBox(width: 10),
+              if (waiting > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    gradient: const LinearGradient(colors: [Color(0xFFFFE066), Color(0xFFFFA000)]),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.card_giftcard_rounded, size: 16, color: Color(0xFF5A3B00)),
+                      const SizedBox(width: 4),
+                      Text('$waiting', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF5A3B00))),
+                    ],
+                  ),
+                )
+              else
+                const Icon(Icons.chevron_right_rounded, color: Colors.white),
+            ],
+          ),
         ),
       ),
     );

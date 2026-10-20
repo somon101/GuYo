@@ -681,4 +681,13 @@ const Map<String, (String, String)> uiStrings = {
   'Заморозок серии: {0}': ('Яхкуниҳои силсила: {0}', 'Seriya muzlatishlari: {0}'),
   'Заморозка сама спасёт серию, если пропущено больше одного дня. Их дают в пропуске сезона': ('Яхкунӣ худаш силсиларо наҷот медиҳад, агар зиёда аз як рӯз гузашта бошад. Онҳоро дар гузариши мавсим медиҳанд', 'Muzlatish bir kundan ko‘p o‘tkazib yuborilsa, seriyani o‘zi saqlaydi. Ularni mavsum o‘tkazmasida berishadi'),
   'Заморозка серии: +{0}': ('Яхкунии силсила: +{0}', 'Seriya muzlatishi: +{0}'),
+  'Дни Premium': ('Рӯзҳои Premium', 'Premium kunlari'),
+  'Заморозка серии': ('Яхкунии силсила', 'Seriya muzlatishi'),
+  'Значок': ('Нишон', 'Nishon'),
+  'Титул': ('Унвон', 'Unvon'),
+  'Очки рейтинга': ('Холҳои рейтинг', 'Reyting ballari'),
+  'Уровень': ('Сатҳ', 'Daraja'),
+  'Награда получена!': ('Мукофот гирифта шуд!', 'Mukofot olindi!'),
+  'Главная награда сезона': ('Мукофоти асосии мавсим', 'Mavsumning asosiy mukofoti'),
+  'Дней до обновления: {0}': ('Рӯзҳо то навсозӣ: {0}', 'Yangilanishgacha kunlar: {0}'),
 };

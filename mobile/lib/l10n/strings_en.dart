@@ -667,4 +667,13 @@ const Map<String, String> enStrings = {
   'Заморозок серии: {0}': 'Streak freezes: {0}',
   'Заморозка сама спасёт серию, если пропущено больше одного дня. Их дают в пропуске сезона': 'A freeze saves your streak by itself if you miss more than one day. They are given in the season pass',
   'Заморозка серии: +{0}': 'Streak freeze: +{0}',
+  'Дни Premium': 'Premium days',
+  'Заморозка серии': 'Streak freeze',
+  'Значок': 'Badge',
+  'Титул': 'Title',
+  'Очки рейтинга': 'Rating points',
+  'Уровень': 'Level',
+  'Награда получена!': 'Reward claimed!',
+  'Главная награда сезона': 'Grand prize of the season',
+  'Дней до обновления: {0}': 'Days until reset: {0}',
 };
