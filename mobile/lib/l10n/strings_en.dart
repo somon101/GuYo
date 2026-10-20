@@ -637,4 +637,12 @@ const Map<String, String> enStrings = {
   'Логин и пароль': 'Login and password',
   'Почту изменить нельзя: она привязана к Google': 'You can\'t change your email: it\'s linked to Google',
   'Пользователь с таким ID не найден': 'No user with that ID found',
+  'Проверка слов': 'Word check',
+  'Проверка слов · {0} из {1}': 'Word check · {0} of {1}',
+  'Урок {0} · перед упражнениями': 'Lesson {0} · before the exercises',
+  'Насколько это было легко?': 'How easy was it?',
+  'Угадал': 'Guessed',
+  'Трудно': 'Hard',
+  'Нормально': 'Okay',
+  'Легко': 'Easy',
 };

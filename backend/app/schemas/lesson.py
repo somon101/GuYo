@@ -166,10 +166,14 @@ class SubmitAnswerOut(BaseModel):
 
 class LearningSettingsOut(BaseModel):
     max_lesson_words: int = 15
+    check_enabled: bool = True
+    check_skip_allowed: bool = True
 
 
 class LearningSettingsIn(BaseModel):
     max_lesson_words: int | None = Field(default=None, ge=4, le=MAX_LESSON_WORDS_CEILING)
+    check_enabled: bool | None = None
+    check_skip_allowed: bool | None = None
 
 
 class SpeakingWordItemOut(BaseModel):

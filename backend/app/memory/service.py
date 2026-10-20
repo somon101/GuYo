@@ -14,6 +14,11 @@ layer on top decides what counts as one review and how good it was:
   guessed -- is weaker evidence (Hard) than producing the word in a recall
   exercise (Good). A day whose only misses were timeouts counts as Hard:
   slow, not forgotten.
+- The pre-lesson check (exercise "check") is the learner's own word on how
+  well a word is already known: right + "hard" / "normal" / "easy" lifts the
+  day's grade to Hard / Good / Easy (never above what a miss in the lesson
+  allows). A wrong check, or a right one rated "guess", is only recorded:
+  the lesson itself decides what the word proved.
 
 State is always rebuilt from the full answer history (never patched
 incrementally), so it cannot drift from the attempts that produced it.
@@ -36,6 +41,8 @@ from app.models.word_progress import WordProgress
 
 DESIRED_RETENTION = 0.9
 RECALL_EXERCISES = {"build_word", "speaking_word"}
+CHECK_KEY = "check"
+CHECK_GRADES = {"hard": Rating.Hard, "normal": Rating.Good, "easy": Rating.Easy}
 
 # Day-level reviews: no minute-scale learning steps, no random interval
 # fuzz -- the model must be a deterministic function of the history.
@@ -52,11 +59,32 @@ def _utc(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
 
 
+def _counts(attempt: WordAttempt) -> bool:
+    """A check answer counts only when it was right and rated hard / normal /
+    easy; every other check answer is just a record."""
+    if attempt.exercise_key != CHECK_KEY:
+        return True
+    return bool(attempt.is_correct) and attempt.self_rating in CHECK_GRADES
+
+
 def day_grade(attempts: list[WordAttempt]) -> Rating:
-    """One review day as one FSRS grade. Forgotten (Again) only when the
-    day's real misses outnumber its right answers, or the day ended on a
-    miss: a single slip among right answers (a mixed-up pair in Matching)
-    used to count as forgetting the word and drove stability to hours."""
+    """One review day as one FSRS grade (see the module docstring)."""
+    checks = [a for a in attempts if a.exercise_key == CHECK_KEY and _counts(a)]
+    lesson = [a for a in attempts if a.exercise_key != CHECK_KEY]
+    base = _lesson_grade(lesson) if lesson else None
+    if not checks:
+        return base
+    from_check = max((CHECK_GRADES[a.self_rating] for a in checks), key=lambda r: r.value)
+    if base is None:
+        return from_check
+    return base if base == Rating.Again else max(base, from_check, key=lambda r: r.value)
+
+
+def _lesson_grade(attempts: list[WordAttempt]) -> Rating:
+    """Forgotten (Again) only when the day's real misses outnumber its right
+    answers, or the day ended on a miss: a single slip among right answers (a
+    mixed-up pair in Matching) used to count as forgetting the word and drove
+    stability to hours."""
     real = [a for a in attempts if not a.timed_out]
     misses = sum(1 for a in real if not a.is_correct)
     hits = len(real) - misses
@@ -72,6 +100,8 @@ def day_grade(attempts: list[WordAttempt]) -> Rating:
 def _days(attempts: list[WordAttempt]) -> "OrderedDict[object, list[WordAttempt]]":
     days: OrderedDict = OrderedDict()
     for a in attempts:
+        if not _counts(a):
+            continue
         days.setdefault(a.created_at.astimezone(DUSHANBE_TZ).date(), []).append(a)
     return days
 
@@ -192,6 +222,20 @@ GRADE_NAMES = {Rating.Again: "again", Rating.Hard: "hard", Rating.Good: "good", 
 
 def day_grade_reason(attempts: list[WordAttempt]) -> str:
     """The same rule as day_grade, said in words for Admin Web."""
+    checks = [a for a in attempts if a.exercise_key == CHECK_KEY]
+    lesson = [a for a in attempts if a.exercise_key != CHECK_KEY]
+    check_text = ""
+    if checks:
+        names = {"hard": "трудно", "normal": "нормально", "easy": "легко"}
+        said = ", ".join(sorted({names[a.self_rating] for a in checks if a.self_rating in names}))
+        check_text = f"Проверка перед уроком: ответил верно и оценил «{said}»"
+    if not lesson:
+        return check_text
+    text = _lesson_reason(lesson)
+    return f"{text}. {check_text}" if check_text else text
+
+
+def _lesson_reason(attempts: list[WordAttempt]) -> str:
     real = [a for a in attempts if not a.timed_out]
     misses = sum(1 for a in real if not a.is_correct)
     hits = len(real) - misses

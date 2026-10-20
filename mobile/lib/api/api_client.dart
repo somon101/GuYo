@@ -29,6 +29,7 @@ import '../models/text_check.dart';
 import '../models/user_profile.dart';
 import '../models/user_rating.dart';
 import '../models/word.dart';
+import '../models/word_check.dart';
 import '../services/answer_signals.dart';
 
 /// package:http's MultipartFile.fromBytes defaults to
@@ -807,6 +808,50 @@ class ApiClient {
       Lesson.fromJson(body),
       stats is Map<String, dynamic> ? LessonPassStats.fromJson(stats) : null,
     );
+  }
+
+  /// The check shown before a lesson's first pass (null on any failure: the
+  /// lesson then simply starts without it).
+  Future<WordCheck?> fetchWordCheck(int lessonId) async {
+    try {
+      final res = await http.get(_uri('/lessons/$lessonId/check'), headers: await _authHeaders());
+      if (res.statusCode >= 400) return null;
+      return WordCheck.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Sends one check answer; returns whether it was right (null: not sent).
+  Future<bool?> answerWordCheck(
+    int lessonId, {
+    required int wordId,
+    required int? pickedWordId,
+    CheckRating? rating,
+    int? durationMs,
+  }) async {
+    try {
+      final res = await http.post(
+        _uri('/lessons/$lessonId/check/answers'),
+        headers: await _authHeaders(),
+        body: jsonEncode({
+          'word_id': wordId,
+          'picked_word_id': pickedWordId,
+          'rating': rating?.name,
+          'duration_ms': durationMs,
+        }),
+      );
+      if (res.statusCode >= 400) return null;
+      return (jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>)['is_correct'] as bool;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> finishWordCheck(int lessonId) async {
+    try {
+      await http.post(_uri('/lessons/$lessonId/check/finish'), headers: await _authHeaders());
+    } catch (_) {}
   }
 
   Future<Lesson> startLessonPass(int lessonId) async {

@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:guyo_app/models/lesson.dart';
 import 'package:guyo_app/models/lesson_rounds.dart';
 import 'package:guyo_app/models/mini_phrase.dart';
+import 'package:guyo_app/models/word_check.dart';
 import 'package:guyo_app/screens/lesson_exercise_flow.dart';
 import 'package:guyo_app/screens/lesson_run_screen.dart';
 
@@ -40,6 +41,9 @@ class _FakeDriver implements LessonRunDriver {
 
   @override
   Future<void> startPass(int lessonId) async => passes++;
+
+  @override
+  Future<WordCheck?> fetchWordCheck(int lessonId) async => null;
 
   int finished = 0;
 

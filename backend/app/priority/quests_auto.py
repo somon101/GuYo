@@ -62,7 +62,7 @@ def weak_exercises_by_word(db: Session, user_id: int, word_ids: list[int]) -> di
             func.count(WordAttempt.id),
             func.count(WordAttempt.id).filter(WordAttempt.is_correct.is_(False)),
         )
-        .filter(WordAttempt.user_id == user_id, WordAttempt.word_id.in_(word_ids))
+        .filter(WordAttempt.user_id == user_id, WordAttempt.word_id.in_(word_ids), WordAttempt.source != "check")
         .group_by(WordAttempt.word_id, WordAttempt.exercise_key)
         .order_by(WordAttempt.word_id, WordAttempt.exercise_key)
         .all()

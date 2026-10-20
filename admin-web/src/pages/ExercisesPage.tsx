@@ -48,6 +48,8 @@ export function ExercisesPage() {
       <Tiles items={WORD_SETTINGS} />
       <h2 className="mb-3 mt-8 text-sm font-semibold uppercase tracking-wide text-slate-500">Уроки</h2>
       <MaxLessonWords />
+      <h2 className="mb-3 mt-8 text-sm font-semibold uppercase tracking-wide text-slate-500">Проверка слов перед уроком</h2>
+      <WordCheckSettings />
     </div>
   );
 }
@@ -103,6 +105,63 @@ function MaxLessonWords() {
       <p className="w-full text-xs text-slate-400">
         Столько слов человек сможет выбрать для нового урока — случайно или вручную. Новое число сразу
         видно в приложении.
+      </p>
+    </div>
+  );
+}
+
+/** The card check before a lesson: a card per word, then "how easy was it". */
+function WordCheckSettings() {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [skipAllowed, setSkipAllowed] = useState<boolean | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    getLearningSettings()
+      .then((s) => {
+        setEnabled(s.check_enabled);
+        setSkipAllowed(s.check_skip_allowed);
+      })
+      .catch(() => setMessage("Не удалось загрузить"));
+  }, []);
+
+  async function change(patch: { check_enabled?: boolean; check_skip_allowed?: boolean }) {
+    setMessage(null);
+    try {
+      const s = await updateLearningSettings(patch);
+      setEnabled(s.check_enabled);
+      setSkipAllowed(s.check_skip_allowed);
+      setMessage("Сохранено");
+    } catch {
+      setMessage("Не удалось сохранить");
+    }
+  }
+
+  return (
+    <div className="card flex flex-col gap-3 p-4">
+      <label className="flex items-center gap-2 text-sm text-slate-700">
+        <input
+          type="checkbox"
+          checked={enabled ?? false}
+          disabled={enabled == null}
+          onChange={(e) => change({ check_enabled: e.target.checked })}
+        />
+        Показывать проверку перед первым прохождением урока
+      </label>
+      <label className="flex items-center gap-2 text-sm text-slate-700">
+        <input
+          type="checkbox"
+          checked={skipAllowed ?? false}
+          disabled={skipAllowed == null || !enabled}
+          onChange={(e) => change({ check_skip_allowed: e.target.checked })}
+        />
+        Разрешить кнопку «Пропустить»
+      </label>
+      {message && <span className="text-sm text-slate-500">{message}</span>}
+      <p className="text-xs text-slate-400">
+        Человек видит карточку слова с четырьмя вариантами перевода и оценивает, насколько ему было легко
+        (угадал / трудно / нормально / легко). Это только подсказка модели памяти: слово не становится изученным,
+        а «легко» делает повторение реже. Пропуск ничего не записывает.
       </p>
     </div>
   );

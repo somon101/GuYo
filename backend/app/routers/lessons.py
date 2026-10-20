@@ -832,9 +832,18 @@ def max_lesson_words(db: Session) -> int:
     return settings.max_lesson_words if settings is not None and settings.max_lesson_words else 15
 
 
+def _learning_settings_out(db: Session) -> LearningSettingsOut:
+    settings = db.get(LearningSettings, 1)
+    return LearningSettingsOut(
+        max_lesson_words=max_lesson_words(db),
+        check_enabled=settings is None or settings.check_enabled is not False,
+        check_skip_allowed=settings is None or settings.check_skip_allowed is not False,
+    )
+
+
 @router.get("/learning-settings", response_model=LearningSettingsOut)
 def get_learning_settings(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
-    return LearningSettingsOut(max_lesson_words=max_lesson_words(db))
+    return _learning_settings_out(db)
 
 
 @router.put("/learning-settings", response_model=LearningSettingsOut)
@@ -847,5 +856,9 @@ def set_learning_settings(
         db.add(settings)
     if payload.max_lesson_words is not None:
         settings.max_lesson_words = payload.max_lesson_words
+    if payload.check_enabled is not None:
+        settings.check_enabled = payload.check_enabled
+    if payload.check_skip_allowed is not None:
+        settings.check_skip_allowed = payload.check_skip_allowed
     db.commit()
-    return LearningSettingsOut(max_lesson_words=settings.max_lesson_words)
+    return _learning_settings_out(db)

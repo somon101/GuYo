@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -16,6 +16,10 @@ class LearningSettings(Base):
     # The most words one lesson can have (random count and manual pick alike),
     # set in Admin Web -> Упражнения.
     max_lesson_words: Mapped[int] = mapped_column(Integer, nullable=False, default=15, server_default="15")
+    # The pre-lesson check ("Проверка слов"): a card per lesson word, then the
+    # learner rates how easy it was. Admin Web -> Упражнения.
+    check_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    check_skip_allowed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     # The AI translator (app/translation/deepseek.py): its key, and the
     # progress of its current or last run ("idle"/"running"/"completed"/
     # "failed"/"stopped").

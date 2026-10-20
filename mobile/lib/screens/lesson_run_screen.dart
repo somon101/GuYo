@@ -16,6 +16,8 @@ import 'matching_screen.dart';
 import 'speaking_word_screen.dart';
 import 'true_or_false_screen.dart';
 import '../models/mini_phrase.dart';
+import '../models/word_check.dart';
+import '../widgets/word_check_session.dart';
 import '../widgets/mini_phrases/mini_phrase_session.dart';
 import '../widgets/instant_route.dart';
 
@@ -43,6 +45,10 @@ const List<String> _retryOrder = ['build_word', 'true_or_false', 'listen_word', 
 abstract class LessonRunDriver {
   /// Freezes this pass's words (POST /lessons/{id}/pass).
   Future<void> startPass(int lessonId);
+
+  /// The word check offered before the lesson's first pass; null when there
+  /// is none (off, already done, or it could not be loaded).
+  Future<WordCheck?> fetchWordCheck(int lessonId);
 
   /// Makes a pass played to the end count (its answers were held back), and
   /// returns what the results show -- null when they must be fetched apart.
@@ -79,6 +85,9 @@ class ApiLessonRunDriver implements LessonRunDriver {
 
   @override
   Future<void> startPass(int lessonId) => ApiClient.instance.startLessonPass(lessonId);
+
+  @override
+  Future<WordCheck?> fetchWordCheck(int lessonId) => ApiClient.instance.fetchWordCheck(lessonId);
 
   @override
   Future<(Lesson, LessonPassStats?)?> finishPass(int lessonId) => ApiClient.instance.finishLessonPass(lessonId);
@@ -206,6 +215,8 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
   int _index = 0;
   bool _showingExercise = false;
   bool _showingMiniPhrases = false;
+  WordCheck? _check;
+  bool _showingCheck = false;
   // Refreshed after each pass: empty once the lesson is completed.
   late List<MiniPhrase> _miniPhrases = widget.miniPhrases;
   bool _failed = false;
@@ -259,6 +270,27 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
       ApiClient.instance.deferredLessonId = widget.lessonId;
     } catch (_) {
       // Runs anyway, on the live set -- see the class comment.
+    }
+
+    // The word check comes before the first pass only: a card per word, and
+    // how easy it was. Never blocks the lesson -- any failure just skips it.
+    if (_pass == 1) {
+      WordCheck? check;
+      try {
+        check = await driver.fetchWordCheck(widget.lessonId);
+      } catch (_) {}
+      if (!mounted) return;
+      if (check != null && check.hasWork) {
+        final done = Completer<void>();
+        _current = done;
+        setState(() {
+          _check = check;
+          _showingCheck = true;
+        });
+        await done.future;
+        if (!mounted) return;
+        setState(() => _showingCheck = false);
+      }
     }
 
     LessonRounds rounds;
@@ -404,7 +436,9 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
   Widget build(BuildContext context) {
     final keys = widget.exerciseKeys;
     final key = keys.isEmpty ? null : keys[_index];
-    final title = _showingMiniPhrases
+    final title = _showingCheck
+        ? tr('Проверка слов')
+        : _showingMiniPhrases
         ? tr('Мини-фразы')
         : key == null
             ? tr('Урок {0}', [widget.lessonNumber])
@@ -424,7 +458,12 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(title),
-              if (_showingMiniPhrases)
+              if (_showingCheck)
+                Text(
+                  tr('Урок {0} · перед упражнениями', [widget.lessonNumber]),
+                  style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
+                )
+              else if (_showingMiniPhrases)
                 Text(
                   tr('Урок {0} · закрепление', [widget.lessonNumber]),
                   style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
@@ -472,6 +511,14 @@ class _LessonRunScreenState extends State<LessonRunScreen> {
             ],
           ),
         ),
+      );
+    }
+    if (_showingCheck && _check != null) {
+      return WordCheckSession(
+        key: ValueKey('word-check-$_pass'),
+        lessonId: widget.lessonId,
+        check: _check!,
+        onDone: _onExerciseFinished,
       );
     }
     if (_showingMiniPhrases) {

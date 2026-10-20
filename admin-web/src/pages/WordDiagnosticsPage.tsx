@@ -47,6 +47,7 @@ const EXERCISE_LABELS: { key: string; label: string }[] = [
 ];
 
 function exerciseLabel(key: string): string {
+  if (key === "check") return "Проверка перед уроком";
   return EXERCISE_LABELS.find((e) => e.key === key)?.label ?? key;
 }
 

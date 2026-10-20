@@ -2649,6 +2649,8 @@ export async function manualTemplate(
 
 export interface LearningSettings {
   max_lesson_words: number;
+  check_enabled: boolean;
+  check_skip_allowed: boolean;
 }
 
 export async function getLearningSettings(): Promise<LearningSettings> {
