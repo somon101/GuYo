@@ -69,6 +69,10 @@ class User(Base):
     def google(self) -> bool:
         return self.google_sub is not None
 
+    # Streak freezes in stock (earned in the season pass, app/seasonpass/):
+    # one is spent automatically on each missed day the weekly forgiveness
+    # does not cover, when the person comes back.
+    streak_freezes: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)

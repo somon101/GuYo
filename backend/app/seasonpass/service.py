@@ -19,7 +19,7 @@ from app.models.user import User
 
 # What a weekly task counts: the `source` of the XP events.
 METRICS = ("word", "lesson", "review", "quest", "streak")
-REWARD_TYPES = ("rating_points", "premium_days")
+REWARD_TYPES = ("rating_points", "premium_days", "streak_freeze")
 LEVEL_MAX = 100
 
 
@@ -322,6 +322,7 @@ def user_state(db: Session, user: User) -> dict | None:
         "xp_for_next": cost,
         "is_premium": has_premium,
         "premium_enabled": _premium_enabled(db),
+        "streak_freezes": user.streak_freezes or 0,
         "levels": [
             {"level": lv["level"], "xp": lv["xp"], "free": lane(lv, "free"), "premium": lane(lv, "premium")}
             for lv in levels
@@ -335,6 +336,9 @@ def _give(db: Session, user: User, reward: dict, note: str) -> None:
         from app.rating import grant_rating_points
 
         grant_rating_points(db, user, reward["amount"])
+    elif reward["type"] == "streak_freeze":
+        user.streak_freezes = (user.streak_freezes or 0) + reward["amount"]
+        db.flush()
     elif reward["type"] == "premium_days":
         from app.premium.service import grant_premium
 
@@ -368,6 +372,10 @@ def claim_level(db: Session, user: User, level: int, track: str) -> dict:
         raise PassError("Уровень ещё не достигнут")
     if track == "premium" and not _has_premium(db, user):
         raise PassError("Эта награда доступна с Premium")
+    if reward["type"] == "streak_freeze":
+        cap = get_pass_settings(db).freeze_cap
+        if (user.streak_freezes or 0) + reward["amount"] > cap:
+            raise PassError(f"Запас заморозок полон (не больше {cap}). Награду можно забрать позже")
     _record_claim(db, user, season, track, str(level))
     _give(db, user, reward, f"Пропуск сезона «{season.name}», уровень {level}")
     return reward

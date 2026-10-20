@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.dates import dushanbe_today
 from app.models.lesson import Lesson
-from app.models.achievement import UserActivityDay
+from app.models.achievement import UserActivityDay, UserStreakFreeze
 from app.models.user import User
 from app.models.word_progress import WordProgress
 
@@ -65,13 +65,18 @@ def streak_with_freezes(db: Session, user: User) -> tuple[int, list]:
     break the streak if it is the only such day in its Monday-Sunday week:
     one missed day a week is forgiven automatically, two in a row or two
     in the same week end it. Forgiven days keep the streak alive but don't
-    add to it. Computed from UserActivityDay alone, so every screen and
-    rule that shows the streak agrees."""
+    add to it. A day a streak freeze covered (UserStreakFreeze) is forgiven
+    the same way without using up the week's one. Computed from
+    UserActivityDay and UserStreakFreeze alone, so every screen and rule that
+    shows the streak agrees."""
     active = {
         row[0] for row in db.query(UserActivityDay.activity_date).filter(UserActivityDay.user_id == user.id).all()
     }
     if not active:
         return 0, []
+    covered = {
+        row[0] for row in db.query(UserStreakFreeze.covered_date).filter(UserStreakFreeze.user_id == user.id).all()
+    }
     today = dushanbe_today()
     day = today if today in active else today - timedelta(days=1)
     earliest = min(active)
@@ -85,6 +90,8 @@ def streak_with_freezes(db: Session, user: User) -> tuple[int, list]:
                 frozen.append(pending)
                 pending = None
             streak += 1
+        elif day in covered:
+            frozen.append(day)  # a freeze covered it: forgiven, adds nothing
         else:
             week = day.isocalendar()[:2]
             if pending is not None or week in used_weeks:

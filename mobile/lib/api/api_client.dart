@@ -80,11 +80,15 @@ class StreakInfo {
 
   /// Missed days a weekly freeze covered: the streak survived them.
   final List<DateTime> frozenDates;
+
+  /// Streak freezes in stock: spent by themselves when a gap would break the streak.
+  final int freezes;
   const StreakInfo({
     required this.currentStreakDays,
     required this.today,
     required this.activeDates,
     this.frozenDates = const [],
+    this.freezes = 0,
   });
 }
 
@@ -480,6 +484,7 @@ class ApiClient {
       today: day(map['today'] as String),
       activeDates: [for (final s in map['active_dates'] as List<dynamic>) day(s as String)],
       frozenDates: [for (final s in (map['frozen_dates'] as List<dynamic>? ?? const [])) day(s as String)],
+      freezes: (map['freezes'] as int?) ?? 0,
     );
   }
 

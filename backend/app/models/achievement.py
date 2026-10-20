@@ -128,3 +128,18 @@ class UserActivityDay(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     activity_date: Mapped[date] = mapped_column(Date, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class UserStreakFreeze(Base):
+    """A missed day a streak freeze covered. Written when the person comes
+    back after the gap (app/achievements/streak.py's apply_freezes); the
+    streak count (conditions.streak_with_freezes) reads it like a day that is
+    forgiven but adds nothing."""
+
+    __tablename__ = "user_streak_freezes"
+    __table_args__ = (UniqueConstraint("user_id", "covered_date", name="uq_user_streak_freeze_day"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    covered_date: Mapped[date] = mapped_column(Date, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

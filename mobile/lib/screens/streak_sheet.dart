@@ -36,6 +36,7 @@ class _StreakSheetState extends State<_StreakSheet> {
   DateTime? _today;
   Set<DateTime> _active = {};
   Set<DateTime> _frozen = {};
+  int _freezes = 0;
 
   @override
   void initState() {
@@ -55,6 +56,7 @@ class _StreakSheetState extends State<_StreakSheet> {
     _today = data.today;
     _active = data.activeDates.toSet();
     _frozen = data.frozenDates.toSet();
+    _freezes = data.freezes;
   }
 
   Future<void> _load() async {
@@ -153,6 +155,24 @@ class _StreakSheetState extends State<_StreakSheet> {
                     const SizedBox(height: 8),
                     Text(
                       tr('Один пропущенный день в неделю прощается автоматически'),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.ac_unit_rounded, size: 18, color: _ice),
+                        const SizedBox(width: 6),
+                        Text(
+                          tr('Заморозок серии: {0}', [_freezes]),
+                          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: _ice),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      tr('Заморозка сама спасёт серию, если пропущено больше одного дня. Их дают в пропуске сезона'),
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
                     ),

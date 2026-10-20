@@ -664,4 +664,7 @@ const Map<String, String> enStrings = {
   'До конца сезона дней: {0}': 'Days left in the season: {0}',
   'Забрать': 'Claim',
   'Наград к получению: {0}': 'Rewards to claim: {0}',
+  'Заморозок серии: {0}': 'Streak freezes: {0}',
+  'Заморозка сама спасёт серию, если пропущено больше одного дня. Их дают в пропуске сезона': 'A freeze saves your streak by itself if you miss more than one day. They are given in the season pass',
+  'Заморозка серии: +{0}': 'Streak freeze: +{0}',
 };

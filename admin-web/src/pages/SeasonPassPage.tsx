@@ -26,7 +26,11 @@ import type { Season } from "../types";
 
 const inputClass = "field px-2 py-1.5 text-sm";
 
-const REWARD_LABELS: Record<string, string> = { rating_points: "Очки рейтинга", premium_days: "Дни Premium" };
+const REWARD_LABELS: Record<string, string> = {
+  rating_points: "Очки рейтинга",
+  premium_days: "Дни Premium",
+  streak_freeze: "Заморозка серии",
+};
 const METRIC_LABELS: Record<string, string> = {
   word: "Выучить слов",
   lesson: "Пройти уроков",
@@ -88,6 +92,7 @@ function SettingsSection() {
     { key: "xp_review", label: "За слово в «Повторить сегодня»" },
     { key: "xp_quest", label: "За выполненное задание квеста" },
     { key: "xp_streak", label: "За день серии" },
+    { key: "freeze_cap", label: "Больше заморозок серии у человека не бывает" },
   ];
 
   async function save() {

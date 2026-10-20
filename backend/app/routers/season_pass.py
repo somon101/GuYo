@@ -58,6 +58,7 @@ class PassOut(BaseModel):
     xp_for_next: int | None
     is_premium: bool
     premium_enabled: bool
+    streak_freezes: int = 0
     levels: list[LevelOut]
     week: WeekOut
 

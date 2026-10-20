@@ -16,7 +16,7 @@ from app.core.public_id import generate_public_id
 from app.core.security import hash_password
 from app.core.storage import delete_by_key, save_bytes, url_for_key
 from app.database import get_db
-from app.models.achievement import VISIBILITY_HIDDEN, Achievement, UserAchievement, UserActivityDay
+from app.models.achievement import VISIBILITY_HIDDEN, Achievement, UserAchievement, UserActivityDay, UserStreakFreeze
 from app.models.admin import Admin
 from app.models.rating import SeasonHistory
 from app.models.user import User
@@ -289,6 +289,8 @@ def get_my_streak(db: Session = Depends(get_db), user: User = Depends(get_curren
         "active_dates": [d.isoformat() for d in active],
         # Missed days a weekly freeze covered (see streak_with_freezes).
         "frozen_dates": [d.isoformat() for d in frozen if d >= since],
+        # Streak freezes in stock (spent by themselves when a gap would break the streak).
+        "freezes": user.streak_freezes or 0,
     }
 
 
@@ -663,10 +665,15 @@ def get_my_stats(
     active_days = sorted(
         r[0] for r in db.query(UserActivityDay.activity_date).filter(UserActivityDay.user_id == user.id)
     )
+    covered = {
+        r[0] for r in db.query(UserStreakFreeze.covered_date).filter(UserStreakFreeze.user_id == user.id)
+    }
     best = run = 0
     prev = None
     for d in active_days:
-        run = run + 1 if prev is not None and d - prev == timedelta(days=1) else 1
+        # A gap made only of freeze-covered days keeps the run going.
+        bridged = prev is not None and all(prev + timedelta(days=i) in covered for i in range(1, (d - prev).days))
+        run = run + 1 if prev is not None and bridged else 1
         best = max(best, run)
         prev = d
     cal_start = today - timedelta(days=34)

@@ -32,6 +32,8 @@ class PassSettings(Base):
     xp_quest: Mapped[int] = mapped_column(Integer, nullable=False, default=15, server_default="15")
     xp_streak: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
     # New seasons are created on their own, one per calendar month.
+    # The most streak freezes a person can hold at once.
+    freeze_cap: Mapped[int] = mapped_column(Integer, nullable=False, default=3, server_default="3")
     auto_monthly_seasons: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
 
 

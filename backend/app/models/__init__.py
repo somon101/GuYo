@@ -116,6 +116,7 @@ from app.models.concept import (
 )
 # Языки как данные: завести новый язык можно из админки, без правки кода.
 from app.models.language import Language
+from app.models.achievement import UserStreakFreeze  # noqa: F401
 from app.models.season_pass import PassClaim, PassSettings, PassTemplate, PassXpEvent, SeasonPass  # noqa: F401
 # «Повторить сегодня»: зафиксированные списки (app/memory/review_lists.py).
 from app.models.review_list import ReviewList, ReviewListWord

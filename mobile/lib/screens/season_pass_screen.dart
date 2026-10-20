@@ -15,13 +15,17 @@ String passSeasonName(SeasonPass pass) {
   return pass.seasonName;
 }
 
-String _rewardText(PassReward r) => r.type == 'premium_days'
-    ? tr('Premium: +{0} дн.', [r.amount])
-    : tr('Очки рейтинга: +{0}', [r.amount]);
+String _rewardText(PassReward r) => switch (r.type) {
+  'premium_days' => tr('Premium: +{0} дн.', [r.amount]),
+  'streak_freeze' => tr('Заморозка серии: +{0}', [r.amount]),
+  _ => tr('Очки рейтинга: +{0}', [r.amount]),
+};
 
-IconData _rewardIcon(PassReward r) => r.type == 'premium_days'
-    ? Icons.workspace_premium_rounded
-    : Icons.star_rounded;
+IconData _rewardIcon(PassReward r) => switch (r.type) {
+  'premium_days' => Icons.workspace_premium_rounded,
+  'streak_freeze' => Icons.ac_unit_rounded,
+  _ => Icons.star_rounded,
+};
 
 String _taskText(PassTask t) => switch (t.metric) {
   'word' => tr('Выучить слов: {0}', [t.target]),
