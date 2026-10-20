@@ -72,7 +72,7 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('lesson-word-checkbox-3')));
       await tester.pump();
-      expect(find.text('Начать урок (1)'), findsOneWidget);
+      expect(find.textContaining('Выберите минимум'), findsOneWidget);
 
       // "Выбрать все" on Еда (12 words), then on Дом: only 3 more fit.
       await tester.tap(find.text('Выбрать все').first);

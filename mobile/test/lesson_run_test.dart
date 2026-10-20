@@ -255,5 +255,7 @@ void main() {
 
     expect(find.text('RESULTS'), findsOneWidget);
     expect(driver.finished, 1);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 30));
   });
 }

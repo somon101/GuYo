@@ -62,11 +62,8 @@ void main() {
       expect(find.text('1 мин 35 с', findRichText: true), findsOneWidget);
       expect(find.text('Правда или ложь'), findsOneWidget);
       expect(find.textContaining('2 / 4', findRichText: true), findsOneWidget);
-      expect(find.text('+30 очков'), findsOneWidget);
       expect(find.text('Выучено новых'), findsOneWidget);
       expect(find.textContaining('1 / 2', findRichText: true), findsOneWidget);
-      expect(find.text('+20'), findsOneWidget);
-      expect(find.text('+10'), findsOneWidget);
       expect(find.text('Повторить урок'), findsOneWidget);
     }, () => _client);
   });

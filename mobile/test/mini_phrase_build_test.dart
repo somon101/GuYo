@@ -39,6 +39,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('mini-phrase-check')));
     await tester.pump(const Duration(seconds: 2));
     expect(result, isTrue);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 30));
   });
 
   testWidgets('a wrong order shows the right answer and waits for "Дальше"', (tester) async {
@@ -54,6 +56,8 @@ void main() {
     expect(find.textContaining('Я покушал'), findsWidgets);
     await tester.tap(find.byKey(const ValueKey('mini-phrase-check')));
     expect(result, isFalse);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 30));
   });
 
   testWidgets('the explanation shows the parts and moves on', (tester) async {

@@ -114,6 +114,8 @@ void main() {
     recognizer.hear('китоб');
     await tester.pump(const Duration(seconds: 2));
     expect(answers, [true, true]);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 30));
   });
 
   testWidgets('tapping while recording stops and checks what was heard', (tester) async {
@@ -125,6 +127,8 @@ void main() {
     await _tapMic(tester);
     await tester.pump(const Duration(seconds: 2));
     expect(answers, [true]);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 30));
   });
 
   testWidgets('stop with nothing heard just returns to the mic', (tester) async {
@@ -157,35 +161,40 @@ void main() {
     recognizer.hear('собака');
     await tester.pump(const Duration(seconds: 3));
     expect(answers, isEmpty, reason: 'waits for the user to choose');
-    expect(find.text('Неправильно'), findsOneWidget);
+    expect(find.text('Не совсем так'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('speaking-word-retry')));
-    await tester.pump();
-    expect(find.textContaining('Попытка 2 из 3'), findsOneWidget);
-    await _tapMic(tester);
+    await tester.pump(const Duration(milliseconds: 500));
+    // "Ещё раз" starts listening again by itself.
+    expect(find.text('Нажмите, чтобы остановить'), findsOneWidget);
     recognizer.hear('кошка');
     await tester.pump(const Duration(seconds: 1));
     await tester.tap(find.byKey(const ValueKey('speaking-word-next')));
     await tester.pump();
     expect(answers, [false]);
     await tester.pump(const Duration(seconds: 3));
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 30));
   });
 
   testWidgets('the third wrong try counts as wrong on its own', (tester) async {
     final answers = <bool>[];
     await _show(tester, _item(7, 'дарахт'), answers);
+    await _tapMic(tester);
     for (var i = 0; i < 3; i++) {
-      await _tapMic(tester);
       recognizer.hear('собака');
       await tester.pump(const Duration(milliseconds: 500));
       if (i < 2) {
+        // "Ещё раз" starts listening again by itself.
         await tester.tap(find.byKey(const ValueKey('speaking-word-retry')));
-        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
       }
     }
     expect(find.byKey(const ValueKey('speaking-word-retry')), findsNothing);
     await tester.pump(const Duration(seconds: 3));
     expect(answers, [false]);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 30));
   });
 
   testWidgets('a close enough match counts as right', (tester) async {

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:guyo_app/models/exercise.dart';
+import 'package:guyo_app/services/build_word_mode.dart';
 import 'package:guyo_app/widgets/exercises/build_word_exercise.dart';
 import 'package:guyo_app/widgets/exercises/exercise_timer.dart';
 import 'package:guyo_app/widgets/exercises/true_or_false_exercise.dart';
@@ -46,6 +47,8 @@ void main() {
     expect(_badgeSeconds(tester), 15, reason: 'a new card gets the full time again');
 
     await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 30));
   });
 
   testWidgets('Собери слово starts at 25 seconds', (tester) async {
@@ -73,6 +76,8 @@ void main() {
   });
 
   testWidgets('Собери слово: a used letter leaves its place, the others stay put', (tester) async {
+    buildWordEasy.value = false; // easy mode places letters for you
+    addTearDown(() => buildWordEasy.value = true);
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
         body: SingleChildScrollView(
@@ -96,5 +101,7 @@ void main() {
     expect(find.descendant(of: pool, matching: find.text('t')), findsNothing);
     expect(tester.getCenter(find.descendant(of: pool, matching: find.text('c'))), before);
     await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 30));
   });
 }
