@@ -141,6 +141,8 @@ class ReminderSettings(Base):
     review_push_min_words: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
     # «Повторить сегодня»: how long after a list is closed the next queued one
     # may open (hours); 0 = at once.
+    # Sunday evening recap: "this week you learned N words".
+    weekly_digest_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     review_list_pause_hours: Mapped[int] = mapped_column(Integer, nullable=False, default=12, server_default="12")
     # The daily quiet window: no background preparation (auto lessons/quests and
     # the «Повтори слово» push) goes out inside it, so people are not woken at

@@ -275,6 +275,12 @@ def send_pass_reminders(db: Session, hour: int, default_hour: int) -> int:
     return send(db, hour, default_hour)
 
 
+def send_weekly_digest(db: Session, today: date, hour: int, settings: ReminderSettings) -> int:
+    from app.notifications.weekly import send_weekly_digests
+
+    return send_weekly_digests(db, today, hour, settings.default_hour, settings.weekly_digest_enabled)
+
+
 def send_season_summaries(db: Session) -> int:
     from app.seasonpass.reminders import send_season_summaries as send
 
@@ -290,6 +296,7 @@ def run_reminders(db: Session) -> int:
         + send_study_reminders(db, now, settings)
         + send_pass_reminders(db, now.hour, settings.default_hour)
         + send_season_summaries(db)
+        + send_weekly_digest(db, now.date(), now.hour, settings)
     )
 
 

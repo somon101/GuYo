@@ -625,6 +625,8 @@ export interface ReminderSettings {
   review_push_min_words: number;
   /** «Повторить сегодня»: hours between a closed list and the next one opening; 0 = at once. */
   review_list_pause_hours: number;
+  /** Sunday evening recap of the week's learned words. */
+  weekly_digest_enabled: boolean;
   /** Daily quiet window (Dushanbe hours): no background prep/push inside it. from==to means never quiet. */
   quiet_from_hour: number;
   quiet_to_hour: number;

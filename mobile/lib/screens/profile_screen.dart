@@ -23,6 +23,7 @@ import '../widgets/remote_image.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/user_name.dart';
 import 'achievements_screen.dart';
+import 'my_progress_screen.dart';
 import 'all_ranks_screen.dart';
 import 'learned_words_screen.dart';
 import 'profile_qr_sheet.dart';
@@ -281,6 +282,10 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _openMyProgress() async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyProgressScreen()));
+  }
+
   Future<void> _openRanks() async {
     final rating = _rating;
     if (rating == null) return;
@@ -411,6 +416,20 @@ class ProfileScreenState extends State<ProfileScreen> {
         if (rating != null) _RankCard(rating: rating, onTap: _openRanks),
         const SizedBox(height: 16),
         _AchievementsCard(achievements: _achievements, onTap: _openAchievements),
+        const SizedBox(height: 16),
+        Material(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          child: ListTile(
+            key: const ValueKey('profile-my-progress'),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            leading: Icon(Icons.show_chart_rounded, color: AppColors.primary),
+            title: Text(tr('Мой путь'), style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+            subtitle: Text(tr('Слов по неделям'), style: TextStyle(color: AppColors.secondaryText)),
+            trailing: Icon(Icons.chevron_right, color: AppColors.muted),
+            onTap: _openMyProgress,
+          ),
+        ),
       ],
     );
   }

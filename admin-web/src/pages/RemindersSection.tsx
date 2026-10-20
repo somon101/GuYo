@@ -326,6 +326,14 @@ export function RemindersSection() {
           слов
         </label>
         <label className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={settings.weekly_digest_enabled}
+            onChange={(e) => changeHour("weekly_digest_enabled", e.target.checked)}
+          />
+          Итог недели по воскресеньям: сколько слов выучено за неделю
+        </label>
+        <label className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
           «Повторить сегодня»: пауза между списками
           <input
             type="number"

@@ -34,6 +34,7 @@ import '../models/word_check.dart';
 import '../models/season_pass.dart';
 import '../models/season_summary.dart';
 import '../models/daily_goal.dart';
+import '../models/my_progress.dart';
 import '../models/team.dart';
 import '../services/answer_signals.dart';
 
@@ -850,6 +851,17 @@ class ApiClient {
       );
       if (res.statusCode >= 400) return null;
       return DailyGoal.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// «Мой путь»: words learned per week; null on any failure.
+  Future<MyProgress?> fetchMyProgress() async {
+    try {
+      final res = await http.get(_uri('/users/me/progress'), headers: await _authHeaders());
+      if (res.statusCode >= 400) return null;
+      return MyProgress.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
     } catch (_) {
       return null;
     }
