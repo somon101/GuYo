@@ -6,6 +6,7 @@ import '../widgets/study_times_editor.dart' show StudyTime;
 import '../widgets/update_required.dart';
 import '../screens/stats_screen.dart' show UserStats;
 import '../services/session_cache.dart';
+import '../widgets/session_expired.dart';
 import '../l10n/l10n.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -308,6 +309,14 @@ class ApiClient {
     }();
   }
 
+  /// Ends every other sign-in of this account; this device gets a fresh token.
+  Future<void> logoutEverywhere() async {
+    final res = await http.post(_uri('/auth/logout-all'), headers: await _authHeaders());
+    await _throwIfUnauthorized(res);
+    final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    await _saveToken(data['access_token'] as String);
+  }
+
   Future<void> logout() async {
     SessionCache.clear();
     await DiskCache.clear();
@@ -514,6 +523,7 @@ class ApiClient {
     }
     if (res.statusCode == 401) {
       await clearToken();
+      sessionExpired();
       throw ApiException(tr('Сессия истекла, войдите снова'), statusCode: res.statusCode);
     }
     if (res.statusCode == 403) {
@@ -535,6 +545,7 @@ class ApiClient {
     }
     if (res.statusCode == 401) {
       await clearToken();
+      sessionExpired();
       throw ApiException(tr('Сессия истекла, войдите снова'), statusCode: res.statusCode);
     }
     if (res.statusCode == 403) {

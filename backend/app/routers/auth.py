@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_admin, get_current_principal, Principal
+from app.core.deps import get_current_admin, get_current_user, get_current_principal, Principal
 from app.core.security import create_access_token, hash_password, verify_password
 from app.database import get_db
 from app.models.admin import Admin
@@ -46,7 +46,7 @@ def user_login(payload: LoginRequest, db: Session = Depends(get_db)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Аккаунт удалён",
         )
-    token = create_access_token(subject=user.id, role="user")
+    token = create_access_token(subject=user.id, role="user", version=user.token_version)
     return TokenResponse(access_token=token, role="user")
 
 
@@ -119,7 +119,7 @@ def register_user(payload: RegisterIn, db: Session = Depends(get_db)):
         translation_language=payload.translation_language,
     )
     db.commit()
-    token = create_access_token(subject=user.id, role="user")
+    token = create_access_token(subject=user.id, role="user", version=user.token_version)
     return TokenResponse(access_token=token, role="user")
 
 
@@ -157,6 +157,15 @@ def link_google_account(
     db.commit()
 
 
+@router.post("/logout-all", response_model=TokenResponse)
+def logout_all(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Ends every session but this one: bumps the version and hands this
+    device a token for the new one."""
+    user.token_version = (user.token_version or 0) + 1
+    db.commit()
+    return TokenResponse(access_token=create_access_token(subject=user.id, role="user", version=user.token_version), role="user")
+
+
 @router.get("/me", response_model=MeResponse)
 def me(principal: Principal = Depends(get_current_principal), db: Session = Depends(get_db)):
     if principal.role == "admin":
@@ -190,7 +199,7 @@ def google_login(payload: GoogleAuthIn, db: Session = Depends(get_db)):
 
         if user.deleted_at is not None and not restore_if_deleted(db, user):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Аккаунт удалён")
-        return GoogleAuthOut(access_token=create_access_token(subject=user.id, role="user"))
+        return GoogleAuthOut(access_token=create_access_token(subject=user.id, role="user", version=user.token_version))
     if db.query(User).filter(User.email == identity["email"]).first() is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_EMAIL_TAKEN)
     return GoogleAuthOut(
@@ -235,7 +244,7 @@ def google_register(payload: GoogleRegisterIn, db: Session = Depends(get_db)):
         google_sub=identity["sub"],
     )
     db.commit()
-    return TokenResponse(access_token=create_access_token(subject=user.id, role="user"), role="user")
+    return TokenResponse(access_token=create_access_token(subject=user.id, role="user", version=user.token_version), role="user")
 
 
 class AdminPasswordIn(BaseModel):

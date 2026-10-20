@@ -75,6 +75,8 @@ class User(Base):
     # The badge and title the person chose to show (UserCosmetic ids); NULL = none.
     equipped_badge_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     equipped_title_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Raised by "log out on other devices"; tokens carry the value they were issued with.
+    token_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     streak_freezes: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)

@@ -21,16 +21,19 @@ def verify_password(plain_password: str, password_hash: str) -> bool:
         return False
 
 
-def create_access_token(*, subject: int, role: str) -> str:
+def create_access_token(*, subject: int, role: str, version: int = 0) -> str:
     minutes = settings.user_jwt_expire_minutes if role == "user" else settings.jwt_expire_minutes
     expire = datetime.now(timezone.utc) + timedelta(minutes=minutes)
     payload = {"sub": str(subject), "role": role, "exp": expire}
+    if role == "user":
+        payload["v"] = version  # "log out everywhere" raises the user's version
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
 class TokenPayload:
-    def __init__(self, subject: int, role: str):
+    def __init__(self, subject: int, role: str, version: int = 0):
         self.subject = subject
+        self.version = version
         self.role = role
 
 
@@ -44,6 +47,6 @@ def decode_access_token(token: str) -> TokenPayload | None:
     if sub is None or role is None:
         return None
     try:
-        return TokenPayload(subject=int(sub), role=role)
+        return TokenPayload(subject=int(sub), role=role, version=int(payload.get("v") or 0))
     except ValueError:
         return None

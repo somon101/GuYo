@@ -1,3 +1,5 @@
+from fastapi.exception_handlers import http_exception_handler
+from starlette.exceptions import HTTPException as StarletteHTTPException
 import asyncio
 import contextlib
 from contextlib import asynccontextmanager
@@ -80,6 +82,15 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="GuYo API", version="0.1.0", lifespan=lifespan)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def _http_error(request, exc: StarletteHTTPException):
+    """Shows people's errors in the interface language the app sent."""
+    from app.core.messages import localize
+
+    detail = localize(exc.detail, request.headers.get("x-ui-language"))
+    return await http_exception_handler(request, StarletteHTTPException(exc.status_code, detail, exc.headers))
 
 
 @app.middleware("http")

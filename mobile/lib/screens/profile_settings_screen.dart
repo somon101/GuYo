@@ -327,6 +327,27 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     }
   }
 
+  Future<void> _confirmLogoutEverywhere() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('Выйти на других устройствах?')),
+        content: Text(tr('На этом устройстве вы останетесь в аккаунте, на остальных придётся войти заново.')),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(tr('Отмена'))),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text(tr('Выйти'))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ApiClient.instance.logoutEverywhere();
+      if (mounted) _showError(tr('Вы вышли на других устройствах'));
+    } catch (_) {
+      if (mounted) _showError(tr('Не удалось. Проверьте интернет.'));
+    }
+  }
+
   Future<void> _confirmLogout() async {    final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -477,6 +498,33 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             const SizedBox(height: 24),
             // Sign-out lives here, at the very bottom, in red -- where other
             // apps put it -- instead of a "⋮" menu on the home screen.
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: AppShapes.cardShadow,
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                key: const ValueKey('settings-logout-all'),
+                onTap: _confirmLogoutEverywhere,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.devices_rounded, color: AppColors.secondaryText, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        tr('Выйти на других устройствах'),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
             Container(
               decoration: BoxDecoration(
                 color: AppColors.surface,
