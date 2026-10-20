@@ -7,9 +7,12 @@ frozen into a list together with the reason for each (its numbers right
 now). Ordinary lessons and quests never change a list: only a right
 answer while reviewing ticks a word off, a wrong one leaves it there. A
 list closes when every word is ticked; then the next one in the queue
-becomes active (and gets its own push, app/priority/background_prep.py).
+becomes active -- after the admin's pause -- (and gets its own push, app/priority/background_prep.py).
 At most MAX_OPEN_LISTS lists are open (active + queued) at a time."""
 
+from datetime import timedelta
+
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.dates import utc_now
@@ -43,12 +46,37 @@ def _open_lists(db: Session, user_id: int, dictionary_id: int) -> list[ReviewLis
     )
 
 
+def pause_hours(db: Session) -> int:
+    from app.notifications.reminders import get_reminder_settings
+
+    return max(0, get_reminder_settings(db).review_list_pause_hours)
+
+
+def _pause_over(db: Session, user_id: int, dictionary_id: int) -> bool:
+    """Whether enough time has passed since the user's last list was closed
+    for the next one to open (the admin's «пауза между списками»)."""
+    hours = pause_hours(db)
+    if hours <= 0:
+        return True
+    last_closed = (
+        db.query(func.max(ReviewList.closed_at))
+        .filter(
+            ReviewList.user_id == user_id,
+            ReviewList.dictionary_id == dictionary_id,
+            ReviewList.status == STATUS_CLOSED,
+        )
+        .scalar()
+    )
+    return last_closed is None or utc_now() >= last_closed + timedelta(hours=hours)
+
+
 def _activate_next(db: Session, lists: list[ReviewList]) -> ReviewList | None:
-    """Makes sure one open list is active: the oldest queued one if none is."""
+    """Makes sure one open list is active: the oldest queued one if none is,
+    once the pause after the previously closed list is over."""
     active = next((rl for rl in lists if rl.status == STATUS_ACTIVE), None)
     if active is None:
         queued = next((rl for rl in lists if rl.status == STATUS_QUEUED), None)
-        if queued is not None:
+        if queued is not None and _pause_over(db, queued.user_id, queued.dictionary_id):
             queued.status = STATUS_ACTIVE
             queued.activated_at = utc_now()
             queued.notified_at = None

@@ -623,6 +623,8 @@ export interface ReminderSettings {
   prep_delay_minutes: number;
   /** «Повтори слово» push once a day when at least this many words are due. */
   review_push_min_words: number;
+  /** «Повторить сегодня»: hours between a closed list and the next one opening; 0 = at once. */
+  review_list_pause_hours: number;
   /** Daily quiet window (Dushanbe hours): no background prep/push inside it. from==to means never quiet. */
   quiet_from_hour: number;
   quiet_to_hour: number;

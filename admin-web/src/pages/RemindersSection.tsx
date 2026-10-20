@@ -326,6 +326,23 @@ export function RemindersSection() {
           слов
         </label>
         <label className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+          «Повторить сегодня»: пауза между списками
+          <input
+            type="number"
+            min={0}
+            max={168}
+            className="field w-20 px-2 py-1 text-sm"
+            defaultValue={settings.review_list_pause_hours}
+            onBlur={(e) =>
+              changeHour(
+                "review_list_pause_hours",
+                Math.max(0, Math.min(168, Number(e.target.value) || 0)),
+              )
+            }
+          />
+          часов (0 — сразу)
+        </label>
+        <label className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
           Тихие часы (по Душанбе): с
           <input
             type="number"

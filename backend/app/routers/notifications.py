@@ -222,6 +222,7 @@ def list_reminders(db: Session = Depends(get_db), _admin=Depends(get_current_adm
             prep_enabled=settings.prep_enabled,
             prep_delay_minutes=settings.prep_delay_minutes,
             review_push_min_words=settings.review_push_min_words,
+            review_list_pause_hours=settings.review_list_pause_hours,
             quiet_from_hour=settings.quiet_from_hour,
             quiet_to_hour=settings.quiet_to_hour,
             foreground_style=settings.foreground_style,
@@ -240,6 +241,7 @@ def update_reminder_settings(payload: ReminderSettingsIn, db: Session = Depends(
     settings.prep_enabled = payload.prep_enabled
     settings.prep_delay_minutes = payload.prep_delay_minutes
     settings.review_push_min_words = payload.review_push_min_words
+    settings.review_list_pause_hours = payload.review_list_pause_hours
     settings.quiet_from_hour = payload.quiet_from_hour
     settings.quiet_to_hour = payload.quiet_to_hour
     settings.foreground_style = payload.foreground_style

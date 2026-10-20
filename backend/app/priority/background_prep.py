@@ -5,7 +5,7 @@ lessons pop up mid-session). They only mark (user, dictionary) as pending via
 `mark_for_prep`. The scheduler (app/rating/scheduler.py) calls
 `run_prep_once` every few minutes: once the learner has been away for
 `prep_delay_minutes`, the SAME builders as before run -- maybe_create_
-adaptive_lesson / maybe_create_personal_quest, so still at most one active
+adaptive_lesson / maybe_create_personal_quests, so still at most one active
 lesson -- and a push says what was prepared. The same sweep sends at most one
 «Повтори слово» push a day when enough words are due. Nothing is prepared or
 sent during quiet hours (23:00–08:00 Dushanbe): it simply waits for morning.
@@ -40,6 +40,18 @@ _TEXTS = {
         "uz": ("Yangi kvest tayyor", "Siz uchun shaxsiy kvest tayyorladik."),
         "en": ("A new quest is ready", "We have prepared a personal quest for you."),
     },
+    "quests": {
+        "ru": ("Новые квесты готовы", "Мы подготовили для тебя персональные квесты: {quests}."),
+        "tg": ("Квестҳои нав омода аст", "Мо барои ту квестҳои шахсӣ омода кардем: {quests}."),
+        "uz": ("Yangi kvestlar tayyor", "Siz uchun shaxsiy kvestlar tayyorladik: {quests} ta."),
+        "en": ("New quests are ready", "We have prepared personal quests for you: {quests}."),
+    },
+    "lesson_quests": {
+        "ru": ("Урок и квесты готовы", "Мы подготовили урок на {words} слов и персональные квесты: {quests}."),
+        "tg": ("Дарс ва квестҳо омода аст", "Мо барои {words} калима дарс ва квестҳои шахсӣ омода кардем: {quests}."),
+        "uz": ("Dars va kvestlar tayyor", "{words} ta soʻz uchun dars va shaxsiy kvestlar tayyorladik: {quests} ta."),
+        "en": ("Your lesson and quests are ready", "We prepared a lesson with {words} words and personal quests: {quests}."),
+    },
     "review": {
         "ru": ("Пора повторить слова", "{words} слов начинают забываться — повтори их за пару минут."),
         "tg": ("Вақти такрори калимаҳо", "{words} калима фаромӯш шуда истодаанд — онҳоро дар чанд дақиқа такрор кун."),
@@ -49,10 +61,10 @@ _TEXTS = {
 }
 
 
-def _text(kind: str, user: User, words: int) -> tuple[str, str]:
+def _text(kind: str, user: User, words: int, quests: int = 0) -> tuple[str, str]:
     lang = user.ui_language if user.ui_language in ("ru", "tg", "uz", "en") else "ru"
     title, body = _TEXTS[kind][lang]
-    return title, body.replace("{words}", str(words))
+    return title, body.replace("{words}", str(words)).replace("{quests}", str(quests))
 
 
 def mark_for_prep(db: Session, user: User, dictionary_id: int) -> None:
@@ -102,7 +114,7 @@ def run_prep(db: Session) -> int:
     """One sweep; returns how many pushes were queued. Does not commit."""
     from app.notifications.reminders import get_reminder_settings
     from app.notifications.service import send_notification
-    from app.priority import maybe_create_adaptive_lesson, maybe_create_personal_quest
+    from app.priority import maybe_create_adaptive_lesson, maybe_create_personal_quests
 
     settings = get_reminder_settings(db)
     if not settings.prep_enabled or _quiet_now(settings):
@@ -152,14 +164,21 @@ def run_prep(db: Session) -> int:
                 if state.pending:
                     state.pending = False
                     lesson = maybe_create_adaptive_lesson(db, user, state.dictionary_id)
-                    quest = maybe_create_personal_quest(db, user, state.dictionary_id)
-                    if lesson is not None:
+                    quests = maybe_create_personal_quests(db, user, state.dictionary_id)
+                    # One push for everything prepared in this sweep.
+                    if lesson is not None and quests:
+                        title, body = _text("lesson_quests", user, len(lesson.words), quests=len(quests))
+                        key = f"prep:lesson:{lesson.id}"
+                    elif lesson is not None:
                         title, body = _text("lesson", user, len(lesson.words))
-                        send_notification(db, user, body, title=title, source=SOURCE_PREP_READY, dedupe_key=f"prep:lesson:{lesson.id}")
-                        sent += 1
-                    elif quest is not None:
-                        title, body = _text("quest", user, 0)
-                        send_notification(db, user, body, title=title, source=SOURCE_PREP_READY, dedupe_key=f"prep:quest:{quest.id}")
+                        key = f"prep:lesson:{lesson.id}"
+                    elif quests:
+                        title, body = _text("quest" if len(quests) == 1 else "quests", user, 0, quests=len(quests))
+                        key = f"prep:quest:{quests[0].id}"
+                    else:
+                        title = body = key = None
+                    if key is not None:
+                        send_notification(db, user, body, title=title, source=SOURCE_PREP_READY, dedupe_key=key)
                         sent += 1
                 # «Повторить сегодня»: freeze new lists (once a day here; also
                 # whenever the app asks), then one push per active list,

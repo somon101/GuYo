@@ -77,6 +77,7 @@ class ReminderSettingsIn(BaseModel):
     prep_enabled: bool = True
     prep_delay_minutes: int = Field(default=20, ge=5, le=720)
     review_push_min_words: int = Field(default=10, ge=1, le=500)
+    review_list_pause_hours: int = Field(default=12, ge=0, le=168)
     # The daily quiet window (Dushanbe hours): no background preparation goes out
     # inside it. from==to means "never quiet".
     quiet_from_hour: int = Field(default=23, ge=0, le=23)
