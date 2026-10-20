@@ -8,30 +8,38 @@ import '../widgets/guyo_ui.dart';
 
 String passSeasonName(SeasonPass pass) {
   final lang = appLanguage.value;
-  if (lang == 'tg' && (pass.seasonNameTg ?? '').isNotEmpty) return pass.seasonNameTg!;
-  if (lang == 'uz' && (pass.seasonNameUz ?? '').isNotEmpty) return pass.seasonNameUz!;
+  if (lang == 'tg' && (pass.seasonNameTg ?? '').isNotEmpty)
+    return pass.seasonNameTg!;
+  if (lang == 'uz' && (pass.seasonNameUz ?? '').isNotEmpty)
+    return pass.seasonNameUz!;
   return pass.seasonName;
 }
 
-String _rewardText(PassReward r) =>
-    r.type == 'premium_days' ? tr('Premium: +{0} дн.', [r.amount]) : tr('Очки рейтинга: +{0}', [r.amount]);
+String _rewardText(PassReward r) => r.type == 'premium_days'
+    ? tr('Premium: +{0} дн.', [r.amount])
+    : tr('Очки рейтинга: +{0}', [r.amount]);
 
-IconData _rewardIcon(PassReward r) => r.type == 'premium_days' ? Icons.workspace_premium_rounded : Icons.star_rounded;
+IconData _rewardIcon(PassReward r) => r.type == 'premium_days'
+    ? Icons.workspace_premium_rounded
+    : Icons.star_rounded;
 
 String _taskText(PassTask t) => switch (t.metric) {
-      'word' => tr('Выучить слов: {0}', [t.target]),
-      'lesson' => tr('Пройти уроков: {0}', [t.target]),
-      'review' => tr('Ответов в «Повторить сегодня»: {0}', [t.target]),
-      'quest' => tr('Выполнить заданий квестов: {0}', [t.target]),
-      'streak' => tr('Дней серии: {0}', [t.target]),
-      _ => '${t.metric}: ${t.target}',
-    };
+  'word' => tr('Выучить слов: {0}', [t.target]),
+  'lesson' => tr('Пройти уроков: {0}', [t.target]),
+  'review' => tr('Ответов в «Повторить сегодня»: {0}', [t.target]),
+  'quest' => tr('Выполнить заданий квестов: {0}', [t.target]),
+  'streak' => tr('Дней серии: {0}', [t.target]),
+  _ => '${t.metric}: ${t.target}',
+};
 
 /// «Пропуск сезона»: XP earned by studying fills a ladder of levels, each with
 /// a free reward and a Premium one, plus small tasks for the week. Everything
 /// is decided on the server; this screen only shows it and sends the claims.
 class SeasonPassScreen extends StatefulWidget {
-  const SeasonPassScreen({super.key});
+  /// Shown at once with no request (used by tests and previews).
+  final SeasonPass? initialPass;
+
+  const SeasonPassScreen({super.key, this.initialPass});
 
   @override
   State<SeasonPassScreen> createState() => _SeasonPassScreenState();
@@ -45,7 +53,12 @@ class _SeasonPassScreenState extends State<SeasonPassScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    if (widget.initialPass != null) {
+      _pass = widget.initialPass;
+      _loading = false;
+    } else {
+      _load();
+    }
   }
 
   Future<void> _load() async {
@@ -65,9 +78,14 @@ class _SeasonPassScreenState extends State<SeasonPassScreen> {
       if (!mounted) return;
       setState(() => _pass = pass);
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Не удалось. Проверьте интернет.'))));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('Не удалось. Проверьте интернет.'))),
+        );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -82,13 +100,16 @@ class _SeasonPassScreenState extends State<SeasonPassScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : pass == null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(tr('Сейчас нет активного сезона'), textAlign: TextAlign.center),
-                  ),
-                )
-              : RefreshIndicator(onRefresh: _load, child: _body(pass)),
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  tr('Сейчас нет активного сезона'),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          : RefreshIndicator(onRefresh: _load, child: _body(pass)),
     );
   }
 
@@ -105,12 +126,20 @@ class _SeasonPassScreenState extends State<SeasonPassScreen> {
               padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
-                  Icon(Icons.workspace_premium_rounded, color: AppColors.warning),
+                  Icon(
+                    Icons.workspace_premium_rounded,
+                    color: AppColors.warning,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      tr('С Premium откроются награды справа, в том числе за уже пройденные уровни.'),
-                      style: TextStyle(fontSize: 13.5, color: AppColors.primaryDark),
+                      tr(
+                        'С Premium откроются награды справа, в том числе за уже пройденные уровни.',
+                      ),
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        color: AppColors.primaryDark,
+                      ),
                     ),
                   ),
                 ],
@@ -125,18 +154,24 @@ class _SeasonPassScreenState extends State<SeasonPassScreen> {
             reached: level.level <= pass.level,
             showPremium: pass.premiumEnabled,
             busy: _busy,
-            onClaim: (track) => _claim(() => ApiClient.instance.claimPassLevel(level.level, track)),
+            onClaim: (track) => _claim(
+              () => ApiClient.instance.claimPassLevel(level.level, track),
+            ),
           ),
         const SizedBox(height: 18),
         _SectionTitle(tr('Задания недели')),
         if (pass.tasks.isEmpty)
-          Text(tr('На этой неделе заданий нет'), style: TextStyle(color: AppColors.secondaryText))
+          Text(
+            tr('На этой неделе заданий нет'),
+            style: TextStyle(color: AppColors.secondaryText),
+          )
         else
           for (final task in pass.tasks)
             _TaskRow(
               task: task,
               busy: _busy,
-              onClaim: () => _claim(() => ApiClient.instance.claimPassTask(task.id)),
+              onClaim: () =>
+                  _claim(() => ApiClient.instance.claimPassTask(task.id)),
             ),
       ],
     );
@@ -149,9 +184,16 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(text, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
-      );
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(
+      text,
+      style: TextStyle(
+        fontSize: 17,
+        fontWeight: FontWeight.w800,
+        color: AppColors.primaryDark,
+      ),
+    ),
+  );
 }
 
 class _Header extends StatelessWidget {
@@ -161,24 +203,40 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final next = pass.xpForNext;
-    final value = next == null || next == 0 ? 1.0 : (pass.xpIntoLevel / next).clamp(0.0, 1.0);
+    final value = next == null || next == 0
+        ? 1.0
+        : (pass.xpIntoLevel / next).clamp(0.0, 1.0);
     final left = pass.endsAt?.difference(DateTime.now()).inDays;
     return GuyoCard(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(passSeasonName(pass), style: TextStyle(fontSize: 13.5, color: AppColors.secondaryText)),
+          Text(
+            passSeasonName(pass),
+            style: TextStyle(fontSize: 13.5, color: AppColors.secondaryText),
+          ),
           const SizedBox(height: 4),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
                 tr('Уровень {0}', [pass.level]),
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryDark,
+                ),
               ),
               const Spacer(),
-              Text('${pass.xp} XP', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primary)),
+              Text(
+                '${pass.xp} XP',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -193,13 +251,24 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            next == null ? tr('Все уровни пройдены') : tr('{0} из {1} XP до следующего уровня', [pass.xpIntoLevel, next]),
+            next == null
+                ? tr('Все уровни пройдены')
+                : tr('{0} из {1} XP до следующего уровня', [
+                    pass.xpIntoLevel,
+                    next,
+                  ]),
             style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
           ),
           if (left != null && left >= 0)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text(tr('До конца сезона дней: {0}', [left]), style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText)),
+              child: Text(
+                tr('До конца сезона дней: {0}', [left]),
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: AppColors.secondaryText,
+                ),
+              ),
             ),
         ],
       ),
@@ -213,14 +282,21 @@ class _LaneHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.secondaryText);
+    final style = TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      color: AppColors.secondaryText,
+    );
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         children: [
           Expanded(child: Text(tr('Бесплатно'), style: style)),
           const SizedBox(width: 56),
-          if (showPremium) Expanded(child: Text('Premium', textAlign: TextAlign.end, style: style)),
+          if (showPremium)
+            Expanded(
+              child: Text('Premium', textAlign: TextAlign.end, style: style),
+            ),
         ],
       ),
     );
@@ -246,30 +322,48 @@ class _LevelRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(child: _RewardTile(reward: level.free, busy: busy, onClaim: () => onClaim('free'))),
-          SizedBox(
-            width: 56,
-            child: Center(
-              child: Container(
-                width: 34,
-                height: 34,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: reached ? AppColors.primary : AppColors.softFill,
-                ),
-                child: Text(
-                  '${level.level}',
-                  style: TextStyle(fontWeight: FontWeight.w800, color: reached ? Colors.white : AppColors.secondaryText),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: _RewardTile(
+                reward: level.free,
+                busy: busy,
+                onClaim: () => onClaim('free'),
+              ),
+            ),
+            SizedBox(
+              width: 56,
+              child: Center(
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: reached ? AppColors.primary : AppColors.softFill,
+                  ),
+                  child: Text(
+                    '${level.level}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: reached ? Colors.white : AppColors.secondaryText,
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-          if (showPremium) Expanded(child: _RewardTile(reward: level.premium, busy: busy, onClaim: () => onClaim('premium'))),
-        ],
+            if (showPremium)
+              Expanded(
+                child: _RewardTile(
+                  reward: level.premium,
+                  busy: busy,
+                  onClaim: () => onClaim('premium'),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -280,7 +374,11 @@ class _RewardTile extends StatelessWidget {
   final bool busy;
   final VoidCallback onClaim;
 
-  const _RewardTile({required this.reward, required this.busy, required this.onClaim});
+  const _RewardTile({
+    required this.reward,
+    required this.busy,
+    required this.onClaim,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -299,17 +397,27 @@ class _RewardTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: fill,
         borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-        border: r.claimable ? Border.all(color: AppColors.primary, width: 1.4) : null,
+        border: r.claimable
+            ? Border.all(color: AppColors.primary, width: 1.4)
+            : null,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(_rewardIcon(r), size: 22, color: r.claimed ? AppColors.success : AppColors.primary),
+          Icon(
+            _rewardIcon(r),
+            size: 22,
+            color: r.claimed ? AppColors.success : AppColors.primary,
+          ),
           const SizedBox(height: 2),
           Text(
             _rewardText(r),
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primaryDark),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.primaryDark,
+            ),
           ),
           const SizedBox(height: 4),
           if (r.claimed)
@@ -319,8 +427,13 @@ class _RewardTile extends StatelessWidget {
               height: 28,
               child: FilledButton(
                 onPressed: busy ? null : onClaim,
-                style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12)),
-                child: Text(tr('Забрать'), style: const TextStyle(fontSize: 12.5)),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                child: Text(
+                  tr('Забрать'),
+                  style: const TextStyle(fontSize: 12.5),
+                ),
               ),
             )
           else if (r.lockedByPremium)
@@ -336,7 +449,11 @@ class _TaskRow extends StatelessWidget {
   final bool busy;
   final VoidCallback onClaim;
 
-  const _TaskRow({required this.task, required this.busy, required this.onClaim});
+  const _TaskRow({
+    required this.task,
+    required this.busy,
+    required this.onClaim,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -350,20 +467,36 @@ class _TaskRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(_taskText(task), style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
+                  Text(
+                    _taskText(task),
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primaryDark,
+                    ),
+                  ),
                   const SizedBox(height: 6),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(5),
                     child: LinearProgressIndicator(
-                      value: task.target == 0 ? 1 : (task.progress / task.target).clamp(0.0, 1.0),
+                      value: task.target == 0
+                          ? 1
+                          : (task.progress / task.target).clamp(0.0, 1.0),
                       minHeight: 7,
                       backgroundColor: AppColors.progressTrack,
-                      color: task.claimed ? AppColors.success : AppColors.primary,
+                      color: task.claimed
+                          ? AppColors.success
+                          : AppColors.primary,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text('${task.progress} / ${task.target} · +${task.xp} XP',
-                      style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+                  Text(
+                    '${task.progress} / ${task.target} · +${task.xp} XP',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.secondaryText,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -371,7 +504,10 @@ class _TaskRow extends StatelessWidget {
             if (task.claimed)
               Icon(Icons.check_circle_rounded, color: AppColors.success)
             else if (task.claimable)
-              FilledButton(onPressed: busy ? null : onClaim, child: Text(tr('Забрать'))),
+              FilledButton(
+                onPressed: busy ? null : onClaim,
+                child: Text(tr('Забрать')),
+              ),
           ],
         ),
       ),

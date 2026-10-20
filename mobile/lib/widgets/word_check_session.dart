@@ -20,7 +20,12 @@ class WordCheckSession extends StatefulWidget {
   final WordCheck check;
   final VoidCallback onDone;
 
-  const WordCheckSession({super.key, required this.lessonId, required this.check, required this.onDone});
+  const WordCheckSession({
+    super.key,
+    required this.lessonId,
+    required this.check,
+    required this.onDone,
+  });
 
   @override
   State<WordCheckSession> createState() => _WordCheckSessionState();
@@ -101,11 +106,18 @@ class _WordCheckSessionState extends State<WordCheckSession> {
               Expanded(
                 child: Text(
                   tr('Проверка слов · {0} из {1}', [_index + 1, total]),
-                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.secondaryText),
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.secondaryText,
+                  ),
                 ),
               ),
               if (widget.check.skipAllowed)
-                TextButton(onPressed: _picked == null ? _finish : null, child: Text(tr('Пропустить'))),
+                TextButton(
+                  onPressed: _picked == null ? _finish : null,
+                  child: Text(tr('Пропустить')),
+                ),
             ],
           ),
           const SizedBox(height: 8),
@@ -133,19 +145,34 @@ class _WordCheckSessionState extends State<WordCheckSession> {
                       child: Text(
                         item.original,
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primaryDark,
+                        ),
                       ),
                     ),
-                    if (item.wordAudioUrl != null && item.wordAudioUrl!.isNotEmpty) ...[
+                    if (item.wordAudioUrl != null &&
+                        item.wordAudioUrl!.isNotEmpty) ...[
                       const SizedBox(width: 8),
-                      AudioButton(url: ApiClient.instance.mediaUrl(item.wordAudioUrl!), size: 22),
+                      AudioButton(
+                        url: ApiClient.instance.mediaUrl(item.wordAudioUrl!),
+                        size: 22,
+                      ),
                     ],
                   ],
                 ),
-                if (item.transcription != null && item.transcription!.isNotEmpty)
+                if (item.transcription != null &&
+                    item.transcription!.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
-                    child: Text(item.transcription!, style: TextStyle(fontSize: 15, color: AppColors.secondaryText)),
+                    child: Text(
+                      item.transcription!,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: AppColors.secondaryText,
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -166,18 +193,25 @@ class _WordCheckSessionState extends State<WordCheckSession> {
             Text(
               tr('Насколько это было легко?'),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primaryDark,
+              ),
             ),
             const SizedBox(height: 10),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
+            Row(
               children: [
-                _RatingButton(label: tr('Угадал'), rating: CheckRating.guess, onTap: _rate),
-                _RatingButton(label: tr('Трудно'), rating: CheckRating.hard, onTap: _rate),
-                _RatingButton(label: tr('Нормально'), rating: CheckRating.normal, onTap: _rate),
-                _RatingButton(label: tr('Легко'), rating: CheckRating.easy, onTap: _rate),
+                for (final r in CheckRating.values) ...[
+                  if (r != CheckRating.values.first) const SizedBox(width: 6),
+                  Expanded(
+                    child: _RatingButton(
+                      label: _ratingLabel(r),
+                      rating: r,
+                      onTap: _rate,
+                    ),
+                  ),
+                ],
               ],
             ),
           ],
@@ -187,19 +221,36 @@ class _WordCheckSessionState extends State<WordCheckSession> {
   }
 }
 
+String _ratingLabel(CheckRating r) => switch (r) {
+  CheckRating.guess => tr('Угадал'),
+  CheckRating.hard => tr('Трудно'),
+  CheckRating.normal => tr('Нормально'),
+  CheckRating.easy => tr('Легко'),
+};
+
 class _RatingButton extends StatelessWidget {
   final String label;
   final CheckRating rating;
   final void Function(CheckRating) onTap;
 
-  const _RatingButton({required this.label, required this.rating, required this.onTap});
+  const _RatingButton({
+    required this.label,
+    required this.rating,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return FilledButton.tonal(
       key: ValueKey('check-rating-${rating.name}'),
       onPressed: () => onTap(rating),
-      child: Text(label),
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 12),
+      ),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(label, style: const TextStyle(fontSize: 13.5)),
+      ),
     );
   }
 }
