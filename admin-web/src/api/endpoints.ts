@@ -2739,6 +2739,7 @@ export interface PassSettings {
   xp_review: number;
   xp_quest: number;
   xp_streak: number;
+  xp_daily_goal: number;
   freeze_cap: number;
   team_size: number;
   auto_monthly_seasons: boolean;

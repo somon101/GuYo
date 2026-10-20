@@ -33,6 +33,7 @@ import '../models/word.dart';
 import '../models/word_check.dart';
 import '../models/season_pass.dart';
 import '../models/season_summary.dart';
+import '../models/daily_goal.dart';
 import '../models/team.dart';
 import '../services/answer_signals.dart';
 
@@ -827,6 +828,31 @@ class ApiClient {
       Lesson.fromJson(body),
       stats is Map<String, dynamic> ? LessonPassStats.fromJson(stats) : null,
     );
+  }
+
+  /// Today's progress towards the daily goal; null on any failure.
+  Future<DailyGoal?> fetchDailyGoal() async {
+    try {
+      final res = await http.get(_uri('/daily-goal'), headers: await _authHeaders());
+      if (res.statusCode >= 400) return null;
+      return DailyGoal.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<DailyGoal?> setDailyGoal(int goal) async {
+    try {
+      final res = await http.put(
+        _uri('/daily-goal'),
+        headers: {...await _authHeaders(), 'Content-Type': 'application/json'},
+        body: jsonEncode({'goal': goal}),
+      );
+      if (res.statusCode >= 400) return null;
+      return DailyGoal.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
   }
 
   /// The recap of the last finished season; null if there is none (or on failure).

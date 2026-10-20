@@ -11,6 +11,9 @@ import '../widgets/in_app_banner.dart' show appNavigatorKey;
 final ValueNotifier<bool?> streakLitToday = ValueNotifier(null);
 final ValueNotifier<int?> streakDays = ValueNotifier(null);
 
+/// Bumped after every finished lesson / round / quest: the daily-goal card reloads.
+final ValueNotifier<int> dailyGoalTick = ValueNotifier(0);
+
 /// From the profile (GET /users/me/profile).
 void setStreakState({required bool litToday, required int days}) {
   streakLitToday.value = litToday;
@@ -20,6 +23,7 @@ void setStreakState({required bool litToday, required int days}) {
 /// From a finish response: `streak_lit_now` is true only for the call that
 /// lit today's day -- that moment plays the flame lighting up.
 void reportStreakResult(Map<String, dynamic> json) {
+  dailyGoalTick.value++;
   final litNow = json['streak_lit_now'] as bool? ?? false;
   final days = json['streak_days'] as int?;
   if (days != null) streakDays.value = days;

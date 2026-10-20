@@ -36,6 +36,7 @@ from app.routers import (
     lessons,
     lesson_check,
     season_pass,
+    daily_goal,
     teams,
     admin_season_pass,
     notifications,
@@ -152,6 +153,7 @@ app.include_router(exercises.router)
 app.include_router(lessons.router)
 app.include_router(lesson_check.router)
 app.include_router(season_pass.router)
+app.include_router(daily_goal.router)
 app.include_router(teams.router)
 app.include_router(admin_season_pass.router)
 app.include_router(practice.router)

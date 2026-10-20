@@ -76,6 +76,8 @@ class User(Base):
     equipped_badge_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     equipped_title_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Raised by "log out on other devices"; tokens carry the value they were issued with.
+    # Words to practise per day (5, 10 or 20): the ring on the home screen.
+    daily_goal: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
     token_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     streak_freezes: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
