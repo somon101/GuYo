@@ -2718,6 +2718,25 @@ export async function listTeams(): Promise<AdminTeam[]> {
   return data;
 }
 
+export interface PassEconomy {
+  season_id: number;
+  season_name: string;
+  players: number;
+  total_xp: number;
+  avg_xp: number;
+  avg_xp_per_day: number;
+  xp_by_source: { source: string; xp: number; events: number }[];
+  level_distribution: { level: number; people: number }[];
+  claims_by_kind: Record<string, number>;
+  teams: number;
+  team_members: number;
+}
+
+export async function getPassEconomy(): Promise<PassEconomy | null> {
+  const { data } = await api.get("/admin/season-pass/economy");
+  return data;
+}
+
 export interface PassTemplate {
   id: number;
   name: string;

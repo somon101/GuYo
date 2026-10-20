@@ -60,3 +60,14 @@ def test_team_create_invite_accept_and_one_team_per_user(db, make_user):
     teams.join_open(db, friend, team.id)
     db.commit()
     assert len(teams.members_of(db, team)) == 2
+
+
+def test_admin_economy(client, db, make_user, admin_headers, active_season):
+    a, b = make_user(), make_user()
+    service.award_xp(db, a, "word", "k1", 100)
+    service.award_xp(db, b, "lesson", "k2", 30)
+    db.commit()
+    r = client.get("/admin/season-pass/economy", headers=admin_headers).json()
+    assert r["players"] == 2 and r["total_xp"] == 130
+    assert {x["source"] for x in r["xp_by_source"]} == {"word", "lesson"}
+    assert sum(x["people"] for x in r["level_distribution"]) == 2

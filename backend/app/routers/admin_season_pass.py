@@ -238,3 +238,74 @@ def list_teams(db: Session = Depends(get_db), _admin=Depends(get_current_admin))
 def ensure_seasons(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
     """Creates the missing calendar-month seasons now (also done on its own)."""
     return {"created": ensure_monthly_seasons(db)}
+
+
+class EconomyOut(BaseModel):
+    season_id: int
+    season_name: str
+    players: int
+    total_xp: int
+    avg_xp: float
+    avg_xp_per_day: float
+    xp_by_source: list[dict]
+    level_distribution: list[dict]
+    claims_by_kind: dict[str, int]
+    teams: int
+    team_members: int
+
+
+@router.get("/economy", response_model=EconomyOut | None)
+def economy(season_id: int | None = None, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    """How the pass is playing out in a season (the live one by default):
+    who earns how much, from what, how far people get, what they claim.
+    Read-only, from the XP ledger and the claims."""
+    from sqlalchemy import func
+
+    from app.core.dates import utc_now
+    from app.models.rating import SEASON_ACTIVE
+    from app.models.season_pass import PassClaim, PassXpEvent
+    from app.models.team import Team, TeamMember
+    from app.seasonpass.service import level_for_xp
+
+    q = db.query(Season)
+    season = db.get(Season, season_id) if season_id else q.filter(Season.status == SEASON_ACTIVE).first()
+    if season is None:
+        return None
+    levels = season_pass(db, season).definition["levels"]
+    per_user = dict(
+        db.query(PassXpEvent.user_id, func.sum(PassXpEvent.amount))
+        .filter(PassXpEvent.season_id == season.id)
+        .group_by(PassXpEvent.user_id)
+        .all()
+    )
+    total = int(sum(per_user.values()))
+    players = len(per_user)
+    by_level: dict[int, int] = {}
+    for xp in per_user.values():
+        lvl = level_for_xp(levels, int(xp))[0]
+        by_level[lvl] = by_level.get(lvl, 0) + 1
+    sources = (
+        db.query(PassXpEvent.source, func.sum(PassXpEvent.amount), func.count(PassXpEvent.id))
+        .filter(PassXpEvent.season_id == season.id)
+        .group_by(PassXpEvent.source)
+        .order_by(func.sum(PassXpEvent.amount).desc())
+        .all()
+    )
+    claims = dict(
+        db.query(PassClaim.kind, func.count(PassClaim.id)).filter(PassClaim.season_id == season.id).group_by(PassClaim.kind).all()
+    )
+    end = min(utc_now(), season.ends_at) if season.ends_at else utc_now()
+    days = max(1.0, (end - season.starts_at).total_seconds() / 86400)
+    return EconomyOut(
+        season_id=season.id,
+        season_name=season.name,
+        players=players,
+        total_xp=total,
+        avg_xp=round(total / players, 1) if players else 0.0,
+        avg_xp_per_day=round(total / players / days, 1) if players else 0.0,
+        xp_by_source=[{"source": s, "xp": int(x), "events": int(n)} for s, x, n in sources],
+        level_distribution=[{"level": lv, "people": by_level.get(lv, 0)} for lv in range(0, len(levels) + 1)],
+        claims_by_kind={k: int(v) for k, v in claims.items()},
+        teams=db.query(func.count(Team.id)).scalar() or 0,
+        team_members=db.query(func.count(TeamMember.id)).scalar() or 0,
+    )

@@ -12,6 +12,8 @@ import {
   listPassTemplates,
   listTeams,
   type AdminTeam,
+  type PassEconomy,
+  getPassEconomy,
   listSeasons,
   makePassTemplateDefault,
   updatePassSettings,
@@ -74,6 +76,7 @@ export function SeasonPassPage() {
         Каждую неделю есть задания на бонусный XP. Сезоны идут по календарным месяцам и создаются сами; у каждого
         своя копия шаблона, поэтому правка шаблона не меняет идущий сезон.
       </p>
+      <EconomySection />
       <SettingsSection />
       <TemplatesSection />
       <SeasonsSection />
@@ -452,6 +455,82 @@ function TeamGoalRow({
 }
 
 // --- Teams (read only) ----------------------------------------------------------
+
+const SOURCE_LABEL: Record<string, string> = {
+  word: "Слова",
+  lesson: "Уроки",
+  review: "Повторения",
+  quest: "Квесты",
+  streak: "День серии",
+  daily_goal: "Цель дня",
+  comeback: "Возвращение",
+};
+const CLAIM_LABEL: Record<string, string> = {
+  free: "Бесплатные награды",
+  premium: "Premium-награды",
+  task: "Недельные задания",
+  team: "Командные цели",
+};
+
+function EconomySection() {
+  const [data, setData] = useState<PassEconomy | null | undefined>(undefined);
+
+  useEffect(() => {
+    getPassEconomy()
+      .then(setData)
+      .catch(() => setData(null));
+  }, []);
+
+  const maxPeople = Math.max(1, ...(data?.level_distribution.map((l) => l.people) ?? [1]));
+  const maxXp = Math.max(1, ...(data?.xp_by_source.map((x) => x.xp) ?? [1]));
+  return (
+    <Section title="Экономика пропуска">
+      {data === undefined ? (
+        <p className="text-sm text-slate-500">Загрузка…</p>
+      ) : data === null ? (
+        <p className="text-sm text-slate-500">Сейчас нет активного сезона.</p>
+      ) : (
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-slate-500">
+            {data.season_name}: {data.players} игроков, {data.total_xp} XP всего, в среднем {data.avg_xp} XP на человека
+            ({data.avg_xp_per_day} в день). Команд: {data.teams}, людей в них: {data.team_members}.
+          </p>
+          <div>
+            <h3 className="mb-1 text-sm font-semibold text-slate-700">Откуда берётся XP</h3>
+            {data.xp_by_source.map((x) => (
+              <div key={x.source} className="mb-1 flex items-center gap-2 text-xs text-slate-600">
+                <span className="w-28">{SOURCE_LABEL[x.source] ?? x.source}</span>
+                <div className="h-3 flex-1 rounded bg-slate-100">
+                  <div className="h-3 rounded bg-indigo-500" style={{ width: `${(x.xp / maxXp) * 100}%` }} />
+                </div>
+                <span className="w-24 text-right">{x.xp} XP · {x.events}</span>
+              </div>
+            ))}
+          </div>
+          <div>
+            <h3 className="mb-1 text-sm font-semibold text-slate-700">Люди по уровням</h3>
+            {data.level_distribution.map((l) => (
+              <div key={l.level} className="mb-0.5 flex items-center gap-2 text-xs text-slate-600">
+                <span className="w-28">{l.level === 0 ? "Без уровня" : `Уровень ${l.level}`}</span>
+                <div className="h-2.5 flex-1 rounded bg-slate-100">
+                  <div className="h-2.5 rounded bg-emerald-500" style={{ width: `${(l.people / maxPeople) * 100}%` }} />
+                </div>
+                <span className="w-10 text-right">{l.people}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(CLAIM_LABEL).map(([k, label]) => (
+              <span key={k} className="card px-3 py-1.5 text-xs text-slate-700">
+                {label}: <b>{data.claims_by_kind[k] ?? 0}</b>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </Section>
+  );
+}
 
 function TeamsSection() {
   const [teams, setTeams] = useState<AdminTeam[] | null>(null);
