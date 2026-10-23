@@ -115,13 +115,14 @@ class DailyGoalCardView extends StatelessWidget {
         ? 1.0
         : (goal.done / goal.goal).clamp(0.0, 1.0);
     final done = goal.completed;
+    final percent = (value * 100).round();
     return Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
         onTap: onTap,
         child: Ink(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(22),
@@ -132,32 +133,6 @@ class DailyGoalCardView extends StatelessWidget {
           ),
           child: Row(
             children: [
-              SizedBox(
-                width: 58,
-                height: 58,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox.expand(
-                      child: CircularProgressIndicator(
-                        value: value,
-                        strokeWidth: 7,
-                        strokeCap: StrokeCap.round,
-                        backgroundColor: AppColors.violetSurface,
-                        color: done ? AppColors.success : AppColors.primary,
-                      ),
-                    ),
-                    Icon(
-                      done
-                          ? Icons.check_rounded
-                          : Icons.local_fire_department_rounded,
-                      color: done ? AppColors.success : AppColors.primary,
-                      size: 26,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,7 +140,7 @@ class DailyGoalCardView extends StatelessWidget {
                     Text(
                       tr('Цель дня'),
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 18,
                         fontWeight: FontWeight.w900,
                         color: AppColors.primaryDark,
                       ),
@@ -183,7 +158,35 @@ class DailyGoalCardView extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.tune_rounded, color: AppColors.secondaryText),
+              Text(
+                '$percent%',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: done ? AppColors.success : AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: done ? AppColors.success : AppColors.primary,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: .22),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  done ? Icons.check_rounded : Icons.chevron_right_rounded,
+                  color: Colors.white,
+                  size: 25,
+                ),
+              ),
             ],
           ),
         ),

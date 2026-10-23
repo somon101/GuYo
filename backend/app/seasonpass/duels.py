@@ -11,6 +11,7 @@ from app.models.duel import ACTIVE, CANCELLED, DECLINED, FINISHED, PENDING, Duel
 from app.models.friendship import Friendship
 from app.models.season_pass import PassXpEvent
 from app.models.user import User
+from app.core.storage import url_for_key
 from app.notifications.service import send_notification
 from app.progress.stats import week_start
 from app.seasonpass.service import PassError, award_xp, get_pass_settings
@@ -191,6 +192,7 @@ def state(db: Session, user: User) -> dict:
             "i_challenged": i_am_challenger,
             "opponent_id": other.id if other else 0,
             "opponent_login": other.login if other else "",
+            "opponent_avatar_url": url_for_key(other.avatar_key) if other else None,
             "my_xp": a if i_am_challenger else b,
             "their_xp": b if i_am_challenger else a,
             "won": None if d.winner_id is None else d.winner_id == user.id,

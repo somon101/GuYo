@@ -152,6 +152,7 @@ class ApiClient {
   /// just created). Главная's counter lives in another tab and listens to
   /// this instead of being reached into by whoever created the lesson.
   final ValueNotifier<int> lessonQuotaRevision = ValueNotifier<int>(0);
+  final ValueNotifier<int?> economyBalance = ValueNotifier<int?>(null);
 
   Future<String?> get token async {
     _cachedToken ??= await _storage.read(key: _tokenKey);
@@ -598,7 +599,9 @@ class ApiClient {
   Future<Map<String, dynamic>> fetchEconomy() async {
     final res = await http.get(_uri('/shop'), headers: await _authHeaders());
     await _throwWithDetail(res);
-    return jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    economyBalance.value = data['diamonds'] as int?;
+    return data;
   }
 
   Future<Map<String, dynamic>> buyShopProduct(int id) async {
@@ -607,7 +610,9 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwWithDetail(res);
-    return jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    economyBalance.value = data['diamonds'] as int?;
+    return data;
   }
 
   Future<Map<String, dynamic>> openGift(int id) async {
@@ -616,7 +621,9 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwWithDetail(res);
-    return jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    economyBalance.value = data['diamonds'] as int?;
+    return data;
   }
 
   Future<Map<String, dynamic>> useStreakMerge() async {

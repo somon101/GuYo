@@ -1,4 +1,5 @@
 import '../l10n/l10n.dart';
+
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
@@ -11,13 +12,15 @@ import 'guyo_ui.dart';
 /// Opens the Premium screen -- the one way into it, from Главная's counter,
 /// the lesson-limit dialog and the profile badge alike.
 Future<void> openPremiumScreen(BuildContext context) {
-  return Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PremiumScreen()));
+  return Navigator.of(context)
+      .push(MaterialPageRoute(builder: (_) => const PremiumScreen()));
 }
 
 /// Opens the "Промокод" screen -- from the app bar's "⋮" menu and from
 /// the Premium screen.
 Future<void> openPromoScreen(BuildContext context) {
-  return Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PromoScreen()));
+  return Navigator.of(context)
+      .push(MaterialPageRoute(builder: (_) => const PromoScreen()));
 }
 
 /// The small gold "Premium" pill.
@@ -36,11 +39,19 @@ class PremiumBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.workspace_premium_rounded, size: 14, color: AppColors.rewardText),
+          const Icon(
+            Icons.workspace_premium_rounded,
+            size: 14,
+            color: AppColors.rewardText,
+          ),
           const SizedBox(width: 4),
           Text(
             label,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.rewardText),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.rewardText,
+            ),
           ),
         ],
       ),
@@ -99,31 +110,70 @@ class LessonQuotaCardState extends State<LessonQuotaCard> {
     // PremiumStatus.premiumEnabled) -- not just showing "без ограничений"
     // for everyone, since the whole point is to read as if Premium (and
     // therefore this card) didn't exist.
-    if (status == null || !status.premiumEnabled) return const SizedBox.shrink();
+    if (status == null || !status.premiumEnabled)
+      return const SizedBox.shrink();
     final quota = status.lessons;
 
     return GuyoCard(
       onTap: _open,
-      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+      padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
       child: Row(
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
-              color: status.isPremium ? AppColors.rewardBackground : AppColors.violetSurface,
-              borderRadius: BorderRadius.circular(14),
+              color: status.isPremium
+                  ? AppColors.rewardBackground
+                  : AppColors.violetSurface,
+              borderRadius: BorderRadius.circular(18),
             ),
             child: Icon(
-              status.isPremium ? Icons.workspace_premium_rounded : Icons.auto_stories_rounded,
-              color: status.isPremium ? AppColors.rewardText : AppColors.primary,
-              size: 22,
+              status.isPremium
+                  ? Icons.workspace_premium_rounded
+                  : Icons.auto_stories_rounded,
+              color: status.isPremium
+                  ? AppColors.rewardText
+                  : AppColors.primary,
+              size: 28,
             ),
           ),
           const SizedBox(width: 12),
-          Expanded(child: status.isPremium && quota.isUnlimited ? _premiumText(status) : _counterText(quota)),
+          Expanded(
+            child: status.isPremium && quota.isUnlimited
+                ? _premiumText(status)
+                : _counterText(quota),
+          ),
           const SizedBox(width: 8),
-          if (!status.isPremium) const PremiumBadge() else Icon(Icons.chevron_right, color: AppColors.muted),
+          if (!status.isPremium)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.progressTrack,
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.lock_rounded,
+                    size: 14,
+                    color: AppColors.secondaryText,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    tr('Лимит'),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.secondaryText,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Icon(Icons.chevron_right, color: AppColors.muted),
         ],
       ),
     );
@@ -137,11 +187,17 @@ class LessonQuotaCardState extends State<LessonQuotaCard> {
       children: [
         Text(
           tr('Уроки без ограничений'),
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: AppColors.primaryDark,
+          ),
         ),
         const SizedBox(height: 2),
         Text(
-          until == null ? 'GuYo Premium' : tr('GuYo Premium до {0}', [formatPremiumDate(until)]),
+          until == null
+              ? 'GuYo Premium'
+              : tr('GuYo Premium до {0}', [formatPremiumDate(until)]),
           style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
         ),
       ],
@@ -155,9 +211,15 @@ class LessonQuotaCardState extends State<LessonQuotaCard> {
     // The count shown is the limit that matters right now: the week's once
     // that is what blocks, otherwise today's.
     if (quota.dailyLimit != null && blocked != 'week') {
-      title = tr('Уроки сегодня: {0} из {1}', [quota.dailyUsed, quota.dailyLimit]);
+      title = tr('Уроки сегодня: {0} из {1}', [
+        quota.dailyUsed,
+        quota.dailyLimit,
+      ]);
     } else if (quota.weeklyLimit != null) {
-      title = tr('Уроки на неделе: {0} из {1}', [quota.weeklyUsed, quota.weeklyLimit]);
+      title = tr('Уроки на неделе: {0} из {1}', [
+        quota.weeklyUsed,
+        quota.weeklyLimit,
+      ]);
     } else {
       title = tr('Уроки без ограничений');
     }
@@ -166,14 +228,19 @@ class LessonQuotaCardState extends State<LessonQuotaCard> {
     } else if (blocked == 'day') {
       subtitle = tr('Новые уроки — завтра');
     } else if (quota.dailyLimit != null && quota.weeklyLimit != null) {
-      subtitle = tr('На этой неделе: {0} из {1}', [quota.weeklyUsed, quota.weeklyLimit]);
+      subtitle = tr('На этой неделе: {0} из {1}', [
+        quota.weeklyUsed,
+        quota.weeklyLimit,
+      ]);
     } else {
       subtitle = tr('С Premium — без ограничений');
     }
 
     // The bar follows the limit that is actually closest to running out.
     final double progress;
-    if (quota.dailyLimit != null && quota.dailyLimit! > 0 && blocked != 'week') {
+    if (quota.dailyLimit != null &&
+        quota.dailyLimit! > 0 &&
+        blocked != 'week') {
       progress = quota.dailyUsed / quota.dailyLimit!;
     } else if (quota.weeklyLimit != null && quota.weeklyLimit! > 0) {
       progress = quota.weeklyUsed / quota.weeklyLimit!;
@@ -181,15 +248,30 @@ class LessonQuotaCardState extends State<LessonQuotaCard> {
       progress = blocked != null ? 1 : 0;
     }
 
+    final dailyValue = quota.dailyLimit == null
+        ? null
+        : '${quota.dailyUsed} из ${quota.dailyLimit}';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          title,
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+          tr('Уроки сегодня:'),
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: AppColors.primaryDark,
+          ),
         ),
-        const SizedBox(height: 6),
+        Text(
+          dailyValue ?? title,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: AppColors.primaryDark,
+          ),
+        ),
+        const SizedBox(height: 10),
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
@@ -201,7 +283,12 @@ class LessonQuotaCardState extends State<LessonQuotaCard> {
         ),
         const SizedBox(height: 5),
         Text(
-          subtitle,
+          quota.weeklyLimit != null
+              ? tr('На этой неделе: {0} из {1}', [
+                  quota.weeklyUsed,
+                  quota.weeklyLimit,
+                ])
+              : subtitle,
           style: TextStyle(
             fontSize: 12.5,
             color: blocked != null ? AppColors.danger : AppColors.secondaryText,
@@ -224,7 +311,10 @@ Future<void> showLessonLimitDialog(BuildContext context, String message) {
       title: Text(tr('Лимит уроков')),
       content: Text(message),
       actions: [
-        TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: Text(tr('Понятно'))),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: Text(tr('Понятно')),
+        ),
         FilledButton.icon(
           onPressed: () {
             Navigator.of(dialogContext).pop();

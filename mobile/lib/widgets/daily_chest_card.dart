@@ -42,6 +42,7 @@ class _DailyChestCardState extends State<DailyChestCard> {
     setState(() => _busy = true);
     try {
       final state = await ApiClient.instance.openChest();
+      ApiClient.instance.fetchEconomy();
       if (!mounted) return;
       setState(() => _state = state);
       final freeze = state.kind == 'freeze';

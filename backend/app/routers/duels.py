@@ -23,6 +23,7 @@ class DuelOut(BaseModel):
     i_challenged: bool
     opponent_id: int
     opponent_login: str
+    opponent_avatar_url: str | None = None
     my_xp: int
     their_xp: int
     won: bool | None = None

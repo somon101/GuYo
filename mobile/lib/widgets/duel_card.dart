@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
 import '../models/duel.dart';
+import '../models/user_profile.dart';
+import 'user_avatar.dart';
 import '../services/streak_state.dart';
 import '../theme/app_colors.dart';
 
@@ -17,6 +19,7 @@ class DuelCard extends StatefulWidget {
 
 class _DuelCardState extends State<DuelCard> {
   DuelState? _state;
+  UserProfile? _me;
   bool _busy = false;
 
   @override
@@ -24,6 +27,12 @@ class _DuelCardState extends State<DuelCard> {
     super.initState();
     dailyGoalTick.addListener(_load);
     _load();
+    ApiClient.instance
+        .fetchMyProfile()
+        .then((value) {
+          if (mounted) setState(() => _me = value);
+        })
+        .catchError((_) {});
   }
 
   @override
@@ -44,16 +53,24 @@ class _DuelCardState extends State<DuelCard> {
       final state = await action();
       if (mounted) setState(() => _state = state);
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Не удалось. Проверьте интернет.'))));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('Не удалось. Проверьте интернет.'))),
+        );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
   Future<void> _pickFriend() async {
-    final friends = await ApiClient.instance.fetchFriendsLeaderboard().then((b) => b.entries.where((e) => !e.isMe).toList()).catchError((_) => <dynamic>[]);
+    final friends = await ApiClient.instance
+        .fetchFriendsLeaderboard()
+        .then((b) => b.entries.where((e) => !e.isMe).toList())
+        .catchError((_) => <dynamic>[]);
     if (!mounted) return;
     final chosen = await showModalBottomSheet<int>(
       context: context,
@@ -62,19 +79,32 @@ class _DuelCardState extends State<DuelCard> {
         child: friends.isEmpty
             ? Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text(tr('Сначала добавьте друга в рейтинге'), style: TextStyle(color: AppColors.secondaryText)),
+                child: Text(
+                  tr('Сначала добавьте друга в рейтинге'),
+                  style: TextStyle(color: AppColors.secondaryText),
+                ),
               )
             : ListView(
                 shrinkWrap: true,
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 18, 20, 6),
-                    child: Text(tr('Кого вызвать?'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+                    child: Text(
+                      tr('Кого вызвать?'),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primaryDark,
+                      ),
+                    ),
                   ),
                   for (final f in friends)
                     ListTile(
                       key: ValueKey('duel-friend-${f.userId}'),
-                      title: Text(f.login, style: const TextStyle(fontWeight: FontWeight.w700)),
+                      title: Text(
+                        f.login,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
                       onTap: () => Navigator.of(ctx).pop(f.userId as int),
                     ),
                 ],
@@ -93,9 +123,12 @@ class _DuelCardState extends State<DuelCard> {
       child: DuelCardView(
         state: state,
         busy: _busy,
+        me: _me,
         onChallenge: _pickFriend,
-        onAccept: (d) => _act(() => ApiClient.instance.answerDuel(d.id, accept: true)),
-        onDecline: (d) => _act(() => ApiClient.instance.answerDuel(d.id, accept: false)),
+        onAccept: (d) =>
+            _act(() => ApiClient.instance.answerDuel(d.id, accept: true)),
+        onDecline: (d) =>
+            _act(() => ApiClient.instance.answerDuel(d.id, accept: false)),
       ),
     );
   }
@@ -104,6 +137,7 @@ class _DuelCardState extends State<DuelCard> {
 class DuelCardView extends StatelessWidget {
   final DuelState state;
   final bool busy;
+  final UserProfile? me;
   final VoidCallback onChallenge;
   final void Function(Duel) onAccept;
   final void Function(Duel) onDecline;
@@ -111,6 +145,7 @@ class DuelCardView extends StatelessWidget {
     super.key,
     required this.state,
     this.busy = false,
+    this.me,
     required this.onChallenge,
     required this.onAccept,
     required this.onDecline,
@@ -133,28 +168,67 @@ class DuelCardView extends StatelessWidget {
             children: [
               Icon(Icons.sports_kabaddi_rounded, color: AppColors.primary),
               const SizedBox(width: 8),
-              Text(tr('Дуэль недели'), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.primaryDark)),
+              Text(
+                tr('Дуэль недели'),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.primaryDark,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
           if (d == null) ...[
-            Text(tr('Вызовите друга: кто за неделю наберёт больше энергии, тот победил.'), style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
+            Text(
+              tr(
+                'Вызовите друга: кто за неделю наберёт больше энергии, тот победил.',
+              ),
+              style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+            ),
             const SizedBox(height: 10),
-            FilledButton(key: const ValueKey('duel-challenge'), onPressed: busy ? null : onChallenge, child: Text(tr('Вызвать друга'))),
+            FilledButton(
+              key: const ValueKey('duel-challenge'),
+              onPressed: busy ? null : onChallenge,
+              child: Text(tr('Вызвать друга')),
+            ),
           ] else if (d.incoming) ...[
-            Text(tr('{0} вызывает вас на дуэль', [d.opponentLogin]), style: const TextStyle(fontWeight: FontWeight.w700)),
+            Text(
+              tr('{0} вызывает вас на дуэль', [d.opponentLogin]),
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 10),
-            Row(children: [
-              Expanded(child: OutlinedButton(key: const ValueKey('duel-decline'), onPressed: busy ? null : () => onDecline(d), child: Text(tr('Отказаться')))),
-              const SizedBox(width: 10),
-              Expanded(child: FilledButton(key: const ValueKey('duel-accept'), onPressed: busy ? null : () => onAccept(d), child: Text(tr('Принять')))),
-            ]),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    key: const ValueKey('duel-decline'),
+                    onPressed: busy ? null : () => onDecline(d),
+                    child: Text(tr('Отказаться')),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    key: const ValueKey('duel-accept'),
+                    onPressed: busy ? null : () => onAccept(d),
+                    child: Text(tr('Принять')),
+                  ),
+                ),
+              ],
+            ),
           ] else if (d.isPending) ...[
-            Text(tr('Ждём ответа: {0}', [d.opponentLogin]), style: const TextStyle(fontWeight: FontWeight.w700)),
+            Text(
+              tr('Ждём ответа: {0}', [d.opponentLogin]),
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 8),
-            TextButton(onPressed: busy ? null : () => onDecline(d), child: Text(tr('Отозвать вызов'))),
+            TextButton(
+              onPressed: busy ? null : () => onDecline(d),
+              child: Text(tr('Отозвать вызов')),
+            ),
           ] else
-            _Score(duel: d),
+            _Score(duel: d, me: me),
         ],
       ),
     );
@@ -163,7 +237,8 @@ class DuelCardView extends StatelessWidget {
 
 class _Score extends StatelessWidget {
   final Duel duel;
-  const _Score({required this.duel});
+  final UserProfile? me;
+  const _Score({required this.duel, required this.me});
 
   @override
   Widget build(BuildContext context) {
@@ -176,17 +251,24 @@ class _Score extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text(tr('Вы'), style: const TextStyle(fontWeight: FontWeight.w700)),
-            const Spacer(),
-            Text(duel.opponentLogin, style: const TextStyle(fontWeight: FontWeight.w700)),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Row(
-          children: [
-            Text('${duel.myXp}', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: ahead ? AppColors.success : AppColors.primaryDark)),
-            const Spacer(),
-            Text('${duel.theirXp}', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.primaryDark)),
+            Expanded(
+              child: _DuelPlayer(
+                avatarUrl: me?.avatarUrl,
+                login: me?.login ?? tr('Вы'),
+                score: duel.myXp,
+                color: ahead ? AppColors.success : AppColors.primaryDark,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _DuelPlayer(
+                avatarUrl: duel.opponentAvatarUrl,
+                login: duel.opponentLogin,
+                score: duel.theirXp,
+                color: AppColors.primaryDark,
+                alignEnd: true,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 6),
@@ -200,8 +282,67 @@ class _Score extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        Text(tr('Осталось дней: {0}', [days < 0 ? 0 : days]), style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+        Text(
+          tr('Осталось дней: {0}', [days < 0 ? 0 : days]),
+          style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
+        ),
       ],
     );
   }
+}
+
+class _DuelPlayer extends StatelessWidget {
+  final String? avatarUrl;
+  final String login;
+  final int score;
+  final Color color;
+  final bool alignEnd;
+  const _DuelPlayer({
+    required this.avatarUrl,
+    required this.login,
+    required this.score,
+    required this.color,
+    this.alignEnd = false,
+  });
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: alignEnd
+        ? CrossAxisAlignment.end
+        : CrossAxisAlignment.start,
+    children: [
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!alignEnd) ...[
+            UserAvatar(avatarUrl: avatarUrl, login: login, size: 30),
+            const SizedBox(width: 7),
+          ],
+          Flexible(
+            child: Text(
+              login,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: AppColors.secondaryText,
+              ),
+            ),
+          ),
+          if (alignEnd) ...[
+            const SizedBox(width: 7),
+            UserAvatar(avatarUrl: avatarUrl, login: login, size: 30),
+          ],
+        ],
+      ),
+      const SizedBox(height: 3),
+      Text(
+        '$score',
+        style: TextStyle(
+          fontSize: 25,
+          fontWeight: FontWeight.w900,
+          color: color,
+        ),
+      ),
+    ],
+  );
 }

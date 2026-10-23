@@ -2,7 +2,9 @@ import 'dart:async';
 
 import '../l10n/l10n.dart';
 import '../widgets/guyo_ui.dart';
+
 import 'package:flutter/material.dart';
+
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
 import '../models/language.dart';
@@ -14,6 +16,7 @@ import 'notifications_screen.dart';
 import 'practice_screen.dart';
 import 'profile_screen.dart';
 import 'rating_screen.dart';
+import 'economy_screens.dart';
 import '../services/push_service.dart';
 import 'topics_screen.dart';
 import '../widgets/skeleton.dart';
@@ -71,7 +74,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // Lets the app bar's own settings gear (shown only while Профиль is
   // the active tab) open that screen's settings sheet -- the sheet and
   // everything in it still belong entirely to ProfileScreen.
-  final GlobalKey<ProfileScreenState> _profileKey = GlobalKey<ProfileScreenState>();
+  final GlobalKey<ProfileScreenState> _profileKey =
+      GlobalKey<ProfileScreenState>();
 
   @override
   void initState() {
@@ -103,7 +107,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final profile = await ApiClient.instance.fetchMyProfile();
       if (profile.learningTopics != null || !mounted) return;
       await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const TopicsScreen(initial: [], firstTime: true), fullscreenDialog: true),
+        MaterialPageRoute(
+          builder: (_) => const TopicsScreen(initial: [], firstTime: true),
+          fullscreenDialog: true,
+        ),
       );
     } catch (_) {
       _topicsAsked = false; // try again next time the home screen opens
@@ -123,7 +130,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _logReturn() {
     final pausedAt = _pausedAt;
     _pausedAt = null;
-    if (pausedAt != null && DateTime.now().difference(pausedAt) > const Duration(minutes: 1)) {
+    if (pausedAt != null &&
+        DateTime.now().difference(pausedAt) > const Duration(minutes: 1)) {
       ApiClient.instance.logEvent('app_opened');
     }
   }
@@ -150,7 +158,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// yet to lose anyway.
   Future<void> _loadDictionaries() async {
     // Last launch's list: open on it at once and refresh quietly.
-    final kept = _dictionaries.isEmpty ? ApiClient.instance.cachedDictionaries() : null;
+    final kept = _dictionaries.isEmpty
+        ? ApiClient.instance.cachedDictionaries()
+        : null;
     if (kept != null && kept.isNotEmpty) {
       setState(() {
         _dictionaries = kept;
@@ -219,7 +229,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       final learning = kind == 'learning';
       final options = _languages
-          .where((l) => learning ? l.learnable && l.code != _nativeLanguage : l.nativeOk && l.code != _learningLanguage)
+          .where(
+            (l) => learning
+                ? l.learnable && l.code != _nativeLanguage
+                : l.nativeOk && l.code != _learningLanguage,
+          )
           .toList();
       if (options.isEmpty) continue;
       final picked = await showModalBottomSheet<GuyoLanguage>(
@@ -235,13 +249,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
                 child: Text(
                   learning
-                      ? tr('Этот язык сейчас недоступен для изучения. Выберите другой')
-                      : tr('Этот язык перевода сейчас недоступен. Выберите другой'),
+                      ? tr(
+                          'Этот язык сейчас недоступен для изучения. Выберите другой',
+                        )
+                      : tr(
+                          'Этот язык перевода сейчас недоступен. Выберите другой',
+                        ),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
               for (final l in options)
-                ListTile(title: Text(l.label), onTap: () => Navigator.of(context).pop(l)),
+                ListTile(
+                  title: Text(l.label),
+                  onTap: () => Navigator.of(context).pop(l),
+                ),
               const SizedBox(height: 8),
             ],
           ),
@@ -252,9 +273,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         await _selectLearningLanguage(picked);
       } else {
         try {
-          final saved = await ApiClient.instance.updateMyProfile(translationLanguage: picked.code);
+          final saved = await ApiClient.instance.updateMyProfile(
+            translationLanguage: picked.code,
+          );
           ApiClient.instance.forgetCachedContent();
-          if (mounted) setState(() => _nativeLanguage = saved.translationLanguage);
+          if (mounted)
+            setState(() => _nativeLanguage = saved.translationLanguage);
           await _refreshDictionariesInBackground();
         } catch (_) {
           // Asked again on the next launch.
@@ -268,8 +292,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   /// Что можно изучать: всё, КРОМЕ текущего родного языка. Иначе подсказка была
   /// бы на том же языке, что и ответ, -- такой вариант не показываем вовсе.
-  List<GuyoLanguage> get _learningOptions =>
-      _languages.where((language) => language.code != _nativeLanguage && language.learnable).toList();
+  List<GuyoLanguage> get _learningOptions => _languages
+      .where(
+        (language) => language.code != _nativeLanguage && language.learnable,
+      )
+      .toList();
 
   /// Смена изучаемого языка: сохраняем в профиле, сбрасываем кэш урока и слов
   /// (они были на прежнем языке) и перечитываем контент.
@@ -278,7 +305,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final previous = _learningLanguage;
     setState(() => _learningLanguage = language.code);
     try {
-      final saved = await ApiClient.instance.updateMyProfile(learningLanguage: language.code);
+      final saved = await ApiClient.instance.updateMyProfile(
+        learningLanguage: language.code,
+      );
       ApiClient.instance.forgetCachedContent();
       if (!mounted) return;
       setState(() {
@@ -368,13 +397,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                sessionExpired ? tr('Сессия истекла') : tr('Не удалось загрузить словари'),
+                sessionExpired
+                    ? tr('Сессия истекла')
+                    : tr('Не удалось загрузить словари'),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: sessionExpired ? _logout : _loadDictionaries,
-                child: Text(sessionExpired ? tr('Войти заново') : tr('Повторить')),
+                child: Text(
+                  sessionExpired ? tr('Войти заново') : tr('Повторить'),
+                ),
               ),
             ],
           ),
@@ -418,8 +451,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           onOpenProfile: () => setState(() => _selectedTabIndex = 4),
           onOpenRating: () => setState(() => _selectedTabIndex = 3),
         ),
-        LessonsScreen(key: ValueKey('lessons-${selected.id}'), dictionary: selected),
-        PracticeScreen(key: ValueKey('practice-${selected.id}'), dictionary: selected),
+        LessonsScreen(
+          key: ValueKey('lessons-${selected.id}'),
+          dictionary: selected,
+        ),
+        PracticeScreen(
+          key: ValueKey('practice-${selected.id}'),
+          dictionary: selected,
+        ),
         // Neither tab below is dictionary-scoped at all (identity/
         // achievements/rating are per-user, not per-language) -- kept in
         // the same IndexedStack purely for consistency with the other
@@ -439,6 +478,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  Widget _buildLanguageSwitcher() {
+    final options = _learningOptions;
+    if (options.isEmpty) return const SizedBox.shrink();
+    final current = _languages.firstWhere(
+      (language) => language.code == _learningLanguage,
+      orElse: () => options.first,
+    );
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 112),
+      child: _LanguageSwitcher(
+        current: current,
+        options: options,
+        onSelected: (language) => unawaited(_selectLearningLanguage(language)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Профиль is the one tab that isn't dictionary-scoped at all, so the
@@ -453,39 +509,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         titleSpacing: 16,
-        title: const GuyoWordmark(),
-        actions: [
-          if (isProfileTab)
-            IconButton(
-              tooltip: tr('Настройки'),
-              icon: Icon(Icons.settings_outlined, color: AppColors.primary),
-              onPressed: () => _profileKey.currentState?.openSettings(),
-            )
-          else ...[
-          Builder(
-            builder: (context) {
-              final options = _learningOptions;
-              final current = _languages.firstWhere(
-                (language) => language.code == _learningLanguage,
-                orElse: () => options.isNotEmpty
-                    ? options.first
-                    : GuyoLanguage(code: _dictionaryLanguage, name: _dictionaryLanguage, nativeName: ''),
-              );
-              if (options.isEmpty) {
-                // Нечего выбирать: один доступный язык, и он же родной.
-                return const SizedBox.shrink();
-              }
-
-              return _LanguageSwitcher(
-                current: current,
-                options: options,
-                onSelected: (language) => unawaited(_selectLearningLanguage(language)),
-              );
-            },
-          ),
-          const _NotificationsButton(),
+        title: Row(
+          children: [
+            const GuyoWordmark(),
+            const SizedBox(width: 5),
+            if (!isProfileTab)
+              Expanded(child: Center(child: _buildLanguageSwitcher()))
+            else
+              const Spacer(),
+            if (isProfileTab)
+              IconButton(
+                tooltip: tr('Настройки'),
+                icon: Icon(Icons.settings_outlined, color: AppColors.primary),
+                onPressed: () => _profileKey.currentState?.openSettings(),
+              )
+            else ...[
+              _EconomyHeaderButton(
+                onOpen: () async {
+                  await openEconomy(context);
+                },
+              ),
+              const _NotificationsButton(),
+            ],
           ],
-        ],
+        ),
       ),
       body: _buildBody(),
       bottomNavigationBar: NavigationBarTheme(
@@ -498,30 +545,138 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             (states) => TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: states.contains(WidgetState.selected) ? AppColors.primary : AppColors.secondaryText,
+              color: states.contains(WidgetState.selected)
+                  ? AppColors.primary
+                  : AppColors.secondaryText,
             ),
           ),
           iconTheme: WidgetStateProperty.resolveWith(
             (states) => IconThemeData(
               size: 22,
-              color: states.contains(WidgetState.selected) ? AppColors.primary : AppColors.secondaryText,
+              color: states.contains(WidgetState.selected)
+                  ? AppColors.primary
+                  : AppColors.secondaryText,
             ),
           ),
         ),
         child: NavigationBar(
           selectedIndex: _selectedTabIndex,
-          onDestinationSelected: (index) => setState(() => _selectedTabIndex = index),
+          onDestinationSelected: (index) =>
+              setState(() => _selectedTabIndex = index),
           destinations: [
-            NavigationDestination(icon: Icon(Icons.home_outlined), label: tr('Главная')),
-            NavigationDestination(icon: Icon(Icons.auto_stories_outlined), label: tr('Уроки')),
-            NavigationDestination(icon: Icon(Icons.fitness_center_outlined), label: tr('Практика')),
-            NavigationDestination(icon: Icon(Icons.leaderboard_outlined), label: tr('Рейтинг')),
-            NavigationDestination(icon: Icon(Icons.person_outline), label: tr('Профиль')),
+            NavigationDestination(
+              icon: Icon(Icons.grid_view_rounded),
+              label: tr('Главная'),
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.menu_book_rounded),
+              label: tr('Уроки'),
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.bolt_rounded),
+              label: tr('Практика'),
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.bar_chart_rounded),
+              label: tr('Рейтинг'),
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_rounded),
+              label: tr('Профиль'),
+            ),
           ],
         ),
       ),
     );
   }
+}
+
+class _EconomyHeaderButton extends StatefulWidget {
+  final Future<void> Function() onOpen;
+  const _EconomyHeaderButton({required this.onOpen});
+  @override
+  State<_EconomyHeaderButton> createState() => _EconomyHeaderButtonState();
+}
+
+class _EconomyHeaderButtonState extends State<_EconomyHeaderButton> {
+  int? _diamonds;
+  @override
+  void initState() {
+    super.initState();
+    ApiClient.instance.economyBalance.addListener(_balanceChanged);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    ApiClient.instance.economyBalance.removeListener(_balanceChanged);
+    super.dispose();
+  }
+
+  void _balanceChanged() {
+    if (mounted)
+      setState(() => _diamonds = ApiClient.instance.economyBalance.value);
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await ApiClient.instance.fetchEconomy();
+      if (mounted) setState(() => _diamonds = data['diamonds'] as int? ?? 0);
+    } catch (_) {
+      /* keep the balance placeholder until online data arrives */
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: () async {
+          await widget.onOpen();
+          _load();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.diamond_rounded,
+                size: 18,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                _diamonds?.toString() ?? '—',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryDark,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      IconButton(
+        tooltip: tr('Магазин и подарки'),
+        onPressed: () async {
+          await widget.onOpen();
+          _load();
+        },
+        icon: Icon(Icons.card_giftcard_rounded, color: AppColors.primary),
+        visualDensity: VisualDensity.compact,
+        constraints: const BoxConstraints.tightFor(width: 34, height: 40),
+        padding: EdgeInsets.zero,
+      ),
+    ],
+  );
 }
 
 /// The notifications bell in the top bar.
@@ -545,7 +700,8 @@ class _NotificationsButton extends StatefulWidget {
   State<_NotificationsButton> createState() => _NotificationsButtonState();
 }
 
-class _NotificationsButtonState extends State<_NotificationsButton> with WidgetsBindingObserver {
+class _NotificationsButtonState extends State<_NotificationsButton>
+    with WidgetsBindingObserver {
   int _unread = 0;
 
   @override
@@ -580,9 +736,8 @@ class _NotificationsButtonState extends State<_NotificationsButton> with Widgets
   }
 
   Future<void> _open() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-    );
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
     // Opening the inbox marks everything read, so the dot is re-checked
     // rather than assumed cleared.
     await _refresh();
@@ -631,26 +786,32 @@ class _LanguageSwitcher extends StatelessWidget {
   final List<GuyoLanguage> options;
   final ValueChanged<GuyoLanguage> onSelected;
 
-  const _LanguageSwitcher({required this.current, required this.options, required this.onSelected});
+  const _LanguageSwitcher({
+    required this.current,
+    required this.options,
+    required this.onSelected,
+  });
 
   Widget _badge(GuyoLanguage d, {bool selected = true}) => Container(
-        width: 26,
-        height: 22,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primary : AppColors.primary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(7),
-        ),
-        child: Text(
-          d.code.toUpperCase(),
-          style: TextStyle(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.3,
-            color: selected ? Colors.white : AppColors.primary,
-          ),
-        ),
-      );
+    width: 26,
+    height: 22,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: selected
+          ? AppColors.primary
+          : AppColors.primary.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(7),
+    ),
+    child: Text(
+      d.code.toUpperCase(),
+      style: TextStyle(
+        fontSize: 10.5,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.3,
+        color: selected ? Colors.white : AppColors.primary,
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -670,11 +831,19 @@ class _LanguageSwitcher extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             current.label,
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primaryDark,
+            ),
           ),
           if (canSwitch) ...[
             const SizedBox(width: 2),
-            Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: AppColors.secondaryText),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 20,
+              color: AppColors.secondaryText,
+            ),
           ],
         ],
       ),
@@ -704,7 +873,9 @@ class _LanguageSwitcher extends StatelessWidget {
                     option.label,
                     style: TextStyle(
                       fontSize: 15,
-                      fontWeight: option.code == current.code ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: option.code == current.code
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                       color: AppColors.primaryDark,
                     ),
                   ),
