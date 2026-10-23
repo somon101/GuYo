@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -81,6 +81,13 @@ class User(Base):
     daily_goal: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
     token_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     streak_freezes: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    # Currency wallet and purchased streak-history merge items.
+    diamonds_balance: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    streak_merge_items: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    # Previously merged activity days stay attached to the live streak until
+    # that live streak breaks. The cursor prevents counting days twice.
+    streak_merge_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    streak_merge_cursor: Mapped[date | None] = mapped_column(Date, nullable=True)
     first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)

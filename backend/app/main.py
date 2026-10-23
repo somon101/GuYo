@@ -60,6 +60,7 @@ from app.routers import (
 from app.routers import api_keys
 from app.routers import languages
 from app.routers import status as status_router
+from app.economy import routes as economy_routes
 
 settings = get_settings()
 
@@ -160,6 +161,9 @@ app.include_router(daily_goal.router)
 app.include_router(my_progress.router)
 app.include_router(duels.router)
 app.include_router(chest.router)
+app.include_router(economy_routes.shop_router)
+app.include_router(economy_routes.gifts_router)
+app.include_router(economy_routes.admin_router)
 app.include_router(teams.router)
 app.include_router(admin_season_pass.router)
 app.include_router(practice.router)

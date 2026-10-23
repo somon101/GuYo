@@ -1,5 +1,7 @@
 import '../services/streak_state.dart';
+
 import 'dart:async';
+
 import '../services/google_auth.dart';
 import '../services/disk_cache.dart';
 import '../widgets/study_times_editor.dart' show StudyTime;
@@ -8,7 +10,9 @@ import '../screens/stats_screen.dart' show UserStats;
 import '../services/session_cache.dart';
 import '../widgets/session_expired.dart';
 import '../l10n/l10n.dart';
+
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
@@ -90,12 +94,16 @@ class StreakInfo {
 
   /// Streak freezes in stock: spent by themselves when a gap would break the streak.
   final int freezes;
+  final int mergedDays;
+  final int mergeItems;
   const StreakInfo({
     required this.currentStreakDays,
     required this.today,
     required this.activeDates,
     this.frozenDates = const [],
     this.freezes = 0,
+    this.mergedDays = 0,
+    this.mergeItems = 0,
   });
 }
 
@@ -111,14 +119,14 @@ class FoundUser {
   final bool isFriend;
 
   FoundUser.fromJson(Map<String, dynamic> j)
-      : userId = j['user_id'] as int,
-        publicId = j['public_id'] as int,
-        login = j['login'] as String,
-        name = j['name'] as String,
-        avatarUrl = j['avatar_url'] as String?,
-        totalPoints = j['total_points'] as int,
-        isMe = j['is_me'] as bool,
-        isFriend = j['is_friend'] as bool;
+    : userId = j['user_id'] as int,
+      publicId = j['public_id'] as int,
+      login = j['login'] as String,
+      name = j['name'] as String,
+      avatarUrl = j['avatar_url'] as String?,
+      totalPoints = j['total_points'] as int,
+      isMe = j['is_me'] as bool,
+      isFriend = j['is_friend'] as bool;
 }
 
 class ApiException implements Exception {
@@ -195,7 +203,10 @@ class ApiClient {
       throw ApiException(tr('Неверный логин или пароль'), statusCode: 401);
     }
     if (res.statusCode != 200) {
-      throw ApiException(tr('Ошибка сервера ({0})', [res.statusCode]), statusCode: res.statusCode);
+      throw ApiException(
+        tr('Ошибка сервера ({0})', [res.statusCode]),
+        statusCode: res.statusCode,
+      );
     }
     final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
     await _saveToken(data['access_token'] as String);
@@ -210,7 +221,8 @@ class ApiClient {
         await updateMyProfile(uiLanguage: appLanguage.value);
       } else {
         final profile = await fetchMyProfile();
-        if (profile.uiLanguage != appLanguage.value) await setAppLanguage(profile.uiLanguage);
+        if (profile.uiLanguage != appLanguage.value)
+          await setAppLanguage(profile.uiLanguage);
       }
     } catch (_) {}
   }
@@ -218,12 +230,20 @@ class ApiClient {
   /// One step of the learner's history (backend app/analytics/history.py):
   /// app_opened, lesson_opened/left, quest_opened/left. Fire-and-forget --
   /// a lost event must never disturb learning.
-  void logEvent(String kind, {int? lessonId, int? questId, Map<String, Object>? data}) {
+  void logEvent(
+    String kind, {
+    int? lessonId,
+    int? questId,
+    Map<String, Object>? data,
+  }) {
     () async {
       try {
         await http.post(
           _uri('/events'),
-          headers: {...await _authHeaders(), 'Content-Type': 'application/json'},
+          headers: {
+            ...await _authHeaders(),
+            'Content-Type': 'application/json',
+          },
           body: jsonEncode({
             'kind': kind,
             if (lessonId != null) 'lesson_id': lessonId,
@@ -238,7 +258,9 @@ class ApiClient {
   /// The server's own message from an error response, or [fallback].
   String _detailOf(http.Response res, String fallback) {
     try {
-      final detail = (jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>)['detail'];
+      final detail = (jsonDecode(
+        utf8.decode(res.bodyBytes),
+      ) as Map<String, dynamic>)['detail'];
       if (detail is String && detail.isNotEmpty) return detail;
     } catch (_) {}
     return fallback;
@@ -254,7 +276,10 @@ class ApiClient {
       body: jsonEncode({'id_token': idToken}),
     );
     if (res.statusCode != 200) {
-      throw ApiException(_detailOf(res, tr('Ошибка сервера ({0})', [res.statusCode])), statusCode: res.statusCode);
+      throw ApiException(
+        _detailOf(res, tr('Ошибка сервера ({0})', [res.statusCode])),
+        statusCode: res.statusCode,
+      );
     }
     final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
     if (data['needs_registration'] == true) {
@@ -297,7 +322,10 @@ class ApiClient {
       }),
     );
     if (res.statusCode != 201) {
-      throw ApiException(_detailOf(res, tr('Ошибка сервера ({0})', [res.statusCode])), statusCode: res.statusCode);
+      throw ApiException(
+        _detailOf(res, tr('Ошибка сервера ({0})', [res.statusCode])),
+        statusCode: res.statusCode,
+      );
     }
     final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
     await _saveToken(data['access_token'] as String);
@@ -308,15 +336,24 @@ class ApiClient {
   void finishPractice(int dictionaryId) {
     () async {
       try {
-        final res = await http.post(_uri('/dictionaries/$dictionaryId/practice/finish'), headers: await _authHeaders());
-        if (res.statusCode == 200) reportStreakResult(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+        final res = await http.post(
+          _uri('/dictionaries/$dictionaryId/practice/finish'),
+          headers: await _authHeaders(),
+        );
+        if (res.statusCode == 200)
+          reportStreakResult(
+            jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+          );
       } catch (_) {}
     }();
   }
 
   /// Ends every other sign-in of this account; this device gets a fresh token.
   Future<void> logoutEverywhere() async {
-    final res = await http.post(_uri('/auth/logout-all'), headers: await _authHeaders());
+    final res = await http.post(
+      _uri('/auth/logout-all'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
     final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
     await _saveToken(data['access_token'] as String);
@@ -333,7 +370,10 @@ class ApiClient {
   /// паролем в течение 30 дней. После вызова локальные данные стираются, так
   /// что вызывающий должен увести человека на экран входа.
   Future<void> deleteMyAccount() async {
-    final res = await http.delete(_uri('/users/me'), headers: await _authHeaders());
+    final res = await http.delete(
+      _uri('/users/me'),
+      headers: await _authHeaders(),
+    );
     await _throwWithDetail(res);
   }
 
@@ -344,10 +384,15 @@ class ApiClient {
   /// route that doesn't require being logged in already -- see backend
   /// GET /dictionaries/public).
   Future<List<GuyoDictionary>> fetchPublicDictionaries() async {
-    final res = await http.get(_uri('/dictionaries/public'), headers: {'Content-Type': 'application/json'});
+    final res = await http.get(
+      _uri('/dictionaries/public'),
+      headers: {'Content-Type': 'application/json'},
+    );
     await _throwIfUnauthorized(res);
     final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
-    return list.map((e) => GuyoDictionary.fromJson(e as Map<String, dynamic>)).toList();
+    return list
+        .map((e) => GuyoDictionary.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// Self-registration through the sign-up wizard -- creates the account
@@ -410,19 +455,30 @@ class ApiClient {
   /// Языки, доступные для изучения. Список живёт в базе и правится в админке,
   /// поэтому в приложении он не зашит: добавили язык — он появился здесь.
   Future<List<GuyoLanguage>> fetchLanguages() async {
-    final res = await http.get(_uri('/languages'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/languages'),
+      headers: await _authHeaders(),
+    );
     await _throwWithDetail(res);
     final data = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
-    return data.map((e) => GuyoLanguage.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => GuyoLanguage.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
-  Future<List<GuyoDictionary>> fetchDictionaries() async {    final res = await http.get(_uri('/dictionaries'), headers: await _authHeaders());
+  Future<List<GuyoDictionary>> fetchDictionaries() async {
+    final res = await http.get(
+      _uri('/dictionaries'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
     return _parseDictionaries(_remember('dictionaries', res));
   }
 
   List<GuyoDictionary> _parseDictionaries(dynamic json) =>
-      (json as List<dynamic>).map((e) => GuyoDictionary.fromJson(e as Map<String, dynamic>)).toList();
+      (json as List<dynamic>)
+          .map((e) => GuyoDictionary.fromJson(e as Map<String, dynamic>))
+          .toList();
 
   // --- Last answers kept on the device (DiskCache) ---------------------
   // Each main screen opens on these and refreshes in the background.
@@ -443,33 +499,56 @@ class ApiClient {
     }
   }
 
-  List<GuyoDictionary>? cachedDictionaries() => _cached('dictionaries', _parseDictionaries);
-  SeasonQuestOverview? cachedSeasonQuestOverview(int dictionaryId) =>
-      _cached('overview-$dictionaryId', (j) => SeasonQuestOverview.fromJson(j as Map<String, dynamic>));
-  UserProfile? cachedMyProfile() => _cached('profile', (j) => UserProfile.fromJson(j as Map<String, dynamic>));
+  List<GuyoDictionary>? cachedDictionaries() =>
+      _cached('dictionaries', _parseDictionaries);
+  SeasonQuestOverview? cachedSeasonQuestOverview(int dictionaryId) => _cached(
+    'overview-$dictionaryId',
+    (j) => SeasonQuestOverview.fromJson(j as Map<String, dynamic>),
+  );
+  UserProfile? cachedMyProfile() => _cached(
+    'profile',
+    (j) => UserProfile.fromJson(j as Map<String, dynamic>),
+  );
   List<UserAchievement>? cachedMyAchievements() => _cached(
-      'achievements', (j) => (j as List<dynamic>).map((e) => UserAchievement.fromJson(e as Map<String, dynamic>)).toList());
-  UserRating? cachedMyRating() => _cached('rating', (j) => UserRating.fromJson(j as Map<String, dynamic>));
+    'achievements',
+    (j) => (j as List<dynamic>)
+        .map((e) => UserAchievement.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
+  UserRating? cachedMyRating() =>
+      _cached('rating', (j) => UserRating.fromJson(j as Map<String, dynamic>));
   List<LessonSummary>? cachedLessons(int dictionaryId) => _cached(
-      'lessons-$dictionaryId',
-      (j) => ((j as Map<String, dynamic>)['lessons'] as List<dynamic>)
-          .map((e) => LessonSummary.fromJson(e as Map<String, dynamic>))
-          .toList());
-  Leaderboard? cachedMyRankLeaderboard() =>
-      _cached('leaderboard', (j) => Leaderboard.fromJson(j as Map<String, dynamic>));
-  List<GuyoWord>? cachedLearnedWords(int dictionaryId, {bool includeInProgress = false}) =>
-      _cached('learned-words-$dictionaryId-$includeInProgress', _parseWords);
-  List<LearnedCategory>? cachedLearnedCategories(int dictionaryId, {bool includeInProgress = false}) =>
-      _cached('learned-categories-$dictionaryId-$includeInProgress', _parseLearnedCategories);
-  List<WordLevelSummary>? cachedWordLevels() => _cached('word-levels', _parseWordLevels);
+    'lessons-$dictionaryId',
+    (j) => ((j as Map<String, dynamic>)['lessons'] as List<dynamic>)
+        .map((e) => LessonSummary.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
+  Leaderboard? cachedMyRankLeaderboard() => _cached(
+    'leaderboard',
+    (j) => Leaderboard.fromJson(j as Map<String, dynamic>),
+  );
+  List<GuyoWord>? cachedLearnedWords(
+    int dictionaryId, {
+    bool includeInProgress = false,
+  }) => _cached('learned-words-$dictionaryId-$includeInProgress', _parseWords);
+  List<LearnedCategory>? cachedLearnedCategories(
+    int dictionaryId, {
+    bool includeInProgress = false,
+  }) => _cached(
+    'learned-categories-$dictionaryId-$includeInProgress',
+    _parseLearnedCategories,
+  );
+  List<WordLevelSummary>? cachedWordLevels() =>
+      _cached('word-levels', _parseWordLevels);
   List<RankSummary>? cachedAllRanks() => _cached('ranks', _parseRanks);
   StreakInfo? cachedMyStreak() => _cached('streak', _parseStreak);
-  List<StudyTime>? cachedStudyTimes() => _cached('study-times', _parseStudyTimes);
+  List<StudyTime>? cachedStudyTimes() =>
+      _cached('study-times', _parseStudyTimes);
 
   List<StudyTime> _parseStudyTimes(dynamic json) => [
-        for (final t in (json as Map<String, dynamic>)['times'] as List<dynamic>)
-          StudyTime.fromJson(t as Map<String, dynamic>),
-      ];
+    for (final t in (json as Map<String, dynamic>)['times'] as List<dynamic>)
+      StudyTime.fromJson(t as Map<String, dynamic>),
+  ];
 
   /// Drops what was kept for instant screens -- after a language change
   /// it is all in the old language. Screens then load fresh once.
@@ -478,14 +557,20 @@ class ApiClient {
     DiskCache.clear();
   }
 
-  List<GuyoWord> _parseWords(dynamic json) =>
-      (json as List<dynamic>).map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
+  List<GuyoWord> _parseWords(dynamic json) => (json as List<dynamic>)
+      .map((e) => GuyoWord.fromJson(e as Map<String, dynamic>))
+      .toList();
   List<LearnedCategory> _parseLearnedCategories(dynamic json) =>
-      (json as List<dynamic>).map((e) => LearnedCategory.fromJson(e as Map<String, dynamic>)).toList();
+      (json as List<dynamic>)
+          .map((e) => LearnedCategory.fromJson(e as Map<String, dynamic>))
+          .toList();
   List<WordLevelSummary> _parseWordLevels(dynamic json) =>
-      (json as List<dynamic>).map((e) => WordLevelSummary.fromJson(e as Map<String, dynamic>)).toList();
-  List<RankSummary> _parseRanks(dynamic json) =>
-      (json as List<dynamic>).map((e) => RankSummary.fromJson(e as Map<String, dynamic>)).toList();
+      (json as List<dynamic>)
+          .map((e) => WordLevelSummary.fromJson(e as Map<String, dynamic>))
+          .toList();
+  List<RankSummary> _parseRanks(dynamic json) => (json as List<dynamic>)
+      .map((e) => RankSummary.fromJson(e as Map<String, dynamic>))
+      .toList();
 
   StreakInfo _parseStreak(dynamic json) {
     final map = json as Map<String, dynamic>;
@@ -497,10 +582,62 @@ class ApiClient {
     return StreakInfo(
       currentStreakDays: map['current_streak_days'] as int,
       today: day(map['today'] as String),
-      activeDates: [for (final s in map['active_dates'] as List<dynamic>) day(s as String)],
-      frozenDates: [for (final s in (map['frozen_dates'] as List<dynamic>? ?? const [])) day(s as String)],
+      activeDates: [
+        for (final s in map['active_dates'] as List<dynamic>) day(s as String),
+      ],
+      frozenDates: [
+        for (final s in (map['frozen_dates'] as List<dynamic>? ?? const []))
+          day(s as String),
+      ],
       freezes: (map['freezes'] as int?) ?? 0,
+      mergedDays: (map['merged_days'] as int?) ?? 0,
+      mergeItems: (map['streak_merge_items'] as int?) ?? 0,
     );
+  }
+
+  Future<Map<String, dynamic>> fetchEconomy() async {
+    final res = await http.get(_uri('/shop'), headers: await _authHeaders());
+    await _throwWithDetail(res);
+    return jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> buyShopProduct(int id) async {
+    final res = await http.post(
+      _uri('/shop/$id/buy'),
+      headers: await _authHeaders(),
+    );
+    await _throwWithDetail(res);
+    return jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> openGift(int id) async {
+    final res = await http.post(
+      _uri('/gifts/$id/open'),
+      headers: await _authHeaders(),
+    );
+    await _throwWithDetail(res);
+    return jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> useStreakMerge() async {
+    final res = await http.post(
+      _uri('/shop/use/streak-merge'),
+      headers: await _authHeaders(),
+    );
+    await _throwWithDetail(res);
+    return jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> fetchStreakHistory(DateTime month) async {
+    final query =
+        '${month.year.toString().padLeft(4, '0')}-${month.month.toString().padLeft(2, '0')}';
+    final res = await http.get(
+      _uri('/users/me/streak/history')
+          .replace(queryParameters: {'month': query}),
+      headers: await _authHeaders(),
+    );
+    await _throwWithDetail(res);
+    return jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
   }
 
   Future<List<GuyoWord>> fetchWords(int dictionaryId) async {
@@ -510,7 +647,9 @@ class ApiClient {
     );
     await _throwIfUnauthorized(res);
     final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
-    return list.map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
+    return list
+        .map((e) => GuyoWord.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// A 401 means this specific token is invalid/expired/for a deleted user
@@ -529,13 +668,22 @@ class ApiClient {
     if (res.statusCode == 401) {
       await clearToken();
       sessionExpired();
-      throw ApiException(tr('Сессия истекла, войдите снова'), statusCode: res.statusCode);
+      throw ApiException(
+        tr('Сессия истекла, войдите снова'),
+        statusCode: res.statusCode,
+      );
     }
     if (res.statusCode == 403) {
-      throw ApiException(tr('Сессия истекла, войдите снова'), statusCode: res.statusCode);
+      throw ApiException(
+        tr('Сессия истекла, войдите снова'),
+        statusCode: res.statusCode,
+      );
     }
     if (res.statusCode >= 400) {
-      throw ApiException(tr('Ошибка сервера ({0})', [res.statusCode]), statusCode: res.statusCode);
+      throw ApiException(
+        tr('Ошибка сервера ({0})', [res.statusCode]),
+        statusCode: res.statusCode,
+      );
     }
   }
 
@@ -551,15 +699,22 @@ class ApiClient {
     if (res.statusCode == 401) {
       await clearToken();
       sessionExpired();
-      throw ApiException(tr('Сессия истекла, войдите снова'), statusCode: res.statusCode);
+      throw ApiException(
+        tr('Сессия истекла, войдите снова'),
+        statusCode: res.statusCode,
+      );
     }
     if (res.statusCode == 403) {
-      throw ApiException(tr('Сессия истекла, войдите снова'), statusCode: res.statusCode);
+      throw ApiException(
+        tr('Сессия истекла, войдите снова'),
+        statusCode: res.statusCode,
+      );
     }
     if (res.statusCode >= 400) {
       String message = tr('Ошибка сервера ({0})', [res.statusCode]);
       try {
-        final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+        final body =
+            jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
         final detail = body['detail'];
         if (detail is String && detail.isNotEmpty) message = detail;
       } catch (_) {
@@ -583,17 +738,24 @@ class ApiClient {
     );
     if (res.statusCode == 404) return null;
     await _throwIfUnauthorized(res);
-    return LearningSession.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return LearningSession.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
-  Future<LearningSession> createLearningSession(int dictionaryId, int count) async {
+  Future<LearningSession> createLearningSession(
+    int dictionaryId,
+    int count,
+  ) async {
     final res = await http.post(
       _uri('/learning/sessions'),
       headers: await _authHeaders(),
       body: jsonEncode({'dictionary_id': dictionaryId, 'count': count}),
     );
     await _throwWithDetail(res);
-    return LearningSession.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return LearningSession.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   Future<LearningSession> markWordLearned(int sessionId, int wordId) async {
@@ -602,7 +764,9 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwWithDetail(res);
-    return LearningSession.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return LearningSession.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   Future<LearningSession> markWordForReview(int sessionId, int wordId) async {
@@ -611,7 +775,9 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwWithDetail(res);
-    return LearningSession.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return LearningSession.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// [includeInProgress] widens "learned" to every word with ANY progress,
@@ -626,10 +792,13 @@ class ApiClient {
       'dictionary_id': '$dictionaryId',
       if (includeInProgress) 'include_in_progress': 'true',
     };
-    final uri = _uri('/learned-words/categories').replace(queryParameters: params);
+    final uri = _uri('/learned-words/categories')
+        .replace(queryParameters: params);
     final res = await http.get(uri, headers: await _authHeaders());
     await _throwIfUnauthorized(res);
-    return _parseLearnedCategories(_remember('learned-categories-$dictionaryId-$includeInProgress', res));
+    return _parseLearnedCategories(
+      _remember('learned-categories-$dictionaryId-$includeInProgress', res),
+    );
   }
 
   /// "Мои фразы": every Phrase in this dictionary whose every word is
@@ -645,7 +814,9 @@ class ApiClient {
     );
     await _throwIfUnauthorized(res);
     final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
-    return list.map((e) => GuyoPhrase.fromJson(e as Map<String, dynamic>)).toList();
+    return list
+        .map((e) => GuyoPhrase.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// Практика: mini-phrases this user has already gone through in a lesson.
@@ -655,16 +826,23 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    if (res.statusCode != 200) throw ApiException(tr('Не удалось загрузить мини-фразы'));
+    if (res.statusCode != 200)
+      throw ApiException(tr('Не удалось загрузить мини-фразы'));
     final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
-    return list.map((e) => MiniPhrase.fromJson(e as Map<String, dynamic>)).toList();
+    return list
+        .map((e) => MiniPhrase.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// A "Собери фразу" answer for a mini-phrase. The app already judged it
   /// locally (the right answer is known), so this goes out in the
   /// background and never makes anyone wait; the server re-checks it and
   /// grants rating points once per mini-phrase. Retried once on failure.
-  void sendMiniPhraseAnswer(int miniPhraseId, List<String> answer, {int? lessonId}) {
+  void sendMiniPhraseAnswer(
+    int miniPhraseId,
+    List<String> answer, {
+    int? lessonId,
+  }) {
     Future<void> send() async {
       final res = await http.post(
         _uri('/mini-phrases/$miniPhraseId/answer'),
@@ -674,14 +852,16 @@ class ApiClient {
       if (res.statusCode >= 500) throw ApiException('retry');
     }
 
-    unawaited(send().catchError((_) async {
-      await Future<void>.delayed(const Duration(seconds: 2));
-      try {
-        await send();
-      } catch (_) {
-        // Lost: the next lesson pass shows this mini-phrase again anyway.
-      }
-    }));
+    unawaited(
+      send().catchError((_) async {
+        await Future<void>.delayed(const Duration(seconds: 2));
+        try {
+          await send();
+        } catch (_) {
+          // Lost: the next lesson pass shows this mini-phrase again anyway.
+        }
+      }),
+    );
   }
 
   /// Pass exactly one of [categoryId] or [uncategorized]; pass neither for
@@ -718,7 +898,9 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return TrueOrFalseRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return TrueOrFalseRound.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// The generic "N random already-learned words" round, capped by
@@ -726,7 +908,10 @@ class ApiClient {
   /// "Сопоставление" (exerciseKey "matching") in place of the old
   /// fetchWords(dictionaryId) call -- everything downstream of the word
   /// list (shuffling into two columns, tap-to-match) is unchanged.
-  Future<List<GuyoWord>> fetchExerciseLearnedWords(int dictionaryId, String exerciseKey) async {
+  Future<List<GuyoWord>> fetchExerciseLearnedWords(
+    int dictionaryId,
+    String exerciseKey,
+  ) async {
     final res = await http.get(
       _uri('/dictionaries/$dictionaryId/exercises/$exerciseKey/learned-words'),
       headers: await _authHeaders(),
@@ -734,7 +919,9 @@ class ApiClient {
     await _throwIfUnauthorized(res);
     final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
     final list = body['words'] as List<dynamic>;
-    return list.map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
+    return list
+        .map((e) => GuyoWord.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<BuildWordRound> fetchBuildWordRound(int dictionaryId) async {
@@ -743,7 +930,9 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return BuildWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return BuildWordRound.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   // --- Уроки ("Lessons") --------------------------------------------------
@@ -762,18 +951,25 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    final body = _remember('lessons-$dictionaryId', res) as Map<String, dynamic>;
+    final body =
+        _remember('lessons-$dictionaryId', res) as Map<String, dynamic>;
     final list = body['lessons'] as List<dynamic>;
-    return list.map((e) => LessonSummary.fromJson(e as Map<String, dynamic>)).toList();
+    return list
+        .map((e) => LessonSummary.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
-  Future<LessonCandidateWords> fetchLessonCandidateWords(int dictionaryId) async {
+  Future<LessonCandidateWords> fetchLessonCandidateWords(
+    int dictionaryId,
+  ) async {
     final res = await http.get(
       _uri('/dictionaries/$dictionaryId/lesson-candidate-words'),
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return LessonCandidateWords.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return LessonCandidateWords.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// Returns the current active (not-yet-completed) lesson for this
@@ -781,27 +977,44 @@ class ApiClient {
   /// convention as [fetchActiveLearningSession].
   Future<Lesson?> fetchActiveLesson(int dictionaryId) async {
     final res = await http.get(
-      _uri('/lessons/active').replace(queryParameters: {'dictionary_id': '$dictionaryId'}),
+      _uri('/lessons/active')
+          .replace(queryParameters: {'dictionary_id': '$dictionaryId'}),
       headers: await _authHeaders(),
     );
     if (res.statusCode == 404) return null;
     await _throwIfUnauthorized(res);
-    return Lesson.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return Lesson.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   Future<Lesson> fetchLesson(int lessonId) async {
-    final res = await http.get(_uri('/lessons/$lessonId'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/lessons/$lessonId'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
-    return Lesson.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return Lesson.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// Statistics of the pass that just finished (answers, accuracy, per
   /// exercise, per-word score gain).
   Future<LessonPassStats> fetchLessonPassStats(int lessonId) async {
-    final res = await http.get(_uri('/lessons/$lessonId/pass/stats'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/lessons/$lessonId/pass/stats'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
-    if (res.statusCode != 200) throw ApiException(tr('Статистика недоступна'), statusCode: res.statusCode);
-    return LessonPassStats.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    if (res.statusCode != 200)
+      throw ApiException(
+        tr('Статистика недоступна'),
+        statusCode: res.statusCode,
+      );
+    return LessonPassStats.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// Starts one pass through the lesson: the backend freezes the words
@@ -820,7 +1033,10 @@ class ApiClient {
   Future<(Lesson, LessonPassStats?)> finishLessonPass(int lessonId) async {
     // Every answer of the pass must be on the server before it counts.
     await flushLessonAnswers();
-    final res = await http.post(_uri('/lessons/$lessonId/pass/finish'), headers: await _authHeaders());
+    final res = await http.post(
+      _uri('/lessons/$lessonId/pass/finish'),
+      headers: await _authHeaders(),
+    );
     await _throwWithDetail(res);
     final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
     try {
@@ -836,9 +1052,14 @@ class ApiClient {
   /// Today's progress towards the daily goal; null on any failure.
   Future<DailyGoal?> fetchDailyGoal() async {
     try {
-      final res = await http.get(_uri('/daily-goal'), headers: await _authHeaders());
+      final res = await http.get(
+        _uri('/daily-goal'),
+        headers: await _authHeaders(),
+      );
       if (res.statusCode >= 400) return null;
-      return DailyGoal.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+      return DailyGoal.fromJson(
+        jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+      );
     } catch (_) {
       return null;
     }
@@ -852,7 +1073,9 @@ class ApiClient {
         body: jsonEncode({'goal': goal}),
       );
       if (res.statusCode >= 400) return null;
-      return DailyGoal.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+      return DailyGoal.fromJson(
+        jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+      );
     } catch (_) {
       return null;
     }
@@ -863,16 +1086,23 @@ class ApiClient {
     try {
       final res = await http.get(_uri('/chest'), headers: await _authHeaders());
       if (res.statusCode >= 400) return null;
-      return ChestState.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+      return ChestState.fromJson(
+        jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+      );
     } catch (_) {
       return null;
     }
   }
 
   Future<ChestState> openChest() async {
-    final res = await http.post(_uri('/chest/open'), headers: await _authHeaders());
+    final res = await http.post(
+      _uri('/chest/open'),
+      headers: await _authHeaders(),
+    );
     await _throwWithDetail(res);
-    return ChestState.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return ChestState.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// This week's duel and the recent ones; null on any failure.
@@ -880,7 +1110,9 @@ class ApiClient {
     try {
       final res = await http.get(_uri('/duels'), headers: await _authHeaders());
       if (res.statusCode >= 400) return null;
-      return DuelState.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+      return DuelState.fromJson(
+        jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+      );
     } catch (_) {
       return null;
     }
@@ -893,21 +1125,33 @@ class ApiClient {
       body: jsonEncode({'friend_id': friendId}),
     );
     await _throwWithDetail(res);
-    return DuelState.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return DuelState.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   Future<DuelState> answerDuel(int id, {required bool accept}) async {
-    final res = await http.post(_uri('/duels/$id/${accept ? 'accept' : 'decline'}'), headers: await _authHeaders());
+    final res = await http.post(
+      _uri('/duels/$id/${accept ? 'accept' : 'decline'}'),
+      headers: await _authHeaders(),
+    );
     await _throwWithDetail(res);
-    return DuelState.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return DuelState.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// «Мой путь»: words learned per week; null on any failure.
   Future<MyProgress?> fetchMyProgress() async {
     try {
-      final res = await http.get(_uri('/users/me/progress'), headers: await _authHeaders());
+      final res = await http.get(
+        _uri('/users/me/progress'),
+        headers: await _authHeaders(),
+      );
       if (res.statusCode >= 400) return null;
-      return MyProgress.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+      return MyProgress.fromJson(
+        jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+      );
     } catch (_) {
       return null;
     }
@@ -916,7 +1160,10 @@ class ApiClient {
   /// The recap of the last finished season; null if there is none (or on failure).
   Future<SeasonSummary?> fetchSeasonSummary() async {
     try {
-      final res = await http.get(_uri('/season-pass/summary'), headers: await _authHeaders());
+      final res = await http.get(
+        _uri('/season-pass/summary'),
+        headers: await _authHeaders(),
+      );
       if (res.statusCode >= 400) return null;
       final body = jsonDecode(utf8.decode(res.bodyBytes));
       return body is Map<String, dynamic> ? SeasonSummary.fromJson(body) : null;
@@ -928,9 +1175,14 @@ class ApiClient {
   /// The season pass; null while no season is live (or on any failure).
   Future<SeasonPass?> fetchSeasonPass() async {
     try {
-      final res = await http.get(_uri('/season-pass'), headers: await _authHeaders());
+      final res = await http.get(
+        _uri('/season-pass'),
+        headers: await _authHeaders(),
+      );
       if (res.statusCode >= 400) return null;
-      return SeasonPass.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+      return SeasonPass.fromJson(
+        jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+      );
     } catch (_) {
       return null;
     }
@@ -938,59 +1190,93 @@ class ApiClient {
 
   // --- Teams ---------------------------------------------------------------
 
-  Future<TeamState> _teamCall(Future<http.Response> Function(Map<String, String> h) send) async {
+  Future<TeamState> _teamCall(
+    Future<http.Response> Function(Map<String, String> h) send,
+  ) async {
     final res = await send(await _authHeaders());
     await _throwWithDetail(res);
-    return TeamState.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return TeamState.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// This person's team (null inside), their invitations and the team size cap;
   /// null on any failure.
   Future<TeamState?> fetchMyTeam() async {
     try {
-      final res = await http.get(_uri('/teams/me'), headers: await _authHeaders());
+      final res = await http.get(
+        _uri('/teams/me'),
+        headers: await _authHeaders(),
+      );
       if (res.statusCode >= 400) return null;
-      return TeamState.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+      return TeamState.fromJson(
+        jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+      );
     } catch (_) {
       return null;
     }
   }
 
   Future<List<OpenTeam>> fetchOpenTeams() async {
-    final res = await http.get(_uri('/teams/open'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/teams/open'),
+      headers: await _authHeaders(),
+    );
     await _throwWithDetail(res);
     return (jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>)
         .map((e) => OpenTeam.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
-  Future<TeamState> createTeam(String name, {required bool isOpen}) => _teamCall(
-        (h) => http.post(_uri('/teams'), headers: h, body: jsonEncode({'name': name, 'is_open': isOpen})),
+  Future<TeamState> createTeam(String name, {required bool isOpen}) =>
+      _teamCall(
+        (h) => http.post(
+          _uri('/teams'),
+          headers: h,
+          body: jsonEncode({'name': name, 'is_open': isOpen}),
+        ),
       );
 
   Future<TeamState> updateTeam({String? name, bool? isOpen}) => _teamCall(
-        (h) => http.put(_uri('/teams/me'), headers: h, body: jsonEncode({'name': name, 'is_open': isOpen})),
-      );
+    (h) => http.put(
+      _uri('/teams/me'),
+      headers: h,
+      body: jsonEncode({'name': name, 'is_open': isOpen}),
+    ),
+  );
 
-  Future<TeamState> inviteToTeam(int userId) =>
-      _teamCall((h) => http.post(_uri('/teams/me/invite'), headers: h, body: jsonEncode({'user_id': userId})));
+  Future<TeamState> inviteToTeam(int userId) => _teamCall(
+    (h) => http.post(
+      _uri('/teams/me/invite'),
+      headers: h,
+      body: jsonEncode({'user_id': userId}),
+    ),
+  );
 
-  Future<TeamState> acceptTeamInvite(int teamId) =>
-      _teamCall((h) => http.post(_uri('/teams/invites/$teamId/accept'), headers: h));
+  Future<TeamState> acceptTeamInvite(int teamId) => _teamCall(
+    (h) => http.post(_uri('/teams/invites/$teamId/accept'), headers: h),
+  );
 
-  Future<TeamState> declineTeamInvite(int teamId) =>
-      _teamCall((h) => http.post(_uri('/teams/invites/$teamId/decline'), headers: h));
+  Future<TeamState> declineTeamInvite(int teamId) => _teamCall(
+    (h) => http.post(_uri('/teams/invites/$teamId/decline'), headers: h),
+  );
 
-  Future<TeamState> joinTeam(int teamId) => _teamCall((h) => http.post(_uri('/teams/$teamId/join'), headers: h));
+  Future<TeamState> joinTeam(int teamId) =>
+      _teamCall((h) => http.post(_uri('/teams/$teamId/join'), headers: h));
 
-  Future<TeamState> leaveTeam() => _teamCall((h) => http.post(_uri('/teams/me/leave'), headers: h));
+  Future<TeamState> leaveTeam() =>
+      _teamCall((h) => http.post(_uri('/teams/me/leave'), headers: h));
 
-  Future<TeamState> kickTeamMember(int userId) =>
-      _teamCall((h) => http.delete(_uri('/teams/me/members/$userId'), headers: h));
+  Future<TeamState> kickTeamMember(int userId) => _teamCall(
+    (h) => http.delete(_uri('/teams/me/members/$userId'), headers: h),
+  );
 
   /// Takes this person's share of a finished team goal: the bonus XP, the
   /// goal's reward (if any) and the refreshed team.
-  Future<({TeamState state, int xp})> claimTeamGoal(String scope, String goalId) async {
+  Future<({TeamState state, int xp})> claimTeamGoal(
+    String scope,
+    String goalId,
+  ) async {
     final res = await http.post(
       _uri('/teams/goals/claim'),
       headers: await _authHeaders(),
@@ -998,25 +1284,43 @@ class ApiClient {
     );
     await _throwWithDetail(res);
     final map = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
-    return (state: TeamState.fromJson(map['state'] as Map<String, dynamic>), xp: (map['xp'] as int?) ?? 0);
+    return (
+      state: TeamState.fromJson(map['state'] as Map<String, dynamic>),
+      xp: (map['xp'] as int?) ?? 0,
+    );
   }
 
   /// The badges and titles this person has earned and which they wear.
   Future<CosmeticCollection> fetchCosmetics() async {
-    final res = await http.get(_uri('/season-pass/cosmetics'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/season-pass/cosmetics'),
+      headers: await _authHeaders(),
+    );
     await _throwWithDetail(res);
-    return CosmeticCollection.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return CosmeticCollection.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// Chooses what to wear; null takes that kind off.
-  Future<CosmeticCollection> equipCosmetics({int? badgeId, int? titleId, int? frameId}) async {
+  Future<CosmeticCollection> equipCosmetics({
+    int? badgeId,
+    int? titleId,
+    int? frameId,
+  }) async {
     final res = await http.put(
       _uri('/season-pass/cosmetics/equip'),
       headers: await _authHeaders(),
-      body: jsonEncode({'badge_id': badgeId, 'title_id': titleId, 'frame_id': frameId}),
+      body: jsonEncode({
+        'badge_id': badgeId,
+        'title_id': titleId,
+        'frame_id': frameId,
+      }),
     );
     await _throwWithDetail(res);
-    return CosmeticCollection.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return CosmeticCollection.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// Takes a level's reward ([track] is 'free' or 'premium'); returns the
@@ -1028,7 +1332,9 @@ class ApiClient {
       body: jsonEncode({'level': level, 'track': track}),
     );
     await _throwWithDetail(res);
-    return SeasonPass.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return SeasonPass.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   Future<SeasonPass> claimPassTask(String taskId) async {
@@ -1038,16 +1344,23 @@ class ApiClient {
       body: jsonEncode({'task_id': taskId}),
     );
     await _throwWithDetail(res);
-    return SeasonPass.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return SeasonPass.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// The check shown before a lesson's first pass (null on any failure: the
   /// lesson then simply starts without it).
   Future<WordCheck?> fetchWordCheck(int lessonId) async {
     try {
-      final res = await http.get(_uri('/lessons/$lessonId/check'), headers: await _authHeaders());
+      final res = await http.get(
+        _uri('/lessons/$lessonId/check'),
+        headers: await _authHeaders(),
+      );
       if (res.statusCode >= 400) return null;
-      return WordCheck.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+      return WordCheck.fromJson(
+        jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+      );
     } catch (_) {
       return null;
     }
@@ -1073,7 +1386,9 @@ class ApiClient {
         }),
       );
       if (res.statusCode >= 400) return null;
-      return (jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>)['is_correct'] as bool;
+      return (jsonDecode(utf8.decode(res.bodyBytes))
+              as Map<String, dynamic>)['is_correct']
+          as bool;
     } catch (_) {
       return null;
     }
@@ -1081,14 +1396,22 @@ class ApiClient {
 
   Future<void> finishWordCheck(int lessonId) async {
     try {
-      await http.post(_uri('/lessons/$lessonId/check/finish'), headers: await _authHeaders());
+      await http.post(
+        _uri('/lessons/$lessonId/check/finish'),
+        headers: await _authHeaders(),
+      );
     } catch (_) {}
   }
 
   Future<Lesson> startLessonPass(int lessonId) async {
-    final res = await http.post(_uri('/lessons/$lessonId/pass'), headers: await _authHeaders());
+    final res = await http.post(
+      _uri('/lessons/$lessonId/pass'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
-    return Lesson.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return Lesson.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// Pass exactly one of [wordIds] (ручной выбор, max 15) or [randomCount]
@@ -1096,7 +1419,11 @@ class ApiClient {
   /// CreateLessonIn enforces. Fails with a 409 (surfaced via [ApiException.
   /// message]) if the current lesson for this dictionary isn't complete yet,
   /// or a 429 once the daily/weekly lesson limit is reached.
-  Future<Lesson> createLesson({required int dictionaryId, List<int>? wordIds, int? randomCount}) async {
+  Future<Lesson> createLesson({
+    required int dictionaryId,
+    List<int>? wordIds,
+    int? randomCount,
+  }) async {
     final res = await http.post(
       _uri('/lessons'),
       headers: await _authHeaders(),
@@ -1108,21 +1435,31 @@ class ApiClient {
     );
     await _throwWithDetail(res);
     lessonQuotaRevision.value++;
-    return Lesson.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return Lesson.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
-  Future<TrueOrFalseRound> fetchLessonTrueOrFalseRound(int lessonId, {Iterable<int>? wordIds}) async {
+  Future<TrueOrFalseRound> fetchLessonTrueOrFalseRound(
+    int lessonId, {
+    Iterable<int>? wordIds,
+  }) async {
     final res = await http.get(
       _lessonRoundUri(lessonId, 'true-or-false', wordIds),
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return TrueOrFalseRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return TrueOrFalseRound.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// Same generic shape as [fetchExerciseLearnedWords], sourced from this
   /// lesson's fixed word set instead of the dictionary's learned words.
-  Future<List<GuyoWord>> fetchLessonMatchingWords(int lessonId, {Iterable<int>? wordIds}) async {
+  Future<List<GuyoWord>> fetchLessonMatchingWords(
+    int lessonId, {
+    Iterable<int>? wordIds,
+  }) async {
     final res = await http.get(
       _lessonRoundUri(lessonId, 'matching', wordIds),
       headers: await _authHeaders(),
@@ -1130,34 +1467,51 @@ class ApiClient {
     await _throwIfUnauthorized(res);
     final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
     final list = body['words'] as List<dynamic>;
-    return list.map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
+    return list
+        .map((e) => GuyoWord.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
-  Future<BuildWordRound> fetchLessonBuildWordRound(int lessonId, {Iterable<int>? wordIds}) async {
+  Future<BuildWordRound> fetchLessonBuildWordRound(
+    int lessonId, {
+    Iterable<int>? wordIds,
+  }) async {
     final res = await http.get(
       _lessonRoundUri(lessonId, 'build-word', wordIds),
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return BuildWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return BuildWordRound.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
-  Future<SpeakingWordRound> fetchLessonSpeakingWordRound(int lessonId, {Iterable<int>? wordIds}) async {
+  Future<SpeakingWordRound> fetchLessonSpeakingWordRound(
+    int lessonId, {
+    Iterable<int>? wordIds,
+  }) async {
     final res = await http.get(
       _lessonRoundUri(lessonId, 'speaking-word', wordIds),
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return SpeakingWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return SpeakingWordRound.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
-  Future<ListenWordRound> fetchLessonListenWordRound(int lessonId, {Iterable<int>? wordIds}) async {
+  Future<ListenWordRound> fetchLessonListenWordRound(
+    int lessonId, {
+    Iterable<int>? wordIds,
+  }) async {
     final res = await http.get(
       _lessonRoundUri(lessonId, 'listen-word', wordIds),
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return ListenWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return ListenWordRound.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   // --- Практика ------------------------------------------------------------
@@ -1170,13 +1524,17 @@ class ApiClient {
   // reports an answer back -- Practice keeps no score of its own, same as
   // fetchAvailablePhrases/fetchLearnedWords already established.
 
-  Future<TrueOrFalseRound> fetchPracticeTrueOrFalseRound(int dictionaryId) async {
+  Future<TrueOrFalseRound> fetchPracticeTrueOrFalseRound(
+    int dictionaryId,
+  ) async {
     final res = await http.get(
       _uri('/dictionaries/$dictionaryId/practice/true-or-false'),
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return TrueOrFalseRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return TrueOrFalseRound.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   Future<List<GuyoWord>> fetchPracticeMatchingWords(int dictionaryId) async {
@@ -1187,37 +1545,58 @@ class ApiClient {
     await _throwIfUnauthorized(res);
     final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
     final list = body['words'] as List<dynamic>;
-    return list.map((e) => GuyoWord.fromJson(e as Map<String, dynamic>)).toList();
+    return list
+        .map((e) => GuyoWord.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// "Повторить сегодня": how many learned words are being forgotten, and
   /// the most forgotten ones (GET .../practice/review-due).
   Future<(int, List<int>)> fetchReviewDue(int dictionaryId) async {
-    final res = await http.get(_uri('/dictionaries/$dictionaryId/practice/review-due'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/dictionaries/$dictionaryId/practice/review-due'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
     final json = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
-    return (json['count'] as int, [for (final id in json['word_ids'] as List<dynamic>) id as int]);
+    return (
+      json['count'] as int,
+      [for (final id in json['word_ids'] as List<dynamic>) id as int],
+    );
   }
 
-  Future<BuildWordRound> fetchPracticeBuildWordRound(int dictionaryId, {List<int>? wordIds}) async {
+  Future<BuildWordRound> fetchPracticeBuildWordRound(
+    int dictionaryId, {
+    List<int>? wordIds,
+  }) async {
     final uri = _uri('/dictionaries/$dictionaryId/practice/build-word');
     final res = await http.get(
       wordIds == null || wordIds.isEmpty
           ? uri
-          : uri.replace(queryParameters: {'word_ids': [for (final id in wordIds) '$id']}),
+          : uri.replace(
+              queryParameters: {
+                'word_ids': [for (final id in wordIds) '$id'],
+              },
+            ),
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return BuildWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return BuildWordRound.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
-  Future<SpeakingWordRound> fetchPracticeSpeakingWordRound(int dictionaryId) async {
+  Future<SpeakingWordRound> fetchPracticeSpeakingWordRound(
+    int dictionaryId,
+  ) async {
     final res = await http.get(
       _uri('/dictionaries/$dictionaryId/practice/speaking-word'),
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return SpeakingWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return SpeakingWordRound.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   Future<ListenWordRound> fetchPracticeListenWordRound(int dictionaryId) async {
@@ -1226,7 +1605,9 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return ListenWordRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return ListenWordRound.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// The one call that actually changes anything in the Уроки system: moves
@@ -1251,7 +1632,9 @@ class ApiClient {
       }),
     );
     await _throwWithDetail(res);
-    return SubmitAnswerResult.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return SubmitAnswerResult.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   final Set<Future<void>> _pendingLessonAnswers = {};
@@ -1263,7 +1646,9 @@ class ApiClient {
   Uri _lessonRoundUri(int lessonId, String path, Iterable<int>? wordIds) {
     final uri = _uri('/lessons/$lessonId/exercises/$path');
     if (wordIds == null) return uri;
-    return uri.replace(queryParameters: {...uri.queryParameters, 'word_ids': wordIds.join(',')});
+    return uri.replace(
+      queryParameters: {...uri.queryParameters, 'word_ids': wordIds.join(',')},
+    );
   }
 
   /// Each word's latest answer in the current pass of a lesson: the words
@@ -1274,11 +1659,16 @@ class ApiClient {
 
   /// Words answered wrong (latest answer) in this lesson's current pass.
   Set<int> lessonMistakes(int lessonId) => {
-        for (final e in (_passAnswers[lessonId] ?? const <int, bool>{}).entries)
-          if (!e.value) e.key,
-      };
+    for (final e in (_passAnswers[lessonId] ?? const <int, bool>{}).entries)
+      if (!e.value) e.key,
+  };
 
-  void queueLessonAnswer(int lessonId, String exerciseKey, {required int wordId, required bool isCorrect}) {
+  void queueLessonAnswer(
+    int lessonId,
+    String exerciseKey, {
+    required int wordId,
+    required bool isCorrect,
+  }) {
     (_passAnswers[lessonId] ??= {})[wordId] = isCorrect;
     // Taken now, before the next question resets them.
     final signals = AnswerSignals.take();
@@ -1287,20 +1677,28 @@ class ApiClient {
       final res = await http.post(
         _uri('/lessons/$lessonId/exercises/$exerciseKey/answers'),
         headers: await _authHeaders(),
-        body: jsonEncode({...signals, 'word_id': wordId, 'is_correct': isCorrect, if (deferred) 'deferred': true}),
+        body: jsonEncode({
+          ...signals,
+          'word_id': wordId,
+          'is_correct': isCorrect,
+          if (deferred) 'deferred': true,
+        }),
       );
       await _throwWithDetail(res);
     }
 
     late final Future<void> job;
     job = send()
-        .catchError((_) => Future<void>.delayed(const Duration(seconds: 1), send))
+        .catchError(
+          (_) => Future<void>.delayed(const Duration(seconds: 1), send),
+        )
         .catchError((_) {})
         .whenComplete(() => _pendingLessonAnswers.remove(job));
     _pendingLessonAnswers.add(job);
   }
 
-  Future<void> flushLessonAnswers() => Future.wait(List<Future<void>>.of(_pendingLessonAnswers));
+  Future<void> flushLessonAnswers() =>
+      Future.wait(List<Future<void>>.of(_pendingLessonAnswers));
 
   // --- Профиль и Достижения ------------------------------------------------
   // Avatar storage and achievement earning/eligibility are entirely
@@ -1308,10 +1706,18 @@ class ApiClient {
   // fetches/uploads and renders the result.
 
   Future<UserProfile> fetchMyProfile() async {
-    final res = await http.get(_uri('/users/me/profile'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/users/me/profile'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
-    final profile = UserProfile.fromJson(_remember('profile', res) as Map<String, dynamic>);
-    setStreakState(litToday: profile.streakActiveToday, days: profile.currentStreakDays);
+    final profile = UserProfile.fromJson(
+      _remember('profile', res) as Map<String, dynamic>,
+    );
+    setStreakState(
+      litToday: profile.streakActiveToday,
+      days: profile.currentStreakDays,
+    );
     return profile;
   }
 
@@ -1324,7 +1730,10 @@ class ApiClient {
   /// when an admin has no enabled slogans at all -- the caller falls back
   /// to the app's own built-in line rather than greeting with a blank row.
   Future<String?> fetchTodaySlogan() async {
-    final res = await http.get(_uri('/slogans/today'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/slogans/today'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
     final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
     return body['text'] as String?;
@@ -1334,9 +1743,14 @@ class ApiClient {
   /// week's lesson counter -- everything Главная's counter and the Premium
   /// screen show, in one call.
   Future<PremiumStatus> fetchPremiumStatus() async {
-    final res = await http.get(_uri('/premium/me'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/premium/me'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
-    return PremiumStatus.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return PremiumStatus.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// Activates a promo code or a pasted video link -- one field for both,
@@ -1351,15 +1765,22 @@ class ApiClient {
     await _throwWithDetail(res);
     // Premium may have just started, lifting the lesson limit.
     lessonQuotaRevision.value++;
-    return PromoResult.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return PromoResult.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// Everything in this user's inbox, newest first, with the unread count
   /// the bell's dot is drawn from.
   Future<NotificationInbox> fetchNotifications() async {
-    final res = await http.get(_uri('/notifications'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/notifications'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
-    return NotificationInbox.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return NotificationInbox.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// One Practice answer, recorded as memory evidence only: Practice
@@ -1374,7 +1795,12 @@ class ApiClient {
     final res = await http.post(
       _uri('/dictionaries/$dictionaryId/practice/answers'),
       headers: {...await _authHeaders(), 'Content-Type': 'application/json'},
-      body: jsonEncode({...signals, 'word_id': wordId, 'exercise_key': exerciseKey, 'is_correct': isCorrect}),
+      body: jsonEncode({
+        ...signals,
+        'word_id': wordId,
+        'exercise_key': exerciseKey,
+        'is_correct': isCorrect,
+      }),
     );
     await _throwIfUnauthorized(res);
   }
@@ -1399,7 +1825,8 @@ class ApiClient {
         headers: {'X-App-Build': '$appBuild'},
       );
       if (res.statusCode != 200) return null;
-      final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+      final data =
+          jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
       return data['available'] as bool;
     } catch (_) {
       return null;
@@ -1408,7 +1835,10 @@ class ApiClient {
 
   /// The times of day the user picked to study (reminders go out at each).
   Future<List<StudyTime>> fetchStudyTimes() async {
-    final res = await http.get(_uri('/notifications/study-times'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/notifications/study-times'),
+      headers: await _authHeaders(),
+    );
     await _throwWithDetail(res);
     return _parseStudyTimes(_remember('study-times', res));
   }
@@ -1418,7 +1848,9 @@ class ApiClient {
     final res = await http.put(
       _uri('/notifications/study-times'),
       headers: await _authHeaders(),
-      body: jsonEncode({'times': [for (final t in times) t.toJson()]}),
+      body: jsonEncode({
+        'times': [for (final t in times) t.toJson()],
+      }),
     );
     await _throwWithDetail(res);
     return _parseStudyTimes(_remember('study-times', res));
@@ -1436,7 +1868,10 @@ class ApiClient {
   /// Just the number behind the bell's dot -- its own call so the app bar
   /// never pulls the whole inbox to decide whether to show one.
   Future<int> fetchUnreadNotificationCount() async {
-    final res = await http.get(_uri('/notifications/unread-count'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/notifications/unread-count'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
     final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
     return body['unread_count'] as int;
@@ -1444,9 +1879,14 @@ class ApiClient {
 
   /// Marks every message read and returns the refreshed inbox.
   Future<NotificationInbox> markAllNotificationsRead() async {
-    final res = await http.post(_uri('/notifications/read-all'), headers: await _authHeaders());
+    final res = await http.post(
+      _uri('/notifications/read-all'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
-    return NotificationInbox.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return NotificationInbox.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   // --- Профиль ---------------------------------------------------------
@@ -1472,7 +1912,8 @@ class ApiClient {
       if (email != null) 'email': email,
       if (learningTopics != null) 'learning_topics': learningTopics,
       if (uiLanguage != null) 'ui_language': uiLanguage,
-      if (translationLanguage != null) 'translation_language': translationLanguage,
+      if (translationLanguage != null)
+        'translation_language': translationLanguage,
       if (learningLanguage != null) 'learning_language': learningLanguage,
     };
     final res = await http.patch(
@@ -1483,7 +1924,9 @@ class ApiClient {
     // _throwWithDetail, not the plain check: a taken login or email comes
     // back as a 409 whose own message is the only useful thing to show.
     await _throwWithDetail(res);
-    return UserProfile.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return UserProfile.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// Uploads [bytes] (read from whatever the user picked) as the new
@@ -1495,7 +1938,11 @@ class ApiClient {
   /// mobile connection left this Future waiting forever with no error and
   /// no way for the UI to ever leave its "uploading" state, which looked
   /// exactly like a permanent freeze.
-  Future<UserProfile> uploadMyAvatar(List<int> bytes, String filename, {String? mimeType}) async {
+  Future<UserProfile> uploadMyAvatar(
+    List<int> bytes,
+    String filename, {
+    String? mimeType,
+  }) async {
     final t = await token;
     final req = http.MultipartRequest('POST', _uri('/users/me/avatar'))
       ..headers['Authorization'] = 'Bearer $t'
@@ -1509,11 +1956,16 @@ class ApiClient {
       );
     final streamed = await req.send().timeout(
       const Duration(seconds: 25),
-      onTimeout: () => throw ApiException(tr('Загрузка не удалась: слишком медленное соединение')),
+      onTimeout: () => throw ApiException(
+        tr('Загрузка не удалась: слишком медленное соединение'),
+      ),
     );
-    final res = await http.Response.fromStream(streamed).timeout(const Duration(seconds: 25));
+    final res = await http.Response.fromStream(streamed)
+        .timeout(const Duration(seconds: 25));
     await _throwWithDetail(res);
-    return UserProfile.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return UserProfile.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// Clears the avatar -- the caller should fall back to the generated
@@ -1523,14 +1975,21 @@ class ApiClient {
         .delete(_uri('/users/me/avatar'), headers: await _authHeaders())
         .timeout(const Duration(seconds: 15));
     await _throwIfUnauthorized(res);
-    return UserProfile.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return UserProfile.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   Future<List<UserAchievement>> fetchMyAchievements() async {
-    final res = await http.get(_uri('/users/me/achievements'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/users/me/achievements'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
     final list = _remember('achievements', res) as List<dynamic>;
-    return list.map((e) => UserAchievement.fromJson(e as Map<String, dynamic>)).toList();
+    return list
+        .map((e) => UserAchievement.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// The Статистика screen's data (GET /users/me/stats), for a 7 or 30 day chart.
@@ -1540,17 +1999,32 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    if (res.statusCode != 200) throw ApiException('Не удалось загрузить статистику', statusCode: res.statusCode);
-    return UserStats.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    if (res.statusCode != 200)
+      throw ApiException(
+        'Не удалось загрузить статистику',
+        statusCode: res.statusCode,
+      );
+    return UserStats.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// Earned but not yet shown to this account (GET /users/me/achievements/new).
   Future<List<UserAchievement>> fetchNewAchievements() async {
-    final res = await http.get(_uri('/users/me/achievements/new'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/users/me/achievements/new'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
-    if (res.statusCode != 200) throw ApiException('Не удалось загрузить достижения', statusCode: res.statusCode);
+    if (res.statusCode != 200)
+      throw ApiException(
+        'Не удалось загрузить достижения',
+        statusCode: res.statusCode,
+      );
     final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
-    return list.map((e) => UserAchievement.fromJson(e as Map<String, dynamic>)).toList();
+    return list
+        .map((e) => UserAchievement.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// Records on the server that these achievements were celebrated.
@@ -1561,41 +2035,64 @@ class ApiClient {
       body: jsonEncode({'ids': ids}),
     );
     await _throwIfUnauthorized(res);
-    if (res.statusCode >= 300) throw ApiException('Не удалось сохранить', statusCode: res.statusCode);
+    if (res.statusCode >= 300)
+      throw ApiException('Не удалось сохранить', statusCode: res.statusCode);
   }
 
   /// A fully separate system from achievements (see backend/app/rating/) --
   /// current points, current season, current rank and season history, all
   /// backend-decided.
   Future<UserRating> fetchMyRating() async {
-    final res = await http.get(_uri('/users/me/rating'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/users/me/rating'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
-    return UserRating.fromJson(_remember('rating', res) as Map<String, dynamic>);
+    return UserRating.fromJson(
+      _remember('rating', res) as Map<String, dynamic>,
+    );
   }
 
   /// Top 100 users sharing the CALLER's own current rank -- the backend
   /// decides which rank that is; there is no way to ask for a different
   /// one.
   Future<Leaderboard> fetchMyRankLeaderboard() async {
-    final res = await http.get(_uri('/rating/leaderboard'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/rating/leaderboard'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
-    return Leaderboard.fromJson(_remember('leaderboard', res) as Map<String, dynamic>);
+    return Leaderboard.fromJson(
+      _remember('leaderboard', res) as Map<String, dynamic>,
+    );
   }
 
   /// The word-reinforcement ladder, enabled levels only, lowest
   /// score-range first -- see WordLevelSummary's own doc.
   Future<List<WordLevelSummary>> fetchWordLevels() async {
-    final res = await http.get(_uri('/word-levels'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/word-levels'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
     return _parseWordLevels(_remember('word-levels', res));
   }
 
   /// What the status picker offers, plus the user's current status.
   Future<StatusOptions> fetchStatusOptions() async {
-    final res = await http.get(_uri('/status/options'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/status/options'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
-    if (res.statusCode != 200) throw ApiException(tr('Не удалось загрузить статусы'), statusCode: res.statusCode);
-    return StatusOptions.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    if (res.statusCode != 200)
+      throw ApiException(
+        tr('Не удалось загрузить статусы'),
+        statusCode: res.statusCode,
+      );
+    return StatusOptions.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// Sets both parts of the leaderboard status; null clears a part.
@@ -1606,24 +2103,40 @@ class ApiClient {
       body: jsonEncode({'emoji_id': emojiId, 'phrase_id': phraseId}),
     );
     await _throwIfUnauthorized(res);
-    if (res.statusCode != 200) throw ApiException(tr('Не удалось сохранить статус'), statusCode: res.statusCode);
-    return MyStatus.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    if (res.statusCode != 200)
+      throw ApiException(
+        tr('Не удалось сохранить статус'),
+        statusCode: res.statusCode,
+      );
+    return MyStatus.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// Top 100 users across every rank combined.
   /// The caller and their friends, by points (GET /rating/leaderboard/friends).
   Future<Leaderboard> fetchFriendsLeaderboard() async {
-    final res = await http.get(_uri('/rating/leaderboard/friends'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/rating/leaderboard/friends'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
-    return Leaderboard.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return Leaderboard.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// Who a 9-digit ID belongs to (GET /rating/users/{id}) -- shown before
   /// adding a friend.
   Future<FoundUser> findUserByPublicId(int publicId) async {
-    final res = await http.get(_uri('/rating/users/$publicId'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/rating/users/$publicId'),
+      headers: await _authHeaders(),
+    );
     await _throwWithDetail(res);
-    return FoundUser.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return FoundUser.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// Adds the account with this 9-digit ID as a friend (both ways).
@@ -1637,7 +2150,10 @@ class ApiClient {
   }
 
   Future<void> removeFriend(int userId) async {
-    final res = await http.delete(_uri('/rating/friends/$userId'), headers: await _authHeaders());
+    final res = await http.delete(
+      _uri('/rating/friends/$userId'),
+      headers: await _authHeaders(),
+    );
     await _throwWithDetail(res);
   }
 
@@ -1657,9 +2173,14 @@ class ApiClient {
   }
 
   Future<Leaderboard> fetchGlobalLeaderboard() async {
-    final res = await http.get(_uri('/rating/leaderboard/global'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/rating/leaderboard/global'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
-    return Leaderboard.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return Leaderboard.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// The full rank ladder, enabled ranks only, lowest points-requirement
@@ -1667,7 +2188,10 @@ class ApiClient {
   /// screen renders. The SAME ranks/order fetchMyRating's own rank/
   /// next_rank came from, never a second definition of the ladder.
   Future<List<RankSummary>> fetchAllRanks() async {
-    final res = await http.get(_uri('/rating/ranks'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/rating/ranks'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
     return _parseRanks(_remember('ranks', res));
   }
@@ -1678,12 +2202,15 @@ class ApiClient {
 
   Future<List<AvailableQuest>> fetchAvailableQuests(int dictionaryId) async {
     final res = await http.get(
-      _uri('/quests').replace(queryParameters: {'dictionary_id': '$dictionaryId'}),
+      _uri('/quests')
+          .replace(queryParameters: {'dictionary_id': '$dictionaryId'}),
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
     final list = jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>;
-    return list.map((e) => AvailableQuest.fromJson(e as Map<String, dynamic>)).toList();
+    return list
+        .map((e) => AvailableQuest.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// Everything the "Квесты сезона" block on Главная and the season
@@ -1694,18 +2221,28 @@ class ApiClient {
   /// of those numbers.
   Future<SeasonQuestOverview> fetchSeasonQuestOverview(int dictionaryId) async {
     final res = await http.get(
-      _uri('/quests/overview').replace(queryParameters: {'dictionary_id': '$dictionaryId'}),
+      _uri('/quests/overview')
+          .replace(queryParameters: {'dictionary_id': '$dictionaryId'}),
       headers: await _authHeaders(),
     );
     await _throwIfUnauthorized(res);
-    return SeasonQuestOverview.fromJson(_remember('overview-$dictionaryId', res) as Map<String, dynamic>);
+    return SeasonQuestOverview.fromJson(
+      _remember('overview-$dictionaryId', res) as Map<String, dynamic>,
+    );
   }
 
   /// Today's points, grant by grant, newest first (GET /quests/points-today).
   Future<List<PointsTodayItem>> fetchPointsToday() async {
-    final res = await http.get(_uri('/quests/points-today'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/quests/points-today'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
-    if (res.statusCode != 200) throw ApiException('Не удалось загрузить историю', statusCode: res.statusCode);
+    if (res.statusCode != 200)
+      throw ApiException(
+        'Не удалось загрузить историю',
+        statusCode: res.statusCode,
+      );
     return (jsonDecode(utf8.decode(res.bodyBytes)) as List<dynamic>)
         .map((e) => PointsTodayItem.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -1713,19 +2250,29 @@ class ApiClient {
 
   /// The streak sheet's data (GET /users/me/streak).
   Future<StreakInfo> fetchMyStreak() async {
-    final res = await http.get(_uri('/users/me/streak'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/users/me/streak'),
+      headers: await _authHeaders(),
+    );
     await _throwIfUnauthorized(res);
-    if (res.statusCode != 200) throw ApiException('Не удалось загрузить серию', statusCode: res.statusCode);
+    if (res.statusCode != 200)
+      throw ApiException(
+        'Не удалось загрузить серию',
+        statusCode: res.statusCode,
+      );
     return _parseStreak(_remember('streak', res));
   }
 
   Future<QuestRound> fetchQuestRound(int questId, int dictionaryId) async {
     final res = await http.get(
-      _uri('/quests/$questId/round').replace(queryParameters: {'dictionary_id': '$dictionaryId'}),
+      _uri('/quests/$questId/round')
+          .replace(queryParameters: {'dictionary_id': '$dictionaryId'}),
       headers: await _authHeaders(),
     );
     await _throwWithDetail(res);
-    return QuestRound.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return QuestRound.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   Future<QuestAnswerResult> submitQuestAnswer(
@@ -1736,9 +2283,14 @@ class ApiClient {
   }) async {
     final signals = AnswerSignals.take();
     final res = await http.post(
-      _uri('/quests/$questId/answers').replace(queryParameters: {'dictionary_id': '$dictionaryId'}),
+      _uri('/quests/$questId/answers')
+          .replace(queryParameters: {'dictionary_id': '$dictionaryId'}),
       headers: {...await _authHeaders(), 'Content-Type': 'application/json'},
-      body: jsonEncode({...signals, 'word_id': wordId, 'is_correct': isCorrect}),
+      body: jsonEncode({
+        ...signals,
+        'word_id': wordId,
+        'is_correct': isCorrect,
+      }),
     );
     await _throwWithDetail(res);
     final json = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
@@ -1755,9 +2307,14 @@ class ApiClient {
   /// be, and how many checks are left today -- everything the screen needs
   /// BEFORE the first message is typed.
   Future<TextCheckInfo> fetchTextCheckInfo() async {
-    final res = await http.get(_uri('/text-check/info'), headers: await _authHeaders());
+    final res = await http.get(
+      _uri('/text-check/info'),
+      headers: await _authHeaders(),
+    );
     await _throwWithDetail(res);
-    return TextCheckInfo.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return TextCheckInfo.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 
   /// POST /text-check: checks one Russian message the user is about to send.
@@ -1785,6 +2342,8 @@ class ApiClient {
       }),
     );
     await _throwWithDetail(res);
-    return TextCheckResult.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    return TextCheckResult.fromJson(
+      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    );
   }
 }

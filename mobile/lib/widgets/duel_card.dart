@@ -138,7 +138,7 @@ class DuelCardView extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           if (d == null) ...[
-            Text(tr('Вызовите друга: кто за неделю наберёт больше XP, тот победил.'), style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
+            Text(tr('Вызовите друга: кто за неделю наберёт больше энергии, тот победил.'), style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
             const SizedBox(height: 10),
             FilledButton(key: const ValueKey('duel-challenge'), onPressed: busy ? null : onChallenge, child: Text(tr('Вызвать друга'))),
           ] else if (d.incoming) ...[

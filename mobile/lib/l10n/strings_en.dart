@@ -29,7 +29,8 @@ const Map<String, String> enStrings = {
   '+{0} за неделю': '+{0} this week',
   '+{0} очков': '+{0} points',
   '+{0} рейтинговых очков': '+{0} rating points',
-  '«Произнеси слово» пропущено в этом уроке': '"Say the word" was skipped in this lesson',
+  '«Произнеси слово» пропущено в этом уроке':
+      '"Say the word" was skipped in this lesson',
   '12–17 лет': '12–17 years',
   '18–24 года': '18–24 years',
   '25+ лет': '25+ years',
@@ -45,7 +46,8 @@ const Map<String, String> enStrings = {
   'Автоуроки для закрепления': 'Auto lessons for review',
   'Активировать': 'Activate',
   'Активность': 'Activity',
-  'Английские буквы, цифры, _ и . — до 13 символов': 'English letters, numbers, _ and . — up to 13 characters',
+  'Английские буквы, цифры, _ и . — до 13 символов':
+      'English letters, numbers, _ and . — up to 13 characters',
   'апр.': 'Apr',
   'апреля': 'April',
   'Без Premium — не больше {0}': 'Without Premium — no more than {0}',
@@ -56,14 +58,16 @@ const Map<String, String> enStrings = {
   'Бонус за первую ссылку!': 'Bonus for your first link!',
   'В них вы ошибаетесь чаще всего': 'The ones you get wrong most',
   'В это время придёт напоминание. Если вы не зайдёте, через какое-то время придёт ещё одно.': 'You\'ll get a reminder at this time. If you don\'t open the app, you\'ll get another one later.',
-  'В это время придёт напоминание. Можно выбрать несколько или пропустить.': 'You\'ll get a reminder at this time. You can pick several or skip.',
+  'В это время придёт напоминание. Можно выбрать несколько или пропустить.':
+      'You\'ll get a reminder at this time. You can pick several or skip.',
   'Ваш ID': 'Your ID',
   'Ваш ID: {0}': 'Your ID: {0}',
   'Введите имя': 'Enter your first name',
   'Введите логин': 'Enter your login',
   'Введите пароль': 'Enter your password',
   'Введите промокод или вставьте ссылку': 'Enter a promo code or paste a link',
-  'Введите промокод или вставьте ссылку на видео GuYo и получите дни Premium.': 'Enter a promo code or paste a link to a GuYo video to get Premium days.',
+  'Введите промокод или вставьте ссылку на видео GuYo и получите дни Premium.':
+      'Enter a promo code or paste a link to a GuYo video to get Premium days.',
   'Введите текст...': 'Type a message...',
   'Введите фамилию': 'Enter your last name',
   'Ввести ID вручную': 'Enter ID manually',
@@ -75,7 +79,8 @@ const Map<String, String> enStrings = {
   'Войти заново': 'Log in again',
   'Войти через Google': 'Continue with Google',
   'воскресенье': 'Sunday',
-  'Восстановите пропущенное слово по переводу': 'Restore the missing word from its translation',
+  'Восстановите пропущенное слово по переводу':
+      'Restore the missing word from its translation',
   'Время': 'Time',
   'Время занятий': 'Study time',
   'Время учёбы': 'Study time',
@@ -93,7 +98,8 @@ const Map<String, String> enStrings = {
   'вторник': 'Tuesday',
   'Вход': 'Login',
   'Входим…': 'Signing in…',
-  'Вы в ударе! Возвращайтесь завтра, чтобы огонь не погас': 'You\'re on fire! Come back tomorrow to keep the flame alive',
+  'Вы в ударе! Возвращайтесь завтра, чтобы огонь не погас':
+      'You\'re on fire! Come back tomorrow to keep the flame alive',
   'Вы здесь': 'You are here',
   'Вы сказали': 'You said',
   'Выберите минимум {0} слова': 'Choose at least {0} words',
@@ -123,11 +129,14 @@ const Map<String, String> enStrings = {
   'Выполнена! Можно заниматься дальше': 'Done! You can keep going',
   'Мой путь': 'My progress',
   'Слов по неделям': 'Words per week',
-  'слов на этой неделе, на {0} больше прошлой': 'words this week, {0} more than last week',
-  'слов на этой неделе, на {0} меньше прошлой': 'words this week, {0} fewer than last week',
+  'слов на этой неделе, на {0} больше прошлой':
+      'words this week, {0} more than last week',
+  'слов на этой неделе, на {0} меньше прошлой':
+      'words this week, {0} fewer than last week',
   'слов на этой неделе, как и на прошлой': 'words this week, same as last week',
   'Дуэль недели': 'Duel of the week',
-  'Вызовите друга: кто за неделю наберёт больше XP, тот победил.': 'Challenge a friend: whoever earns more XP in a week wins.',
+  'Вызовите друга: кто за неделю наберёт больше XP, тот победил.':
+      'Challenge a friend: whoever earns more XP in a week wins.',
   'Вызвать друга': 'Challenge a friend',
   '{0} вызывает вас на дуэль': '{0} challenges you to a duel',
   'Отказаться': 'Decline',
@@ -150,9 +159,11 @@ const Map<String, String> enStrings = {
   'На этом устройстве вы останетесь в аккаунте, на остальных придётся войти заново.': 'You stay logged in on this device; the others will need to log in again.',
   'Вы вышли на других устройствах': 'Logged out on other devices',
   'Выполнено сегодня': 'Done today',
-  'Выполняй задания, получай очки и повышай свой ранг.': 'Do quests, earn points and climb the ranks.',
+  'Выполняй задания, получай очки и повышай свой ранг.':
+      'Do quests, earn points and climb the ranks.',
   'Выучено новых': 'New words learned',
-  'Вышла новая версия GuYo. Чтобы продолжить заниматься, установите её.': 'A new version of GuYo is out. Install it to keep studying.',
+  'Вышла новая версия GuYo. Чтобы продолжить заниматься, установите её.':
+      'A new version of GuYo is out. Install it to keep studying.',
   'Где взять': 'Where to get one',
   'Главная': 'Home',
   'Глобальный рейтинг': 'Global rating',
@@ -175,7 +186,8 @@ const Map<String, String> enStrings = {
   'Для чего вы изучаете язык?': 'Why are you learning the language?',
   'Для чего вы изучаете язык? Можно выбрать несколько — уроки будут начинаться со слов, ': 'Why are you learning the language? Pick as many as you like — lessons will start with the words ',
   'Для этого упражнения пока нет слов': 'This exercise has no words yet',
-  'Для этого урока пока нет доступных упражнений.': 'This lesson has no exercises available yet.',
+  'Для этого урока пока нет доступных упражнений.':
+      'This lesson has no exercises available yet.',
   'дней': 'days',
   'дня': 'days',
   'До {0}': 'Until {0}',
@@ -192,7 +204,8 @@ const Map<String, String> enStrings = {
   'Друзья': 'Friends',
   'Его видят все в рейтинге': 'Everyone in the rating can see it',
   'Его увидят другие в рейтинге.': 'Others in the rating will see it.',
-  'Его увидят другие в рейтинге. Google: {0}': 'Others in the rating will see it. Google: {0}',
+  'Его увидят другие в рейтинге. Google: {0}':
+      'Others in the rating will see it. Google: {0}',
   'Ежедневные квесты': 'Daily quests',
   'Ежедневных квестов пока нет': 'No daily quests yet',
   'Есть ошибки': 'There are mistakes',
@@ -205,9 +218,11 @@ const Map<String, String> enStrings = {
   'Завершается': 'Ends soon',
   'Загляните позже.': 'Check back later.',
   'Загрузка': 'Loading',
-  'Загрузка не удалась: слишком медленное соединение': 'Loading failed: connection too slow',
+  'Загрузка не удалась: слишком медленное соединение':
+      'Loading failed: connection too slow',
   'заданий выполнено': 'quests completed',
-  'Задания под ваши слабые места с бонусными очками': 'Quests for your weak spots with bonus points',
+  'Задания под ваши слабые места с бонусными очками':
+      'Quests for your weak spots with bonus points',
   'закреплено': 'mastered',
   'Закреплено {0} из {1}': '{0} of {1} mastered',
   'Закрыть': 'Close',
@@ -217,8 +232,10 @@ const Map<String, String> enStrings = {
   'Изменить фото': 'Change photo',
   'Изучай новые слова': 'Learn new words',
   'Изучено {0} из {1} слов': '{0} of {1} words learned',
-  'Изучите больше слов в Уроках, чтобы открыть это упражнение здесь.': 'Learn more words in Lessons to unlock this exercise here.',
-  'Изучите больше слов, чтобы открыть фразы для тренировки.': 'Learn more words to unlock phrases for practice.',
+  'Изучите больше слов в Уроках, чтобы открыть это упражнение здесь.':
+      'Learn more words in Lessons to unlock this exercise here.',
+  'Изучите больше слов, чтобы открыть фразы для тренировки.':
+      'Learn more words to unlock phrases for practice.',
   'или': 'or',
   'Или покажите свой код другу': 'Or show your code to a friend',
   'Имя': 'First name',
@@ -273,30 +290,36 @@ const Map<String, String> enStrings = {
   'Мои фразы': 'My phrases',
   'Мой QR-код': 'My QR code',
   'Мой статус': 'My status',
-  'На каком языке показывать перевод слов?': 'Which language should word translations be shown in?',
+  'На каком языке показывать перевод слов?':
+      'Which language should word translations be shown in?',
   'На этой неделе: {0} из {1}': 'This week: {0} of {1}',
-  'Наведите камеру на QR-код из профиля друга': 'Point your camera at the QR code in your friend\'s profile',
+  'Наведите камеру на QR-код из профиля друга':
+      'Point your camera at the QR code in your friend\'s profile',
   'Нажмите и произнесите слово': 'Tap and say the word',
   'Нажмите, чтобы остановить': 'Tap to stop',
   'Назад': 'Back',
   'Найдите друга по QR-коду или ID': 'Find a friend by QR code or ID',
   'Найти': 'Find',
-  'Напишите сообщение — я проверю его\nи объясню ошибки.': 'Write a message — I\'ll check it\nand explain the mistakes.',
+  'Напишите сообщение — я проверю его\nи объясню ошибки.':
+      'Write a message — I\'ll check it\nand explain the mistakes.',
   'Например, Каримов': 'For example, Karimov',
   'Например, Фирдавс': 'For example, Firdavs',
   'Настройки': 'Settings',
   'Начать': 'Start',
   'Начать урок': 'Start lesson',
   'Начать урок ({0})': 'Start lesson ({0})',
-  'Начните серию сегодня — пройдите урок, практику или квест': 'Start your streak today — complete a lesson, practice or quest',
-  'Начните учить слова, чтобы попасть в рейтинг.': 'Start learning words to join the rating.',
+  'Начните серию сегодня — пройдите урок, практику или квест':
+      'Start your streak today — complete a lesson, practice or quest',
+  'Начните учить слова, чтобы попасть в рейтинг.':
+      'Start learning words to join the rating.',
   'Не больше 5 времён': 'No more than 5 tenses',
   'Не в этот раз': 'Not this time',
   'Не выбрано': 'Not selected',
   'Не выбраны': 'Not selected',
   'Не могу сейчас говорить': 'Can\'t talk right now',
   'Не совсем так': 'Not quite',
-  'Не удалось включить микрофон, попробуйте ещё раз': 'Couldn\'t turn on the microphone, try again',
+  'Не удалось включить микрофон, попробуйте ещё раз':
+      'Couldn\'t turn on the microphone, try again',
   'Не удалось войти через Google': 'Couldn\'t sign in with Google',
   'Не удалось загрузить данные': 'Couldn\'t load the data',
   'Не удалось загрузить доступные слова': 'Couldn\'t load available words',
@@ -307,9 +330,11 @@ const Map<String, String> enStrings = {
   'Не удалось загрузить результаты урока': 'Couldn\'t load the lesson results',
   'Не удалось загрузить рейтинг': 'Couldn\'t load the rating',
   'Не удалось загрузить слова': 'Couldn\'t load words',
-  'Не удалось загрузить слова для тренажёра': 'Couldn\'t load words for the trainer',
+  'Не удалось загрузить слова для тренажёра':
+      'Couldn\'t load words for the trainer',
   'Не удалось загрузить словари': 'Couldn\'t load dictionaries',
-  'Не удалось загрузить список языков. Проверьте интернет.': 'Couldn\'t load the language list. Check your internet.',
+  'Не удалось загрузить список языков. Проверьте интернет.':
+      'Couldn\'t load the language list. Check your internet.',
   'Не удалось загрузить статусы': 'Couldn\'t load statuses',
   'Не удалось загрузить уведомления': 'Couldn\'t load notifications',
   'Не удалось загрузить упражнение': 'Couldn\'t load the exercise',
@@ -319,19 +344,25 @@ const Map<String, String> enStrings = {
   'Не удалось загрузить фото: {0}': 'Couldn\'t load the photo: {0}',
   'Не удалось загрузить фразы': 'Couldn\'t load phrases',
   'Не удалось открыть галерею: {0}': 'Couldn\'t open the gallery: {0}',
-  'Не удалось открыть урок. Проверьте интернет.': 'Couldn\'t open the lesson. Check your internet.',
+  'Не удалось открыть урок. Проверьте интернет.':
+      'Couldn\'t open the lesson. Check your internet.',
   'Не удалось подключиться к серверу': 'Couldn\'t connect to the server',
-  'Не удалось подключиться к серверу. Данные не потеряны — можно попробовать ещё раз.': 'Couldn\'t connect to the server. Your data is safe — you can try again.',
-  'Не удалось проверить логин. Проверьте интернет.': 'Couldn\'t check the login. Check your internet.',
-  'Не удалось проверить промокод. Проверьте интернет.': 'Couldn\'t check the promo code. Check your internet.',
+  'Не удалось подключиться к серверу. Данные не потеряны — можно попробовать ещё раз.':
+      'Couldn\'t connect to the server. Your data is safe — you can try again.',
+  'Не удалось проверить логин. Проверьте интернет.':
+      'Couldn\'t check the login. Check your internet.',
+  'Не удалось проверить промокод. Проверьте интернет.':
+      'Couldn\'t check the promo code. Check your internet.',
   'Не удалось прочитать фото: {0}': 'Couldn\'t read the photo: {0}',
   'Не удалось создать урок': 'Couldn\'t create the lesson',
   'Не удалось сохранить изменения': 'Couldn\'t save changes',
   'Не удалось сохранить результат': 'Couldn\'t save the result',
   'Не удалось сохранить статус': 'Couldn\'t save the status',
-  'Не удалось сохранить. Проверьте интернет.': 'Couldn\'t save. Check your internet.',
+  'Не удалось сохранить. Проверьте интернет.':
+      'Couldn\'t save. Check your internet.',
   'Не удалось удалить фото': 'Couldn\'t delete the photo',
-  'Не удалось. Проверьте интернет.': 'Couldn\'t complete it. Check your internet.',
+  'Не удалось. Проверьте интернет.':
+      'Couldn\'t complete it. Check your internet.',
   'Не указано': 'Not specified',
   'Неверный логин или пароль': 'Wrong login or password',
   'Неделя': 'Week',
@@ -358,10 +389,12 @@ const Map<String, String> enStrings = {
   'Обращение не указано': 'Addressee not set',
   'Обучение': 'Learning',
   'Объяснения: {0}': 'Explanations: {0}',
-  'Один пропущенный день в неделю прощается автоматически': 'One missed day a week is forgiven automatically',
+  'Один пропущенный день в неделю прощается автоматически':
+      'One missed day a week is forgiven automatically',
   'окт.': 'Oct',
   'октября': 'October',
-  'Определите, правильно ли показан перевод слова': 'Decide whether the word\'s translation is shown correctly',
+  'Определите, правильно ли показан перевод слова':
+      'Decide whether the word\'s translation is shown correctly',
   'Опустился на {0}': 'Dropped to {0}',
   'Осталось {0} очков до следующего уровня': '{0} points to the next level',
   'Осталось {0} сек': '{0} sec left',
@@ -369,7 +402,8 @@ const Map<String, String> enStrings = {
   'Осталось проверок сегодня: {0} из {1}': 'Checks left today: {0} of {1}',
   'от {0} очков': 'from {0} points',
   'От друзей или знакомых': 'From friends or acquaintances',
-  'Ответы уже сохранены. Урок можно продолжить позже.': 'Your answers are saved. You can continue the lesson later.',
+  'Ответы уже сохранены. Урок можно продолжить позже.':
+      'Your answers are saved. You can continue the lesson later.',
   'Открыть профиль': 'Open profile',
   'Отлично!': 'Great!',
   'Изучено': 'Learned',
@@ -388,15 +422,18 @@ const Map<String, String> enStrings = {
   'Ошибка сети. Проверьте интернет.': 'Network error. Check your internet.',
   'Ошибки': 'Mistakes',
   'Ошибок: {0}': 'Mistakes: {0}',
-  'Пара слов в день — и язык твой.': 'A couple of words a day — and the language is yours.',
+  'Пара слов в день — и язык твой.':
+      'A couple of words a day — and the language is yours.',
   'Пароли не совпадают': 'Passwords don\'t match',
   'Пароль': 'Password',
-  'Первая ссылка даёт больше всего дней, каждая следующая — ещё немного.': 'The first link gives the most days, each next one a little more.',
+  'Первая ссылка даёт больше всего дней, каждая следующая — ещё немного.':
+      'The first link gives the most days, each next one a little more.',
   'Персональные квесты': 'Personal quests',
   'Пн': 'Mon',
   'По упражнениям': 'By exercise',
   'Повторение': 'Review',
-  'Повторите мини-фразы, открытые в уроках': 'Review the mini-phrases you unlocked in lessons',
+  'Повторите мини-фразы, открытые в уроках':
+      'Review the mini-phrases you unlocked in lessons',
   'Повторите пароль': 'Repeat password',
   'Повторить': 'Try again',
   'Повторить урок': 'Repeat lesson',
@@ -413,20 +450,23 @@ const Map<String, String> enStrings = {
   'Пока нет доступных достижений': 'No achievements available yet',
   'Пока нет доступных словарей': 'No dictionaries available yet',
   'Пока нет доступных фраз': 'No phrases available yet',
-  'Пока нет доступных языков для изучения. Загляните чуть позже.': 'No languages available to learn yet. Check back a little later.',
+  'Пока нет доступных языков для изучения. Загляните чуть позже.':
+      'No languages available to learn yet. Check back a little later.',
   'Пока нет мини-фраз': 'No mini-phrases yet',
   'Пока нет ранга': 'No rank yet',
   'Пока нет слов': 'No words yet',
   'Пока нет уведомлений': 'No notifications yet',
   'Пока никто не в этом ранге': 'Nobody is at this rank yet',
-  'Покажите код другу, чтобы он нашёл вас в GuYo': 'Show your code to a friend so they can find you on GuYo',
+  'Покажите код другу, чтобы он нашёл вас в GuYo':
+      'Show your code to a friend so they can find you on GuYo',
   'Показать объяснение': 'Show explanation',
   'Получено {0}': 'Earned {0}',
   'Получено {0} из {1}': 'Earned {0} of {1}',
   'понедельник': 'Monday',
   'Понятно': 'Got it',
   'Попробуйте другой поиск или фильтр.': 'Try another search or filter.',
-  'Попытка {0} из {1} · нажмите и скажите ещё раз': 'Attempt {0} of {1} · tap and say it again',
+  'Попытка {0} из {1} · нажмите и скажите ещё раз':
+      'Attempt {0} of {1} · tap and say it again',
   'Посмотреть': 'View',
   'Почта': 'Email',
   'Google-аккаунт': 'Google account',
@@ -434,7 +474,8 @@ const Map<String, String> enStrings = {
   'Не подключён — нажмите, чтобы подключить': 'Not connected — tap to connect',
   'Google-аккаунт подключён': 'Google account connected',
   'Не удалось подключить Google': 'Could not connect the Google account',
-  'Почта подтянется из Google-аккаунта в конце.': 'Your email will be pulled from your Google account at the end.',
+  'Почта подтянется из Google-аккаунта в конце.':
+      'Your email will be pulled from your Google account at the end.',
   'Почти готово': 'Almost done',
   'Правда': 'True',
   'Правда или ложь': 'True or false',
@@ -452,8 +493,10 @@ const Map<String, String> enStrings = {
   'Проверка текста сейчас недоступна': 'Text check is unavailable right now',
   'Проверки на сегодня закончились': 'You\'re out of checks for today',
   'Проверок текста: без ограничений': 'Text checks: unlimited',
-  'Проверьте грамматику и стиль сообщения': 'Check the grammar and style of your message',
-  'Проверьте грамматику, стиль и ошибки в вашем сообщении.': 'Check the grammar, style and mistakes in your message.',
+  'Проверьте грамматику и стиль сообщения':
+      'Check the grammar and style of your message',
+  'Проверьте грамматику, стиль и ошибки в вашем сообщении.':
+      'Check the grammar, style and mistakes in your message.',
   'Проверьте, что микрофон разрешён приложению и на устройстве установлен сервис распознавания речи.': 'Make sure the app has microphone permission and a speech recognition service is installed on your device.',
   'Проверяем…': 'Checking…',
   'Проверять пунктуацию: вкл': 'Check punctuation: on',
@@ -467,19 +510,24 @@ const Map<String, String> enStrings = {
   'Продолжай — у тебя получается.': 'Keep going — you\'re doing great.',
   'Продолжить': 'Continue',
   'Произнеси слово': 'Say the word',
-  'Произнеси слово пропущено: распознавание речи недоступно': 'Say the word skipped: speech recognition is unavailable',
+  'Произнеси слово пропущено: распознавание речи недоступно':
+      'Say the word skipped: speech recognition is unavailable',
   'Произнеси слово 🎙️': 'Say the word 🎙️',
   'Произнесите слово вслух': 'Say the word out loud',
   'Пройден': 'Completed',
   'Пройдено {0} из {1}': '{0} of {1} completed',
-  'Пройдите сегодня урок, практику или квест, чтобы огонь загорелся': 'Complete a lesson, practice or quest today to light the flame',
+  'Пройдите сегодня урок, практику или квест, чтобы огонь загорелся':
+      'Complete a lesson, practice or quest today to light the flame',
   'Промокод': 'Promo code',
   'Промокод или ссылка': 'Promo code or link',
   'Промокоды мы публикуем в соцсетях и дарим на акциях. Каждый можно активировать один раз.': 'We post promo codes on social media and give them out during events. Each one can be activated once.',
   'Пропустить': 'Skip',
-  'Пропущенный день заморожен — серия сохранена': 'Missed day frozen — your streak is safe',
-  'Прослушайте слово и выберите его среди вариантов': 'Listen to the word and pick it from the options',
-  'Прослушайте фразу и соберите её из слов': 'Listen to the phrase and build it from words',
+  'Пропущенный день заморожен — серия сохранена':
+      'Missed day frozen — your streak is safe',
+  'Прослушайте слово и выберите его среди вариантов':
+      'Listen to the word and pick it from the options',
+  'Прослушайте фразу и соберите её из слов':
+      'Listen to the phrase and build it from words',
   'Прослушать ещё раз': 'Listen again',
   'Профиль': 'Profile',
   'Пт': 'Fri',
@@ -501,10 +549,13 @@ const Map<String, String> enStrings = {
   'Светлая': 'Light',
   'Своё время': 'Custom time',
   'Сегодня ещё не занимались': 'You haven\'t studied today',
-  'Сегодня засчитано! Возвращайтесь завтра': 'Counted for today! Come back tomorrow',
+  'Сегодня засчитано! Возвращайтесь завтра':
+      'Counted for today! Come back tomorrow',
   'Сегодня изучено: {0}': 'Learned today: {0}',
-  'Сегодня отличный день для нового слова.': 'Today is a great day for a new word.',
-  'Сегодня очков пока нет. Выучите слово или пройдите квест!': 'No points today yet. Learn a word or complete a quest!',
+  'Сегодня отличный день для нового слова.':
+      'Today is a great day for a new word.',
+  'Сегодня очков пока нет. Выучите слово или пройдите квест!':
+      'No points today yet. Learn a word or complete a quest!',
   'Сегодня пока ни одного': 'None so far today',
   'Сейчас нет активного сезона': 'No active season right now',
   'Сейчас у вас бесплатный доступ': 'You\'re on the free plan right now',
@@ -516,8 +567,10 @@ const Map<String, String> enStrings = {
   'Сессия истекла, войдите снова': 'Session expired, log in again',
   'Сканировать QR-код': 'Scan QR code',
   'Скопировать': 'Copy',
-  'Скоро здесь появятся награды за ваши успехи.': 'Rewards for your progress will appear here soon.',
-  'Скоро здесь появятся языки для изучения.': 'Languages to learn will appear here soon.',
+  'Скоро здесь появятся награды за ваши успехи.':
+      'Rewards for your progress will appear here soon.',
+  'Скоро здесь появятся языки для изучения.':
+      'Languages to learn will appear here soon.',
   'Скрытое': 'Hidden',
   'Скрытое достижение': 'Hidden achievement',
   'Скрыть объяснение': 'Hide explanation',
@@ -527,27 +580,34 @@ const Map<String, String> enStrings = {
   'Слов выучено': 'Words learned',
   'слова': 'words',
   'Слова {0} из {1}': 'Words {0} of {1}',
-  'Слова возьмём случайно из тех, что вы ещё не выучили.': 'We\'ll pick words at random from the ones you haven\'t learned yet.',
-  'Слова появятся здесь после первых уроков.': 'Words will appear here after your first lessons.',
+  'Слова возьмём случайно из тех, что вы ещё не выучили.':
+      'We\'ll pick words at random from the ones you haven\'t learned yet.',
+  'Слова появятся здесь после первых уроков.':
+      'Words will appear here after your first lessons.',
   'Слова урока': 'Lesson words',
-  'Слова, которые даются трудно, сами соберутся в урок': 'Words you find hard will gather into a lesson on their own',
+  'Слова, которые даются трудно, сами соберутся в урок':
+      'Words you find hard will gather into a lesson on their own',
   'слово': 'word',
   'Слово {0} из {1}': 'Word {0} of {1}',
   'Сложный': 'Hard',
   'Случайно': 'Random',
   'Слушаю…': 'Listening…',
-  'Смотрите видео GuYo в соцсетях и вставляйте сюда их ссылки. ': 'Watch GuYo videos on social media and paste their links here. ',
+  'Смотрите видео GuYo в соцсетях и вставляйте сюда их ссылки. ':
+      'Watch GuYo videos on social media and paste their links here. ',
   'Снять': 'Remove',
   'Собери слово': 'Build a word',
   'Собери фразу': 'Build a phrase',
   'Собери фразу на слух': 'Build a phrase by ear',
-  'Соберите слово по переводу из букв': 'Build the word from letters using its translation',
+  'Соберите слово по переводу из букв':
+      'Build the word from letters using its translation',
   'Соберите фразу': 'Build the phrase',
   'Соберите фразу из слов ниже': 'Build the phrase from the words below',
   'Собрать фразу': 'Build the phrase',
   'Соедините слова с их переводами': 'Match the words with their translations',
-  'Создавайте столько уроков, сколько хотите': 'Create as many lessons as you like',
-  'Создайте первый урок, чтобы начать': 'Create your first lesson to get started',
+  'Создавайте столько уроков, сколько хотите':
+      'Create as many lessons as you like',
+  'Создайте первый урок, чтобы начать':
+      'Create your first lesson to get started',
   'Создать аккаунт': 'Create account',
   'Создать урок': 'Create lesson',
   'Сопоставление': 'Matching',
@@ -555,7 +615,8 @@ const Map<String, String> enStrings = {
   'Сохранить': 'Save',
   'Социальные сети': 'Social media',
   'Спасибо за поддержку!': 'Thanks for your support!',
-  'Способ оплаты скоро появится здесь.': 'A payment method will appear here soon.',
+  'Способ оплаты скоро появится здесь.':
+      'A payment method will appear here soon.',
   'Ср': 'Wed',
   'среда': 'Wednesday',
   'Средний ответ': 'Average answer',
@@ -564,16 +625,19 @@ const Map<String, String> enStrings = {
   'Статус': 'Status',
   'Статус не выбран': 'No status selected',
   'суббота': 'Saturday',
-  'Так вас увидят другие в рейтинге.': 'This is how others in the rating will see you.',
+  'Так вас увидят другие в рейтинге.':
+      'This is how others in the rating will see you.',
   'Текст скопирован': 'Text copied',
   'Текущая серия': 'Current streak',
   'Тема': 'Topic',
   'Тёмная': 'Dark',
-  'Только английские буквы, цифры, _ и .': 'Only English letters, numbers, _ and .',
+  'Только английские буквы, цифры, _ и .':
+      'Only English letters, numbers, _ and .',
   'Топ-100 «{0}»': 'Top 100 "{0}"',
   'точность': 'accuracy',
   'Точность ответов': 'Answer accuracy',
-  'Тренируйтесь самостоятельно, вне уроков': 'Practice on your own, outside lessons',
+  'Тренируйтесь самостоятельно, вне уроков':
+      'Practice on your own, outside lessons',
   'Трудные слова': 'Hard words',
   'Уведомления': 'Notifications',
   'Удалить': 'Delete',
@@ -597,7 +661,8 @@ const Map<String, String> enStrings = {
   'Уроки сегодня: {0} из {1}': 'Lessons today: {0} of {1}',
   'Уроков пройдено': 'Lessons completed',
   'Условие откроется позже': 'Condition unlocks later',
-  'Условие откроется, когда вы получите это достижение': 'Condition unlocks when you earn this achievement',
+  'Условие откроется, когда вы получите это достижение':
+      'Condition unlocks when you earn this achievement',
   'Услышь слово': 'Hear the word',
   'Услышь слово 🔊': 'Hear the word 🔊',
   'Утро': 'Morning',
@@ -617,7 +682,8 @@ const Map<String, String> enStrings = {
   'Фото профиля': 'Profile photo',
   'Фраза': 'Phrase',
   'Фраза {0} из {1}': 'Phrase {0} of {1}',
-  'Фраза появится здесь, как только вы изучите все слова в ней.': 'The phrase will appear here once you\'ve learned all its words.',
+  'Фраза появится здесь, как только вы изучите все слова в ней.':
+      'The phrase will appear here once you\'ve learned all its words.',
   'Хорошо!': 'Great!',
   'Чаще всего вы занимаетесь: {0}': 'You study most often: {0}',
   'четверг': 'Thursday',
@@ -626,7 +692,8 @@ const Map<String, String> enStrings = {
   'Что даёт Premium': 'What Premium gives you',
   'Что ты услышал?': 'What did you hear?',
   'Эмодзи': 'Emoji',
-  'Это будет ваш основной язык обучения в GuYo.': 'This will be your main learning language on GuYo.',
+  'Это будет ваш основной язык обучения в GuYo.':
+      'This will be your main learning language on GuYo.',
   'Это ваш собственный ID': 'This is your own ID',
   'Это ваш собственный QR-код': 'This is your own QR code',
   'Это можно изменить в настройках.': 'You can change this in settings.',
@@ -647,7 +714,8 @@ const Map<String, String> enStrings = {
   'Не удалось открыть урок': 'Couldn\'t open the lesson',
   'Урок {0}: результаты': 'Lesson {0}: results',
   'Ещё не всё закреплено': 'Not everything is mastered yet',
-  'Все {0} слов этого урока достигли нужного уровня.': 'All {0} words in this lesson reached the required level.',
+  'Все {0} слов этого урока достигли нужного уровня.':
+      'All {0} words in this lesson reached the required level.',
   'Достигли нужного уровня: {0} из {1}. Остальные слова нужно закрепить ещё раз.': 'Reached the required level: {0} of {1}. The other words need another review.',
   'Закончить': 'Finish',
   'Статистика урока': 'Lesson stats',
@@ -655,10 +723,13 @@ const Map<String, String> enStrings = {
   'Пока нет доступных фраз.\nФраза появится здесь, как только вы изучите все слова в ней.': 'No phrases available yet.\nThe phrase will appear here once you\'ve learned all its words.',
   'Достижение получено': 'Achievement unlocked',
   'Серий': 'Streaks',
-  'Начните серию сегодня — выучите хотя бы одно слово': 'Start your streak today — learn at least one word',
-  'Позанимайтесь сегодня, чтобы не потерять серию': 'Study today so you don\'t lose your streak',
+  'Начните серию сегодня — выучите хотя бы одно слово':
+      'Start your streak today — learn at least one word',
+  'Позанимайтесь сегодня, чтобы не потерять серию':
+      'Study today so you don\'t lose your streak',
   'Открыть фото профиля': 'Open profile photo',
-  'Логин должен быть не короче 3 символов': 'Login must be at least 3 characters',
+  'Логин должен быть не короче 3 символов':
+      'Login must be at least 3 characters',
   'Сохранено': 'Saved',
   'Как вы входите в приложение': 'How you sign in to the app',
   'Электронная почта': 'Email',
@@ -666,7 +737,8 @@ const Map<String, String> enStrings = {
   'Ваше фото': 'Your photo',
   'Пока используется стандартный аватар': 'The default avatar is used for now',
   'Изменить': 'Change',
-  'Пока нет ранга — начните учить слова, чтобы попасть в рейтинг': 'No rank yet — start learning words to join the rating',
+  'Пока нет ранга — начните учить слова, чтобы попасть в рейтинг':
+      'No rank yet — start learning words to join the rating',
   'Введите email': 'Enter your email',
   'Некорректный email': 'Invalid email',
   'Данные аккаунта': 'Account details',
@@ -677,10 +749,12 @@ const Map<String, String> enStrings = {
   'ID друга': 'Friend ID',
   '9 цифр из его профиля': '9 digits from their profile',
   'Добавить': 'Add',
-  'Нет доступа к камере. Разрешите его в настройках телефона.': 'No camera access. Allow it in your phone settings.',
+  'Нет доступа к камере. Разрешите его в настройках телефона.':
+      'No camera access. Allow it in your phone settings.',
   'Сканировать': 'Scan',
   'Логин и пароль': 'Login and password',
-  'Почту изменить нельзя: она привязана к Google': 'You can\'t change your email: it\'s linked to Google',
+  'Почту изменить нельзя: она привязана к Google':
+      'You can\'t change your email: it\'s linked to Google',
   'Пользователь с таким ID не найден': 'No user with that ID found',
   'Проверка слов': 'Word check',
   'Проверка слов · {0} из {1}': 'Word check · {0} of {1}',
@@ -705,7 +779,18 @@ const Map<String, String> enStrings = {
   'На этой неделе заданий нет': 'No tasks this week',
   'Уровень {0}': 'Level {0}',
   'Все уровни пройдены': 'All levels completed',
-  '{0} из {1} XP до следующего уровня': '{0} of {1} XP to the next level',
+  'Мой сезон «{0}» в GuYo: уровень {1}, {2} энергии, выучено слов: {3}, дней занятий: {4}.': 'My “{0}” season in GuYo: level {1}, {2} energy, {3} words learned, {4} days studied.',
+  'Звёзды рейтинга': 'Rating stars',
+  'от {0} звёзд': 'from {0} stars',
+  'Осталось {0} звёзд до следующего уровня': '{0} stars to the next level',
+  'Нужно ещё {0} звёзд': 'You need {0} more stars',
+  'ранг, {0} звёзд': 'rank, {0} stars',
+  'энергии': 'energy',
+  '{0} из {1} энергии до следующего уровня':
+      '{0} of {1} energy to the next level',
+  'Вызовите друга: кто за неделю наберёт больше энергии, тот победил.':
+      'Challenge a friend: whoever earns more energy in a week wins.',
+  'Соберите команду из друзей: общие цели недели и сезона, бонусная энергия и командный значок': 'Build a team of friends: shared weekly and season goals, bonus energy, and a team badge',
   'До конца сезона дней: {0}': 'Days left in the season: {0}',
   'Забрать': 'Claim',
   'Наград к получению: {0}': 'Rewards to claim: {0}',
@@ -722,7 +807,8 @@ const Map<String, String> enStrings = {
   'Главная награда сезона': 'Grand prize of the season',
   'Дней до обновления: {0}': 'Days until reset: {0}',
   'Мои награды': 'My rewards',
-  'Здесь будут значки и титулы из пропуска сезона': 'Badges and titles from the season pass will appear here',
+  'Здесь будут значки и титулы из пропуска сезона':
+      'Badges and titles from the season pass will appear here',
   'Значки': 'Badges',
   'Титулы': 'Titles',
   'Надет': 'Worn',
@@ -744,7 +830,8 @@ const Map<String, String> enStrings = {
   'Цель сезона': 'Season goal',
   'Вместе выучить слов: {0}': 'Learn words together: {0}',
   'Вместе пройти уроков: {0}': 'Complete lessons together: {0}',
-  'Вместе ответить в «Повторить сегодня»: {0}': 'Answer in «Review today» together: {0}',
+  'Вместе ответить в «Повторить сегодня»: {0}':
+      'Answer in «Review today» together: {0}',
   'Вместе выполнить заданий квестов: {0}': 'Complete quest tasks together: {0}',
   'Вместе набрать дней серии: {0}': 'Reach streak days together: {0}',
   'Переименовать': 'Rename',
@@ -757,11 +844,14 @@ const Map<String, String> enStrings = {
   '{0} зовёт вас в команду «{1}»': '{0} invites you to the team “{1}”',
   'Новая команда': 'New team',
   'Открыта для вступления': 'Open to joining',
-  'Любой сможет вступить, пока есть места': 'Anyone can join while there is room',
+  'Любой сможет вступить, пока есть места':
+      'Anyone can join while there is room',
   'Открытые команды': 'Open teams',
-  'Открытых команд со свободными местами пока нет': 'No open teams with room yet',
+  'Открытых команд со свободными местами пока нет':
+      'No open teams with room yet',
   'Вступить': 'Join',
   'Пригласить друга': 'Invite a friend',
-  'Нет друзей, которых можно пригласить. Добавьте друзей в рейтинге': 'No friends to invite. Add friends in the rating',
+  'Нет друзей, которых можно пригласить. Добавьте друзей в рейтинге':
+      'No friends to invite. Add friends in the rating',
   'Позвать': 'Invite',
 };

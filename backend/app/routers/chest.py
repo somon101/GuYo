@@ -14,7 +14,7 @@ router = APIRouter(prefix="/chest", tags=["chest"])
 
 
 class OpenedOut(BaseModel):
-    kind: str  # "xp" | "freeze"
+    kind: str  # "diamonds" | "freeze" (legacy "xp" records are retained)
     amount: int
 
 

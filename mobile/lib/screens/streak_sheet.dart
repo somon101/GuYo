@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
 import '../widgets/animated_fire.dart';
+import 'economy_screens.dart';
 
 const _fire = Color(0xFFFF7A29);
 const _fireLight = Color(0xFFFFB347);
@@ -37,6 +38,8 @@ class _StreakSheetState extends State<_StreakSheet> {
   Set<DateTime> _active = {};
   Set<DateTime> _frozen = {};
   int _freezes = 0;
+  int _mergeItems = 0;
+  int _mergedDays = 0;
 
   @override
   void initState() {
@@ -57,6 +60,8 @@ class _StreakSheetState extends State<_StreakSheet> {
     _active = data.activeDates.toSet();
     _frozen = data.frozenDates.toSet();
     _freezes = data.freezes;
+    _mergeItems = data.mergeItems;
+    _mergedDays = data.mergedDays;
   }
 
   Future<void> _load() async {
@@ -78,7 +83,9 @@ class _StreakSheetState extends State<_StreakSheet> {
     } else if (activeToday) {
       message = tr('Вы в ударе! Возвращайтесь завтра, чтобы огонь не погас');
     } else {
-      message = tr('Пройдите сегодня урок, практику или квест, чтобы огонь загорелся');
+      message = tr(
+        'Пройдите сегодня урок, практику или квест, чтобы огонь загорелся',
+      );
     }
 
     return SafeArea(
@@ -103,7 +110,10 @@ class _StreakSheetState extends State<_StreakSheet> {
                 child: IconButton(
                   tooltip: tr('Закрыть'),
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: Icon(Icons.close_rounded, color: Colors.white.withValues(alpha: 0.6)),
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: Colors.white.withValues(alpha: 0.6),
+                  ),
                 ),
               ),
               AnimatedFire(size: 120, lit: activeToday),
@@ -116,13 +126,22 @@ class _StreakSheetState extends State<_StreakSheet> {
                 ).createShader(r),
                 child: Text(
                   '$_streak',
-                  style: const TextStyle(fontSize: 64, height: 1, fontWeight: FontWeight.w900, color: Colors.white),
+                  style: const TextStyle(
+                    fontSize: 64,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 streakDaysLabel(_streak),
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: _fireLight),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: _fireLight,
+                ),
               ),
               const SizedBox(height: 20),
               Container(
@@ -130,51 +149,113 @@ class _StreakSheetState extends State<_StreakSheet> {
                 decoration: BoxDecoration(
                   color: _panel,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.06),
+                  ),
                 ),
                 child: Column(
                   children: [
-                    if (_today != null) _Week(today: _today!, active: _active, frozen: _frozen) else const SizedBox(height: 52),
+                    if (_today != null)
+                      _Week(today: _today!, active: _active, frozen: _frozen)
+                    else
+                      const SizedBox(height: 52),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Divider(height: 1, color: Colors.white.withValues(alpha: 0.08)),
+                      child: Divider(
+                        height: 1,
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
                     ),
                     if (_frozen.isNotEmpty) ...[
                       Text(
                         tr('Пропущенный день заморожен — серия сохранена'),
                         textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _ice),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: _ice,
+                        ),
                       ),
                       const SizedBox(height: 6),
                     ],
                     Text(
                       message,
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14.5, height: 1.35, color: Colors.white.withValues(alpha: 0.9)),
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        height: 1.35,
+                        color: Colors.white.withValues(alpha: 0.9),
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      tr('Один пропущенный день в неделю прощается автоматически'),
+                      tr(
+                        'Один пропущенный день в неделю прощается автоматически',
+                      ),
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.ac_unit_rounded, size: 18, color: _ice),
+                        const Icon(
+                          Icons.ac_unit_rounded,
+                          size: 18,
+                          color: _ice,
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           tr('Заморозок серии: {0}', [_freezes]),
-                          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: _ice),
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: _ice,
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      tr('Заморозка сама спасёт серию, если пропущено больше одного дня. Их дают в пропуске сезона'),
+                      tr(
+                        'Заморозка сама спасёт серию, если пропущено больше одного дня. Их дают в пропуске сезона',
+                      ),
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    if (_mergedDays > 0 || _mergeItems > 0) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        '${tr('Объединённых дней')}: $_mergedDays  •  ${tr('Объединителей')}: $_mergeItems',
+                        style: const TextStyle(
+                          color: Colors.amberAccent,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () => openStreakHistory(context),
+                          icon: const Icon(Icons.calendar_month_rounded),
+                          label: Text(tr('История')),
+                        ),
+                        FilledButton.icon(
+                          onPressed: () => openEconomy(context),
+                          icon: const Icon(Icons.diamond_rounded),
+                          label: Text(tr('Магазин и подарки')),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -208,13 +289,28 @@ class _Week extends StatelessWidget {
   final DateTime today;
   final Set<DateTime> active;
   final Set<DateTime> frozen;
-  const _Week({required this.today, required this.active, this.frozen = const {}});
+  const _Week({
+    required this.today,
+    required this.active,
+    this.frozen = const {},
+  });
 
   @override
   Widget build(BuildContext context) {
     final monday = today.subtract(Duration(days: today.weekday - 1));
-    final days = [for (var i = 0; i < 7; i++) DateTime(monday.year, monday.month, monday.day + i)];
-    final letters = [tr('Пн'), tr('Вт'), tr('Ср'), tr('Чт'), tr('Пт'), tr('Сб'), tr('Вс')];
+    final days = [
+      for (var i = 0; i < 7; i++)
+        DateTime(monday.year, monday.month, monday.day + i),
+    ];
+    final letters = [
+      tr('Пн'),
+      tr('Вт'),
+      tr('Ср'),
+      tr('Чт'),
+      tr('Пт'),
+      tr('Сб'),
+      tr('Вс'),
+    ];
     bool on(DateTime d) => active.contains(d) || frozen.contains(d);
 
     return Row(
@@ -228,7 +324,9 @@ class _Week extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: days[i] == today ? _fireLight : Colors.white.withValues(alpha: 0.45),
+                    color: days[i] == today
+                        ? _fireLight
+                        : Colors.white.withValues(alpha: 0.45),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -256,7 +354,10 @@ class _Week extends StatelessWidget {
     );
   }
 
-  Widget _band(bool visible) => Container(height: 28, color: visible ? _fire.withValues(alpha: 0.28) : Colors.transparent);
+  Widget _band(bool visible) => Container(
+    height: 28,
+    color: visible ? _fire.withValues(alpha: 0.28) : Colors.transparent,
+  );
 
   Widget _dot(DateTime d) {
     final isToday = d == today;
@@ -280,7 +381,9 @@ class _Week extends StatelessWidget {
           shape: BoxShape.circle,
           gradient: const LinearGradient(colors: [_fireLight, _fire]),
           border: isToday ? Border.all(color: Colors.white, width: 2) : null,
-          boxShadow: [BoxShadow(color: _fire.withValues(alpha: 0.45), blurRadius: 10)],
+          boxShadow: [
+            BoxShadow(color: _fire.withValues(alpha: 0.45), blurRadius: 10),
+          ],
         ),
         child: const Icon(Icons.check_rounded, size: 18, color: Colors.white),
       );

@@ -7,8 +7,9 @@ import '../models/season_pass.dart';
 import 'user_avatar.dart' show frameColors;
 
 /// The hero gradient of the season pass: deep violet into electric blue.
-List<Color> passHeroGradient(bool dark) =>
-    dark ? const [Color(0xFF3B2D96), Color(0xFF1D4FA3)] : const [Color(0xFF6A4CFF), Color(0xFF2F7CF6)];
+List<Color> passHeroGradient(bool dark) => dark
+    ? const [Color(0xFF3B2D96), Color(0xFF1D4FA3)]
+    : const [Color(0xFF6A4CFF), Color(0xFF2F7CF6)];
 
 /// How one kind of reward looks: its gradient, icon and name. Every place
 /// that draws a reward takes it from here, so a new kind is added once.
@@ -24,24 +25,49 @@ class RewardStyle {
 RewardStyle rewardStyle(PassReward r) {
   if (r.type == 'badge') {
     final look = badgeLook(r.key ?? 'crown');
-    return RewardStyle(look.colors, look.icon ?? Icons.military_tech_rounded, (r.text ?? '').isEmpty ? tr('Значок') : r.text!);
+    return RewardStyle(
+      look.colors,
+      look.icon ?? Icons.military_tech_rounded,
+      (r.text ?? '').isEmpty ? tr('Значок') : r.text!,
+    );
   }
   switch (r.type) {
     case 'premium_days':
-      return RewardStyle(const [Color(0xFFFFD54F), Color(0xFFFF9800)], Icons.workspace_premium_rounded, tr('Дни Premium'));
+      return RewardStyle(
+        const [Color(0xFFFFD54F), Color(0xFFFF9800)],
+        Icons.workspace_premium_rounded,
+        tr('Дни Premium'),
+      );
     case 'streak_freeze':
-      return RewardStyle(const [Color(0xFF7FDBFF), Color(0xFF3A7BFF)], Icons.ac_unit_rounded, tr('Заморозка серии'));
+      return RewardStyle(
+        const [Color(0xFF7FDBFF), Color(0xFF3A7BFF)],
+        Icons.ac_unit_rounded,
+        tr('Заморозка серии'),
+      );
     case 'frame':
-      return RewardStyle(frameColors(r.key ?? 'gold').take(2).toList(), Icons.account_circle_outlined, (r.text ?? '').isEmpty ? tr('Рамка') : r.text!);
+      return RewardStyle(
+        frameColors(r.key ?? 'gold').take(2).toList(),
+        Icons.account_circle_outlined,
+        (r.text ?? '').isEmpty ? tr('Рамка') : r.text!,
+      );
     case 'title':
-      return RewardStyle(const [Color(0xFF6EE7B7), Color(0xFF0E9F6E)], Icons.badge_rounded, (r.text ?? '').isEmpty ? tr('Титул') : r.text!);
+      return RewardStyle(
+        const [Color(0xFF6EE7B7), Color(0xFF0E9F6E)],
+        Icons.badge_rounded,
+        (r.text ?? '').isEmpty ? tr('Титул') : r.text!,
+      );
     default:
-      return RewardStyle(const [Color(0xFFA48BFF), Color(0xFF5862DD)], Icons.star_rounded, tr('Очки рейтинга'));
+      return RewardStyle(
+        const [Color(0xFFA48BFF), Color(0xFF5862DD)],
+        Icons.star_rounded,
+        tr('Звёзды рейтинга'),
+      );
   }
 }
 
 /// "+20" for counted rewards; a badge or title shows its own name instead.
-String rewardAmountText(PassReward r) => (r.type == 'badge' || r.type == 'title') ? '' : '+${r.amount}';
+String rewardAmountText(PassReward r) =>
+    (r.type == 'badge' || r.type == 'title') ? '' : '+${r.amount}';
 
 /// A round progress ring with the level in the middle.
 class LevelRing extends StatelessWidget {
@@ -74,11 +100,21 @@ class LevelRing extends StatelessWidget {
               if (!compact)
                 Text(
                   tr('Уровень').toUpperCase(),
-                  style: TextStyle(fontSize: size * 0.1, fontWeight: FontWeight.w800, letterSpacing: 1.2, color: Colors.white.withValues(alpha: 0.75)),
+                  style: TextStyle(
+                    fontSize: size * 0.1,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                    color: Colors.white.withValues(alpha: 0.75),
+                  ),
                 ),
               Text(
                 '$level',
-                style: TextStyle(fontSize: size * (compact ? 0.4 : 0.38), height: 1.05, fontWeight: FontWeight.w900, color: Colors.white),
+                style: TextStyle(
+                  fontSize: size * (compact ? 0.4 : 0.38),
+                  height: 1.05,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
               ),
             ],
           ),
@@ -95,7 +131,9 @@ class _RingPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final rect = Offset(stroke / 2, stroke / 2) & Size(size.width - stroke, size.height - stroke);
+    final rect =
+        Offset(stroke / 2, stroke / 2) &
+        Size(size.width - stroke, size.height - stroke);
     final track = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke
@@ -116,7 +154,8 @@ class _RingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RingPainter old) => old.progress != progress || old.stroke != stroke;
+  bool shouldRepaint(_RingPainter old) =>
+      old.progress != progress || old.stroke != stroke;
 }
 
 /// One reward as a coloured card. States, from the person's side: claimed (check,
@@ -144,7 +183,14 @@ class RewardCard extends StatelessWidget {
     final claimable = reward.claimable;
     final dim = reward.claimed || (!reached && !claimable);
     final colors = [
-      for (final c in style.colors) dim ? Color.lerp(c, const Color(0xFF8A8FA8), reward.claimed ? 0.5 : 0.3)! : c,
+      for (final c in style.colors)
+        dim
+            ? Color.lerp(
+                c,
+                const Color(0xFF8A8FA8),
+                reward.claimed ? 0.5 : 0.3,
+              )!
+            : c,
     ];
     return AnimatedBuilder(
       animation: pulse,
@@ -155,13 +201,27 @@ class RewardCard extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: colors),
-            border: claimable ? Border.all(color: Colors.white, width: 2) : null,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: colors,
+            ),
+            border: claimable
+                ? Border.all(color: Colors.white, width: 2)
+                : null,
             boxShadow: [
               if (claimable)
-                BoxShadow(color: style.glow.withValues(alpha: 0.35 + 0.35 * glow), blurRadius: 10 + 12 * glow, spreadRadius: 1 + 2 * glow)
+                BoxShadow(
+                  color: style.glow.withValues(alpha: 0.35 + 0.35 * glow),
+                  blurRadius: 10 + 12 * glow,
+                  spreadRadius: 1 + 2 * glow,
+                )
               else
-                BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 3)),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
             ],
           ),
           child: Stack(
@@ -169,7 +229,11 @@ class RewardCard extends StatelessWidget {
               Positioned.fill(
                 child: Align(
                   alignment: Alignment.topRight,
-                  child: Icon(style.icon, size: 54, color: Colors.white.withValues(alpha: 0.10)),
+                  child: Icon(
+                    style.icon,
+                    size: 54,
+                    color: Colors.white.withValues(alpha: 0.10),
+                  ),
                 ),
               ),
               Center(
@@ -179,21 +243,35 @@ class RewardCard extends StatelessWidget {
                     if (reward.type == 'badge')
                       Container(
                         padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.9)),
-                        child: BadgeGlyph(badgeKey: reward.key ?? 'crown', size: 34),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.9),
+                        ),
+                        child: BadgeGlyph(
+                          badgeKey: reward.key ?? 'crown',
+                          size: 34,
+                        ),
                       )
                     else
                       Container(
                         width: 38,
                         height: 38,
-                        decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.25)),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.25),
+                        ),
                         child: Icon(style.icon, size: 22, color: Colors.white),
                       ),
                     const SizedBox(height: 4),
                     if (rewardAmountText(reward).isNotEmpty)
                       Text(
                         rewardAmountText(reward),
-                        style: const TextStyle(fontSize: 21, height: 1.1, fontWeight: FontWeight.w900, color: Colors.white),
+                        style: const TextStyle(
+                          fontSize: 21,
+                          height: 1.1,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
                       ),
                     Text(
                       style.label,
@@ -201,8 +279,14 @@ class RewardCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: (reward.type == 'badge' || reward.type == 'title') ? 13 : 11.5,
-                        fontWeight: (reward.type == 'badge' || reward.type == 'title') ? FontWeight.w800 : FontWeight.w600,
+                        fontSize:
+                            (reward.type == 'badge' || reward.type == 'title')
+                            ? 13
+                            : 11.5,
+                        fontWeight:
+                            (reward.type == 'badge' || reward.type == 'title')
+                            ? FontWeight.w800
+                            : FontWeight.w600,
                         color: Colors.white.withValues(alpha: 0.95),
                       ),
                     ),
@@ -218,7 +302,13 @@ class RewardCard extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 14),
                             minimumSize: Size.zero,
                           ),
-                          child: Text(tr('Забрать'), style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)),
+                          child: Text(
+                            tr('Забрать'),
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -229,7 +319,11 @@ class RewardCard extends StatelessWidget {
                 const Positioned(
                   top: 0,
                   right: 0,
-                  child: Icon(Icons.check_circle_rounded, size: 22, color: Colors.white),
+                  child: Icon(
+                    Icons.check_circle_rounded,
+                    size: 22,
+                    color: Colors.white,
+                  ),
                 ),
               if (reward.lockedByPremium)
                 Positioned(
@@ -237,8 +331,15 @@ class RewardCard extends StatelessWidget {
                   right: 0,
                   child: Container(
                     padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.black38),
-                    child: const Icon(Icons.lock_rounded, size: 14, color: Colors.white),
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black38,
+                    ),
+                    child: const Icon(
+                      Icons.lock_rounded,
+                      size: 14,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
             ],
@@ -262,10 +363,12 @@ class SparklePainter extends CustomPainter {
     for (var i = 0; i < 26; i++) {
       final angle = rnd.nextDouble() * math.pi * 2;
       final speed = 0.45 + rnd.nextDouble() * 0.55;
-      final dist = (size.shortestSide * 0.55) * speed * Curves.easeOutCubic.transform(t);
+      final dist =
+          (size.shortestSide * 0.55) * speed * Curves.easeOutCubic.transform(t);
       final pos = center + Offset(math.cos(angle), math.sin(angle)) * dist;
       final fade = (1 - t).clamp(0.0, 1.0);
-      final paint = Paint()..color = colors[i % colors.length].withValues(alpha: fade);
+      final paint = Paint()
+        ..color = colors[i % colors.length].withValues(alpha: fade);
       final r = 2.5 + rnd.nextDouble() * 4;
       if (i % 3 == 0) {
         canvas.drawCircle(pos, r, paint);
@@ -290,14 +393,20 @@ class SparklePainter extends CustomPainter {
 }
 
 /// "Награда получена!": the reward pops in with a burst of sparkles.
-Future<void> showRewardDialog(BuildContext context, {required RewardStyle style, required String title, required String text}) {
+Future<void> showRewardDialog(
+  BuildContext context, {
+  required RewardStyle style,
+  required String title,
+  required String text,
+}) {
   return showGeneralDialog<void>(
     context: context,
     barrierDismissible: true,
     barrierLabel: tr('Закрыть'),
     barrierColor: Colors.black54,
     transitionDuration: const Duration(milliseconds: 450),
-    pageBuilder: (_, __, ___) => RewardDialogView(style: style, title: title, text: text),
+    pageBuilder: (_, __, ___) =>
+        RewardDialogView(style: style, title: title, text: text),
     transitionBuilder: (context, anim, _, child) => ScaleTransition(
       scale: CurvedAnimation(parent: anim, curve: Curves.elasticOut),
       child: FadeTransition(opacity: anim, child: child),
@@ -309,14 +418,23 @@ class RewardDialogView extends StatefulWidget {
   final RewardStyle style;
   final String title;
   final String text;
-  const RewardDialogView({super.key, required this.style, required this.title, required this.text});
+  const RewardDialogView({
+    super.key,
+    required this.style,
+    required this.title,
+    required this.text,
+  });
 
   @override
   State<RewardDialogView> createState() => RewardDialogViewState();
 }
 
-class RewardDialogViewState extends State<RewardDialogView> with SingleTickerProviderStateMixin {
-  late final AnimationController _burst = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500))..forward();
+class RewardDialogViewState extends State<RewardDialogView>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _burst = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1500),
+  )..forward();
 
   @override
   void dispose() {
@@ -340,7 +458,12 @@ class RewardDialogViewState extends State<RewardDialogView> with SingleTickerPro
                 child: AnimatedBuilder(
                   animation: _burst,
                   builder: (_, __) => CustomPaint(
-                    painter: SparklePainter(_burst.value, [const Color(0xFFFFE066), style.colors.first, Colors.white, style.colors.last]),
+                    painter: SparklePainter(_burst.value, [
+                      const Color(0xFFFFE066),
+                      style.colors.first,
+                      Colors.white,
+                      style.colors.last,
+                    ]),
                   ),
                 ),
               ),
@@ -349,8 +472,18 @@ class RewardDialogViewState extends State<RewardDialogView> with SingleTickerPro
                 padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(28),
-                  gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: style.colors),
-                  boxShadow: [BoxShadow(color: style.glow.withValues(alpha: 0.6), blurRadius: 30, spreadRadius: 2)],
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: style.colors,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: style.glow.withValues(alpha: 0.6),
+                      blurRadius: 30,
+                      spreadRadius: 2,
+                    ),
+                  ],
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -358,24 +491,44 @@ class RewardDialogViewState extends State<RewardDialogView> with SingleTickerPro
                     Container(
                       width: 84,
                       height: 84,
-                      decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.28)),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.28),
+                      ),
                       child: Icon(style.icon, size: 48, color: Colors.white),
                     ),
                     const SizedBox(height: 14),
-                    Text(widget.title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white)),
+                    Text(
+                      widget.title,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
                     const SizedBox(height: 6),
                     Text(
                       widget.text,
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white.withValues(alpha: 0.95)),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white.withValues(alpha: 0.95),
+                      ),
                     ),
                     const SizedBox(height: 18),
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(
                         onPressed: () => Navigator.of(context).pop(),
-                        style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: style.glow),
-                        child: Text(tr('Отлично!'), style: const TextStyle(fontWeight: FontWeight.w800)),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: style.glow,
+                        ),
+                        child: Text(
+                          tr('Отлично!'),
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
                       ),
                     ),
                   ],
@@ -389,7 +542,6 @@ class RewardDialogViewState extends State<RewardDialogView> with SingleTickerPro
   }
 }
 
-
 /// How one badge looks: its colours and an icon (the crown is drawn by hand).
 class BadgeLook {
   final List<Color> colors;
@@ -400,25 +552,55 @@ class BadgeLook {
 BadgeLook badgeLook(String key) {
   switch (key) {
     case 'champion':
-      return const BadgeLook([Color(0xFFFFD54F), Color(0xFFFF8F00)], Icons.emoji_events_rounded);
+      return const BadgeLook([
+        Color(0xFFFFD54F),
+        Color(0xFFFF8F00),
+      ], Icons.emoji_events_rounded);
     case 'medal':
-      return const BadgeLook([Color(0xFF90CAF9), Color(0xFF3F7CFF)], Icons.military_tech_rounded);
+      return const BadgeLook([
+        Color(0xFF90CAF9),
+        Color(0xFF3F7CFF),
+      ], Icons.military_tech_rounded);
     case 'flame':
-      return const BadgeLook([Color(0xFFFFA06B), Color(0xFFE5391F)], Icons.local_fire_department_rounded);
+      return const BadgeLook([
+        Color(0xFFFFA06B),
+        Color(0xFFE5391F),
+      ], Icons.local_fire_department_rounded);
     case 'star':
-      return const BadgeLook([Color(0xFFFFE066), Color(0xFFFFA000)], Icons.star_rounded);
+      return const BadgeLook([
+        Color(0xFFFFE066),
+        Color(0xFFFFA000),
+      ], Icons.star_rounded);
     case 'diamond':
-      return const BadgeLook([Color(0xFF7FDBFF), Color(0xFF7C4DFF)], Icons.diamond_rounded);
+      return const BadgeLook([
+        Color(0xFF7FDBFF),
+        Color(0xFF7C4DFF),
+      ], Icons.diamond_rounded);
     case 'rocket':
-      return const BadgeLook([Color(0xFFFF8AB8), Color(0xFF8E3CFF)], Icons.rocket_launch_rounded);
+      return const BadgeLook([
+        Color(0xFFFF8AB8),
+        Color(0xFF8E3CFF),
+      ], Icons.rocket_launch_rounded);
     case 'shield':
-      return const BadgeLook([Color(0xFF6EE7B7), Color(0xFF0E9F6E)], Icons.shield_rounded);
+      return const BadgeLook([
+        Color(0xFF6EE7B7),
+        Color(0xFF0E9F6E),
+      ], Icons.shield_rounded);
     case 'bolt':
-      return const BadgeLook([Color(0xFFFFF176), Color(0xFFFFA000)], Icons.bolt_rounded);
+      return const BadgeLook([
+        Color(0xFFFFF176),
+        Color(0xFFFFA000),
+      ], Icons.bolt_rounded);
     case 'heart':
-      return const BadgeLook([Color(0xFFFF8A8A), Color(0xFFD62F4F)], Icons.favorite_rounded);
+      return const BadgeLook([
+        Color(0xFFFF8A8A),
+        Color(0xFFD62F4F),
+      ], Icons.favorite_rounded);
     case 'leaf':
-      return const BadgeLook([Color(0xFFA5E887), Color(0xFF2E9E4F)], Icons.eco_rounded);
+      return const BadgeLook([
+        Color(0xFFA5E887),
+        Color(0xFF2E9E4F),
+      ], Icons.eco_rounded);
     default: // crown
       return const BadgeLook([Color(0xFFFFE066), Color(0xFFFF9800)], null);
   }
@@ -439,8 +621,17 @@ class BadgeGlyph extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: look.colors),
-        boxShadow: [BoxShadow(color: look.colors.last.withValues(alpha: 0.4), blurRadius: size * 0.3)],
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: look.colors,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: look.colors.last.withValues(alpha: 0.4),
+            blurRadius: size * 0.3,
+          ),
+        ],
       ),
       child: look.icon == null
           ? CustomPaint(painter: _CrownPainter())
@@ -464,7 +655,16 @@ class _CrownPainter extends CustomPainter {
       ..close();
     final fill = Paint()..color = Colors.white;
     canvas.drawPath(path, fill);
-    canvas.drawRRect(RRect.fromLTRBR(w * 0.2, h * 0.72, w * 0.8, h * 0.8, Radius.circular(w * 0.04)), fill);
+    canvas.drawRRect(
+      RRect.fromLTRBR(
+        w * 0.2,
+        h * 0.72,
+        w * 0.8,
+        h * 0.8,
+        Radius.circular(w * 0.04),
+      ),
+      fill,
+    );
   }
 
   @override

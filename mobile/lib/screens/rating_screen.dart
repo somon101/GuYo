@@ -1,7 +1,9 @@
 import '../l10n/l10n.dart';
 import 'add_friend_sheet.dart';
 import '../widgets/guyo_ui.dart';
+
 import 'package:flutter/material.dart';
+
 import '../api/api_client.dart';
 import '../services/session_cache.dart';
 import '../models/user_rating.dart';
@@ -52,7 +54,9 @@ class _RatingScreenState extends State<RatingScreen> {
   @override
   void initState() {
     super.initState();
-    _board = SessionCache.get<Leaderboard>('rating-my-rank') ?? ApiClient.instance.cachedMyRankLeaderboard();
+    _board =
+        SessionCache.get<Leaderboard>('rating-my-rank') ??
+        ApiClient.instance.cachedMyRankLeaderboard();
     _isLoading = _board == null;
     _load();
   }
@@ -98,13 +102,17 @@ class _RatingScreenState extends State<RatingScreen> {
   }
 
   Future<void> _openGlobal() async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const GlobalLeaderboardScreen()));
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const GlobalLeaderboardScreen()));
   }
 
   void _openAllRanks() {
     final rating = _rating;
     if (rating == null) return;
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => AllRanksScreen(rating: rating)));
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => AllRanksScreen(rating: rating)));
   }
 
   @override
@@ -150,7 +158,9 @@ class _RatingScreenState extends State<RatingScreen> {
           title: tr('Рейтинг'),
           onOpenGlobal: _openGlobal,
           onOpenFriends: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const GlobalLeaderboardScreen(friends: true)),
+            MaterialPageRoute(
+              builder: (_) => const GlobalLeaderboardScreen(friends: true),
+            ),
           ),
         ),
         if (rank == null)
@@ -165,7 +175,10 @@ class _RatingScreenState extends State<RatingScreen> {
         else ...[
           if (board.entries.isNotEmpty) ...[
             const SizedBox(height: 4),
-            LeaderboardPodium(entries: board.entries, onEditMyStatus: _editStatus),
+            LeaderboardPodium(
+              entries: board.entries,
+              onEditMyStatus: _editStatus,
+            ),
           ],
           const SizedBox(height: 14),
           _RankCard(
@@ -189,8 +202,14 @@ class _RatingScreenState extends State<RatingScreen> {
             // Everyone the podium didn't already show. Every row in this
             // board shares the caller's own rank, so a per-row rank badge
             // would repeat the card above on every line.
-            for (final entry in board.entries.skip(LeaderboardPodium.placeCount))
-              LeaderboardRow(entry: entry, accentColor: color, onEditMyStatus: _editStatus),
+            for (final entry in board.entries.skip(
+              LeaderboardPodium.placeCount,
+            ))
+              LeaderboardRow(
+                entry: entry,
+                accentColor: color,
+                onEditMyStatus: _editStatus,
+              ),
         ],
       ],
     );
@@ -204,7 +223,12 @@ class LeaderboardHeader extends StatelessWidget {
   final VoidCallback? onOpenGlobal;
   final VoidCallback? onOpenFriends;
 
-  const LeaderboardHeader({super.key, required this.title, this.onOpenGlobal, this.onOpenFriends});
+  const LeaderboardHeader({
+    super.key,
+    required this.title,
+    this.onOpenGlobal,
+    this.onOpenFriends,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -213,7 +237,11 @@ class LeaderboardHeader extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primaryDark,
+            ),
           ),
         ),
         if (onOpenFriends != null) ...[
@@ -234,7 +262,11 @@ class LeaderboardHeader extends StatelessWidget {
                 ),
                 child: Tooltip(
                   message: tr('Друзья'),
-                  child: Icon(Icons.group_rounded, size: 20, color: AppColors.primary),
+                  child: Icon(
+                    Icons.group_rounded,
+                    size: 20,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
             ),
@@ -249,7 +281,10 @@ class LeaderboardHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppShapes.pillRadius),
               onTap: onOpenGlobal,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 9,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(AppShapes.pillRadius),
                   border: Border.all(color: AppColors.cardBorder),
@@ -262,7 +297,11 @@ class LeaderboardHeader extends StatelessWidget {
                     SizedBox(width: 6),
                     Text(
                       tr('Глобальный рейтинг'),
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryDark,
+                      ),
                     ),
                   ],
                 ),
@@ -289,7 +328,11 @@ class LeaderboardPodium extends StatelessWidget {
   /// Tapping your own place opens the status picker.
   final VoidCallback? onEditMyStatus;
 
-  const LeaderboardPodium({super.key, required this.entries, this.onEditMyStatus});
+  const LeaderboardPodium({
+    super.key,
+    required this.entries,
+    this.onEditMyStatus,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -310,7 +353,10 @@ class LeaderboardPodium extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: RadialGradient(
-                colors: [AppColors.primary.withValues(alpha: 0.10), AppColors.primary.withValues(alpha: 0.0)],
+                colors: [
+                  AppColors.primary.withValues(alpha: 0.10),
+                  AppColors.primary.withValues(alpha: 0.0),
+                ],
               ),
             ),
           ),
@@ -320,9 +366,27 @@ class LeaderboardPodium extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Expanded(child: _PodiumPlace(entry: second, place: 2, onEditMyStatus: onEditMyStatus)),
-              Expanded(child: _PodiumPlace(entry: first, place: 1, onEditMyStatus: onEditMyStatus)),
-              Expanded(child: _PodiumPlace(entry: third, place: 3, onEditMyStatus: onEditMyStatus)),
+              Expanded(
+                child: _PodiumPlace(
+                  entry: second,
+                  place: 2,
+                  onEditMyStatus: onEditMyStatus,
+                ),
+              ),
+              Expanded(
+                child: _PodiumPlace(
+                  entry: first,
+                  place: 1,
+                  onEditMyStatus: onEditMyStatus,
+                ),
+              ),
+              Expanded(
+                child: _PodiumPlace(
+                  entry: third,
+                  place: 3,
+                  onEditMyStatus: onEditMyStatus,
+                ),
+              ),
             ],
           ),
         ),
@@ -346,7 +410,11 @@ class _PodiumPlace extends StatelessWidget {
   final int place;
   final VoidCallback? onEditMyStatus;
 
-  const _PodiumPlace({required this.entry, required this.place, this.onEditMyStatus});
+  const _PodiumPlace({
+    required this.entry,
+    required this.place,
+    this.onEditMyStatus,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -373,7 +441,10 @@ class _PodiumPlace extends StatelessWidget {
           ],
           // Only first place is crowned; the others reserve no space at
           // all, which is what lifts the winner above them.
-          SizedBox(height: isFirst ? 26 : 0, child: isFirst ? const _Crown(size: 26) : null),
+          SizedBox(
+            height: isFirst ? 26 : 0,
+            child: isFirst ? const _Crown(size: 26) : null,
+          ),
           const SizedBox(height: 4),
           SizedBox(
             width: avatarSize,
@@ -387,9 +458,16 @@ class _PodiumPlace extends StatelessWidget {
                   height: avatarSize,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: color.withValues(alpha: 0.55), width: isFirst ? 3 : 2),
+                    border: Border.all(
+                      color: color.withValues(alpha: 0.55),
+                      width: isFirst ? 3 : 2,
+                    ),
                     boxShadow: [
-                      BoxShadow(color: color.withValues(alpha: 0.18), blurRadius: 14, offset: const Offset(0, 4)),
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.18),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
+                      ),
                     ],
                   ),
                   padding: EdgeInsets.all(isFirst ? 3 : 2),
@@ -404,13 +482,20 @@ class _PodiumPlace extends StatelessWidget {
                 Positioned(
                   top: 0,
                   right: -6,
-                  child: PositionChangeBadge(change: person.positionChange, fontSize: 11, outlined: true),
+                  child: PositionChangeBadge(
+                    change: person.positionChange,
+                    fontSize: 11,
+                    outlined: true,
+                  ),
                 ),
                 if (person.statusEmojiUrl != null)
                   Positioned(
                     left: -4,
                     bottom: isFirst ? 14 : 10,
-                    child: StatusEmojiBadge(url: person.statusEmojiUrl!, size: isFirst ? 30 : 24),
+                    child: StatusEmojiBadge(
+                      url: person.statusEmojiUrl!,
+                      size: isFirst ? 30 : 24,
+                    ),
                   ),
                 Positioned(
                   bottom: 0,
@@ -452,7 +537,11 @@ class _PodiumPlace extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.stars_rounded, size: isFirst ? 15 : 13, color: AppColors.gold),
+              Icon(
+                Icons.stars_rounded,
+                size: isFirst ? 15 : 13,
+                color: AppColors.gold,
+              ),
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
@@ -472,7 +561,11 @@ class _PodiumPlace extends StatelessWidget {
       ),
     );
     if (person.isMe && onEditMyStatus != null) {
-      return GestureDetector(behavior: HitTestBehavior.opaque, onTap: onEditMyStatus, child: card);
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onEditMyStatus,
+        child: card,
+      );
     }
     return card;
   }
@@ -570,14 +663,21 @@ class _RankCard extends StatelessWidget {
                   children: [
                     Text(
                       rank.name,
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: color),
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: color,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(
                       tr('Топ-100 «{0}»', [rank.name]),
-                      style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.secondaryText,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -585,7 +685,8 @@ class _RankCard extends StatelessWidget {
                 ),
               ),
               _StatusChip(emojiUrl: myStatusEmojiUrl, onTap: onEditStatus),
-              if (onTap != null) Icon(Icons.chevron_right, color: color.withValues(alpha: 0.8)),
+              if (onTap != null)
+                Icon(Icons.chevron_right, color: color.withValues(alpha: 0.8)),
             ],
           ),
         ),
@@ -619,16 +720,22 @@ class LeaderboardRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rowRank = entry.rank;
-    final rowColor = rowRank != null ? parseHexColor(rowRank.color) : accentColor;
+    final rowColor = rowRank != null
+        ? parseHexColor(rowRank.color)
+        : accentColor;
     final row = Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: entry.isMe ? AppColors.primary.withValues(alpha: 0.07) : AppColors.surface,
+          color: entry.isMe
+              ? AppColors.primary.withValues(alpha: 0.07)
+              : AppColors.surface,
           borderRadius: BorderRadius.circular(AppShapes.rowRadius),
           border: Border.all(
-            color: entry.isMe ? AppColors.primary.withValues(alpha: 0.35) : AppColors.cardBorder,
+            color: entry.isMe
+                ? AppColors.primary.withValues(alpha: 0.35)
+                : AppColors.cardBorder,
           ),
           boxShadow: AppShapes.cardShadow,
         ),
@@ -639,14 +746,23 @@ class LeaderboardRow extends StatelessWidget {
               child: Text(
                 '${entry.position}',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondaryText),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.secondaryText,
+                ),
               ),
             ),
             const SizedBox(width: 6),
             AvatarWithStatus(
               emojiUrl: entry.statusEmojiUrl,
               badgeSize: 19,
-              child: UserAvatar(avatarUrl: entry.avatarUrl, login: entry.login, size: 36, frame: entry.frame),
+              child: UserAvatar(
+                avatarUrl: entry.avatarUrl,
+                login: entry.login,
+                size: 36,
+                frame: entry.frame,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -660,7 +776,9 @@ class LeaderboardRow extends StatelessWidget {
                     badge: entry.badge,
                     style: TextStyle(
                       fontSize: 14,
-                      fontWeight: entry.isMe ? FontWeight.w800 : FontWeight.w600,
+                      fontWeight: entry.isMe
+                          ? FontWeight.w800
+                          : FontWeight.w600,
                       color: AppColors.primaryDark,
                     ),
                   ),
@@ -672,7 +790,10 @@ class LeaderboardRow extends StatelessWidget {
                         entry.statusText!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.secondaryText,
+                        ),
                       ),
                     ),
                 ],
@@ -686,16 +807,26 @@ class LeaderboardRow extends StatelessWidget {
               RankIcon(rank: rowRank, color: rowColor, size: 22),
               const SizedBox(width: 8),
             ],
+            const Icon(Icons.star_rounded, size: 17, color: AppColors.gold),
+            const SizedBox(width: 2),
             Text(
               '${entry.totalPoints}',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.pointsOnSurface),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: AppColors.pointsOnSurface,
+              ),
             ),
           ],
         ),
       ),
     );
     if (entry.isMe && onEditMyStatus != null) {
-      return GestureDetector(behavior: HitTestBehavior.opaque, onTap: onEditMyStatus, child: row);
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onEditMyStatus,
+        child: row,
+      );
     }
     return row;
   }
@@ -716,7 +847,11 @@ class _StatusChip extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(left: 8),
         padding: const EdgeInsets.fromLTRB(6, 5, 12, 5),
-        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20), boxShadow: AppShapes.cardShadow),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: AppShapes.cardShadow,
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -725,11 +860,25 @@ class _StatusChip extends StatelessWidget {
                 : Container(
                     width: 24,
                     height: 24,
-                    decoration: BoxDecoration(color: AppColors.violetSurface, shape: BoxShape.circle),
-                    child: Icon(Icons.add_rounded, size: 18, color: AppColors.primary),
+                    decoration: BoxDecoration(
+                      color: AppColors.violetSurface,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.add_rounded,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
                   ),
             const SizedBox(width: 6),
-            Text(tr('Статус'), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
+            Text(
+              tr('Статус'),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primaryDark,
+              ),
+            ),
           ],
         ),
       ),
@@ -747,7 +896,8 @@ class GlobalLeaderboardScreen extends StatefulWidget {
   const GlobalLeaderboardScreen({super.key, this.friends = false});
 
   @override
-  State<GlobalLeaderboardScreen> createState() => _GlobalLeaderboardScreenState();
+  State<GlobalLeaderboardScreen> createState() =>
+      _GlobalLeaderboardScreenState();
 }
 
 class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
@@ -759,14 +909,18 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
 
   Future<void> _addFriend() async {
     if (await showAddFriendSheet(context) && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Друг добавлен'))));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(tr('Друг добавлен'))));
       _load();
     }
   }
 
   /// Every friend in a list, each with a remove button.
   Future<void> _manageFriends() async {
-    final friends = [for (final e in _board?.entries ?? const <LeaderboardEntry>[]) if (!e.isMe) e];
+    final friends = [
+      for (final e in _board?.entries ?? const <LeaderboardEntry>[])
+        if (!e.isMe) e,
+    ];
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -777,10 +931,16 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
             for (final f in friends)
               ListTile(
                 leading: Icon(Icons.person_rounded, color: AppColors.primary),
-                title: Text(f.login, style: const TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: Text(tr('{0} очков', [f.totalPoints])),
+                title: Text(
+                  f.login,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                subtitle: Text('⭐ ${f.totalPoints}'),
                 trailing: IconButton(
-                  icon: Icon(Icons.person_remove_rounded, color: AppColors.danger),
+                  icon: Icon(
+                    Icons.person_remove_rounded,
+                    color: AppColors.danger,
+                  ),
                   onPressed: () {
                     Navigator.of(ctx).pop();
                     _removeFriend(f);
@@ -800,8 +960,14 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
       builder: (ctx) => AlertDialog(
         title: Text(tr('Удалить {0} из друзей?', [entry.login])),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(tr('Отмена'))),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text(tr('Удалить'))),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(tr('Отмена')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(tr('Удалить')),
+          ),
         ],
       ),
     );
@@ -859,7 +1025,11 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
         elevation: 0,
         title: Text(
           widget.friends ? tr('Друзья') : tr('Глобальный рейтинг'),
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: AppColors.primaryDark,
+          ),
         ),
         iconTheme: IconThemeData(color: AppColors.primaryDark),
         actions: [
@@ -867,12 +1037,17 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
             IconButton(
               key: const ValueKey('manage-friends'),
               tooltip: tr('Управлять друзьями'),
-              icon: Icon(Icons.manage_accounts_rounded, color: AppColors.primary),
+              icon: Icon(
+                Icons.manage_accounts_rounded,
+                color: AppColors.primary,
+              ),
               onPressed: _manageFriends,
             ),
         ],
       ),
-      body: SafeArea(child: RefreshIndicator(onRefresh: _load, child: _buildBody())),
+      body: SafeArea(
+        child: RefreshIndicator(onRefresh: _load, child: _buildBody()),
+      ),
       floatingActionButton: widget.friends
           ? FloatingActionButton.extended(
               key: const ValueKey('add-friend'),
@@ -915,7 +1090,9 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
           Icon(Icons.group_add_rounded, size: 56, color: AppColors.muted),
           const SizedBox(height: 12),
           Text(
-            tr('Добавьте друзей по их ID или QR-коду из профиля и соревнуйтесь вместе'),
+            tr(
+              'Добавьте друзей по их ID или QR-коду из профиля и соревнуйтесь вместе',
+            ),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 15, color: AppColors.secondaryText),
           ),
@@ -924,7 +1101,10 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
     }
     if (entries.isEmpty) {
       return Center(
-        child: Text(tr('Рейтинг пока пуст'), style: TextStyle(color: AppColors.secondaryText)),
+        child: Text(
+          tr('Рейтинг пока пуст'),
+          style: TextStyle(color: AppColors.secondaryText),
+        ),
       );
     }
     return ListView(
@@ -933,7 +1113,12 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
         LeaderboardPodium(entries: entries, onEditMyStatus: _editStatus),
         const SizedBox(height: 16),
         for (final entry in entries.skip(LeaderboardPodium.placeCount))
-          LeaderboardRow(entry: entry, accentColor: AppColors.primary, showRank: true, onEditMyStatus: _editStatus),
+          LeaderboardRow(
+            entry: entry,
+            accentColor: AppColors.primary,
+            showRank: true,
+            onEditMyStatus: _editStatus,
+          ),
         if (widget.friends) const SizedBox(height: 72),
       ],
     );

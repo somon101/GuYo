@@ -43,6 +43,7 @@ import { RatingPage } from "./pages/RatingPage";
 import { SeasonPassPage } from "./pages/SeasonPassPage";
 import { ReviewPage } from "./pages/ReviewPage";
 import { AiToolsPage } from "./pages/AiToolsPage";
+import { EconomyPage } from "./pages/EconomyPage";
 
 // HashRouter is used deliberately: GitHub Pages serves static files with no
 // server-side rewrites, so a BrowserRouter route like /dictionaries/3 would
@@ -459,6 +460,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/economy" element={<ProtectedRoute><Layout><EconomyPage /></Layout></ProtectedRoute>} />
           <Route
             path="/rating"
             element={

@@ -1,4 +1,5 @@
-from datetime import timedelta
+import re
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
@@ -11,6 +12,7 @@ from app.core.content_language import reading_language
 from app.achievements.conditions import streak_with_freezes
 from app.achievements import CONDITION_TYPES, grant_all_due_achievements, lessons_completed_count, streak_days_count, words_learned_count
 from app.core.dates import dushanbe_today, utc_now
+from app.core.dates import DUSHANBE_TZ, dushanbe_day_start
 from app.core.deps import get_current_admin, get_current_user, require_current_app
 from app.core.public_id import generate_public_id
 from app.core.security import hash_password
@@ -20,6 +22,8 @@ from app.models.achievement import VISIBILITY_HIDDEN, Achievement, UserAchieveme
 from app.models.admin import Admin
 from app.models.rating import SeasonHistory
 from app.models.user import User
+from app.models.lesson import Lesson
+from app.models.word_progress import WordProgress
 from app.premium import effective_premium_until
 from app.rating import (
     current_rank_for_points,
@@ -297,6 +301,87 @@ def get_my_streak(db: Session = Depends(get_db), user: User = Depends(get_curren
         "frozen_dates": [d.isoformat() for d in frozen if d >= since],
         # Streak freezes in stock (spent by themselves when a gap would break the streak).
         "freezes": user.streak_freezes or 0,
+        "merged_days": user.streak_merge_days or 0,
+        "streak_merge_items": user.streak_merge_items or 0,
+    }
+
+
+@router.get("/me/streak/history")
+def get_streak_history(
+    month: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """A month of the permanent activity calendar, including the day's
+    learned-word and completed-lesson progress. Dates use Dushanbe time."""
+    if not re.fullmatch(r"\d{4}-\d{2}", month):
+        raise HTTPException(status_code=422, detail="Месяц должен быть в формате YYYY-MM")
+    try:
+        first = date.fromisoformat(f"{month}-01")
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Некорректный месяц") from None
+    next_first = date(first.year + (first.month == 12), 1 if first.month == 12 else first.month + 1, 1)
+    last = date.fromordinal(next_first.toordinal() - 1)
+    today = dushanbe_today()
+
+    active = {
+        row[0] for row in db.query(UserActivityDay.activity_date).filter(
+            UserActivityDay.user_id == user.id,
+            UserActivityDay.activity_date >= first,
+            UserActivityDay.activity_date <= last,
+        )
+    }
+    frozen = {
+        row[0] for row in db.query(UserStreakFreeze.covered_date).filter(
+            UserStreakFreeze.user_id == user.id,
+            UserStreakFreeze.covered_date >= first,
+            UserStreakFreeze.covered_date <= last,
+        )
+    }
+    # Include the automatically forgiven days in the currently connected run
+    # as frozen markers on the calendar; they remain absent from activity rows.
+    _, currently_forgiven = streak_with_freezes(db, user)
+    frozen.update(currently_forgiven)
+    start_at, end_at = dushanbe_day_start(first), dushanbe_day_start(next_first)
+    words: dict[date, int] = {}
+    for (at,) in db.query(WordProgress.mastered_at).filter(
+        WordProgress.user_id == user.id,
+        WordProgress.mastered_at >= start_at,
+        WordProgress.mastered_at < end_at,
+        WordProgress.mastered_at.is_not(None),
+    ):
+        day = at.astimezone(DUSHANBE_TZ).date()
+        words[day] = words.get(day, 0) + 1
+    lessons: dict[date, int] = {}
+    for (at,) in db.query(Lesson.completed_at).filter(
+        Lesson.user_id == user.id,
+        Lesson.completed_by_pass.is_(True),
+        Lesson.completed_at >= start_at,
+        Lesson.completed_at < end_at,
+        Lesson.completed_at.is_not(None),
+    ):
+        day = at.astimezone(DUSHANBE_TZ).date()
+        lessons[day] = lessons.get(day, 0) + 1
+
+    days = []
+    active_total = freeze_total = missed_total = 0
+    for offset in range((last - first).days + 1):
+        day = first + timedelta(days=offset)
+        state = "active" if day in active else "frozen" if day in frozen else "future" if day > today else "today" if day == today else "missed"
+        active_total += state == "active"
+        freeze_total += state == "frozen"
+        missed_total += state == "missed"
+        days.append({"date": day.isoformat(), "state": state, "words_learned": words.get(day, 0), "lessons_completed": lessons.get(day, 0)})
+    current, _ = streak_with_freezes(db, user)
+    return {
+        "month": month,
+        "current_streak_days": current,
+        "merged_days": user.streak_merge_days or 0,
+        "streak_merge_items": user.streak_merge_items or 0,
+        "active_days": active_total,
+        "frozen_days": freeze_total,
+        "missed_days": missed_total,
+        "days": days,
     }
 
 

@@ -16,4 +16,4 @@ const String apiBaseUrl = String.fromEnvironment(
 /// pubspec.yaml (keep them equal when releasing). Sent with every request
 /// as X-App-Build, so the server can ask outdated apps to update (its
 /// MIN_APP_BUILD setting).
-const int appBuild = 2;
+const int appBuild = 4;

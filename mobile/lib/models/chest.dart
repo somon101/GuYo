@@ -2,7 +2,7 @@
 class ChestState {
   final bool enabled;
   final bool available;
-  final String? kind; // xp | freeze (once opened)
+  final String? kind; // diamonds | freeze (once opened)
   final int amount;
 
   const ChestState({required this.enabled, required this.available, this.kind, this.amount = 0});

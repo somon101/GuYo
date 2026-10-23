@@ -45,6 +45,17 @@ def record_activity(db: Session, user: User) -> bool:
     db.add(UserActivityDay(user_id=user.id, activity_date=today))
     db.flush()  # this session's autoflush is off -- streak_days_count below must see today's own row
     apply_freezes(db, user, today)
+    if previous is not None:
+        from app.achievements.conditions import streak_with_freezes
+
+        raw_streak, _ = streak_with_freezes(db, user, include_merged=False)
+        if raw_streak <= 1 and (user.streak_merge_days or 0) > 0:
+            # The new active day did not connect to the old chain. The
+            # lifetime calendar stays intact; only the active merged streak
+            # is lost, just like an ordinary streak.
+            user.streak_merge_days = 0
+            user.streak_merge_cursor = None
+            db.flush()
     check_and_grant_achievements(db, user, "streak_days")
 
     from app.seasonpass import award_xp  # season XP: a lit streak day

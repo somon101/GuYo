@@ -40,9 +40,13 @@ class _DailyGoalCardState extends State<DailyGoalCard> {
     if (goal.justCompleted) {
       await showRewardDialog(
         context,
-        style: const RewardStyle([Color(0xFFFFD54F), Color(0xFFFF9800)], Icons.local_fire_department_rounded, ''),
+        style: const RewardStyle(
+          [Color(0xFFFFD54F), Color(0xFFFF9800)],
+          Icons.local_fire_department_rounded,
+          '',
+        ),
         title: tr('Цель дня выполнена!'),
-        text: goal.xp > 0 ? '+${goal.xp} XP' : tr('Так держать!'),
+        text: goal.xp > 0 ? '+${goal.xp} ⚡' : tr('Так держать!'),
       );
     }
   }
@@ -59,13 +63,25 @@ class _DailyGoalCardState extends State<DailyGoalCard> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 6),
-              child: Text(tr('Сколько слов в день?'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+              child: Text(
+                tr('Сколько слов в день?'),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryDark,
+                ),
+              ),
             ),
             for (final n in goal.options)
               ListTile(
                 key: ValueKey('daily-goal-$n'),
-                title: Text(tr('{0} слов', [n]), style: const TextStyle(fontWeight: FontWeight.w700)),
-                trailing: n == goal.goal ? Icon(Icons.check_circle_rounded, color: AppColors.primary) : null,
+                title: Text(
+                  tr('{0} слов', [n]),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                trailing: n == goal.goal
+                    ? Icon(Icons.check_circle_rounded, color: AppColors.primary)
+                    : null,
                 onTap: () => Navigator.of(ctx).pop(n),
               ),
           ],
@@ -81,7 +97,10 @@ class _DailyGoalCardState extends State<DailyGoalCard> {
   Widget build(BuildContext context) {
     final goal = _goal;
     if (goal == null) return const SizedBox.shrink();
-    return Padding(padding: const EdgeInsets.only(top: 14), child: DailyGoalCardView(goal: goal, onTap: _pick));
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: DailyGoalCardView(goal: goal, onTap: _pick),
+    );
   }
 }
 
@@ -92,7 +111,9 @@ class DailyGoalCardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final value = goal.goal == 0 ? 1.0 : (goal.done / goal.goal).clamp(0.0, 1.0);
+    final value = goal.goal == 0
+        ? 1.0
+        : (goal.done / goal.goal).clamp(0.0, 1.0);
     final done = goal.completed;
     return Material(
       color: Colors.transparent,
@@ -104,7 +125,10 @@ class DailyGoalCardView extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: done ? AppColors.success : AppColors.violetSurface, width: 1.5),
+            border: Border.all(
+              color: done ? AppColors.success : AppColors.violetSurface,
+              width: 1.5,
+            ),
           ),
           child: Row(
             children: [
@@ -123,8 +147,13 @@ class DailyGoalCardView extends StatelessWidget {
                         color: done ? AppColors.success : AppColors.primary,
                       ),
                     ),
-                    Icon(done ? Icons.check_rounded : Icons.local_fire_department_rounded,
-                        color: done ? AppColors.success : AppColors.primary, size: 26),
+                    Icon(
+                      done
+                          ? Icons.check_rounded
+                          : Icons.local_fire_department_rounded,
+                      color: done ? AppColors.success : AppColors.primary,
+                      size: 26,
+                    ),
                   ],
                 ),
               ),
@@ -133,11 +162,23 @@ class DailyGoalCardView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(tr('Цель дня'), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.primaryDark)),
+                    Text(
+                      tr('Цель дня'),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.primaryDark,
+                      ),
+                    ),
                     const SizedBox(height: 2),
                     Text(
-                      done ? tr('Выполнена! Можно заниматься дальше') : tr('{0} из {1} слов', [goal.done, goal.goal]),
-                      style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                      done
+                          ? tr('Выполнена! Можно заниматься дальше')
+                          : tr('{0} из {1} слов', [goal.done, goal.goal]),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.secondaryText,
+                      ),
                     ),
                   ],
                 ),

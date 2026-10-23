@@ -123,3 +123,4 @@ from app.models.chest import DailyChest  # noqa: F401
 from app.models.season_pass import PassClaim, PassSettings, PassTemplate, PassXpEvent, SeasonPass, UserCosmetic  # noqa: F401
 # «Повторить сегодня»: зафиксированные списки (app/memory/review_lists.py).
 from app.models.review_list import ReviewList, ReviewListWord
+from app.models.economy import DiamondTransaction, GiftDefinition, GiftOpen, ShopProduct  # noqa: F401

@@ -32,7 +32,7 @@ import type { Season } from "../types";
 const inputClass = "field px-2 py-1.5 text-sm";
 
 const REWARD_LABELS: Record<string, string> = {
-  rating_points: "Очки рейтинга",
+  rating_points: "Звёзды рейтинга",
   premium_days: "Дни Premium",
   streak_freeze: "Заморозка серии",
   badge: "Значок",
@@ -76,15 +76,15 @@ function errorText(e: unknown, fallback: string): string {
   return fallback;
 }
 
-/** «Пропуск сезона»: how much XP each action gives, the level ladders (templates,
+/** «Пропуск сезона»: how much energy each action gives, the level ladders (templates,
  * any number, one is the default) and the copy each season carries. */
 export function SeasonPassPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <h1 className="mb-1 text-[26px] font-bold tracking-tight text-slate-900">Пропуск сезона</h1>
       <p className="mb-6 text-sm text-slate-500">
-        За занятия человек получает опыт (XP) и открывает уровни: на каждом свои награды, бесплатная и для Premium.
-        Каждую неделю есть задания на бонусный XP. Сезоны идут по календарным месяцам и создаются сами; у каждого
+        За занятия человек получает энергию и открывает уровни: на каждом свои награды, бесплатная и для Premium.
+        Каждую неделю есть задания на бонусную энергию. Сезоны идут по календарным месяцам и создаются сами; у каждого
         своя копия шаблона, поэтому правка шаблона не меняет идущий сезон.
       </p>
       <EconomySection />
@@ -105,7 +105,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-// --- XP ----------------------------------------------------------------------
+// --- Season energy -----------------------------------------------------------
 
 function SettingsSection() {
   const [s, setS] = useState<PassSettings | null>(null);
@@ -117,7 +117,7 @@ function SettingsSection() {
       .catch(() => setMessage("Не удалось загрузить"));
   }, []);
 
-  if (!s) return <Section title="Опыт (XP)">{message && <p className="text-sm text-red-600">{message}</p>}</Section>;
+  if (!s) return <Section title="Энергия сезона">{message && <p className="text-sm text-red-600">{message}</p>}</Section>;
 
   const fields: { key: keyof PassSettings; label: string }[] = [
     { key: "xp_word", label: "За изученное слово" },
@@ -128,8 +128,6 @@ function SettingsSection() {
     { key: "xp_daily_goal", label: "За цель дня" },
     { key: "xp_comeback", label: "За возвращение (после 3+ дней)" },
     { key: "xp_duel_win", label: "За победу в дуэли" },
-    { key: "chest_xp_min", label: "Сундук дня: XP от" },
-    { key: "chest_xp_max", label: "Сундук дня: XP до" },
     { key: "chest_freeze_chance", label: "Сундук дня: шанс заморозки, %" },
     { key: "freeze_cap", label: "Больше заморозок серии у человека не бывает" },
     { key: "team_size", label: "Больше людей в одной команде не бывает" },
@@ -147,7 +145,7 @@ function SettingsSection() {
   }
 
   return (
-    <Section title="Опыт (XP)">
+    <Section title="Энергия сезона">
       <div className="card flex flex-col gap-3 p-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {fields.map((f) => (
@@ -308,7 +306,7 @@ function DefinitionEditor({
             <thead className="text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-1 py-1 font-medium">№</th>
-                <th className="px-1 py-1 font-medium">XP на уровень</th>
+                <th className="px-1 py-1 font-medium">Энергия на уровень</th>
                 <th className="px-1 py-1 font-medium">Бесплатная награда</th>
                 <th className="px-1 py-1 font-medium">Награда Premium</th>
                 <th />
@@ -476,7 +474,7 @@ function TeamGoalRow({
         <input type="number" min={1} className={`${inputClass} w-16`} value={goal.target_per_member} onChange={(e) => onChange({ ...goal, target_per_member: Math.max(1, Number(e.target.value) || 1) })} />
       </label>
       <label className="flex items-center gap-1 text-slate-600">
-        XP каждому
+        Энергия каждому
         <input type="number" min={0} className={`${inputClass} w-16`} value={goal.xp} onChange={(e) => onChange({ ...goal, xp: Math.max(0, Number(e.target.value) || 0) })} />
       </label>
       <div className="flex items-center gap-1 text-slate-600">
@@ -528,18 +526,18 @@ function EconomySection() {
       ) : (
         <div className="flex flex-col gap-4">
           <p className="text-sm text-slate-500">
-            {data.season_name}: {data.players} игроков, {data.total_xp} XP всего, в среднем {data.avg_xp} XP на человека
+            {data.season_name}: {data.players} игроков, {data.total_xp} энергии всего, в среднем {data.avg_xp} энергии на человека
             ({data.avg_xp_per_day} в день). Команд: {data.teams}, людей в них: {data.team_members}.
           </p>
           <div>
-            <h3 className="mb-1 text-sm font-semibold text-slate-700">Откуда берётся XP</h3>
+            <h3 className="mb-1 text-sm font-semibold text-slate-700">Откуда берётся энергия</h3>
             {data.xp_by_source.map((x) => (
               <div key={x.source} className="mb-1 flex items-center gap-2 text-xs text-slate-600">
                 <span className="w-28">{SOURCE_LABEL[x.source] ?? x.source}</span>
                 <div className="h-3 flex-1 rounded bg-slate-100">
                   <div className="h-3 rounded bg-indigo-500" style={{ width: `${(x.xp / maxXp) * 100}%` }} />
                 </div>
-                <span className="w-24 text-right">{x.xp} XP · {x.events}</span>
+                <span className="w-24 text-right">⚡ {x.xp} · {x.events}</span>
               </div>
             ))}
           </div>

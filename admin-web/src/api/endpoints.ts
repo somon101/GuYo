@@ -2835,3 +2835,59 @@ export async function ensureMonthlySeasons(): Promise<{ created: number }> {
   const { data } = await api.post("/admin/season-pass/ensure-seasons");
   return data;
 }
+
+// --- Virtual diamonds, gifts, and the shop ----------------------------------
+
+export interface ShopProductAdmin {
+  id: number;
+  sku: string;
+  name: string;
+  description: string;
+  item_type: "streak_freeze" | "streak_merge";
+  quantity: number;
+  price_diamonds: number;
+  icon_key: string;
+  enabled: boolean;
+  sort_order: number;
+}
+
+export interface GiftAdmin {
+  id: number;
+  key: string;
+  name: string;
+  description: string;
+  icon_key: string;
+  reward_min: number;
+  reward_max: number;
+  cooldown_days: number;
+  requires_activity: boolean;
+  enabled: boolean;
+  sort_order: number;
+}
+
+export async function listShopProducts(): Promise<ShopProductAdmin[]> {
+  const { data } = await api.get("/admin/economy/products");
+  return data;
+}
+export async function saveShopProduct(value: Omit<ShopProductAdmin, "id">, id?: number): Promise<ShopProductAdmin> {
+  const { data } = id
+    ? await api.put(`/admin/economy/products/${id}`, value)
+    : await api.post("/admin/economy/products", value);
+  return data;
+}
+export async function disableShopProduct(id: number): Promise<void> {
+  await api.delete(`/admin/economy/products/${id}`);
+}
+export async function listGiftDefinitions(): Promise<GiftAdmin[]> {
+  const { data } = await api.get("/admin/economy/gifts");
+  return data;
+}
+export async function saveGiftDefinition(value: Omit<GiftAdmin, "id">, id?: number): Promise<GiftAdmin> {
+  const { data } = id
+    ? await api.put(`/admin/economy/gifts/${id}`, value)
+    : await api.post("/admin/economy/gifts", value);
+  return data;
+}
+export async function disableGiftDefinition(id: number): Promise<void> {
+  await api.delete(`/admin/economy/gifts/${id}`);
+}

@@ -28,7 +28,7 @@ String _titleText(SeasonTitle t) {
 
 /// What goes into the share sheet.
 String summaryShareText(SeasonSummary s) => tr(
-  'Мой сезон «{0}» в GuYo: уровень {1}, {2} XP, выучено слов: {3}, дней занятий: {4}.',
+  'Мой сезон «{0}» в GuYo: уровень {1}, {2} энергии, выучено слов: {3}, дней занятий: {4}.',
   [summarySeasonName(s), s.level, s.xp, s.wordsLearned, s.activeDays],
 );
 
@@ -164,7 +164,7 @@ class _SeasonSummaryScreenState extends State<SeasonSummaryScreen> {
                               value: s.rankName ?? '—',
                               label: s.seasonPoints == null
                                   ? tr('ранг')
-                                  : tr('ранг, {0} очков', [s.seasonPoints!]),
+                                  : tr('ранг, {0} звёзд', [s.seasonPoints!]),
                             ),
                           ],
                         ),
@@ -280,7 +280,7 @@ class _SummaryHero extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${summary.xp} XP',
+                  '⚡ ${summary.xp} ${tr('энергии')}',
                   style: const TextStyle(
                     fontSize: 32,
                     height: 1.1,

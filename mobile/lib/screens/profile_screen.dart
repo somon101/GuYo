@@ -1,11 +1,13 @@
 import '../services/streak_state.dart';
 import '../l10n/l10n.dart';
+
 import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+
 import '../api/api_client.dart';
 import '../services/session_cache.dart';
 import '../models/dictionary.dart';
@@ -68,7 +70,6 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => ProfileScreenState();
 }
 
-
 class ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   String? _loadError;
@@ -91,6 +92,7 @@ class ProfileScreenState extends State<ProfileScreen> {
     final saved = await showStatusPicker(context);
     if (saved != null && mounted) setState(() => _myStatus = saved);
   }
+
   bool _isUpdatingAvatar = false;
   // The just-picked photo's raw bytes, shown immediately via Image.memory
   // while the upload is still in flight -- the user sees THEIR photo the
@@ -105,11 +107,16 @@ class ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    var cached = SessionCache.get<(UserProfile, List<UserAchievement>, UserRating)>(_cacheKey);
+    var cached =
+        SessionCache.get<(UserProfile, List<UserAchievement>, UserRating)>(
+          _cacheKey,
+        );
     if (cached == null) {
       // Last launch's data, kept on the device.
       final api = ApiClient.instance;
-      final profile = api.cachedMyProfile(), achievements = api.cachedMyAchievements(), rating = api.cachedMyRating();
+      final profile = api.cachedMyProfile(),
+          achievements = api.cachedMyAchievements(),
+          rating = api.cachedMyRating();
       if (profile != null && achievements != null && rating != null) {
         cached = (profile, achievements, rating);
         SessionCache.put(_cacheKey, cached);
@@ -163,7 +170,11 @@ class ProfileScreenState extends State<ProfileScreen> {
     final picker = ImagePicker();
     final XFile? picked;
     try {
-      picked = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, imageQuality: 85);
+      picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        imageQuality: 85,
+      );
     } catch (e) {
       _showSnack(tr('Не удалось открыть галерею: {0}', [e]));
       return null;
@@ -214,7 +225,11 @@ class ProfileScreenState extends State<ProfileScreen> {
     // there is no window at all where the screen shows nothing new.
     setState(() => _pendingAvatarBytes = bytes);
     try {
-      final profile = await ApiClient.instance.uploadMyAvatar(bytes, picked.name, mimeType: picked.mimeType);
+      final profile = await ApiClient.instance.uploadMyAvatar(
+        bytes,
+        picked.name,
+        mimeType: picked.mimeType,
+      );
       if (!mounted) return null;
       setState(() {
         _profile = profile;
@@ -272,26 +287,31 @@ class ProfileScreenState extends State<ProfileScreen> {
   /// second copy of it.
   Future<void> _openLearnedWords() async {
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => LearnedWordsScreen(dictionary: widget.dictionary)),
+      MaterialPageRoute(
+        builder: (_) => LearnedWordsScreen(dictionary: widget.dictionary),
+      ),
     );
   }
 
   Future<void> _openAchievements() async {
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => AchievementsScreen(achievements: _achievements)),
+      MaterialPageRoute(
+        builder: (_) => AchievementsScreen(achievements: _achievements),
+      ),
     );
   }
 
   Future<void> _openMyProgress() async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyProgressScreen()));
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const MyProgressScreen()));
   }
 
   Future<void> _openRanks() async {
     final rating = _rating;
     if (rating == null) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => AllRanksScreen(rating: rating)),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => AllRanksScreen(rating: rating)));
   }
 
   /// The gear button opens the "Настройки" screen -- login, photo, name,
@@ -318,10 +338,7 @@ class ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: _buildBody(),
-    );
+    return RefreshIndicator(onRefresh: _load, child: _buildBody());
   }
 
   Widget _buildBody() {
@@ -415,17 +432,31 @@ class ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(height: 16),
         if (rating != null) _RankCard(rating: rating, onTap: _openRanks),
         const SizedBox(height: 16),
-        _AchievementsCard(achievements: _achievements, onTap: _openAchievements),
+        _AchievementsCard(
+          achievements: _achievements,
+          onTap: _openAchievements,
+        ),
         const SizedBox(height: 16),
         Material(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(20),
           child: ListTile(
             key: const ValueKey('profile-my-progress'),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
             leading: Icon(Icons.show_chart_rounded, color: AppColors.primary),
-            title: Text(tr('Мой путь'), style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
-            subtitle: Text(tr('Слов по неделям'), style: TextStyle(color: AppColors.secondaryText)),
+            title: Text(
+              tr('Мой путь'),
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: AppColors.primaryDark,
+              ),
+            ),
+            subtitle: Text(
+              tr('Слов по неделям'),
+              style: TextStyle(color: AppColors.secondaryText),
+            ),
             trailing: Icon(Icons.chevron_right, color: AppColors.muted),
             onTap: _openMyProgress,
           ),
@@ -500,7 +531,8 @@ class _ProfileHeader extends StatelessWidget {
   /// and blowing that up full screen would be a tap leading nowhere worth
   /// going, so the avatar simply isn't tappable then.
   bool get _hasPhoto =>
-      pendingAvatarBytes != null || (profile.avatarUrl != null && profile.avatarUrl!.isNotEmpty);
+      pendingAvatarBytes != null ||
+      (profile.avatarUrl != null && profile.avatarUrl!.isNotEmpty);
 
   void _openViewer(BuildContext context) {
     Navigator.of(context).push(
@@ -530,7 +562,11 @@ class _ProfileHeader extends StatelessWidget {
         shape: BoxShape.circle,
         color: AppColors.surface,
         boxShadow: [
-          BoxShadow(color: AppColors.primary.withValues(alpha: 0.12), blurRadius: 16, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.12),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Stack(
@@ -556,14 +592,22 @@ class _ProfileHeader extends StatelessWidget {
                       cacheWidth: cacheSize,
                     ),
                   )
-                : UserAvatar(avatarUrl: profile.avatarUrl, login: profile.login, size: size, frame: profile.frame),
+                : UserAvatar(
+                    avatarUrl: profile.avatarUrl,
+                    login: profile.login,
+                    size: size,
+                    frame: profile.frame,
+                  ),
           ),
           if (isUpdatingAvatar)
             SkeletonPulse(
               child: Container(
                 width: size,
                 height: size,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.55)),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.55),
+                ),
               ),
             ),
         ],
@@ -593,7 +637,11 @@ class _ProfileHeader extends StatelessWidget {
                       color: AppColors.primary,
                       border: Border.all(color: AppColors.surface, width: 2),
                     ),
-                    child: const Icon(Icons.photo_camera_rounded, size: 15, color: Colors.white),
+                    child: const Icon(
+                      Icons.photo_camera_rounded,
+                      size: 15,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ],
@@ -609,18 +657,34 @@ class _ProfileHeader extends StatelessWidget {
                 profile.login,
                 isPremium: profile.isPremium,
                 badge: profile.badge,
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryDark,
+                ),
               ),
               if (profile.title != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 3, bottom: 1),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      gradient: const LinearGradient(colors: [Color(0xFF6EE7B7), Color(0xFF0E9F6E)]),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF6EE7B7), Color(0xFF0E9F6E)],
+                      ),
                     ),
-                    child: Text(profile.title!, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.white)),
+                    child: Text(
+                      profile.title!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
               const SizedBox(height: 2),
@@ -642,10 +706,17 @@ class _ProfileHeader extends StatelessWidget {
                     children: [
                       Text(
                         'ID: ${profile.publicId}',
-                        style: TextStyle(fontSize: 14, color: AppColors.secondaryText),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.secondaryText,
+                        ),
                       ),
                       const SizedBox(width: 5),
-                      Icon(Icons.copy_rounded, size: 14, color: AppColors.secondaryText),
+                      Icon(
+                        Icons.copy_rounded,
+                        size: 14,
+                        color: AppColors.secondaryText,
+                      ),
                     ],
                   ),
                 ),
@@ -666,7 +737,8 @@ class _ProfileHeader extends StatelessWidget {
           label: tr('Статистика'),
           child: GestureDetector(
             key: const ValueKey('profile-stats'),
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const StatsScreen())),
+            onTap: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const StatsScreen())),
             child: Container(
               width: 46,
               height: 46,
@@ -675,7 +747,11 @@ class _ProfileHeader extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: AppColors.cardBorder),
               ),
-              child: Icon(Icons.insights_rounded, color: AppColors.primary, size: 22),
+              child: Icon(
+                Icons.insights_rounded,
+                color: AppColors.primary,
+                size: 22,
+              ),
             ),
           ),
         ),
@@ -695,7 +771,11 @@ class _ProfileHeader extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: AppColors.cardBorder),
               ),
-              child: Icon(Icons.qr_code_rounded, color: AppColors.primary, size: 22),
+              child: Icon(
+                Icons.qr_code_rounded,
+                color: AppColors.primary,
+                size: 22,
+              ),
             ),
           ),
         ),
@@ -707,7 +787,12 @@ class _ProfileHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        StatusNote(text: text, emojiUrl: statusEmojiUrl, maxWidth: 150, onTap: onEditStatus),
+        StatusNote(
+          text: text,
+          emojiUrl: statusEmojiUrl,
+          maxWidth: 150,
+          onTap: onEditStatus,
+        ),
         const SizedBox(height: 2),
         header,
       ],
@@ -740,12 +825,21 @@ class _AvatarViewer extends StatelessWidget {
     // convention the exercise screens already use for their own hooks.
     const photoKey = ValueKey('profile-photo-full');
     final Widget photo = bytes != null
-        ? Image.memory(bytes, key: photoKey, fit: BoxFit.contain, gaplessPlayback: true)
+        ? Image.memory(
+            bytes,
+            key: photoKey,
+            fit: BoxFit.contain,
+            gaplessPlayback: true,
+          )
         : RemoteImage(
             key: photoKey,
             url: url ?? '',
             fit: BoxFit.contain,
-            fallbackBuilder: () => const Icon(Icons.person_rounded, size: 96, color: Colors.white54),
+            fallbackBuilder: () => const Icon(
+              Icons.person_rounded,
+              size: 96,
+              color: Colors.white54,
+            ),
           );
 
     return Scaffold(
@@ -758,17 +852,18 @@ class _AvatarViewer extends StatelessWidget {
           child: Stack(
             children: [
               Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: photo,
-                ),
+                child: Padding(padding: const EdgeInsets.all(16), child: photo),
               ),
               Positioned(
                 top: 4,
                 right: 4,
                 child: IconButton(
                   tooltip: tr('Закрыть'),
-                  icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
                   onPressed: () => Navigator.of(context).maybePop(),
                 ),
               ),
@@ -829,7 +924,11 @@ class _StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.cardBorder),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 12, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Row(
@@ -839,7 +938,10 @@ class _StatCard extends StatelessWidget {
               Container(
                 width: 30,
                 height: 30,
-                decoration: BoxDecoration(color: iconBackground, shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                  color: iconBackground,
+                  shape: BoxShape.circle,
+                ),
                 child: Icon(icon, color: iconColor, size: 17),
               ),
           const SizedBox(width: 8),
@@ -856,7 +958,11 @@ class _StatCard extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     label,
-                    style: TextStyle(fontSize: 11, color: AppColors.secondaryText, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.secondaryText,
+                      fontWeight: FontWeight.w600,
+                    ),
                     maxLines: 1,
                   ),
                 ),
@@ -865,7 +971,11 @@ class _StatCard extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     value,
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primaryDark,
+                    ),
                     maxLines: 1,
                   ),
                 ),
@@ -875,7 +985,11 @@ class _StatCard extends StatelessWidget {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       note!,
-                      style: TextStyle(fontSize: 10.5, color: AppColors.secondaryText, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: AppColors.secondaryText,
+                        fontWeight: FontWeight.w600,
+                      ),
                       maxLines: 1,
                     ),
                   ),
@@ -907,7 +1021,10 @@ class _RankCard extends StatelessWidget {
     if (rank != null && nextRank != null) {
       final span = nextRank.minPoints - rank.minPoints;
       if (span > 0) {
-        progress = ((rating.totalPoints - rank.minPoints) / span).clamp(0.0, 1.0);
+        progress = ((rating.totalPoints - rank.minPoints) / span).clamp(
+          0.0,
+          1.0,
+        );
       }
     }
 
@@ -923,7 +1040,11 @@ class _RankCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(22),
             border: Border.all(color: AppColors.cardBorder),
             boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.035), blurRadius: 14, offset: const Offset(0, 5)),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.035),
+                blurRadius: 14,
+                offset: const Offset(0, 5),
+              ),
             ],
           ),
           child: Column(
@@ -938,7 +1059,11 @@ class _RankCard extends StatelessWidget {
                       children: [
                         Text(
                           rank?.name ?? tr('Без ранга'),
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primaryDark,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
@@ -947,24 +1072,37 @@ class _RankCard extends StatelessWidget {
                             Flexible(
                               child: Text(
                                 _positionLabel(rating),
-                                style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.secondaryText,
+                                ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             if ((rating.positionChange ?? 0) != 0) ...[
                               const SizedBox(width: 6),
-                              PositionChangeBadge(change: rating.positionChange),
+                              PositionChangeBadge(
+                                change: rating.positionChange,
+                              ),
                             ],
                           ],
                         ),
                         const SizedBox(height: 6),
                         Row(
                           children: [
-                            Icon(Icons.workspace_premium_rounded, size: 16, color: color),
+                            Icon(
+                              Icons.workspace_premium_rounded,
+                              size: 16,
+                              color: color,
+                            ),
                             const SizedBox(width: 5),
                             Text(
-                              tr('{0} очков', [rating.totalPoints]),
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+                              '⭐ ${rating.totalPoints}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primaryDark,
+                              ),
                             ),
                           ],
                         ),
@@ -990,12 +1128,19 @@ class _RankCard extends StatelessWidget {
                   children: [
                     Text(
                       tr('До следующего уровня'),
-                      style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.secondaryText,
+                      ),
                     ),
                     const Spacer(),
                     Text(
                       '${rating.totalPoints} / ${nextRank.minPoints}',
-                      style: TextStyle(fontSize: 12, color: AppColors.secondaryText, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.secondaryText,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),
@@ -1048,7 +1193,11 @@ class _AchievementsCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(22),
             border: Border.all(color: AppColors.cardBorder),
             boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.035), blurRadius: 14, offset: const Offset(0, 5)),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.035),
+                blurRadius: 14,
+                offset: const Offset(0, 5),
+              ),
             ],
           ),
           child: Column(
@@ -1058,13 +1207,21 @@ class _AchievementsCard extends StatelessWidget {
                 children: [
                   Text(
                     tr('Достижения'),
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primaryDark,
+                    ),
                   ),
                   const Spacer(),
                   if (achievements.isNotEmpty)
                     Text(
                       '$earnedCount / ${achievements.length}',
-                      style: TextStyle(fontSize: 13, color: AppColors.secondaryText, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.secondaryText,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   const SizedBox(width: 2),
                   Icon(Icons.chevron_right, color: AppColors.muted, size: 22),
@@ -1073,14 +1230,21 @@ class _AchievementsCard extends StatelessWidget {
               if (achievements.isEmpty)
                 Padding(
                   padding: EdgeInsets.only(top: 10),
-                  child: Text(tr('Пока нет доступных достижений'), style: TextStyle(color: AppColors.secondaryText)),
+                  child: Text(
+                    tr('Пока нет доступных достижений'),
+                    style: TextStyle(color: AppColors.secondaryText),
+                  ),
                 )
               else ...[
                 const SizedBox(height: 14),
                 Row(
                   children: [
                     for (final achievement in shown) ...[
-                      AchievementIcon(achievement: achievement, dimmed: !achievement.earned, size: 44),
+                      AchievementIcon(
+                        achievement: achievement,
+                        dimmed: !achievement.earned,
+                        size: 44,
+                      ),
                       if (achievement != shown.last) const Spacer(),
                     ],
                   ],
@@ -1094,8 +1258,6 @@ class _AchievementsCard extends StatelessWidget {
   }
 }
 
-
-
 /// The avatar's action sheet: a floating, iOS-style card of compact rows
 /// plus a separate "Отмена" -- instead of a full-width Material list.
 class _PhotoActionSheet extends StatelessWidget {
@@ -1104,7 +1266,12 @@ class _PhotoActionSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget row(String value, IconData icon, String label, {bool danger = false}) {
+    Widget row(
+      String value,
+      IconData icon,
+      String label, {
+      bool danger = false,
+    }) {
       final color = danger ? AppColors.danger : AppColors.primaryDark;
       return InkWell(
         key: ValueKey('photo-action-$value'),
@@ -1117,21 +1284,41 @@ class _PhotoActionSheet extends StatelessWidget {
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: (danger ? AppColors.danger : AppColors.primary).withValues(alpha: 0.1),
+                  color: (danger ? AppColors.danger : AppColors.primary)
+                      .withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, size: 19, color: danger ? AppColors.danger : AppColors.primary),
+                child: Icon(
+                  icon,
+                  size: 19,
+                  color: danger ? AppColors.danger : AppColors.primary,
+                ),
               ),
               const SizedBox(width: 14),
-              Text(label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: color)),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
             ],
           ),
         ),
       );
     }
 
-    final divider = Divider(height: 0.6, thickness: 0.6, indent: 64, color: AppColors.separator);
-    BoxDecoration card() => BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(18));
+    final divider = Divider(
+      height: 0.6,
+      thickness: 0.6,
+      indent: 64,
+      color: AppColors.separator,
+    );
+    BoxDecoration card() => BoxDecoration(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(18),
+    );
 
     return SafeArea(
       child: Padding(
@@ -1144,9 +1331,24 @@ class _PhotoActionSheet extends StatelessWidget {
               decoration: card(),
               child: Column(
                 children: [
-                  if (hasPhoto) ...[row('view', Icons.visibility_outlined, tr('Посмотреть')), divider],
-                  row('change', Icons.photo_camera_outlined, tr('Изменить фото')),
-                  if (hasPhoto) ...[divider, row('remove', Icons.delete_outline_rounded, tr('Удалить фото'), danger: true)],
+                  if (hasPhoto) ...[
+                    row('view', Icons.visibility_outlined, tr('Посмотреть')),
+                    divider,
+                  ],
+                  row(
+                    'change',
+                    Icons.photo_camera_outlined,
+                    tr('Изменить фото'),
+                  ),
+                  if (hasPhoto) ...[
+                    divider,
+                    row(
+                      'remove',
+                      Icons.delete_outline_rounded,
+                      tr('Удалить фото'),
+                      danger: true,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1162,7 +1364,11 @@ class _PhotoActionSheet extends StatelessWidget {
                   child: Center(
                     child: Text(
                       tr('Отмена'),
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                 ),

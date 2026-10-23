@@ -32,7 +32,8 @@ class _SeasonPassCardState extends State<SeasonPassCard> {
   }
 
   Future<void> _open() async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SeasonPassScreen()));
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const SeasonPassScreen()));
     _load();
   }
 
@@ -40,7 +41,10 @@ class _SeasonPassCardState extends State<SeasonPassCard> {
   Widget build(BuildContext context) {
     final pass = _pass;
     if (pass == null) return const SizedBox.shrink();
-    return Padding(padding: const EdgeInsets.only(top: 14), child: SeasonPassCardView(pass: pass, onTap: _open));
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: SeasonPassCardView(pass: pass, onTap: _open),
+    );
   }
 }
 
@@ -48,12 +52,18 @@ class _SeasonPassCardState extends State<SeasonPassCard> {
 class SeasonPassCardView extends StatelessWidget {
   final SeasonPass pass;
   final VoidCallback onTap;
-  const SeasonPassCardView({super.key, required this.pass, required this.onTap});
+  const SeasonPassCardView({
+    super.key,
+    required this.pass,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final next = pass.xpForNext;
-    final value = next == null || next == 0 ? 1.0 : (pass.xpIntoLevel / next).clamp(0.0, 1.0);
+    final value = next == null || next == 0
+        ? 1.0
+        : (pass.xpIntoLevel / next).clamp(0.0, 1.0);
     final waiting = pass.claimableCount;
     return Material(
       color: Colors.transparent,
@@ -64,12 +74,28 @@ class SeasonPassCardView extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
-            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: passHeroGradient(AppColors.dark)),
-            boxShadow: [BoxShadow(color: const Color(0xFF5862DD).withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 6))],
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: passHeroGradient(AppColors.dark),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF5862DD).withValues(alpha: 0.3),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
           child: Row(
             children: [
-              LevelRing(size: 64, progress: value, level: pass.level, stroke: 7, compact: true),
+              LevelRing(
+                size: 64,
+                progress: value,
+                level: pass.level,
+                stroke: 7,
+                compact: true,
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -77,14 +103,21 @@ class SeasonPassCardView extends StatelessWidget {
                   children: [
                     Text(
                       tr('Пропуск сезона'),
-                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Colors.white),
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${passSeasonName(pass)} · ${pass.xp} XP',
+                      '${passSeasonName(pass)} · ⚡ ${pass.xp}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12.5, color: Colors.white.withValues(alpha: 0.82)),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Colors.white.withValues(alpha: 0.82),
+                      ),
                     ),
                     const SizedBox(height: 8),
                     ClipRRect(
@@ -102,17 +135,33 @@ class SeasonPassCardView extends StatelessWidget {
               const SizedBox(width: 10),
               if (waiting > 0)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 7,
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    gradient: const LinearGradient(colors: [Color(0xFFFFE066), Color(0xFFFFA000)]),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFFE066), Color(0xFFFFA000)],
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.card_giftcard_rounded, size: 16, color: Color(0xFF5A3B00)),
+                      const Icon(
+                        Icons.card_giftcard_rounded,
+                        size: 16,
+                        color: Color(0xFF5A3B00),
+                      ),
                       const SizedBox(width: 4),
-                      Text('$waiting', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF5A3B00))),
+                      Text(
+                        '$waiting',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF5A3B00),
+                        ),
+                      ),
                     ],
                   ),
                 )

@@ -243,7 +243,7 @@ class _RankCard extends StatelessWidget {
   const _RankCard({required this.rank, required this.status, required this.color, required this.totalPoints});
 
   String _pointsRangeLabel() {
-    if (rank.maxPoints == null) return tr('от {0} очков', [rank.minPoints]);
+    if (rank.maxPoints == null) return tr('от {0} звёзд', [rank.minPoints]);
     return tr('{0}–{1} очков', [rank.minPoints, rank.maxPoints]);
   }
 
@@ -304,13 +304,13 @@ class _RankCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              tr('Осталось {0} очков до следующего уровня', [rank.maxPoints! + 1 - totalPoints]),
+              tr('Осталось {0} звёзд до следующего уровня', [rank.maxPoints! + 1 - totalPoints]),
               style: TextStyle(fontSize: 11, color: AppColors.secondaryText),
             ),
           ] else if (isFuture) ...[
             const SizedBox(height: 4),
             Text(
-              tr('Нужно ещё {0} очков', [rank.minPoints - totalPoints]),
+              tr('Нужно ещё {0} звёзд', [rank.minPoints - totalPoints]),
               style: TextStyle(fontSize: 11, color: AppColors.secondaryText, fontWeight: FontWeight.w600),
             ),
           ],
@@ -355,6 +355,8 @@ class _SeasonHistoryRow extends StatelessWidget {
             Text(rank.name, style: TextStyle(fontSize: 13, color: color, fontWeight: FontWeight.w700)),
             const SizedBox(width: 10),
           ],
+          const Icon(Icons.star_rounded, size: 16, color: AppColors.gold),
+          const SizedBox(width: 2),
           Text(
             '${entry.points}',
             style: TextStyle(fontSize: 13, color: AppColors.secondaryText, fontWeight: FontWeight.w700),

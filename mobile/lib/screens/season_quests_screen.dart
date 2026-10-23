@@ -1,5 +1,7 @@
 import '../l10n/l10n.dart';
+
 import 'package:flutter/material.dart';
+
 import '../api/api_client.dart';
 import '../services/session_cache.dart';
 import '../models/dictionary.dart';
@@ -9,6 +11,7 @@ import '../widgets/quest_ui.dart';
 import 'home_dashboard_screen.dart';
 import 'quest_attempt_screen.dart';
 import '../widgets/skeleton.dart';
+import '../widgets/weekly_pass_tasks.dart';
 
 Map<String, String> get _exerciseLabels => {
   'true_or_false': tr('Правда или ложь'),
@@ -36,7 +39,11 @@ class SeasonQuestsScreen extends StatefulWidget {
   final GuyoDictionary dictionary;
   final VoidCallback onOpenLessons;
 
-  const SeasonQuestsScreen({super.key, required this.dictionary, required this.onOpenLessons});
+  const SeasonQuestsScreen({
+    super.key,
+    required this.dictionary,
+    required this.onOpenLessons,
+  });
 
   @override
   State<SeasonQuestsScreen> createState() => _SeasonQuestsScreenState();
@@ -65,7 +72,9 @@ class _SeasonQuestsScreenState extends State<SeasonQuestsScreen> {
       _loadError = null;
     });
     try {
-      final overview = await ApiClient.instance.fetchSeasonQuestOverview(widget.dictionary.id);
+      final overview = await ApiClient.instance.fetchSeasonQuestOverview(
+        widget.dictionary.id,
+      );
       SessionCache.put(_cacheKey, overview);
       if (!mounted) return;
       setState(() {
@@ -111,7 +120,11 @@ class _SeasonQuestsScreenState extends State<SeasonQuestsScreen> {
         elevation: 0,
         title: Text(
           tr('Квесты'),
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            color: AppColors.primaryDark,
+          ),
         ),
         iconTheme: IconThemeData(color: AppColors.primaryDark),
       ),
@@ -156,6 +169,8 @@ class _SeasonQuestsScreenState extends State<SeasonQuestsScreen> {
           wordsLearnedToday: overview.wordsLearnedToday,
           onTap: _openLessons,
         ),
+        const SizedBox(height: 22),
+        const WeeklyPassTasks(),
         const SizedBox(height: 22),
         SectionHeader(
           title: tr('Ежедневные квесты'),
@@ -223,10 +238,15 @@ class _SeasonBanner extends StatelessWidget {
                   children: [
                     if (season != null)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(AppShapes.pillRadius),
+                          borderRadius: BorderRadius.circular(
+                            AppShapes.pillRadius,
+                          ),
                         ),
                         child: Text(
                           season.name,
@@ -242,12 +262,20 @@ class _SeasonBanner extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       tr('Квесты сезона'),
-                      style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                      style: TextStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primaryDark,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       tr('Выполняй задания, получай очки и повышай свой ранг.'),
-                      style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText, height: 1.35),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.secondaryText,
+                        height: 1.35,
+                      ),
                     ),
                   ],
                 ),
@@ -258,7 +286,11 @@ class _SeasonBanner extends StatelessWidget {
           if (season == null)
             Text(
               tr('Сейчас нет активного сезона'),
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.secondaryText,
+              ),
             )
           else
             SeasonTimeline(
@@ -296,7 +328,9 @@ class _StatsRow extends StatelessWidget {
             Expanded(
               child: StatColumn(
                 icon: Icons.emoji_events_rounded,
-                value: overview.rankPosition == null ? '—' : '#${overview.rankPosition}',
+                value: overview.rankPosition == null
+                    ? '—'
+                    : '#${overview.rankPosition}',
                 label: tr('Место в рейтинге'),
               ),
             ),
@@ -334,8 +368,8 @@ class _QuestRow extends StatelessWidget {
     final subtitle = done
         ? tr('Выполнено сегодня')
         : quest.available
-            ? '${_exerciseLabels[quest.exerciseKey] ?? quest.exerciseKey} · ${quest.wordLevelName}'
-            : tr('Нет подходящих слов');
+        ? '${_exerciseLabels[quest.exerciseKey] ?? quest.exerciseKey} · ${quest.wordLevelName}'
+        : tr('Нет подходящих слов');
 
     return GuyoCard(
       radius: AppShapes.rowRadius,
@@ -349,8 +383,8 @@ class _QuestRow extends StatelessWidget {
             iconColor: done
                 ? AppColors.success
                 : quest.available
-                    ? AppColors.primary
-                    : AppColors.muted,
+                ? AppColors.primary
+                : AppColors.muted,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -360,14 +394,21 @@ class _QuestRow extends StatelessWidget {
               children: [
                 Text(
                   quest.name,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryDark,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: TextStyle(fontSize: 11.5, color: AppColors.secondaryText),
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: AppColors.secondaryText,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -389,7 +430,11 @@ class _QuestRow extends StatelessWidget {
               RewardBadge(points: quest.rewardPoints),
               const SizedBox(height: 6),
               if (done)
-                Icon(Icons.check_circle_rounded, size: 20, color: AppColors.success)
+                Icon(
+                  Icons.check_circle_rounded,
+                  size: 20,
+                  color: AppColors.success,
+                )
               else if (canAttempt)
                 Icon(Icons.chevron_right, size: 20, color: AppColors.muted)
               else

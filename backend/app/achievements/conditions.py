@@ -57,7 +57,7 @@ def lessons_completed_count(db: Session, user: User) -> int:
     )
 
 
-def streak_with_freezes(db: Session, user: User) -> tuple[int, list]:
+def streak_with_freezes(db: Session, user: User, *, include_merged: bool = True) -> tuple[int, list]:
     """The user's CURRENT streak and the days a "freeze" covered.
 
     Counted backward from today (or from yesterday while today has no
@@ -99,6 +99,8 @@ def streak_with_freezes(db: Session, user: User) -> tuple[int, list]:
             used_weeks.add(week)
             pending = day
         day -= timedelta(days=1)
+    if include_merged and streak > 0:
+        streak += user.streak_merge_days or 0
     return streak, frozen
 
 

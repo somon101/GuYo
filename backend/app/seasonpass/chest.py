@@ -1,56 +1,56 @@
-"""The chest of the day: opens once a day, after the first study of that day."""
+"""The daily gift chest (legacy /chest API, backed by the gift ledger)."""
 
 import random as _random
 
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.achievements.streak import active_today
 from app.core.dates import dushanbe_today
-from app.models.chest import DailyChest
+from app.economy.service import EconomyError, gift_state, open_gift
+from app.models.economy import GiftDefinition, GiftOpen
 from app.models.user import User
-from app.seasonpass.service import PassError, award_xp, get_pass_settings
+from app.seasonpass.service import PassError, get_pass_settings
 
 
 class ChestError(PassError):
     pass
 
 
-def today_chest(db: Session, user: User) -> DailyChest | None:
-    return db.query(DailyChest).filter_by(user_id=user.id, chest_date=dushanbe_today()).first()
+def daily_gift(db: Session) -> GiftDefinition:
+    gift = db.query(GiftDefinition).filter_by(key="daily-chest").first()
+    if gift is None:
+        gift = GiftDefinition(
+            key="daily-chest", name="Подарок дня", description="Откройте после занятия и получите бриллианты",
+            icon_key="chest", reward_min=5, reward_max=25, cooldown_days=1, requires_activity=True,
+            enabled=True, sort_order=0,
+        )
+        db.add(gift)
+        db.flush()
+    return gift
+
+
+def today_chest(db: Session, user: User) -> GiftOpen | None:
+    gift = daily_gift(db)
+    return db.query(GiftOpen).filter_by(user_id=user.id, gift_id=gift.id, opened_on=dushanbe_today()).first()
 
 
 def state(db: Session, user: User) -> dict:
     settings = get_pass_settings(db)
+    gift = daily_gift(db)
     opened = today_chest(db, user)
+    availability = gift_state(db, user, gift)
     return {
-        "enabled": settings.chest_enabled,
-        "available": settings.chest_enabled and opened is None and active_today(db, user),
+        "enabled": settings.chest_enabled and gift.enabled,
+        "available": settings.chest_enabled and availability["available"],
         "opened": None if opened is None else {"kind": opened.kind, "amount": opened.amount},
     }
 
 
-def open_chest(db: Session, user: User, rng: _random.Random | None = None) -> DailyChest:
-    rng = rng or _random
+def open_chest(db: Session, user: User, rng: _random.Random | None = None) -> GiftOpen:
     settings = get_pass_settings(db)
     if not settings.chest_enabled:
         raise ChestError("Сундук сейчас недоступен")
-    if today_chest(db, user) is not None:
-        raise ChestError("Сегодняшний сундук уже открыт")
-    if not active_today(db, user):
-        raise ChestError("Сундук откроется после первого занятия сегодня")
-    kind, amount = "xp", rng.randint(min(settings.chest_xp_min, settings.chest_xp_max), max(settings.chest_xp_min, settings.chest_xp_max))
-    if rng.randint(1, 100) <= settings.chest_freeze_chance and (user.streak_freezes or 0) < settings.freeze_cap:
-        kind, amount = "freeze", 1
-    chest = DailyChest(user_id=user.id, chest_date=dushanbe_today(), kind=kind, amount=amount)
+    gift = daily_gift(db)
     try:
-        with db.begin_nested():
-            db.add(chest)
-            db.flush()
-    except IntegrityError:
-        raise ChestError("Сегодняшний сундук уже открыт") from None
-    if kind == "freeze":
-        user.streak_freezes = (user.streak_freezes or 0) + 1
-    else:
-        award_xp(db, user, "chest", f"chest:{chest.chest_date.isoformat()}", amount)
-    return chest
+        return open_gift(db, user, gift, rng, allow_freeze=True)
+    except EconomyError as e:
+        raise ChestError(str(e)) from None

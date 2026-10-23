@@ -11,6 +11,7 @@ const PATHS: Record<string, string> = {
   quote: "M5 17h4l1-5V6H4v6h3M15 17h4l1-5V6h-6v6h3",
   message: "M4 5h16v11H9l-5 4V5Z",
   trophy: "M8 4h8v5a4 4 0 0 1-8 0V4ZM8 6H5v1a3 3 0 0 0 3 3M16 6h3v1a3 3 0 0 1-3 3M12 13v4M8.5 20h7M10 17h4",
+  gift: "M20 12v9H4v-9M2 7h20v5H2zM12 7v14M12 7H8.5a2.5 2.5 0 1 1 2.5-2.5V7ZM12 7h3.5A2.5 2.5 0 1 0 13 4.5V7Z",
   podium: "M9 20V9h6v11M3 20v-7h6M15 20v-5h6v5M3 20h18",
   repeat: "M17 3l3 3-3 3M20 6H8a4 4 0 0 0-4 4v1M7 21l-3-3 3-3M4 18h12a4 4 0 0 0 4-4v-1",
   target: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM12 12h.01",

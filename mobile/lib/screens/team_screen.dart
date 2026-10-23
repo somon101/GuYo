@@ -39,7 +39,8 @@ class TeamScreen extends StatefulWidget {
   State<TeamScreen> createState() => _TeamScreenState();
 }
 
-class _TeamScreenState extends State<TeamScreen> with SingleTickerProviderStateMixin {
+class _TeamScreenState extends State<TeamScreen>
+    with SingleTickerProviderStateMixin {
   TeamState? _state;
   bool _loading = true;
   bool _busy = false;
@@ -75,7 +76,8 @@ class _TeamScreenState extends State<TeamScreen> with SingleTickerProviderStateM
   }
 
   void _snack(String text) {
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    if (mounted)
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
   Future<void> _act(Future<TeamState> Function() action) async {
@@ -97,15 +99,30 @@ class _TeamScreenState extends State<TeamScreen> with SingleTickerProviderStateM
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final result = await ApiClient.instance.claimTeamGoal(goal.scope, goal.id);
+      final result = await ApiClient.instance.claimTeamGoal(
+        goal.scope,
+        goal.id,
+      );
       if (!mounted) return;
       setState(() => _state = result.state);
       final reward = goal.reward;
       final style = reward != null
           ? rewardStyle(reward)
-          : const RewardStyle([Color(0xFF14B8A6), Color(0xFF2563EB)], Icons.groups_rounded, 'XP');
-      final parts = [if (result.xp > 0) '+${result.xp} XP', if (reward != null) rewardSentence(reward)];
-      await showRewardDialog(context, style: style, title: tr('Награда получена!'), text: parts.join(' · '));
+          : const RewardStyle(
+              [Color(0xFF14B8A6), Color(0xFF2563EB)],
+              Icons.bolt_rounded,
+              '⚡',
+            );
+      final parts = [
+        if (result.xp > 0) '+${result.xp} ⚡',
+        if (reward != null) rewardSentence(reward),
+      ];
+      await showRewardDialog(
+        context,
+        style: style,
+        title: tr('Награда получена!'),
+        text: parts.join(' · '),
+      );
     } on ApiException catch (e) {
       _snack(e.message);
     } catch (_) {
@@ -122,7 +139,8 @@ class _TeamScreenState extends State<TeamScreen> with SingleTickerProviderStateM
       backgroundColor: Colors.transparent,
       builder: (_) => const _CreateSheet(),
     );
-    if (result != null) _act(() => ApiClient.instance.createTeam(result.$1, isOpen: result.$2));
+    if (result != null)
+      _act(() => ApiClient.instance.createTeam(result.$1, isOpen: result.$2));
   }
 
   Future<void> _find() async {
@@ -158,16 +176,29 @@ class _TeamScreenState extends State<TeamScreen> with SingleTickerProviderStateM
           mainAxisSize: MainAxisSize.min,
           children: [
             if (team.isOwner) ...[
-              ListTile(leading: const Icon(Icons.edit_rounded), title: Text(tr('Переименовать')), onTap: () => Navigator.pop(context, 'rename')),
               ListTile(
-                leading: Icon(team.isOpen ? Icons.lock_rounded : Icons.lock_open_rounded),
-                title: Text(team.isOpen ? tr('Закрыть для вступления') : tr('Открыть для вступления')),
+                leading: const Icon(Icons.edit_rounded),
+                title: Text(tr('Переименовать')),
+                onTap: () => Navigator.pop(context, 'rename'),
+              ),
+              ListTile(
+                leading: Icon(
+                  team.isOpen ? Icons.lock_rounded : Icons.lock_open_rounded,
+                ),
+                title: Text(
+                  team.isOpen
+                      ? tr('Закрыть для вступления')
+                      : tr('Открыть для вступления'),
+                ),
                 onTap: () => Navigator.pop(context, 'toggle'),
               ),
             ],
             ListTile(
               leading: Icon(Icons.logout_rounded, color: AppColors.danger),
-              title: Text(tr('Выйти из команды'), style: TextStyle(color: AppColors.danger)),
+              title: Text(
+                tr('Выйти из команды'),
+                style: TextStyle(color: AppColors.danger),
+              ),
               onTap: () => Navigator.pop(context, 'leave'),
             ),
           ],
@@ -190,10 +221,20 @@ class _TeamScreenState extends State<TeamScreen> with SingleTickerProviderStateM
       context: context,
       builder: (_) => AlertDialog(
         title: Text(tr('Название команды')),
-        content: TextField(controller: controller, maxLength: 24, autofocus: true),
+        content: TextField(
+          controller: controller,
+          maxLength: 24,
+          autofocus: true,
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Отмена'))),
-          FilledButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: Text(tr('Сохранить'))),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(tr('Отмена')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: Text(tr('Сохранить')),
+          ),
         ],
       ),
     );
@@ -209,14 +250,28 @@ class _TeamScreenState extends State<TeamScreen> with SingleTickerProviderStateM
         backgroundColor: Colors.transparent,
         scrolledUnderElevation: 0,
         actions: [
-          if (state?.team != null) IconButton(icon: const Icon(Icons.more_vert_rounded), onPressed: () => _menu(state!.team!)),
+          if (state?.team != null)
+            IconButton(
+              icon: const Icon(Icons.more_vert_rounded),
+              onPressed: () => _menu(state!.team!),
+            ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : state == null
-          ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(tr('Не удалось загрузить данные'))))
-          : RefreshIndicator(onRefresh: _load, child: state.team == null ? _noTeam(state) : _withTeam(state.team!, state)),
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(tr('Не удалось загрузить данные')),
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: state.team == null
+                  ? _noTeam(state)
+                  : _withTeam(state.team!, state),
+            ),
     );
   }
 
@@ -224,37 +279,68 @@ class _TeamScreenState extends State<TeamScreen> with SingleTickerProviderStateM
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
       children: [
-        for (final invite in state.invites) _InviteCard(
-          invite: invite,
-          busy: _busy,
-          onAccept: () => _act(() => ApiClient.instance.acceptTeamInvite(invite.teamId)),
-          onDecline: () => _act(() => ApiClient.instance.declineTeamInvite(invite.teamId)),
-        ),
+        for (final invite in state.invites)
+          _InviteCard(
+            invite: invite,
+            busy: _busy,
+            onAccept: () =>
+                _act(() => ApiClient.instance.acceptTeamInvite(invite.teamId)),
+            onDecline: () =>
+                _act(() => ApiClient.instance.declineTeamInvite(invite.teamId)),
+          ),
         Container(
           padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(28),
-            gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: _teamGradient),
-            boxShadow: [BoxShadow(color: _teamGradient.last.withValues(alpha: 0.35), blurRadius: 22, offset: const Offset(0, 10))],
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: _teamGradient,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _teamGradient.last.withValues(alpha: 0.35),
+                blurRadius: 22,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
           child: Column(
             children: [
               const Icon(Icons.groups_rounded, size: 72, color: Colors.white),
               const SizedBox(height: 10),
-              Text(tr('Играйте вместе'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white)),
+              Text(
+                tr('Играйте вместе'),
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
+              ),
               const SizedBox(height: 6),
               Text(
-                tr('Соберите команду из друзей: общие цели недели и сезона, бонусный XP и командный значок'),
+                tr(
+                  'Соберите команду из друзей: общие цели недели и сезона, бонусная энергия и командный значок',
+                ),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.9)),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white.withValues(alpha: 0.9),
+                ),
               ),
               const SizedBox(height: 18),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: _busy ? null : _create,
-                  style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: _teamGradient.last),
-                  child: Text(tr('Создать команду'), style: const TextStyle(fontWeight: FontWeight.w800)),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: _teamGradient.last,
+                  ),
+                  child: Text(
+                    tr('Создать команду'),
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -262,8 +348,14 @@ class _TeamScreenState extends State<TeamScreen> with SingleTickerProviderStateM
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: _busy ? null : _find,
-                  style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white, width: 1.5)),
-                  child: Text(tr('Найти команду'), style: const TextStyle(fontWeight: FontWeight.w800)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white, width: 1.5),
+                  ),
+                  child: Text(
+                    tr('Найти команду'),
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
                 ),
               ),
             ],
@@ -274,7 +366,10 @@ class _TeamScreenState extends State<TeamScreen> with SingleTickerProviderStateM
   }
 
   Widget _withTeam(Team team, TeamState state) {
-    final maxXp = team.members.fold<int>(1, (m, x) => x.weekXp > m ? x.weekXp : m);
+    final maxXp = team.members.fold<int>(
+      1,
+      (m, x) => x.weekXp > m ? x.weekXp : m,
+    );
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
       children: [
@@ -282,19 +377,51 @@ class _TeamScreenState extends State<TeamScreen> with SingleTickerProviderStateM
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(28),
-            gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: _teamGradient),
-            boxShadow: [BoxShadow(color: _teamGradient.last.withValues(alpha: 0.35), blurRadius: 22, offset: const Offset(0, 10))],
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: _teamGradient,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _teamGradient.last.withValues(alpha: 0.35),
+                blurRadius: 22,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Expanded(child: Text(team.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white))),
+                  Expanded(
+                    child: Text(
+                      team.name,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.22), borderRadius: BorderRadius.circular(14)),
-                    child: Text(team.isOpen ? tr('Открыта') : tr('По приглашению'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.22),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(
+                      team.isOpen ? tr('Открыта') : tr('По приглашению'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -306,8 +433,15 @@ class _TeamScreenState extends State<TeamScreen> with SingleTickerProviderStateM
                       padding: const EdgeInsets.only(right: 8),
                       child: Container(
                         padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
-                        child: UserAvatar(avatarUrl: m.avatarUrl, login: m.login, size: 40),
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
+                        ),
+                        child: UserAvatar(
+                          avatarUrl: m.avatarUrl,
+                          login: m.login,
+                          size: 40,
+                        ),
                       ),
                     ),
                   if (team.isOwner)
@@ -320,8 +454,14 @@ class _TeamScreenState extends State<TeamScreen> with SingleTickerProviderStateM
                           child: Container(
                             width: 44,
                             height: 44,
-                            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
-                            child: const Icon(Icons.add_rounded, color: Colors.white),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: const Icon(
+                              Icons.add_rounded,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
@@ -329,22 +469,50 @@ class _TeamScreenState extends State<TeamScreen> with SingleTickerProviderStateM
               ),
               const SizedBox(height: 8),
               Text(
-                tr('В команде: {0} из {1}', [team.members.length, state.capacity]),
-                style: TextStyle(fontSize: 12.5, color: Colors.white.withValues(alpha: 0.9)),
+                tr('В команде: {0} из {1}', [
+                  team.members.length,
+                  state.capacity,
+                ]),
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: Colors.white.withValues(alpha: 0.9),
+                ),
               ),
             ],
           ),
         ),
         const SizedBox(height: 16),
-        if (team.seasonGoal != null) _SeasonGoalCard(goal: team.seasonGoal!, pulse: _pulseController, busy: _busy, onClaim: () => _claim(team.seasonGoal!)),
+        if (team.seasonGoal != null)
+          _SeasonGoalCard(
+            goal: team.seasonGoal!,
+            pulse: _pulseController,
+            busy: _busy,
+            onClaim: () => _claim(team.seasonGoal!),
+          ),
         _Title(tr('Цели недели')),
         if (team.weekGoals.isEmpty)
-          Text(tr('На этой неделе целей нет'), style: TextStyle(color: AppColors.secondaryText))
+          Text(
+            tr('На этой неделе целей нет'),
+            style: TextStyle(color: AppColors.secondaryText),
+          )
         else
-          for (final g in team.weekGoals) _GoalCard(goal: g, pulse: _pulseController, busy: _busy, onClaim: () => _claim(g)),
+          for (final g in team.weekGoals)
+            _GoalCard(
+              goal: g,
+              pulse: _pulseController,
+              busy: _busy,
+              onClaim: () => _claim(g),
+            ),
         const SizedBox(height: 16),
         _Title(tr('Вклад за неделю')),
-        for (final m in team.members) _MemberRow(member: m, maxXp: maxXp, canKick: team.isOwner && !m.isOwner, onKick: () => _act(() => ApiClient.instance.kickTeamMember(m.userId))),
+        for (final m in team.members)
+          _MemberRow(
+            member: m,
+            maxXp: maxXp,
+            canKick: team.isOwner && !m.isOwner,
+            onKick: () =>
+                _act(() => ApiClient.instance.kickTeamMember(m.userId)),
+          ),
       ],
     );
   }
@@ -357,7 +525,14 @@ class _Title extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 10),
-    child: Text(text, style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900, color: AppColors.primaryDark)),
+    child: Text(
+      text,
+      style: TextStyle(
+        fontSize: 19,
+        fontWeight: FontWeight.w900,
+        color: AppColors.primaryDark,
+      ),
+    ),
   );
 }
 
@@ -366,11 +541,18 @@ class _GoalCard extends StatelessWidget {
   final Animation<double> pulse;
   final bool busy;
   final VoidCallback onClaim;
-  const _GoalCard({required this.goal, required this.pulse, required this.busy, required this.onClaim});
+  const _GoalCard({
+    required this.goal,
+    required this.pulse,
+    required this.busy,
+    required this.onClaim,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final value = goal.target == 0 ? 1.0 : (goal.progress / goal.target).clamp(0.0, 1.0);
+    final value = goal.target == 0
+        ? 1.0
+        : (goal.progress / goal.target).clamp(0.0, 1.0);
     return AnimatedBuilder(
       animation: pulse,
       builder: (_, __) => Container(
@@ -379,23 +561,51 @@ class _GoalCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: goal.claimable ? _teamGradient.last.withValues(alpha: 0.5 + 0.5 * pulse.value) : AppColors.cardBorder, width: goal.claimable ? 2 : 1),
-          boxShadow: goal.claimable ? [BoxShadow(color: _teamGradient.last.withValues(alpha: 0.18 + 0.2 * pulse.value), blurRadius: 14)] : AppShapes.cardShadow,
+          border: Border.all(
+            color: goal.claimable
+                ? _teamGradient.last.withValues(alpha: 0.5 + 0.5 * pulse.value)
+                : AppColors.cardBorder,
+            width: goal.claimable ? 2 : 1,
+          ),
+          boxShadow: goal.claimable
+              ? [
+                  BoxShadow(
+                    color: _teamGradient.last.withValues(
+                      alpha: 0.18 + 0.2 * pulse.value,
+                    ),
+                    blurRadius: 14,
+                  ),
+                ]
+              : AppShapes.cardShadow,
         ),
         child: Row(
           children: [
             Container(
               width: 46,
               height: 46,
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), gradient: const LinearGradient(colors: _teamGradient)),
-              child: Icon(_metricIcons[goal.metric] ?? Icons.bolt_rounded, color: Colors.white, size: 26),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                gradient: const LinearGradient(colors: _teamGradient),
+              ),
+              child: Icon(
+                _metricIcons[goal.metric] ?? Icons.bolt_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(_goalText(goal), style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+                  Text(
+                    _goalText(goal),
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primaryDark,
+                    ),
+                  ),
                   const SizedBox(height: 7),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(6),
@@ -403,20 +613,34 @@ class _GoalCard extends StatelessWidget {
                       value: value,
                       minHeight: 9,
                       backgroundColor: AppColors.progressTrack,
-                      color: goal.claimed ? AppColors.success : _teamGradient.last,
+                      color: goal.claimed
+                          ? AppColors.success
+                          : _teamGradient.last,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text('${goal.progress} / ${goal.target} · +${goal.xp} XP${goal.reward != null ? ' · ${rewardSentence(goal.reward!)}' : ''}',
-                      style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+                  Text(
+                    '${goal.progress} / ${goal.target} · +${goal.xp} ⚡${goal.reward != null ? ' · ${rewardSentence(goal.reward!)}' : ''}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.secondaryText,
+                    ),
+                  ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
             if (goal.claimed)
-              Icon(Icons.check_circle_rounded, color: AppColors.success, size: 30)
+              Icon(
+                Icons.check_circle_rounded,
+                color: AppColors.success,
+                size: 30,
+              )
             else if (goal.claimable)
-              FilledButton(onPressed: busy ? null : onClaim, child: Text(tr('Забрать'))),
+              FilledButton(
+                onPressed: busy ? null : onClaim,
+                child: Text(tr('Забрать')),
+              ),
           ],
         ),
       ),
@@ -429,20 +653,34 @@ class _SeasonGoalCard extends StatelessWidget {
   final Animation<double> pulse;
   final bool busy;
   final VoidCallback onClaim;
-  const _SeasonGoalCard({required this.goal, required this.pulse, required this.busy, required this.onClaim});
+  const _SeasonGoalCard({
+    required this.goal,
+    required this.pulse,
+    required this.busy,
+    required this.onClaim,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final value = goal.target == 0 ? 1.0 : (goal.progress / goal.target).clamp(0.0, 1.0);
+    final value = goal.target == 0
+        ? 1.0
+        : (goal.progress / goal.target).clamp(0.0, 1.0);
     final reward = goal.reward;
     return Container(
       margin: const EdgeInsets.only(bottom: 18),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
-        gradient: const LinearGradient(colors: [Color(0xFF3A2A00), Color(0xFF6B4B00)]),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF3A2A00), Color(0xFF6B4B00)],
+        ),
         border: Border.all(color: const Color(0xFFFFD54F), width: 1.6),
-        boxShadow: [BoxShadow(color: const Color(0xFFFFB300).withValues(alpha: 0.28), blurRadius: 18)],
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFFB300).withValues(alpha: 0.28),
+            blurRadius: 18,
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -455,16 +693,38 @@ class _SeasonGoalCard extends StatelessWidget {
                 Container(
                   width: 48,
                   height: 48,
-                  decoration: const BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: [Color(0xFFFFE066), Color(0xFFFF9800)])),
-                  child: const Icon(Icons.emoji_events_rounded, color: Color(0xFF5A3B00), size: 28),
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFFFE066), Color(0xFFFF9800)],
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.emoji_events_rounded,
+                    color: Color(0xFF5A3B00),
+                    size: 28,
+                  ),
                 ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(tr('Цель сезона'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFFFFE066))),
-                    Text(_goalText(goal), style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.9))),
+                    Text(
+                      tr('Цель сезона'),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFFFFE066),
+                      ),
+                    ),
+                    Text(
+                      _goalText(goal),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.white.withValues(alpha: 0.9),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -473,15 +733,23 @@ class _SeasonGoalCard extends StatelessWidget {
           const SizedBox(height: 12),
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(value: value, minHeight: 10, backgroundColor: Colors.white24, color: const Color(0xFFFFD54F)),
+            child: LinearProgressIndicator(
+              value: value,
+              minHeight: 10,
+              backgroundColor: Colors.white24,
+              color: const Color(0xFFFFD54F),
+            ),
           ),
           const SizedBox(height: 6),
           Row(
             children: [
               Expanded(
                 child: Text(
-                  '${goal.progress} / ${goal.target} · +${goal.xp} XP${reward != null ? ' · ${rewardSentence(reward)}' : ''}',
-                  style: TextStyle(fontSize: 12.5, color: Colors.white.withValues(alpha: 0.85)),
+                  '${goal.progress} / ${goal.target} · +${goal.xp} ⚡${reward != null ? ' · ${rewardSentence(reward)}' : ''}',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: Colors.white.withValues(alpha: 0.85),
+                  ),
                 ),
               ),
               if (goal.claimed)
@@ -489,8 +757,14 @@ class _SeasonGoalCard extends StatelessWidget {
               else if (goal.claimable)
                 FilledButton(
                   onPressed: busy ? null : onClaim,
-                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFFFFD54F), foregroundColor: const Color(0xFF5A3B00)),
-                  child: Text(tr('Забрать'), style: const TextStyle(fontWeight: FontWeight.w900)),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFD54F),
+                    foregroundColor: const Color(0xFF5A3B00),
+                  ),
+                  child: Text(
+                    tr('Забрать'),
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
                 ),
             ],
           ),
@@ -505,7 +779,12 @@ class _MemberRow extends StatelessWidget {
   final int maxXp;
   final bool canKick;
   final VoidCallback onKick;
-  const _MemberRow({required this.member, required this.maxXp, required this.canKick, required this.onKick});
+  const _MemberRow({
+    required this.member,
+    required this.maxXp,
+    required this.canKick,
+    required this.onKick,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -513,7 +792,11 @@ class _MemberRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          UserAvatar(avatarUrl: member.avatarUrl, login: member.login, size: 40),
+          UserAvatar(
+            avatarUrl: member.avatarUrl,
+            login: member.login,
+            size: 40,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -526,12 +809,20 @@ class _MemberRow extends StatelessWidget {
                         member.login,
                         isPremium: false,
                         badge: member.badge,
-                        style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primaryDark,
+                        ),
                       ),
                     ),
                     if (member.isOwner) ...[
                       const SizedBox(width: 6),
-                      Icon(Icons.star_rounded, size: 16, color: AppColors.warning),
+                      Icon(
+                        Icons.star_rounded,
+                        size: 16,
+                        color: AppColors.warning,
+                      ),
                     ],
                   ],
                 ),
@@ -549,11 +840,22 @@ class _MemberRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          Text('${member.weekXp} XP', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.primary)),
+          Text(
+            '⚡ ${member.weekXp}',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+            ),
+          ),
           if (canKick)
             IconButton(
               tooltip: tr('Исключить'),
-              icon: Icon(Icons.person_remove_rounded, size: 20, color: AppColors.muted),
+              icon: Icon(
+                Icons.person_remove_rounded,
+                size: 20,
+                color: AppColors.muted,
+              ),
               onPressed: onKick,
             ),
         ],
@@ -567,7 +869,12 @@ class _InviteCard extends StatelessWidget {
   final bool busy;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
-  const _InviteCard({required this.invite, required this.busy, required this.onAccept, required this.onDecline});
+  const _InviteCard({
+    required this.invite,
+    required this.busy,
+    required this.onAccept,
+    required this.onDecline,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -585,12 +892,25 @@ class _InviteCard extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              tr('{0} зовёт вас в команду «{1}»', [invite.fromLogin, invite.teamName]),
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+              tr('{0} зовёт вас в команду «{1}»', [
+                invite.fromLogin,
+                invite.teamName,
+              ]),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primaryDark,
+              ),
             ),
           ),
-          IconButton(onPressed: busy ? null : onDecline, icon: Icon(Icons.close_rounded, color: AppColors.muted)),
-          FilledButton(onPressed: busy ? null : onAccept, child: Text(tr('Принять'))),
+          IconButton(
+            onPressed: busy ? null : onDecline,
+            icon: Icon(Icons.close_rounded, color: AppColors.muted),
+          ),
+          FilledButton(
+            onPressed: busy ? null : onAccept,
+            child: Text(tr('Принять')),
+          ),
         ],
       ),
     );
@@ -607,18 +927,30 @@ class _SheetFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         margin: const EdgeInsets.all(12),
         padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(28)),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(28),
+        ),
         child: SafeArea(
           top: false,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaryDark)),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.primaryDark,
+                ),
+              ),
               const SizedBox(height: 14),
               child,
             ],
@@ -663,14 +995,19 @@ class _CreateSheetState extends State<_CreateSheet> {
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: Text(tr('Открыта для вступления')),
-            subtitle: Text(tr('Любой сможет вступить, пока есть места'), style: const TextStyle(fontSize: 12)),
+            subtitle: Text(
+              tr('Любой сможет вступить, пока есть места'),
+              style: const TextStyle(fontSize: 12),
+            ),
             value: _open,
             onChanged: (v) => setState(() => _open = v),
           ),
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: valid ? () => Navigator.pop(context, (_name.text.trim(), _open)) : null,
+              onPressed: valid
+                  ? () => Navigator.pop(context, (_name.text.trim(), _open))
+                  : null,
               child: Text(tr('Создать команду')),
             ),
           ),
@@ -693,11 +1030,14 @@ class _FindSheetState extends State<_FindSheet> {
   @override
   void initState() {
     super.initState();
-    ApiClient.instance.fetchOpenTeams().then((t) {
-      if (mounted) setState(() => _teams = t);
-    }).catchError((_) {
-      if (mounted) setState(() => _teams = []);
-    });
+    ApiClient.instance
+        .fetchOpenTeams()
+        .then((t) {
+          if (mounted) setState(() => _teams = t);
+        })
+        .catchError((_) {
+          if (mounted) setState(() => _teams = []);
+        });
   }
 
   @override
@@ -706,9 +1046,15 @@ class _FindSheetState extends State<_FindSheet> {
     return _SheetFrame(
       title: tr('Открытые команды'),
       child: teams == null
-          ? const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator()))
+          ? const Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(child: CircularProgressIndicator()),
+            )
           : teams.isEmpty
-          ? Padding(padding: const EdgeInsets.all(12), child: Text(tr('Открытых команд со свободными местами пока нет')))
+          ? Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(tr('Открытых команд со свободными местами пока нет')),
+            )
           : ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 360),
               child: ListView(
@@ -720,12 +1066,26 @@ class _FindSheetState extends State<_FindSheet> {
                       leading: Container(
                         width: 40,
                         height: 40,
-                        decoration: const BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: _teamGradient)),
-                        child: const Icon(Icons.groups_rounded, color: Colors.white),
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(colors: _teamGradient),
+                        ),
+                        child: const Icon(
+                          Icons.groups_rounded,
+                          color: Colors.white,
+                        ),
                       ),
-                      title: Text(t.name, style: const TextStyle(fontWeight: FontWeight.w800)),
-                      subtitle: Text(tr('В команде: {0} из {1}', [t.members, t.capacity])),
-                      trailing: FilledButton(onPressed: () => Navigator.pop(context, t.id), child: Text(tr('Вступить'))),
+                      title: Text(
+                        t.name,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      subtitle: Text(
+                        tr('В команде: {0} из {1}', [t.members, t.capacity]),
+                      ),
+                      trailing: FilledButton(
+                        onPressed: () => Navigator.pop(context, t.id),
+                        child: Text(tr('Вступить')),
+                      ),
                     ),
                 ],
               ),
@@ -748,11 +1108,19 @@ class _InviteSheetState extends State<_InviteSheet> {
   @override
   void initState() {
     super.initState();
-    ApiClient.instance.fetchFriendsLeaderboard().then((board) {
-      if (mounted) setState(() => _friends = board.entries.where((e) => !e.isMe && !widget.taken.contains(e.userId)).toList());
-    }).catchError((_) {
-      if (mounted) setState(() => _friends = []);
-    });
+    ApiClient.instance
+        .fetchFriendsLeaderboard()
+        .then((board) {
+          if (mounted)
+            setState(
+              () => _friends = board.entries
+                  .where((e) => !e.isMe && !widget.taken.contains(e.userId))
+                  .toList(),
+            );
+        })
+        .catchError((_) {
+          if (mounted) setState(() => _friends = []);
+        });
   }
 
   @override
@@ -761,9 +1129,19 @@ class _InviteSheetState extends State<_InviteSheet> {
     return _SheetFrame(
       title: tr('Пригласить друга'),
       child: friends == null
-          ? const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator()))
+          ? const Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(child: CircularProgressIndicator()),
+            )
           : friends.isEmpty
-          ? Padding(padding: const EdgeInsets.all(12), child: Text(tr('Нет друзей, которых можно пригласить. Добавьте друзей в рейтинге')))
+          ? Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                tr(
+                  'Нет друзей, которых можно пригласить. Добавьте друзей в рейтинге',
+                ),
+              ),
+            )
           : ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 360),
               child: ListView(
@@ -772,9 +1150,19 @@ class _InviteSheetState extends State<_InviteSheet> {
                   for (final f in friends)
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: UserAvatar(avatarUrl: f.avatarUrl, login: f.login, size: 40),
-                      title: Text(f.login, style: const TextStyle(fontWeight: FontWeight.w800)),
-                      trailing: FilledButton(onPressed: () => Navigator.pop(context, f.userId), child: Text(tr('Позвать'))),
+                      leading: UserAvatar(
+                        avatarUrl: f.avatarUrl,
+                        login: f.login,
+                        size: 40,
+                      ),
+                      title: Text(
+                        f.login,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      trailing: FilledButton(
+                        onPressed: () => Navigator.pop(context, f.userId),
+                        child: Text(tr('Позвать')),
+                      ),
                     ),
                 ],
               ),
