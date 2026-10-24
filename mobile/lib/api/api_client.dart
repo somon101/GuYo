@@ -1105,27 +1105,47 @@ class ApiClient {
     }
   }
 
-  /// The chest of the day; null on any failure.
-  Future<ChestState?> fetchChest() async {
+  /// The chest bank and the chest of the day; null on any failure. Remembered
+  /// on disk so the card shows at once.
+  Future<ChestBank?> fetchChests() async {
     try {
-      final res = await http.get(_uri('/chest'), headers: await _authHeaders());
+      final res = await http.get(_uri('/chests'), headers: await _authHeaders());
       if (res.statusCode >= 400) return null;
-      return ChestState.fromJson(
-        jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
-      );
+      _remember('chests', res);
+      return ChestBank.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
     } catch (_) {
       return null;
     }
   }
 
-  Future<ChestState> openChest() async {
-    final res = await http.post(
-      _uri('/chest/open'),
-      headers: await _authHeaders(),
-    );
+  ChestBank? cachedChests() {
+    final raw = DiskCache.get('chests');
+    if (raw == null) return null;
+    try {
+      return ChestBank.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Takes the chest of the day into the bank.
+  Future<ChestBank> claimDailyChest() async {
+    final res = await http.post(_uri('/chests/daily/claim'), headers: await _authHeaders());
     await _throwWithDetail(res);
-    return ChestState.fromJson(
-      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+    _remember('chests', res);
+    return ChestBank.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  /// Opens one chest; returns the prize and the refreshed bank.
+  Future<(ChestPrize, ChestBank)> openChest(int id) async {
+    final res = await http.post(_uri('/chests/$id/open'), headers: await _authHeaders());
+    await _throwWithDetail(res);
+    final json = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    final bank = ChestBank.fromJson(json['state'] as Map<String, dynamic>);
+    DiskCache.put('chests', jsonEncode(json['state']));
+    return (
+      ChestPrize(chestKey: json['chest_key'] as String, kind: json['kind'] as String, amount: json['amount'] as int),
+      bank,
     );
   }
 

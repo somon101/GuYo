@@ -863,4 +863,17 @@ const Map<String, String> enStrings = {
   'Нет друзей, которых можно пригласить. Добавьте друзей в рейтинге':
       'No friends to invite. Add friends in the rating',
   'Позвать': 'Invite',
+  'Сундук': 'Chest',
+  'Победа': 'Win',
+  'Ничья': 'Draw',
+  'Поражение': 'Loss',
+  'Открыть': 'Open',
+  'Следующий сундук': 'Next chest',
+  'очков рейтинга': 'rating points',
+  'Заморозки серии': 'Streak freezes',
+  'Объединители серии': 'Streak mergers',
+  'Мои сундуки': 'My chests',
+  'Нажмите на сундук 3 раза': 'Tap the chest 3 times',
+  'Двойные награды из сундуков!': 'Double chest rewards!',
+  'Нажмите, чтобы забрать': 'Tap to take it',
 };

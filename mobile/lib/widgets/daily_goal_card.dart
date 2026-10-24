@@ -5,6 +5,8 @@ import '../l10n/l10n.dart';
 import '../models/daily_goal.dart';
 import '../services/streak_state.dart';
 import '../theme/app_colors.dart';
+import 'game_icons.dart';
+import 'reward_chips.dart';
 import 'season_pass_ui.dart';
 
 /// "Цель дня" on Главная: a ring that fills as the day's words are practised.
@@ -46,9 +48,19 @@ class _DailyGoalCardState extends State<DailyGoalCard> {
           '',
         ),
         title: tr('Цель дня выполнена!'),
-        text: goal.xp > 0 ? '+${goal.xp} ⚡' : tr('Так держать!'),
+        text: _prizeText(goal),
       );
     }
+  }
+
+  String _prizeText(DailyGoal g) {
+    final parts = [
+      if (g.xp > 0) '+${g.xp} ⚡',
+      if (g.diamonds > 0) '+${compactNumber(g.diamonds)} ${tr('бриллиантов')}',
+      if (g.points > 0) '+${g.points} ${tr('очков рейтинга')}',
+      if (g.chests.isNotEmpty) '${tr('Сундук')} ×${g.chests.length}',
+    ];
+    return parts.isEmpty ? tr('Так держать!') : parts.join('  ');
   }
 
   Future<void> _pick() async {
@@ -79,6 +91,12 @@ class _DailyGoalCardState extends State<DailyGoalCard> {
                   tr('{0} слов', [n]),
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
+                subtitle: (goal.tiers[n] ?? const []).isEmpty
+                    ? null
+                    : Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: RewardChips(rewards: goal.tiers[n]!, color: AppColors.primaryDark),
+                      ),
                 trailing: n == goal.goal
                     ? Icon(Icons.check_circle_rounded, color: AppColors.primary)
                     : null,

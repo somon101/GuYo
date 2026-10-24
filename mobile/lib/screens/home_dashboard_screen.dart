@@ -19,7 +19,7 @@ import '../widgets/quest_ui.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/user_name.dart';
 import 'season_quests_screen.dart';
-import '../widgets/daily_chest_card.dart';
+import '../widgets/chests_card.dart';
 import '../widgets/daily_goal_card.dart';
 import '../widgets/duel_card.dart';
 import '../widgets/season_pass_card.dart';
@@ -216,7 +216,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             onOpenRating: widget.onOpenRating,
           ),
         // The day's word goal, then the season pass: level, XP and rewards waiting.
-        const DailyChestCard(),
+        const ChestsCard(),
         const DailyGoalCard(),
         const DuelCard(),
         const SeasonPassCard(),

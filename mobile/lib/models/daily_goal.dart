@@ -1,3 +1,5 @@
+import 'reward_spec.dart';
+
 /// Today's progress towards the daily word goal (GET /daily-goal).
 class DailyGoal {
   final int goal;
@@ -6,6 +8,10 @@ class DailyGoal {
   final bool justCompleted;
   final int xp;
   final List<int> options;
+  final List<String> chests;
+  final int diamonds;
+  final int points;
+  final Map<int, List<RewardSpec>> tiers;
 
   const DailyGoal({
     required this.goal,
@@ -14,6 +20,10 @@ class DailyGoal {
     this.justCompleted = false,
     this.xp = 0,
     this.options = const [5, 10, 20],
+    this.chests = const [],
+    this.diamonds = 0,
+    this.points = 0,
+    this.tiers = const {},
   });
 
   factory DailyGoal.fromJson(Map<String, dynamic> json) => DailyGoal(
@@ -22,6 +32,13 @@ class DailyGoal {
         completed: json['completed'] as bool,
         justCompleted: (json['just_completed'] as bool?) ?? false,
         xp: (json['xp'] as int?) ?? 0,
+        chests: ((json['chests'] as List<dynamic>?) ?? const []).cast<String>(),
+        diamonds: (json['diamonds'] as int?) ?? 0,
+        points: (json['points'] as int?) ?? 0,
+        tiers: {
+          for (final t in (json['tiers'] as List<dynamic>? ?? const []))
+            (t as Map<String, dynamic>)['words'] as int: RewardSpec.list(t['rewards']),
+        },
         options: ((json['options'] as List<dynamic>?) ?? const [5, 10, 20]).cast<int>(),
       );
 }

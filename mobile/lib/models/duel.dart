@@ -1,3 +1,5 @@
+import 'reward_spec.dart';
+
 /// A weekly friend duel (GET /duels).
 class Duel {
   final int id;
@@ -44,16 +46,21 @@ class Duel {
 
 class DuelState {
   final bool enabled;
+  final Map<String, List<RewardSpec>> rewards; // win | draw | lose
   final Duel? current;
   final List<Duel> recent;
   const DuelState({
     required this.enabled,
+    this.rewards = const {},
     this.current,
     this.recent = const [],
   });
 
   factory DuelState.fromJson(Map<String, dynamic> json) => DuelState(
     enabled: json['enabled'] as bool,
+    rewards: {
+      for (final e in ((json['rewards'] as Map<String, dynamic>?) ?? const {}).entries) e.key: RewardSpec.list(e.value),
+    },
     current: json['current'] == null
         ? null
         : Duel.fromJson(json['current'] as Map<String, dynamic>),

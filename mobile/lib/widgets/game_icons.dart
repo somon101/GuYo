@@ -30,6 +30,7 @@ class MergeIcon extends StatelessWidget {
 
 /// The picture for a collectible by its short name: diamond, freeze or merge.
 Widget gameAsset(String name, double size) {
+  if (name.startsWith('chest:')) return ChestImage(name.substring(6), size: size);
   switch (name) {
     case 'freeze':
       return FreezeIcon(size: size);
@@ -37,6 +38,20 @@ Widget gameAsset(String name, double size) {
       return MergeIcon(size: size);
     default:
       return DiamondIcon(size: size);
+  }
+}
+
+/// One of the four chests (wood, silver, purple, gold), closed or open.
+class ChestImage extends StatelessWidget {
+  final String chestKey;
+  final bool open;
+  final double size;
+  const ChestImage(this.chestKey, {super.key, this.open = false, this.size = 64});
+
+  @override
+  Widget build(BuildContext context) {
+    final key = const ['wood', 'silver', 'purple', 'gold'].contains(chestKey) ? chestKey : 'wood';
+    return _GameIcon('assets/chests/${key}_${open ? 'open' : 'closed'}.png', size);
   }
 }
 

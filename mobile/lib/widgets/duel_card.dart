@@ -8,6 +8,7 @@ import '../models/user_profile.dart';
 import 'user_avatar.dart';
 import '../services/streak_state.dart';
 import '../theme/app_colors.dart';
+import 'reward_chips.dart';
 
 /// «Дуэль недели» on Главная: challenge a friend, answer a challenge, or watch
 /// the score of the running duel. Hidden when duels are switched off.
@@ -181,6 +182,21 @@ class DuelCardView extends StatelessWidget {
               ),
             ],
           ),
+          if (state.rewards.values.any((r) => r.isNotEmpty)) ...[
+            const SizedBox(height: 8),
+            for (final e in const [('win', 'Победа'), ('draw', 'Ничья'), ('lose', 'Поражение')])
+              if ((state.rewards[e.$1] ?? const []).isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(children: [
+                    SizedBox(
+                      width: 84,
+                      child: Text(tr(e.$2), style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+                    ),
+                    Expanded(child: RewardChips(rewards: state.rewards[e.$1]!, color: AppColors.primaryDark, size: 18)),
+                  ]),
+                ),
+          ],
           const SizedBox(height: 10),
           if (d == null) ...[
             Text(
