@@ -61,8 +61,16 @@ def record_activity(db: Session, user: User) -> bool:
     from app.seasonpass import award_xp  # season XP: a lit streak day
 
     award_xp(db, user, "streak", f"streak:{today.isoformat()}")
+    from app.chests import rewards
+
     if previous is not None and (today - previous).days >= COMEBACK_DAYS:
-        award_xp(db, user, "comeback", f"comeback:{today.isoformat()}")
+        rewards.give(db, user, rewards.get_rule(db, "comeback"), "comeback", f"comeback:{today.isoformat()}")
+    from app.achievements.conditions import streak_days_count
+
+    run = streak_days_count(db, user)
+    if run in (7, 30, 100):
+        start = (today - timedelta(days=run - 1)).isoformat()
+        rewards.give(db, user, rewards.get_rule(db, f"streak_{run}"), "streak", f"streak{run}:{start}")
 
     from app.notifications.reminders import congratulate_streak  # app.notifications imports this package
 

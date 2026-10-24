@@ -168,6 +168,12 @@ def _side(duel: Duel, user: User) -> tuple[int, int]:
     return (1, 0) if duel.challenger_id == user.id else (0, 1)
 
 
+def _rules(db: Session) -> dict:
+    from app.chests import rewards
+
+    return {k: rewards.get_rule(db, f"duel_{k}") for k in ("win", "draw", "lose")}
+
+
 def state(db: Session, user: User) -> dict:
     """Current-week duel (if any) with scores, plus the recent finished ones."""
     monday = week_start(dushanbe_today())
@@ -200,6 +206,7 @@ def state(db: Session, user: User) -> dict:
 
     return {
         "enabled": get_pass_settings(db).duels_enabled,
+        "rewards": _rules(db),
         "current": view(current) if current else None,
         "recent": [view(d) for d in recent],
     }
@@ -241,7 +248,6 @@ def finish_due(db: Session, today: date | None = None) -> int:
         duel.challenger_xp, duel.opponent_xp = a, b
         duel.status = FINISHED
         duel.winner_id = duel.challenger_id if a > b else duel.opponent_id if b > a else None
-        bonus = get_pass_settings(db).xp_duel_win
         users = {u.id: u for u in db.query(User).filter(User.id.in_([duel.challenger_id, duel.opponent_id]))}
         for me_id, other_id, mine, theirs in (
             (duel.challenger_id, duel.opponent_id, a, b),
@@ -251,9 +257,12 @@ def finish_due(db: Session, today: date | None = None) -> int:
             if me is None or other is None:
                 continue
             key = f"duel-result:{duel.id}"
+            from app.chests import rewards
+
+            outcome = "duel_win" if mine > theirs else "duel_lose" if mine < theirs else "duel_draw"
+            given = rewards.give(db, me, rewards.get_rule(db, outcome), "duel", f"duel:{duel.id}:{outcome}")
             if mine > theirs:
-                award_xp(db, me, "duel", f"duel:{duel.id}", bonus)
-                _notify(db, me, "won", key, name=_name(other), mine=mine, theirs=theirs, bonus=bonus)
+                _notify(db, me, "won", key, name=_name(other), mine=mine, theirs=theirs, bonus=given["xp"])
             elif mine < theirs:
                 _notify(db, me, "lost", key, name=_name(other), mine=mine, theirs=theirs)
             else:

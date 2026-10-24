@@ -124,3 +124,19 @@ def test_api_flow_and_admin_send(client, db, make_user, admin_headers, auth):
     assert r.json()["double_until"]
     r = client.post("/chests/daily/claim", headers=auth(user))
     assert r.status_code == 200
+
+
+def test_streak_comeback_duel_and_pass_chests(db, make_user, active_season):
+    from app.models.chests import UserChest
+    from app.chests import rewards
+    from app.seasonpass.service import _give
+
+    user = make_user()
+    rewards.give(db, user, rewards.get_rule(db, "streak_7"), "streak", "streak7:x")
+    rewards.give(db, user, rewards.get_rule(db, "streak_7"), "streak", "streak7:x")  # same milestone: once
+    assert db.query(UserChest).filter_by(user_id=user.id, source="streak").count() == 1
+    given = rewards.give(db, user, rewards.get_rule(db, "comeback"), "comeback", "c:1")
+    assert given["xp"] == 20 and given["chests"] == ["wood"]
+    _give(db, user, {"type": "chest", "amount": 1, "key": "purple"}, "n", active_season, ref="free:2")
+    assert db.query(UserChest).filter_by(user_id=user.id, chest_key="purple", source="pass").count() == 1
+    assert rewards.validate_rewards(db, [{"type": "diamonds", "amount": 3}])

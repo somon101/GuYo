@@ -19,7 +19,7 @@ from app.models.user import User
 
 # What a weekly task counts: the `source` of the XP events.
 METRICS = ("word", "lesson", "review", "quest", "streak")
-REWARD_TYPES = ("rating_points", "premium_days", "streak_freeze", "diamonds", "badge", "title", "frame")
+REWARD_TYPES = ("rating_points", "premium_days", "streak_freeze", "diamonds", "badge", "title", "frame", "chest")
 LEVEL_MAX = 100
 
 
@@ -61,6 +61,11 @@ def default_definition() -> dict:
         if n % 3 == 1 and not milestone:  # the gifts: diamonds only come from the pass
             free = {"type": "diamonds", "amount": 10}
             premium = {"type": "diamonds", "amount": 25}
+        chest_levels = {2: ("wood", "silver"), 6: ("wood", "purple"), 9: ("silver", "purple"), 12: ("wood", "silver"),
+                        16: ("silver", "purple"), 18: ("wood", "gold"), 24: ("purple", "gold"), 27: ("silver", "gold")}
+        if n in chest_levels:
+            free = {"type": "chest", "amount": 1, "key": chest_levels[n][0]}
+            premium = {"type": "chest", "amount": 1, "key": chest_levels[n][1]}
         if n == 10:
             free = {"type": "title", "amount": 1, "text": "Знаток слов", "text_tg": "Донишманди калимаҳо", "text_uz": "So‘z bilimdoni"}
         if n == 20:
@@ -178,6 +183,10 @@ def _reward(value: dict | None, level) -> dict | None:
                 raise PassError(f"Награда {level}: выберите вид значка" if isinstance(level, str) else f"Уровень {level}: выберите вид значка")
             out["key"] = value["key"]
         return out
+    if value["type"] == "chest":
+        if value.get("key") not in ("wood", "silver", "purple", "gold"):
+            raise PassError(f"Награда {level}: выберите сундук" if isinstance(level, str) else f"Уровень {level}: выберите сундук")
+        return {"type": "chest", "amount": 1, "key": value["key"]}
     amount = int(value.get("amount", 0))
     if amount < 1:
         raise PassError(f"Награда {level}: количество должно быть больше 0" if isinstance(level, str) else f"Уровень {level}: количество награды должно быть больше 0")
@@ -450,6 +459,10 @@ def _give(db: Session, user: User, reward: dict, note: str, season: Season | Non
         from app.seasonpass.cosmetics import grant
 
         grant(db, user, reward, season)
+    elif reward["type"] == "chest":
+        from app.chests.service import grant_chest
+
+        grant_chest(db, user, reward["key"], "pass", f"pass:{season.id if season else 0}:{ref or note}", force=True)
     elif reward["type"] == "premium_days":
         from app.premium.service import grant_premium
 

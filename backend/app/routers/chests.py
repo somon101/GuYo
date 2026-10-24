@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.chests import service
+from app.chests import rewards, service
 from app.chests.service import ChestError
 from app.core.deps import get_current_admin, get_current_user
 from app.database import get_db
@@ -149,3 +149,19 @@ def send_chest(payload: SendIn, db: Session = Depends(get_db), admin=Depends(get
     db.commit()
     return {"login": user.login, "chest_key": payload.chest_key, "count": payload.count,
             "bank": len(service.unopened(db, user))}
+
+
+@admin_router.get("/rewards")
+def get_rewards(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    return rewards.all_rules(db)
+
+
+@admin_router.put("/rewards")
+def put_rewards(payload: dict, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    try:
+        out = rewards.save_rules(db, payload)
+    except (ChestError, ValueError, TypeError, AttributeError) as e:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(e) or "Неверные данные") from None
+    db.commit()
+    return out

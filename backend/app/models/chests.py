@@ -1,9 +1,9 @@
 """Chests: four kinds (wood, silver, purple, gold), a per-user bank of unopened
 ones, and the single settings row for the chest of the day."""
 
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -59,3 +59,36 @@ class ChestSettings(Base):
     daily_cap: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")  # per person per day, admin gifts excluded
     pity_after: Mapped[int] = mapped_column(Integer, nullable=False, default=5, server_default="5")  # 0 = off
     double_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class RewardRule(Base):
+    """Admin-editable rewards per event. `data` is a list of reward specs, or,
+    for the daily goal, a list of {words, rewards} tiers."""
+
+    __tablename__ = "reward_rules"
+
+    key: Mapped[str] = mapped_column(String(32), primary_key=True)
+    data: Mapped[list] = mapped_column(JSON, nullable=False)
+
+
+class DailyGoalClaim(Base):
+    """One paid daily-goal tier per person per Dushanbe day."""
+
+    __tablename__ = "daily_goal_claims"
+    __table_args__ = (UniqueConstraint("user_id", "day", "words", name="uq_daily_goal_claim"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    day: Mapped[date] = mapped_column(Date, nullable=False)
+    words: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class RewardMarker(Base):
+    """Once-only marker for rewards that have no ledger of their own (rating points)."""
+
+    __tablename__ = "reward_markers"
+    __table_args__ = (UniqueConstraint("user_id", "key", name="uq_reward_marker"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    key: Mapped[str] = mapped_column(String(160), nullable=False)
