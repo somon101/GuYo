@@ -207,3 +207,47 @@ def disable_gift(gift_id: int, db: Session = Depends(get_db), _admin=Depends(get
         raise HTTPException(status_code=404, detail="Подарок не найден")
     gift.enabled = False
     db.commit()
+
+
+class AdminGiftIn(BaseModel):
+    # A login (any case) or the 9-digit public ID.
+    user: str = Field(min_length=1, max_length=64)
+    amount: int = Field(ge=1, le=100_000)
+    note: str = Field(default="", max_length=300)
+
+
+_GIFT_TEXTS = {
+    "ru": ("Вам подарок!", "Вам подарили {n} бриллиантов"),
+    "tg": ("Ба шумо тӯҳфа!", "Ба шумо {n} бриллиант тӯҳфа карданд"),
+    "uz": ("Sizga sovg'a!", "Sizga {n} ta brilliant sovg'a qilindi"),
+    "en": ("A gift for you!", "You were given {n} diamonds"),
+}
+
+
+@admin_router.post("/gift")
+def gift_diamonds(payload: AdminGiftIn, db: Session = Depends(get_db), admin=Depends(get_current_admin)):
+    """Gives diamonds to one person by hand (an event, a prize, a correction)
+    and tells them with a notification."""
+    import uuid
+
+    from sqlalchemy import func
+
+    from app.notifications.service import send_notification
+
+    key = payload.user.strip()
+    query = db.query(User).filter(User.deleted_at.is_(None))
+    user = query.filter(User.public_id == int(key)).first() if key.isdigit() else None
+    if user is None:
+        user = query.filter(func.lower(User.login) == key.lower()).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    service.grant_diamonds(db, user, payload.amount, "admin_gift", f"admin:{admin.id}:{uuid.uuid4().hex}")
+    lang = user.ui_language if user.ui_language in _GIFT_TEXTS else "ru"
+    title, body = _GIFT_TEXTS[lang]
+    body = body.format(n=payload.amount)
+    if payload.note.strip():
+        body = f"{body}. {payload.note.strip()}"
+    send_notification(db, user, body, title=title, source="admin_gift")
+    db.commit()
+    db.refresh(user)
+    return {"user_id": user.id, "login": user.login, "amount": payload.amount, "diamonds": user.diamonds_balance}

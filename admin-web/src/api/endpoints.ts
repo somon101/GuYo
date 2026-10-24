@@ -2878,6 +2878,19 @@ export async function saveShopProduct(value: Omit<ShopProductAdmin, "id">, id?: 
 export async function disableShopProduct(id: number): Promise<void> {
   await api.delete(`/admin/economy/products/${id}`);
 }
+export interface AdminDiamondGiftResult {
+  user_id: number;
+  login: string;
+  amount: number;
+  diamonds: number;
+}
+
+/** Gives diamonds to one person (login or 9-digit ID); they get a notification. */
+export async function giftDiamonds(user: string, amount: number, note: string): Promise<AdminDiamondGiftResult> {
+  const { data } = await api.post("/admin/economy/gift", { user, amount, note });
+  return data;
+}
+
 export async function listGiftDefinitions(): Promise<GiftAdmin[]> {
   const { data } = await api.get("/admin/economy/gifts");
   return data;

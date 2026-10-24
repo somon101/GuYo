@@ -41,3 +41,16 @@ def test_streak_merge_counts_unique_activity_and_spent_freeze_days(db, make_user
     assert result["current_streak_days"] == 7
     assert result["items_left"] == 0
     assert user.streak_merge_days == 4
+
+
+def test_admin_gifts_diamonds_by_login_or_id(client, db, make_user, admin_headers):
+    from app.models.notification import Notification
+
+    user = make_user(login="Somon")
+    r = client.post("/admin/economy/gift", headers=admin_headers, json={"user": "somon", "amount": 150, "note": "Спасибо!"})
+    assert r.status_code == 200, r.text
+    assert r.json()["diamonds"] == 150
+    r = client.post("/admin/economy/gift", headers=admin_headers, json={"user": str(user.public_id), "amount": 50})
+    assert r.json()["diamonds"] == 200
+    assert db.query(Notification).filter_by(user_id=user.id, source="admin_gift").count() == 2
+    assert client.post("/admin/economy/gift", headers=admin_headers, json={"user": "nobody", "amount": 5}).status_code == 404
