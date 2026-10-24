@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 // it floats, shakes when pressed, bursts open with light and throws out rewards.
 
 type Size = "small" | "medium" | "large";
-type Phase = "idle" | "shaking" | "open";
+type Phase = "idle" | "bursting" | "open";
 type PrizeId = "diamond" | "freeze" | "merge";
 type Pick = PrizeId | "random";
 
@@ -24,43 +24,58 @@ const PRIZES: Record<PrizeId, { name: string; img: string; amount: (size: Size) 
 };
 const PRIZE_IDS = Object.keys(PRIZES) as PrizeId[];
 
-const SHAKE_MS = 750;
+const TAPS_TO_OPEN = 3;
+const BURST_MS = 520;
 const BASE = `${import.meta.env.BASE_URL}preview/`;
 
 const css = `
 @keyframes cp-float { 0%,100% { transform: translateY(0) rotate(-0.6deg) scale(1); } 50% { transform: translateY(-9px) rotate(0.6deg) scale(1.015); } }
-@keyframes cp-shake {
-  0% { transform: translate(0,0) rotate(0) scale(1); }
-  12% { transform: translate(-6px,2px) rotate(-5deg) scale(1.02); }
-  26% { transform: translate(7px,-2px) rotate(5deg) scale(1.04); }
-  40% { transform: translate(-8px,2px) rotate(-6deg) scale(1.06); }
-  54% { transform: translate(8px,-2px) rotate(6deg) scale(1.07); }
-  70% { transform: translate(-6px,1px) rotate(-4deg) scale(1.08); }
-  85% { transform: translate(4px,0) rotate(3deg) scale(1.09); }
-  100% { transform: translate(0,0) rotate(0) scale(1.1); }
+@keyframes cp-tap1 { 0% { transform: scale(1); } 20% { transform: translate(-4px,2px) rotate(-3deg) scale(1.04); } 45% { transform: translate(4px,0) rotate(3deg) scale(1.05); } 70% { transform: translate(-2px,0) rotate(-1.5deg) scale(1.03); } 100% { transform: scale(1.02); } }
+@keyframes cp-tap2 { 0% { transform: scale(1.02); } 15% { transform: translate(-8px,3px) rotate(-6deg) scale(1.08); } 35% { transform: translate(8px,-2px) rotate(6deg) scale(1.1); } 55% { transform: translate(-6px,2px) rotate(-4deg) scale(1.09); } 80% { transform: translate(4px,0) rotate(2deg) scale(1.07); } 100% { transform: scale(1.05); } }
+@keyframes cp-burst {
+  0% { transform: scale(1.05); }
+  10% { transform: translate(-12px,4px) rotate(-8deg) scale(1.14); }
+  22% { transform: translate(12px,-4px) rotate(8deg) scale(1.18); }
+  36% { transform: translate(-12px,4px) rotate(-9deg) scale(1.2); }
+  50% { transform: translate(12px,-3px) rotate(9deg) scale(1.22); }
+  66% { transform: translate(-8px,2px) rotate(-5deg) scale(1.26); }
+  82% { transform: translate(4px,0) rotate(3deg) scale(1.3); }
+  100% { transform: translate(0,0) rotate(0) scale(1.34); }
 }
-@keyframes cp-pop { 0% { transform: scale(1.1); } 35% { transform: scale(0.94); } 65% { transform: scale(1.07); } 100% { transform: scale(1); } }
-@keyframes cp-flash { 0% { opacity: 0.95; transform: scale(0.4); } 100% { opacity: 0; transform: scale(2.4); } }
+@keyframes cp-pop { 0% { transform: scale(1.34); } 30% { transform: scale(0.92); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
+@keyframes cp-exit { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(170px) scale(0.7); } }
+@keyframes cp-flash { 0% { opacity: 0.95; transform: scale(0.4); } 100% { opacity: 0; transform: scale(2.6); } }
 @keyframes cp-rays { from { transform: translate(-50%,-50%) rotate(0deg); } to { transform: translate(-50%,-50%) rotate(360deg); } }
 @keyframes cp-rays-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes cp-spark { 0% { opacity: 1; transform: translate(0,0) scale(0.4); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.2); } }
 @keyframes cp-prize {
-  0% { opacity: 0; transform: translate(-50%,-50%) translateY(0) scale(0.15) rotate(-25deg); }
-  18% { opacity: 1; }
-  55% { transform: translate(-50%,-50%) translateY(-135px) scale(1.35) rotate(10deg); }
-  75% { transform: translate(-50%,-50%) translateY(-112px) scale(1.12) rotate(-5deg); }
-  100% { opacity: 1; transform: translate(-50%,-50%) translateY(-120px) scale(1.2) rotate(0deg); }
+  0% { opacity: 0; transform: translate(-50%,-50%) translateY(-10px) scale(0.12) rotate(-30deg); }
+  15% { opacity: 1; }
+  45% { transform: translate(-50%,-50%) translateY(-135px) scale(1.25) rotate(12deg); }
+  75% { transform: translate(-50%,-50%) translateY(14px) scale(1.65) rotate(-4deg); }
+  100% { opacity: 1; transform: translate(-50%,-50%) translateY(0) scale(1.55) rotate(0deg); }
 }
-@keyframes cp-bob { 0%,100% { margin-top: 0; } 50% { margin-top: -9px; } }
-@keyframes cp-halo { 0%,100% { opacity: 0.55; transform: scale(1); } 50% { opacity: 0.95; transform: scale(1.12); } }
+@keyframes cp-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes cp-halo { 0%,100% { opacity: 0.6; transform: translate(-50%,-50%) scale(1); } 50% { opacity: 1; transform: translate(-50%,-50%) scale(1.14); } }
+@keyframes cp-shine { 0% { transform: translateX(-130%) skewX(-20deg); } 55%,100% { transform: translateX(230%) skewX(-20deg); } }
+@keyframes cp-twinkle { 0%,100% { opacity: 0; transform: scale(0.3) rotate(0deg); } 50% { opacity: 1; transform: scale(1) rotate(45deg); } }
 @keyframes cp-label { 0% { opacity: 0; transform: translateY(14px) scale(0.7); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes cp-glow { 0%,100% { opacity: 0.35; } 50% { opacity: 0.6; } }
+@keyframes cp-dot { 0% { transform: scale(1); } 40% { transform: scale(1.6); } 100% { transform: scale(1); } }
 `;
+
+const TWINKLES = [
+  { x: -150, y: -80, d: 0, s: 22 }, { x: 150, y: -95, d: 0.4, s: 28 }, { x: -175, y: 40, d: 0.8, s: 18 },
+  { x: 170, y: 55, d: 0.2, s: 20 }, { x: -70, y: -150, d: 0.6, s: 16 }, { x: 80, y: 150, d: 1.0, s: 24 },
+  { x: -105, y: 135, d: 0.3, s: 16 }, { x: 110, y: -150, d: 0.9, s: 18 },
+];
 
 export function ChestPreviewPage() {
   const [size, setSize] = useState<Size>("medium");
   const [pick, setPick] = useState<Pick>("random");
   const [phase, setPhase] = useState<Phase>("idle");
+  const [taps, setTaps] = useState(0);
+  const [tapRun, setTapRun] = useState(0); // restarts the shake of a single tap
   const [prize, setPrize] = useState<PrizeId>("diamond");
   const [run, setRun] = useState(0); // restarts the CSS animations on every opening
   const last = useRef<PrizeId | null>(null);
@@ -70,10 +85,10 @@ export function ChestPreviewPage() {
 
   const sparks = useMemo(
     () =>
-      Array.from({ length: 16 }, (_, i) => {
-        const a = (i / 16) * Math.PI * 2 + Math.random() * 0.4;
-        const d = 110 + Math.random() * 90;
-        return { dx: Math.cos(a) * d, dy: Math.sin(a) * d - 40, delay: Math.random() * 0.12, s: 6 + Math.random() * 8 };
+      Array.from({ length: 22 }, (_, i) => {
+        const a = (i / 22) * Math.PI * 2 + Math.random() * 0.4;
+        const d = 130 + Math.random() * 120;
+        return { dx: Math.cos(a) * d, dy: Math.sin(a) * d - 40, delay: Math.random() * 0.12, s: 6 + Math.random() * 9 };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [run],
@@ -86,23 +101,39 @@ export function ChestPreviewPage() {
     return pool[Math.floor(Math.random() * pool.length)];
   };
 
-  const open = () => {
+  // Every press shakes the chest harder; the third one bursts it open.
+  const tap = () => {
     if (phase !== "idle") return;
-    const next = roll();
-    last.current = next;
-    setPrize(next);
-    setRun((n) => n + 1);
-    setPhase("shaking");
-    timer.current = window.setTimeout(() => setPhase("open"), SHAKE_MS);
+    const n = taps + 1;
+    setTaps(n);
+    setTapRun((r) => r + 1);
+    if (n >= TAPS_TO_OPEN) {
+      const next = roll();
+      last.current = next;
+      setPrize(next);
+      setRun((r) => r + 1);
+      setPhase("bursting");
+      timer.current = window.setTimeout(() => setPhase("open"), BURST_MS);
+    }
   };
   const reset = () => {
     if (timer.current) window.clearTimeout(timer.current);
     setPhase("idle");
+    setTaps(0);
   };
 
   const p = PRIZES[prize];
   const amount = p.amount(size);
   const isOpen = phase === "open";
+
+  const chestAnimation =
+    phase === "open"
+      ? "cp-pop 0.5s ease-out both, cp-exit 0.95s ease-in 1.0s both"
+      : phase === "bursting"
+        ? `cp-burst ${BURST_MS}ms ease-in-out both`
+        : taps === 0
+          ? "cp-float 3.2s ease-in-out infinite"
+          : undefined;
 
   return (
     <main className="mx-auto max-w-3xl space-y-5">
@@ -110,8 +141,8 @@ export function ChestPreviewPage() {
       <header>
         <h1 className="text-2xl font-bold">Предпросмотр сундука</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Только показ: как картинка сундука оживает. Нажмите на сундук или кнопку «Открыть»: из него выпадает один случайный
-          приз. Ни приложение, ни сервер, ни награды этим не затрагиваются.
+          Только показ. Нажмите на сундук три раза: с каждым нажатием он трясётся сильнее, на третьем раскрывается, сам уходит
+          со сцены, а выпавший приз остаётся в центре и сияет. Ни приложение, ни сервер, ни награды этим не затрагиваются.
         </p>
       </header>
 
@@ -119,101 +150,127 @@ export function ChestPreviewPage() {
         className="relative mx-auto overflow-hidden rounded-3xl"
         style={{
           height: 560,
-          background: "radial-gradient(ellipse at 50% 70%, #5b3fd0 0%, #2a1f6b 55%, #150f3a 100%)",
+          background: "radial-gradient(ellipse at 50% 60%, #5b3fd0 0%, #2a1f6b 55%, #150f3a 100%)",
           boxShadow: "0 18px 50px rgba(30,20,90,0.35)",
         }}
       >
         <div
           className="absolute left-1/2 rounded-full"
-          style={{ top: 360, width: 360, height: 90, transform: "translateX(-50%)", background: "radial-gradient(closest-side, rgba(255,214,120,0.5), rgba(255,214,120,0))", animation: isOpen ? "cp-glow 1.6s ease-in-out infinite" : undefined, opacity: isOpen ? 1 : 0.25 }}
+          style={{ top: 360, width: 360, height: 90, transform: "translateX(-50%)", background: "radial-gradient(closest-side, rgba(255,214,120,0.5), rgba(255,214,120,0))", animation: phase !== "idle" ? "cp-glow 1.6s ease-in-out infinite" : undefined, opacity: phase !== "idle" ? 1 : 0.2 + taps * 0.12 }}
         />
 
+        {/* light rays behind the scene, centred where the prize ends up */}
         {isOpen && (
           <div
             key={`rays-${run}`}
             className="absolute"
             style={{
-              left: "50%", top: 255, width: 760, height: 760, borderRadius: "50%",
-              background: "repeating-conic-gradient(from 0deg, rgba(255,226,140,0.55) 0deg 9deg, rgba(255,226,140,0) 9deg 22deg)",
+              left: "50%", top: 250, width: 820, height: 820, borderRadius: "50%",
+              background: "repeating-conic-gradient(from 0deg, rgba(255,226,140,0.6) 0deg 9deg, rgba(255,226,140,0) 9deg 22deg)",
               WebkitMaskImage: "radial-gradient(closest-side, #000 15%, transparent 72%)",
               maskImage: "radial-gradient(closest-side, #000 15%, transparent 72%)",
-              animation: "cp-rays 16s linear infinite, cp-rays-in 0.6s ease-out both",
+              animation: "cp-rays 18s linear infinite, cp-rays-in 0.9s ease-out 0.4s both",
               pointerEvents: "none",
             }}
           />
         )}
 
+        {/* the chest */}
         <div className="absolute left-1/2" style={{ top: 90, width: 320, transform: "translateX(-50%)" }}>
-          <div
-            onClick={open}
-            role="button"
-            aria-label="Открыть сундук"
-            className="relative"
-            style={{
-              cursor: phase === "idle" ? "pointer" : "default",
-              animation:
-                phase === "idle" ? "cp-float 3.2s ease-in-out infinite" : phase === "shaking" ? `cp-shake ${SHAKE_MS}ms ease-in-out both` : "cp-pop 0.55s ease-out both",
-            }}
-          >
-            <img src={`${BASE}chest_closed.png`} alt="" draggable={false} style={{ width: "100%", display: isOpen ? "none" : "block", userSelect: "none", filter: phase === "shaking" ? "brightness(1.15)" : undefined }} />
-            <img key={`open-${run}`} src={`${BASE}chest_open.png`} alt="" draggable={false} style={{ width: "100%", display: isOpen ? "block" : "none", userSelect: "none" }} />
+          <div key={`tap-${tapRun}-${phase}`} style={{ animation: phase === "idle" && taps > 0 ? `cp-tap${Math.min(taps, 2)} 0.5s ease-out both` : chestAnimation }}>
+            <div
+              onClick={tap}
+              role="button"
+              aria-label="Нажать на сундук"
+              className="relative"
+              style={{ cursor: phase === "idle" ? "pointer" : "default", filter: phase === "idle" ? `brightness(${1 + taps * 0.12})` : phase === "bursting" ? "brightness(1.35)" : undefined }}
+            >
+              <img src={`${BASE}chest_closed.png`} alt="" draggable={false} style={{ width: "100%", display: isOpen ? "none" : "block", userSelect: "none" }} />
+              <img key={`open-${run}`} src={`${BASE}chest_open.png`} alt="" draggable={false} style={{ width: "100%", display: isOpen ? "block" : "none", userSelect: "none" }} />
+            </div>
           </div>
 
-          {isOpen && (
-            <>
-              <div
-                key={`flash-${run}`}
-                className="absolute rounded-full"
-                style={{ left: "50%", top: "34%", width: 300, height: 300, marginLeft: -150, marginTop: -150, background: "radial-gradient(closest-side, #fff, rgba(255,240,180,0.7) 45%, rgba(255,240,180,0))", animation: "cp-flash 0.7s ease-out both", pointerEvents: "none" }}
+          {(phase === "bursting" || isOpen) && (
+            <div
+              key={`flash-${run}`}
+              className="absolute rounded-full"
+              style={{ left: "50%", top: "34%", width: 320, height: 320, marginLeft: -160, marginTop: -160, background: "radial-gradient(closest-side, #fff, rgba(255,240,180,0.75) 45%, rgba(255,240,180,0))", animation: `cp-flash 0.8s ease-out ${phase === "bursting" ? BURST_MS - 120 : 0}ms both`, pointerEvents: "none", opacity: 0 }}
+            />
+          )}
+          {isOpen &&
+            sparks.map((sp, i) => (
+              <span
+                key={`sp-${run}-${i}`}
+                className="absolute"
+                style={{
+                  left: "52%", top: "34%", width: sp.s, height: sp.s, background: "#fff4c2", borderRadius: "50%", boxShadow: "0 0 10px 3px rgba(255,214,102,0.9)",
+                  ["--dx" as string]: `${sp.dx}px`, ["--dy" as string]: `${sp.dy}px`,
+                  animation: `cp-spark 1s ease-out ${sp.delay}s both`, pointerEvents: "none",
+                }}
               />
-              {sparks.map((sp, i) => (
-                <span
-                  key={`sp-${run}-${i}`}
-                  className="absolute"
-                  style={{
-                    left: "52%", top: "34%", width: sp.s, height: sp.s, background: "#fff4c2", borderRadius: "50%", boxShadow: "0 0 10px 3px rgba(255,214,102,0.9)",
-                    ["--dx" as string]: `${sp.dx}px`, ["--dy" as string]: `${sp.dy}px`,
-                    animation: `cp-spark 0.9s ease-out ${sp.delay}s both`, pointerEvents: "none",
-                  }}
-                />
-              ))}
+            ))}
+        </div>
 
-              {/* the one prize: rises out of the chest, glows and floats */}
-              <div key={`prize-${run}`} className="absolute" style={{ left: "52%", top: "36%", width: 0, height: 0, pointerEvents: "none" }}>
-                <div
-                  className="absolute rounded-full"
-                  style={{ left: -125, top: -245, width: 250, height: 250, background: "radial-gradient(closest-side, rgba(255,246,200,0.95), rgba(255,226,140,0.45) 55%, rgba(255,226,140,0))", animation: "cp-halo 1.8s ease-in-out 1.2s infinite both", opacity: 0 }}
+        {/* the prize: flies out of the chest and settles in the middle of the stage */}
+        {isOpen && (
+          <div key={`prize-${run}`} className="absolute" style={{ left: "50%", top: 250, width: 0, height: 0, pointerEvents: "none" }}>
+            <div
+              className="absolute rounded-full"
+              style={{ left: 0, top: 0, width: 330, height: 330, background: "radial-gradient(closest-side, rgba(255,248,205,0.95), rgba(255,226,140,0.5) 55%, rgba(255,226,140,0))", animation: "cp-halo 2s ease-in-out 1.1s infinite both", opacity: 0 }}
+            />
+            {TWINKLES.map((t, i) => (
+              <span
+                key={i}
+                className="absolute select-none"
+                style={{ left: t.x - t.s / 2, top: t.y - t.s / 2, width: t.s, height: t.s, color: "#fff7c9", fontSize: t.s, lineHeight: 1, textShadow: "0 0 10px rgba(255,220,120,0.95)", animation: `cp-twinkle 1.8s ease-in-out ${1.2 + t.d}s infinite both`, opacity: 0 }}
+              >
+                ✦
+              </span>
+            ))}
+            <div style={{ animation: "cp-bob 2.4s ease-in-out 1.6s infinite" }}>
+              <div className="absolute" style={{ left: 0, top: 0, width: 170, height: 170, animation: "cp-prize 1.5s cubic-bezier(.2,.8,.3,1) 0.45s both", opacity: 0 }}>
+                <img
+                  src={`${BASE}${p.img}`}
+                  alt={p.name}
+                  draggable={false}
+                  className="select-none"
+                  style={{ width: "100%", height: "100%", maxWidth: "none", objectFit: "contain", filter: "drop-shadow(0 10px 18px rgba(0,0,0,0.5)) drop-shadow(0 0 22px rgba(255,236,160,0.65))" }}
                 />
-                <div style={{ animation: "cp-bob 2.2s ease-in-out 1.5s infinite" }}>
-                  <img
-                    src={`${BASE}${p.img}`}
-                    alt={p.name}
-                    draggable={false}
-                    className="absolute select-none"
-                    style={{ left: 0, top: 0, width: 150, height: 150, maxWidth: "none", objectFit: "contain", filter: "drop-shadow(0 8px 14px rgba(0,0,0,0.45))", animation: "cp-prize 1.25s cubic-bezier(.2,.8,.3,1) 0.2s both" }}
-                  />
+                {/* a glint that sweeps across the prize */}
+                <div style={{ position: "absolute", inset: 0, overflow: "hidden", borderRadius: 24, WebkitMaskImage: `url(${BASE}${p.img})`, maskImage: `url(${BASE}${p.img})`, WebkitMaskSize: "contain", maskSize: "contain", WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat", WebkitMaskPosition: "center", maskPosition: "center" }}>
+                  <div style={{ position: "absolute", top: 0, bottom: 0, width: "38%", background: "linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.85), rgba(255,255,255,0))", animation: "cp-shine 2.6s ease-in-out 2.0s infinite" }} />
                 </div>
               </div>
-            </>
-          )}
-        </div>
+            </div>
+          </div>
+        )}
 
         {isOpen && (
           <div
             key={`label-${run}`}
             className="absolute left-1/2 text-center"
-            style={{ top: 470, transform: "translateX(-50%)", animation: "cp-label 0.5s ease-out 1.2s both" }}
+            style={{ top: 440, transform: "translateX(-50%)", animation: "cp-label 0.5s ease-out 1.9s both" }}
           >
-            <div style={{ fontSize: 34, fontWeight: 900, color: "#fff", textShadow: "0 3px 10px rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+            <div style={{ fontSize: 38, fontWeight: 900, color: "#fff", textShadow: "0 3px 12px rgba(0,0,0,0.45)" }}>
               {prize === "diamond" ? `+${amount}` : `×${amount}`}
             </div>
-            <div style={{ fontSize: 15, color: "rgba(255,255,255,0.85)" }}>{p.name}</div>
+            <div style={{ fontSize: 16, color: "rgba(255,255,255,0.9)" }}>{p.name}</div>
           </div>
         )}
 
         {phase === "idle" && (
-          <div className="absolute left-1/2 text-sm" style={{ bottom: 22, transform: "translateX(-50%)", color: "rgba(255,255,255,0.75)" }}>
-            Нажмите на сундук
+          <div className="absolute left-1/2 flex flex-col items-center gap-2" style={{ bottom: 22, transform: "translateX(-50%)" }}>
+            <div className="flex gap-2">
+              {Array.from({ length: TAPS_TO_OPEN }, (_, i) => (
+                <span
+                  key={i}
+                  style={{ width: 12, height: 12, borderRadius: "50%", background: i < taps ? "#ffd54f" : "rgba(255,255,255,0.25)", boxShadow: i < taps ? "0 0 10px rgba(255,213,79,0.9)" : undefined, animation: i === taps - 1 ? "cp-dot 0.4s ease-out" : undefined }}
+                />
+              ))}
+            </div>
+            <div className="text-sm" style={{ color: "rgba(255,255,255,0.8)" }}>
+              {taps === 0 ? "Нажмите на сундук 3 раза" : `Ещё ${TAPS_TO_OPEN - taps}…`}
+            </div>
           </div>
         )}
       </section>
@@ -246,10 +303,10 @@ export function ChestPreviewPage() {
             </button>
           ))}
           <div className="ml-auto flex gap-2">
-            <button type="button" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50" disabled={phase !== "idle"} onClick={open}>
-              Открыть
+            <button type="button" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50" disabled={phase !== "idle"} onClick={tap}>
+              Нажать ({Math.min(taps + 1, TAPS_TO_OPEN)}/{TAPS_TO_OPEN})
             </button>
-            <button type="button" className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 disabled:opacity-50" disabled={phase === "idle"} onClick={reset}>
+            <button type="button" className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 disabled:opacity-50" disabled={phase === "idle" && taps === 0} onClick={reset}>
               Закрыть снова
             </button>
           </div>
