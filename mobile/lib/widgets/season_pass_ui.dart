@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
 import '../models/season_pass.dart';
+import 'gift_art.dart';
 import 'user_avatar.dart' show frameColors;
 
 /// The hero gradient of the season pass: deep violet into electric blue.
@@ -17,7 +18,10 @@ class RewardStyle {
   final List<Color> colors;
   final IconData icon;
   final String label;
-  const RewardStyle(this.colors, this.icon, this.label);
+
+  /// Drawn as the season-pass gift box instead of [icon].
+  final bool gift;
+  const RewardStyle(this.colors, this.icon, this.label, {this.gift = false});
 
   Color get glow => colors.last;
 }
@@ -49,6 +53,7 @@ RewardStyle rewardStyle(PassReward r) {
         const [Color(0xFF87EFFF), Color(0xFF3A7BFF)],
         Icons.diamond_rounded,
         tr('Бриллианты'),
+        gift: true,
       );
     case 'frame':
       return RewardStyle(
@@ -246,7 +251,9 @@ class RewardCard extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (reward.type == 'badge')
+                    if (style.gift)
+                      const GiftArt(size: 44)
+                    else if (reward.type == 'badge')
                       Container(
                         padding: const EdgeInsets.all(2),
                         decoration: BoxDecoration(
@@ -494,15 +501,18 @@ class RewardDialogViewState extends State<RewardDialogView>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 84,
-                      height: 84,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: 0.28),
+                    if (widget.style.gift)
+                      const GiftArt(size: 104)
+                    else
+                      Container(
+                        width: 84,
+                        height: 84,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.28),
+                        ),
+                        child: Icon(style.icon, size: 48, color: Colors.white),
                       ),
-                      child: Icon(style.icon, size: 48, color: Colors.white),
-                    ),
                     const SizedBox(height: 14),
                     Text(
                       widget.title,

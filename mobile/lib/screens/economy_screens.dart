@@ -1,12 +1,11 @@
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
-import '../widgets/season_pass_ui.dart' show RewardStyle, showRewardDialog;
+import '../theme/app_colors.dart';
+import '../widgets/gift_art.dart';
+import '../widgets/shop_ui.dart';
 
-const _gold = Color(0xFFFFC857);
-const _ink = Color(0xFF171A2B);
 
 Future<void> openEconomy(BuildContext context) =>
     Navigator.of(context)
@@ -17,28 +16,23 @@ Future<void> openStreakHistory(BuildContext context) =>
         .push(MaterialPageRoute(builder: (_) => const StreakHistoryScreen()));
 
 class EconomyScreen extends StatefulWidget {
-  const EconomyScreen({super.key});
+  /// Shown at once with no request (used by tests and previews).
+  final Map<String, dynamic>? initial;
+  const EconomyScreen({super.key, this.initial});
   @override
   State<EconomyScreen> createState() => _EconomyScreenState();
 }
 
-class _EconomyScreenState extends State<EconomyScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 2, vsync: this);
-  final AudioPlayer _rewardPlayer = AudioPlayer();
+/// «Магазин»: the diamond balance and what it buys. Diamonds themselves come
+/// only from season-pass gifts, so there is no gifts tab any more.
+class _EconomyScreenState extends State<EconomyScreen> {
   Map<String, dynamic>? _data;
   bool _busy = false;
   @override
   void initState() {
     super.initState();
-    _load();
-  }
-
-  @override
-  void dispose() {
-    _tabs.dispose();
-    _rewardPlayer.dispose();
-    super.dispose();
+    _data = widget.initial;
+    if (_data == null) _load();
   }
 
   Future<void> _load() async {
@@ -46,9 +40,9 @@ class _EconomyScreenState extends State<EconomyScreen>
       final data = await ApiClient.instance.fetchEconomy();
       if (mounted) setState(() => _data = data);
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
     }
   }
 
@@ -57,48 +51,13 @@ class _EconomyScreenState extends State<EconomyScreen>
     setState(() => _busy = true);
     try {
       _data = await ApiClient.instance.buyShopProduct(product['id'] as int);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${tr('Куплено')}: ${product['name']}')));
+      }
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.toString())));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _openGift(Map<String, dynamic> gift) async {
-    if (_busy) return;
-    setState(() => _busy = true);
-    try {
-      final result = await ApiClient.instance.openGift(gift['id'] as int);
-      _data = await ApiClient.instance.fetchEconomy();
-      if (!mounted) return;
-      setState(() {});
-      await _rewardPlayer.play(AssetSource('sounds/correct-answer.mp3'));
-      if (!mounted) return;
-      final isFreeze = result['kind'] == 'freeze';
-      await showRewardDialog(
-        context,
-        style: isFreeze
-            ? const RewardStyle(
-                [Color(0xFF7FDBFF), Color(0xFF3A7BFF)],
-                Icons.ac_unit_rounded,
-                '',
-              )
-            : const RewardStyle(
-                [Color(0xFF92F2FF), Color(0xFF6558FF)],
-                Icons.diamond_rounded,
-                '',
-              ),
-        title: tr('Поздравляем!'),
-        text: isFreeze
-            ? tr('Заморозка серии +1')
-            : '+${result['amount']} ${tr('бриллиантов')}',
-      );
-    } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -113,17 +72,13 @@ class _EconomyScreenState extends State<EconomyScreen>
       if (mounted) {
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${tr('Серия объединена')}: ${result['current_streak_days']}',
-            ),
-          ),
+          SnackBar(content: Text('${tr('Серия объединена')}: ${result['current_streak_days']}')),
         );
       }
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -133,170 +88,92 @@ class _EconomyScreenState extends State<EconomyScreen>
   Widget build(BuildContext context) {
     final data = _data;
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F5FB),
+      backgroundColor: AppColors.canvas,
       appBar: AppBar(
-        title: Text(tr('Магазин и подарки')),
-        actions: [
-          if (data != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: Center(
-                child: Text(
-                  '💎 ${data['diamonds']}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF5044C8),
-                  ),
-                ),
-              ),
-            ),
-        ],
-        bottom: TabBar(
-          controller: _tabs,
-          tabs: [
-            Tab(text: tr('Магазин')),
-            Tab(text: tr('Подарки')),
-          ],
-        ),
+        title: Text(tr('Магазин'), style: TextStyle(fontWeight: FontWeight.w900, color: AppColors.primaryDark)),
+        backgroundColor: Colors.transparent,
+        scrolledUnderElevation: 0,
       ),
       body: data == null
           ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabs,
-              children: [
-                RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    padding: const EdgeInsets.all(16),
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+                children: [
+                  ShopHeader(
+                    diamonds: data['diamonds'] as int? ?? 0,
+                    freezes: data['streak_freezes'] as int? ?? 0,
+                    merges: data['streak_merge_items'] as int? ?? 0,
+                  ),
+                  const SizedBox(height: 18),
+                  GridView(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    // A fixed height, not a ratio: long names and large
+                    // system fonts must never overflow a card.
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      mainAxisExtent: 268,
+                    ),
                     children: [
-                      _inventory(data),
-                      for (final p
-                          in (data['products'] as List<dynamic>)
-                              .cast<Map<String, dynamic>>())
-                        _productCard(p, () => _buy(p)),
-                      if ((data['streak_merge_items'] as int? ?? 0) > 0)
-                        FilledButton.icon(
-                          onPressed: _busy ? null : _merge,
-                          icon: const Icon(Icons.auto_awesome),
-                          label: Text(tr('Объединить историю серии')),
+                      for (final p in (data['products'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>())
+                        ShopCard(
+                          key: ValueKey('shop-product-${p['id']}'),
+                          name: p['name'] as String,
+                          description: p['description'] as String? ?? '',
+                          itemType: p['item_type'] as String? ?? 'streak_freeze',
+                          quantity: p['quantity'] as int? ?? 1,
+                          price: p['price_diamonds'] as int? ?? 0,
+                          affordable: !_busy && (data['diamonds'] as int? ?? 0) >= (p['price_diamonds'] as int? ?? 0),
+                          tag: (p['quantity'] as int? ?? 1) >= 10 ? tr('Выгодно') : null,
+                          onBuy: () => _buy(p),
                         ),
+                      const _MoreDiamondsCell(),
                     ],
                   ),
-                ),
-                RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      for (final g
-                          in (data['gifts'] as List<dynamic>)
-                              .cast<Map<String, dynamic>>())
-                        _giftCard(g),
-                    ],
-                  ),
-                ),
-              ],
+                  if ((data['streak_merge_items'] as int? ?? 0) > 0) ...[
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: _busy ? null : _merge,
+                      icon: const Icon(Icons.auto_awesome),
+                      label: Text(tr('Объединить историю серии')),
+                    ),
+                  ],
+                ],
+              ),
             ),
-    );
-  }
-
-  Widget _inventory(Map<String, dynamic> data) => Card(
-    color: _ink,
-    child: Padding(
-      padding: const EdgeInsets.all(18),
-      child: Row(
-        children: [
-          const Icon(Icons.ac_unit_rounded, color: Colors.lightBlueAccent),
-          const SizedBox(width: 7),
-          Text(
-            '${data['streak_freezes']}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(width: 20),
-            const _MergeSymbol(),
-          const SizedBox(width: 7),
-          Text(
-            '${data['streak_merge_items']}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const Spacer(),
-          const Icon(Icons.diamond_rounded, color: Color(0xFF87EFFF)),
-          const SizedBox(width: 6),
-          Text(
-            '${data['diamonds']}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-
-  Widget _productCard(Map<String, dynamic> p, VoidCallback buy) {
-    final merge = p['item_type'] == 'streak_merge';
-    return Card(
-      margin: const EdgeInsets.only(top: 12),
-      child: ListTile(
-      leading: merge ? const _MergeSymbol() : const Icon(Icons.ac_unit_rounded, color: Colors.lightBlue),
-        title: Text(p['name'] as String),
-        subtitle: Text(p['description'] as String? ?? ''),
-        trailing: FilledButton(
-          onPressed: _busy ? null : buy,
-          child: Text('💎 ${p['price_diamonds']}'),
-        ),
-      ),
-    );
-  }
-
-  Widget _giftCard(Map<String, dynamic> g) {
-    final opened = g['opened'] as Map<String, dynamic>?;
-    final enabled = g['available'] == true && !_busy;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: const Icon(
-          Icons.card_giftcard_rounded,
-          color: Colors.deepPurple,
-          size: 32,
-        ),
-        title: Text(g['name'] as String),
-        subtitle: Text(
-          opened == null
-              ? (g['description'] as String? ?? '')
-              : '${tr('Получено')}: ${opened['amount']} ${opened['kind'] == 'freeze'
-                    ? tr('заморозок')
-                    : opened['kind'] == 'xp'
-                    ? '⚡'
-                    : tr('бриллиантов')}',
-        ),
-        trailing: FilledButton(
-          onPressed: enabled ? () => _openGift(g) : null,
-          child: Text(opened != null ? tr('Открыт') : tr('Открыть')),
-        ),
-      ),
     );
   }
 }
 
-/// Two flame halves joined by a bright spark, the symbol for merging streaks.
-class _MergeSymbol extends StatelessWidget {
-  const _MergeSymbol();
+/// The last cell: where diamonds come from.
+class _MoreDiamondsCell extends StatelessWidget {
+  const _MoreDiamondsCell();
+
   @override
-  Widget build(BuildContext context) => SizedBox(
-        width: 36,
-        height: 32,
-        child: Stack(alignment: Alignment.center, children: [
-          const Positioned(left: 0, child: Icon(Icons.local_fire_department_rounded, size: 22, color: Color(0xFFFF7138))),
-          const Positioned(right: 0, child: Icon(Icons.local_fire_department_rounded, size: 22, color: Color(0xFFE94C77))),
-          Container(width: 18, height: 18, decoration: const BoxDecoration(color: Color(0xFFFFCF5B), shape: BoxShape.circle), child: const Icon(Icons.bolt_rounded, size: 14, color: Color(0xFF743C20))),
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(color: AppColors.cardBorder, width: 2),
+          color: AppColors.surface,
+        ),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          const GiftArt(size: 64),
+          const SizedBox(height: 6),
+          Text(tr('Нужно больше?'), style: TextStyle(fontWeight: FontWeight.w900, color: AppColors.primaryDark)),
+          const SizedBox(height: 4),
+          Flexible(
+            child: Text(
+              tr('Бриллианты дают подарки за уровни пропуска сезона'),
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.fade,
+              style: TextStyle(fontSize: 11.5, color: AppColors.secondaryText),
+            ),
+          ),
         ]),
       );
 }
