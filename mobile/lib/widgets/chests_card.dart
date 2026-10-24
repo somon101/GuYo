@@ -137,9 +137,9 @@ class ChestsCardView extends StatelessWidget {
                   SizedBox(
                     height: 48,
                     child: Row(children: [
-                      for (final c in bank.chests.take(5)) Padding(padding: const EdgeInsets.only(right: 6), child: ChestImage(c.chestKey, size: 46)),
-                      if (bank.chests.length > 5)
-                        Text('+${bank.chests.length - 5}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+                      for (final c in bank.chests.take(4)) Padding(padding: const EdgeInsets.only(right: 4), child: ChestImage(c.chestKey, size: 40)),
+                      if (bank.chests.length > 4)
+                        Text('+${bank.chests.length - 4}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
                     ]),
                   ),
                 ]),
