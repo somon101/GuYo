@@ -34,7 +34,7 @@ class Sparkles extends CustomPainter {
   bool shouldRepaint(Sparkles old) => old.color != color || old.seed != seed;
 }
 
-/// A glossy ball with a soft highlight, holding an icon.
+/// Just the icon, scaled to fill a square of [size] (no ball behind it).
 class Gem extends StatelessWidget {
   final List<Color> colors;
   final Widget child;
@@ -42,34 +42,21 @@ class Gem extends StatelessWidget {
   const Gem({super.key, required this.colors, required this.child, this.size = 76});
 
   @override
-  Widget build(BuildContext context) => Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            center: const Alignment(-0.45, -0.55),
-            radius: 1.05,
-            colors: [Color.lerp(colors.first, Colors.white, 0.55)!, colors.first, colors.last],
-            stops: const [0, 0.45, 1],
-          ),
-          boxShadow: [BoxShadow(color: colors.last.withValues(alpha: 0.5), blurRadius: 18, offset: const Offset(0, 8))],
-        ),
-        child: Center(child: child),
-      );
+  Widget build(BuildContext context) => SizedBox(width: size, height: size, child: FittedBox(child: child));
 }
 
 /// The art for one shop product, chosen by its type and quantity.
 Widget productArt(String itemType, int quantity) {
   if (itemType == 'streak_merge') {
     return const Gem(
+      size: 84,
       colors: [Color(0xFFFFC46B), Color(0xFFE5375F)],
-      child: MergeIcon(size: 56),
+      child: MergeIcon(size: 84),
     );
   }
-  const flake = FreezeIcon(size: 56);
+  const flake = FreezeIcon(size: 84);
   if (quantity <= 1) {
-    return const Gem(colors: [Color(0xFF8EE3FF), Color(0xFF2E6BFF)], child: flake);
+    return const Gem(size: 84, colors: [Color(0xFF8EE3FF), Color(0xFF2E6BFF)], child: flake);
   }
   return SizedBox(
     width: 100,
@@ -78,14 +65,14 @@ Widget productArt(String itemType, int quantity) {
       const Positioned(
         left: 0,
         top: 16,
-        child: Gem(size: 46, colors: [Color(0xFFC3C9FF), Color(0xFF6A6BFF)], child: FreezeIcon(size: 30)),
+        child: Gem(size: 46, colors: [Color(0xFFC3C9FF), Color(0xFF6A6BFF)], child: FreezeIcon(size: 46)),
       ),
       const Positioned(
         right: 0,
         top: 16,
-        child: Gem(size: 46, colors: [Color(0xFFC3C9FF), Color(0xFF6A6BFF)], child: FreezeIcon(size: 30)),
+        child: Gem(size: 46, colors: [Color(0xFFC3C9FF), Color(0xFF6A6BFF)], child: FreezeIcon(size: 46)),
       ),
-      const Gem(size: 68, colors: [Color(0xFFA9B1FF), Color(0xFF4B3FE0)], child: FreezeIcon(size: 46)),
+      const Gem(size: 72, colors: [Color(0xFFA9B1FF), Color(0xFF4B3FE0)], child: FreezeIcon(size: 72)),
       Positioned(
         right: 6,
         bottom: 0,
@@ -224,7 +211,7 @@ class ShopHeader extends StatelessWidget {
         child: Stack(children: [
           const Positioned.fill(child: CustomPaint(painter: Sparkles(Colors.white))),
           Row(children: [
-            const Gem(size: 64, colors: [Color(0xFFB8F4FF), Color(0xFF2FA8FF)], child: DiamondIcon(size: 46)),
+            const Gem(size: 64, colors: [Color(0xFFB8F4FF), Color(0xFF2FA8FF)], child: DiamondIcon(size: 64)),
             const SizedBox(width: 14),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
