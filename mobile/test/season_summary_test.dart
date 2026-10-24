@@ -41,7 +41,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     await tester.pumpWidget(MaterialApp(home: SeasonSummaryScreen(initial: SeasonSummary.fromJson(_json()))));
     await tester.pump();
-    expect(find.text('640 XP'), findsOneWidget);
+    expect(find.text('⚡ 640 энергии'), findsOneWidget);
     expect(find.text('58'), findsOneWidget);
     expect(find.text('Серебро'), findsOneWidget);
     expect(find.text('Чемпион октября'), findsOneWidget);
