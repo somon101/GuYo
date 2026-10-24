@@ -47,7 +47,7 @@ def _database():
 
 
 # What a test creates; everything that hangs off these goes with them.
-_WIPE = "duels, daily_chests, learning_settings, users, admins, dictionaries, seasons, pass_templates, pass_settings, reminder_settings, teams, categories"
+_WIPE = "user_chests, chest_settings, duels, daily_chests, learning_settings, users, admins, dictionaries, seasons, pass_templates, pass_settings, reminder_settings, teams, categories"
 
 
 @pytest.fixture(autouse=True)

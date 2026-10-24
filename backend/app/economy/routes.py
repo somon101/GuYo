@@ -12,7 +12,6 @@ from app.models.economy import GiftDefinition, ShopProduct
 from app.models.user import User
 
 shop_router = APIRouter(prefix="/shop", tags=["shop"])
-gifts_router = APIRouter(prefix="/gifts", tags=["gifts"])
 admin_router = APIRouter(prefix="/admin/economy", tags=["admin-economy"])
 
 
@@ -87,32 +86,6 @@ def use_streak_merge(db: Session = Depends(get_db), user: User = Depends(get_cur
         raise _refuse(e) from None
     db.commit()
     return result
-
-
-@gifts_router.get("")
-def list_gifts(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    gifts = db.query(GiftDefinition).filter(GiftDefinition.enabled.is_(True)).order_by(GiftDefinition.sort_order, GiftDefinition.id).all()
-    return {"diamonds": user.diamonds_balance, "gifts": [service.gift_state(db, user, gift) for gift in gifts]}
-
-
-@gifts_router.post("/{gift_id}/open")
-def open_gift(gift_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    gift = db.get(GiftDefinition, gift_id)
-    if gift is None or not gift.enabled:
-        raise HTTPException(status_code=404, detail="Подарок не найден")
-    from app.seasonpass.service import get_pass_settings
-
-    settings = get_pass_settings(db)
-    if gift.key == "daily-chest" and not settings.chest_enabled:
-        raise HTTPException(status_code=409, detail="Подарок сейчас недоступен")
-    try:
-        opened = service.open_gift(db, user, gift, allow_freeze=gift.key == "daily-chest" and settings.chest_enabled)
-    except EconomyError as e:
-        db.rollback()
-        raise _refuse(e) from None
-    db.commit()
-    db.refresh(user)
-    return {"kind": opened.kind, "amount": opened.amount, "diamonds": user.diamonds_balance}
 
 
 @admin_router.get("/products")

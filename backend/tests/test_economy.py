@@ -2,20 +2,14 @@ from datetime import timedelta
 
 from app.achievements.streak import record_activity
 from app.core.dates import dushanbe_today
-from app.economy.service import buy_product, open_gift, use_streak_merge
+from app.economy.service import buy_product, use_streak_merge
 from app.models.achievement import UserActivityDay, UserStreakFreeze
 from app.models.economy import GiftDefinition, ShopProduct
 
 
-def test_daily_gift_grants_diamonds_and_shop_debits_wallet(db, make_user):
+def test_shop_debits_wallet(db, make_user):
     user = make_user()
     record_activity(db, user)
-    gift = db.query(GiftDefinition).filter_by(key="daily-chest").one()
-    gift.enabled = True  # off by default: diamonds come from the pass
-    opened = open_gift(db, user, gift)
-    db.commit()
-    assert opened.kind == "diamonds"
-    assert 5 <= user.diamonds_balance <= 25
 
     product = db.query(ShopProduct).filter_by(sku="streak-freeze-1").one()
     user.diamonds_balance = 50
@@ -23,8 +17,6 @@ def test_daily_gift_grants_diamonds_and_shop_debits_wallet(db, make_user):
     db.commit()
     assert user.diamonds_balance == 0
     assert user.streak_freezes == 1
-    gift.enabled = False
-    db.commit()
 
 
 def test_streak_merge_counts_unique_activity_and_spent_freeze_days(db, make_user):

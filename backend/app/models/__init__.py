@@ -120,6 +120,7 @@ from app.models.achievement import UserStreakFreeze  # noqa: F401
 from app.models.team import Team, TeamInvite, TeamMember  # noqa: F401
 from app.models.duel import Duel  # noqa: F401
 from app.models.chest import DailyChest  # noqa: F401
+from app.models.chests import ChestSettings, ChestType, UserChest  # noqa: F401
 from app.models.season_pass import PassClaim, PassSettings, PassTemplate, PassXpEvent, SeasonPass, UserCosmetic  # noqa: F401
 # «Повторить сегодня»: зафиксированные списки (app/memory/review_lists.py).
 from app.models.review_list import ReviewList, ReviewListWord

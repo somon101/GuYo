@@ -39,7 +39,7 @@ from app.routers import (
     daily_goal,
     my_progress,
     duels,
-    chest,
+    chests,
     teams,
     admin_season_pass,
     notifications,
@@ -160,9 +160,9 @@ app.include_router(season_pass.router)
 app.include_router(daily_goal.router)
 app.include_router(my_progress.router)
 app.include_router(duels.router)
-app.include_router(chest.router)
+app.include_router(chests.router)
+app.include_router(chests.admin_router)
 app.include_router(economy_routes.shop_router)
-app.include_router(economy_routes.gifts_router)
 app.include_router(economy_routes.admin_router)
 app.include_router(teams.router)
 app.include_router(admin_season_pass.router)
