@@ -1,28 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { getChestOverview, type ChestType } from "../api/endpoints";
 
 // A preview only: nothing here talks to the server or the app. It shows how a
 // chest picture (public/preview/chest_closed.png + chest_open.png) comes alive:
 // it floats, shakes when pressed, bursts open with light and throws out rewards.
 
-type Size = "small" | "medium" | "large";
 type Phase = "idle" | "bursting" | "open";
-type PrizeId = "diamond" | "freeze" | "merge";
+type PrizeId = "diamond" | "freeze" | "merge" | "points";
 type Pick = PrizeId | "random";
 
-// How many diamonds a chest of each size holds (only used when the prize is diamonds).
-const SIZES: Record<Size, { label: string; diamonds: number }> = {
-  small: { label: "Малая", diamonds: 10 },
-  medium: { label: "Средняя", diamonds: 50 },
-  large: { label: "Большая", diamonds: 150 },
-};
-
-// What can fall out of the chest. Exactly ONE of these per opening.
-const PRIZES: Record<PrizeId, { name: string; img: string; amount: (size: Size) => number; unit: string }> = {
-  diamond: { name: "Бриллианты", img: "gem.png", amount: (s) => SIZES[s].diamonds, unit: "" },
-  freeze: { name: "Заморозка серии", img: "freeze.png", amount: () => 1, unit: "" },
-  merge: { name: "Объединитель серии", img: "merge.png", amount: () => 1, unit: "" },
+// What can fall out of a chest. Exactly ONE of these per opening; the ceiling of each comes from the chest's real settings.
+const PRIZES: Record<PrizeId, { name: string; img: string | null; cap: (c: ChestType) => number }> = {
+  diamond: { name: "Бриллианты", img: "gem.png", cap: (c) => c.max_diamonds },
+  freeze: { name: "Заморозки серии", img: "freeze.png", cap: (c) => c.max_freezes },
+  merge: { name: "Объединители серии", img: "merge.png", cap: (c) => c.max_merges },
+  points: { name: "Очки рейтинга", img: null, cap: (c) => c.max_points },
 };
 const PRIZE_IDS = Object.keys(PRIZES) as PrizeId[];
+const FALLBACK: ChestType[] = [
+  { key: "wood", name: "Деревянный сундук", color: "#a0693b", max_diamonds: 10, max_freezes: 1, max_merges: 1, max_points: 20 },
+  { key: "silver", name: "Серебряный сундук", color: "#5aa9e6", max_diamonds: 30, max_freezes: 2, max_merges: 2, max_points: 60 },
+  { key: "purple", name: "Фиолетовый сундук", color: "#9b5de5", max_diamonds: 100, max_freezes: 3, max_merges: 3, max_points: 150 },
+  { key: "gold", name: "Золотой сундук", color: "#f5b700", max_diamonds: 300, max_freezes: 5, max_merges: 5, max_points: 400 },
+];
+const CHEST_BASE = `${import.meta.env.BASE_URL}chests/`;
 
 const TAPS_TO_OPEN = 3;
 const BURST_MS = 520;
@@ -71,7 +72,9 @@ const TWINKLES = [
 ];
 
 export function ChestPreviewPage() {
-  const [size, setSize] = useState<Size>("medium");
+  const [types, setTypes] = useState<ChestType[]>(FALLBACK);
+  const [chestKey, setChestKey] = useState("wood");
+  const [amount, setAmount] = useState(1);
   const [pick, setPick] = useState<Pick>("random");
   const [phase, setPhase] = useState<Phase>("idle");
   const [taps, setTaps] = useState(0);
@@ -80,6 +83,11 @@ export function ChestPreviewPage() {
   const [run, setRun] = useState(0); // restarts the CSS animations on every opening
   const last = useRef<PrizeId | null>(null);
   const timer = useRef<number | null>(null);
+
+  useEffect(() => {
+    getChestOverview().then((o) => setTypes(o.types)).catch(() => undefined);
+  }, []);
+  const chest = types.find((c) => c.key === chestKey) ?? types[0];
 
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
 
@@ -96,9 +104,11 @@ export function ChestPreviewPage() {
 
   // One prize per opening, picked at random (never the same twice in a row when it is random).
   const roll = (): PrizeId => {
-    if (pick !== "random") return pick;
-    const pool = PRIZE_IDS.filter((id) => id !== last.current);
-    return pool[Math.floor(Math.random() * pool.length)];
+    const possible = PRIZE_IDS.filter((id) => PRIZES[id].cap(chest) > 0);
+    if (pick !== "random" && possible.includes(pick)) return pick;
+    const pool = possible.filter((id) => id !== last.current);
+    const from = pool.length ? pool : possible;
+    return from[Math.floor(Math.random() * from.length)];
   };
 
   // Every press shakes the chest harder; the third one bursts it open.
@@ -111,6 +121,7 @@ export function ChestPreviewPage() {
       const next = roll();
       last.current = next;
       setPrize(next);
+      setAmount(1 + Math.floor(Math.random() * Math.max(1, PRIZES[next].cap(chest))));
       setRun((r) => r + 1);
       setPhase("bursting");
       timer.current = window.setTimeout(() => setPhase("open"), BURST_MS);
@@ -123,7 +134,6 @@ export function ChestPreviewPage() {
   };
 
   const p = PRIZES[prize];
-  const amount = p.amount(size);
   const isOpen = phase === "open";
 
   const chestAnimation =
@@ -141,8 +151,8 @@ export function ChestPreviewPage() {
       <header>
         <h1 className="text-2xl font-bold">Предпросмотр сундука</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Только показ. Нажмите на сундук три раза: с каждым нажатием он трясётся сильнее, на третьем раскрывается, сам уходит
-          со сцены, а выпавший приз остаётся в центре и сияет. Ни приложение, ни сервер, ни награды этим не затрагиваются.
+          Показ на настоящих настройках сундуков (потолки задаются на странице «Сундуки»); награды игрокам не выдаются. Нажмите на сундук три раза: с каждым нажатием он трясётся сильнее, на третьем раскрывается, сам уходит
+          со сцены, а выпавший приз остаётся в центре и сияет. 
         </p>
       </header>
 
@@ -185,8 +195,8 @@ export function ChestPreviewPage() {
               className="relative"
               style={{ cursor: phase === "idle" ? "pointer" : "default", filter: phase === "idle" ? `brightness(${1 + taps * 0.12})` : phase === "bursting" ? "brightness(1.35)" : undefined }}
             >
-              <img src={`${BASE}chest_closed.png`} alt="" draggable={false} style={{ width: "100%", display: isOpen ? "none" : "block", userSelect: "none" }} />
-              <img key={`open-${run}`} src={`${BASE}chest_open.png`} alt="" draggable={false} style={{ width: "100%", display: isOpen ? "block" : "none", userSelect: "none" }} />
+              <img src={`${CHEST_BASE}${chestKey}_closed.png`} alt="" draggable={false} style={{ width: "100%", display: isOpen ? "none" : "block", userSelect: "none" }} />
+              <img key={`open-${run}`} src={`${CHEST_BASE}${chestKey}_open.png`} alt="" draggable={false} style={{ width: "100%", display: isOpen ? "block" : "none", userSelect: "none" }} />
             </div>
           </div>
 
@@ -229,6 +239,9 @@ export function ChestPreviewPage() {
             ))}
             <div style={{ animation: "cp-bob 2.4s ease-in-out 1.6s infinite" }}>
               <div className="absolute" style={{ left: 0, top: 0, width: 170, height: 170, animation: "cp-prize 1.5s cubic-bezier(.2,.8,.3,1) 0.45s both", opacity: 0 }}>
+                {p.img === null ? (
+                  <div className="select-none" style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 130, lineHeight: 1, color: "#ffc53d", filter: "drop-shadow(0 10px 18px rgba(0,0,0,0.5)) drop-shadow(0 0 22px rgba(255,236,160,0.65))" }}>★</div>
+                ) : (
                 <img
                   src={`${BASE}${p.img}`}
                   alt={p.name}
@@ -236,10 +249,11 @@ export function ChestPreviewPage() {
                   className="select-none"
                   style={{ width: "100%", height: "100%", maxWidth: "none", objectFit: "contain", filter: "drop-shadow(0 10px 18px rgba(0,0,0,0.5)) drop-shadow(0 0 22px rgba(255,236,160,0.65))" }}
                 />
+                )}
                 {/* a glint that sweeps across the prize */}
-                <div style={{ position: "absolute", inset: 0, overflow: "hidden", borderRadius: 24, WebkitMaskImage: `url(${BASE}${p.img})`, maskImage: `url(${BASE}${p.img})`, WebkitMaskSize: "contain", maskSize: "contain", WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat", WebkitMaskPosition: "center", maskPosition: "center" }}>
+                {p.img !== null && <div style={{ position: "absolute", inset: 0, overflow: "hidden", borderRadius: 24, WebkitMaskImage: `url(${BASE}${p.img})`, maskImage: `url(${BASE}${p.img})`, WebkitMaskSize: "contain", maskSize: "contain", WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat", WebkitMaskPosition: "center", maskPosition: "center" }}>
                   <div style={{ position: "absolute", top: 0, bottom: 0, width: "38%", background: "linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.85), rgba(255,255,255,0))", animation: "cp-shine 2.6s ease-in-out 2.0s infinite" }} />
-                </div>
+                </div>}
               </div>
             </div>
           </div>
@@ -252,7 +266,7 @@ export function ChestPreviewPage() {
             style={{ top: 440, transform: "translateX(-50%)", animation: "cp-label 0.5s ease-out 1.9s both" }}
           >
             <div style={{ fontSize: 38, fontWeight: 900, color: "#fff", textShadow: "0 3px 12px rgba(0,0,0,0.45)" }}>
-              {prize === "diamond" ? `+${amount}` : `×${amount}`}
+              +{amount}
             </div>
             <div style={{ fontSize: 16, color: "rgba(255,255,255,0.9)" }}>{p.name}</div>
           </div>
@@ -285,23 +299,29 @@ export function ChestPreviewPage() {
               onClick={() => { reset(); setPick(k); }}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm ${pick === k ? "bg-indigo-600 text-white" : "border border-slate-300 text-slate-700"}`}
             >
-              {k !== "random" && <img src={`${BASE}${PRIZES[k].img}`} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />}
+              {k !== "random" && PRIZES[k].img && <img src={`${BASE}${PRIZES[k].img}`} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />}
               {k === "random" ? "Случайный" : PRIZES[k].name}
             </button>
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-slate-500">Размер (для бриллиантов):</span>
-          {(Object.keys(SIZES) as Size[]).map((k) => (
+          <span className="text-slate-500">Сундук:</span>
+          {types.map((c) => (
             <button
-              key={k}
+              key={c.key}
               type="button"
-              onClick={() => { reset(); setSize(k); }}
-              className={`rounded-lg px-3 py-1.5 text-sm ${size === k ? "bg-indigo-600 text-white" : "border border-slate-300 text-slate-700"}`}
+              onClick={() => { reset(); setChestKey(c.key); }}
+              className={`flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm ${chestKey === c.key ? "bg-indigo-600 text-white" : "border border-slate-300 text-slate-700"}`}
             >
-              {SIZES[k].label}: {SIZES[k].diamonds}
+              <img src={`${CHEST_BASE}${c.key}_closed.png`} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
+              {c.name}
             </button>
           ))}
+        </div>
+        <p className="text-xs text-slate-500">
+          В этом сундуке: бриллианты 1–{chest.max_diamonds}, заморозки 1–{chest.max_freezes}, объединители 1–{chest.max_merges}, очки рейтинга 1–{chest.max_points} (0 = такого приза нет).
+        </p>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
           <div className="ml-auto flex gap-2">
             <button type="button" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50" disabled={phase !== "idle"} onClick={tap}>
               Нажать ({Math.min(taps + 1, TAPS_TO_OPEN)}/{TAPS_TO_OPEN})
@@ -312,7 +332,7 @@ export function ChestPreviewPage() {
           </div>
         </div>
         <p className="text-xs text-slate-500">
-          Из сундука всегда выпадает один приз. При «Случайном» каждый раз другой, не повторяется два раза подряд. Реальные призы и шансы зададим позже.
+          Из сундука всегда выпадает один приз. При «Случайном» каждый раз другой, не повторяется два раза подряд. Количество выпадает случайно от 1 до потолка выбранного сундука.
         </p>
       </section>
     </main>

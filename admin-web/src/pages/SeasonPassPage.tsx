@@ -36,10 +36,12 @@ const REWARD_LABELS: Record<string, string> = {
   premium_days: "Дни Premium",
   streak_freeze: "Заморозка серии",
   diamonds: "Бриллианты (подарок)",
+  chest: "Сундук",
   badge: "Значок",
   title: "Титул",
   frame: "Рамка аватара",
 };
+const CHEST_NAMES: Record<string, string> = { wood: "Деревянный", silver: "Серебряный", purple: "Фиолетовый", gold: "Золотой" };
 const FRAME_LOOKS: Record<string, string> = {
   gold: "Золото",
   aurora: "Северное сияние",
@@ -126,10 +128,6 @@ function SettingsSection() {
     { key: "xp_review", label: "За слово в «Повторить сегодня»" },
     { key: "xp_quest", label: "За выполненное задание квеста" },
     { key: "xp_streak", label: "За день серии" },
-    { key: "xp_daily_goal", label: "За цель дня" },
-    { key: "xp_comeback", label: "За возвращение (после 3+ дней)" },
-    { key: "xp_duel_win", label: "За победу в дуэли" },
-    { key: "chest_freeze_chance", label: "Сундук дня: шанс заморозки, %" },
     { key: "freeze_cap", label: "Больше заморозок серии у человека не бывает" },
     { key: "team_size", label: "Больше людей в одной команде не бывает" },
   ];
@@ -181,14 +179,6 @@ function SettingsSection() {
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input
             type="checkbox"
-            checked={s.chest_enabled}
-            onChange={(e) => setS({ ...s, chest_enabled: e.target.checked })}
-          />
-          Сундук дня: случайный бонус после первого занятия
-        </label>
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
             checked={s.reminders_enabled}
             onChange={(e) => setS({ ...s, reminders_enabled: e.target.checked })}
           />
@@ -221,6 +211,7 @@ function RewardEditor({ value, onChange }: { value: PassReward | null; onChange:
             if (type === "badge") return onChange({ type, amount: 1, key: "crown", text: "" });
             if (type === "frame") return onChange({ type, amount: 1, key: "gold", text: "" });
             if (type === "title") return onChange({ type, amount: 1, text: "" });
+            if (type === "chest") return onChange({ type, amount: 1, key: "wood" });
             onChange({ type, amount: value && !isCosmetic ? value.amount : 1 });
           }}
         >
@@ -231,7 +222,7 @@ function RewardEditor({ value, onChange }: { value: PassReward | null; onChange:
             </option>
           ))}
         </select>
-        {value && !isCosmetic && (
+        {value && !isCosmetic && value.type !== "chest" && (
           <input
             type="number"
             min={1}
@@ -239,6 +230,16 @@ function RewardEditor({ value, onChange }: { value: PassReward | null; onChange:
             value={value.amount}
             onChange={(e) => onChange({ ...value, amount: Math.max(1, Number(e.target.value) || 1) })}
           />
+        )}
+        {value?.type === "chest" && (
+          <>
+            <img src={`${import.meta.env.BASE_URL}chests/${value.key ?? "wood"}_closed.png`} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
+            <select className={`${inputClass} w-32`} value={value.key ?? "wood"} onChange={(e) => onChange({ ...value, key: e.target.value })}>
+              {Object.entries(CHEST_NAMES).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))}
+            </select>
+          </>
         )}
         {(value?.type === "badge" || value?.type === "frame") && (
           <select

@@ -2666,7 +2666,7 @@ export async function updateLearningSettings(input: Partial<LearningSettings>): 
 // --- Пропуск сезона (/admin/season-pass) -------------------------------------
 
 export interface PassReward {
-  type: "rating_points" | "premium_days" | "streak_freeze" | "diamonds" | "badge" | "title" | "frame";
+  type: "rating_points" | "premium_days" | "streak_freeze" | "diamonds" | "badge" | "title" | "frame" | "chest";
   amount: number;
   /** badge / frame: the look (one of the fixed set). */
   key?: string;
@@ -2903,4 +2903,89 @@ export async function saveGiftDefinition(value: Omit<GiftAdmin, "id">, id?: numb
 }
 export async function disableGiftDefinition(id: number): Promise<void> {
   await api.delete(`/admin/economy/gifts/${id}`);
+}
+
+// ---- chests ----------------------------------------------------------------
+
+export interface ChestType {
+  key: string;
+  name: string;
+  color: string;
+  max_diamonds: number;
+  max_freezes: number;
+  max_merges: number;
+  max_points: number;
+}
+
+export interface ChestSettings {
+  daily_enabled: boolean;
+  daily_chest_key: string;
+  daily_requires_activity: boolean;
+  daily_conditions: string;
+  inventory_max: number;
+  daily_cap: number;
+  pity_after: number;
+  double_until: string | null;
+}
+
+export interface ChestStats {
+  days: number;
+  granted: { chest_key: string; source: string; count: number }[];
+  prizes: { kind: string; opened: number; total: number }[];
+}
+
+export interface ChestOverview {
+  types: ChestType[];
+  settings: ChestSettings;
+  stats: ChestStats;
+}
+
+/** One reward of an event: XP, a chest, diamonds or rating points. */
+export interface EventReward {
+  type: "xp" | "chest" | "diamonds" | "rating_points";
+  amount: number;
+  key?: string;
+}
+
+export interface GoalTier {
+  words: number;
+  rewards: EventReward[];
+}
+
+export interface RewardRules {
+  daily_goal: GoalTier[];
+  [event: string]: EventReward[] | GoalTier[];
+}
+
+export async function getChestOverview(): Promise<ChestOverview> {
+  const { data } = await api.get("/admin/chests");
+  return data;
+}
+
+export async function saveChestType(t: ChestType): Promise<ChestType> {
+  const { key, ...body } = t;
+  const { data } = await api.put(`/admin/chests/types/${key}`, body);
+  return data;
+}
+
+export async function saveChestSettings(s: ChestSettings & { double_hours?: number | null }): Promise<ChestSettings> {
+  const { double_until: _unused, ...body } = s;
+  void _unused;
+  const { data } = await api.put("/admin/chests/settings", body);
+  return data;
+}
+
+export async function sendChest(user: string, chest_key: string, count: number): Promise<{ login: string; bank: number }> {
+  const { data } = await api.post("/admin/chests/send", { user, chest_key, count });
+  return data;
+}
+
+export async function getRewardRules(): Promise<RewardRules> {
+  const { data } = await api.get("/admin/chests/rewards");
+  return data;
+}
+
+export async function saveRewardRules(rules: Partial<RewardRules>): Promise<RewardRules> {
+  const { data } = await api.put("/admin/chests/rewards", rules);
+  return data;
 }
