@@ -162,14 +162,14 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   Widget _buildBody() {
     final overview = _overview;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
       children: [
         _Greeting(
           profile: _profile,
           slogan: _slogan,
           onOpenProfile: widget.onOpenProfile,
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 14),
         // Today's/this week's lesson counter, or the Premium line -- its
         // own card, so a failure to load it never blocks the season block.
         LessonQuotaCard(key: _quotaKey),
@@ -243,7 +243,23 @@ class _Greeting extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final login = profile?.login ?? '';
-    return Row(
+    // The greeting is the hero tile of the page: one raised card holding
+    // the avatar, the name with today's line, and the streak.
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppShapes.bannerRadius),
+        border: Border.all(color: AppColors.cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
       children: [
         // The photo is the way into Профиль -- the same screen the bottom
         // bar reaches, never a second copy of it.
@@ -253,7 +269,7 @@ class _Greeting extends StatelessWidget {
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: onOpenProfile,
-            child: UserAvatar(avatarUrl: profile?.avatarUrl, login: login, size: 54, frame: profile?.frame),
+            child: UserAvatar(avatarUrl: profile?.avatarUrl, login: login, size: 56, frame: profile?.frame),
           ),
         ),
         const SizedBox(width: 14),
@@ -297,6 +313,7 @@ class _Greeting extends StatelessWidget {
           _StreakPill(profile: profile!),
         ],
       ],
+      ),
     );
   }
 }

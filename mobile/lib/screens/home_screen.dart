@@ -508,6 +508,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         backgroundColor: AppColors.canvas,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        toolbarHeight: 64,
         titleSpacing: 16,
         title: Row(
           children: [
@@ -524,6 +525,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 onPressed: () => _profileKey.currentState?.openSettings(),
               )
             else ...[
+              const SizedBox(width: 6),
               _EconomyHeaderButton(
                 onOpen: () async {
                   await openEconomy(context);
@@ -535,56 +537,163 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       ),
       body: _buildBody(),
-      bottomNavigationBar: NavigationBarTheme(
-        data: NavigationBarThemeData(
-          height: 64,
-          backgroundColor: AppColors.surface,
-          indicatorColor: AppColors.primary.withValues(alpha: 0.12),
-          indicatorShape: const StadiumBorder(),
-          labelTextStyle: WidgetStateProperty.resolveWith(
-            (states) => TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: states.contains(WidgetState.selected)
-                  ? AppColors.primary
-                  : AppColors.secondaryText,
+      bottomNavigationBar: _FloatingNavBar(
+        selectedIndex: _selectedTabIndex,
+        onSelected: (index) => setState(() => _selectedTabIndex = index),
+        items: [
+          _NavItemData(Icons.grid_view_rounded, tr('Главная')),
+          _NavItemData(Icons.menu_book_rounded, tr('Уроки')),
+          _NavItemData(Icons.bolt_rounded, tr('Практика')),
+          _NavItemData(Icons.bar_chart_rounded, tr('Рейтинг')),
+          _NavItemData(Icons.person_rounded, tr('Профиль')),
+        ],
+      ),
+    );
+  }
+}
+
+class _NavItemData {
+  final IconData icon;
+  final String label;
+  const _NavItemData(this.icon, this.label);
+}
+
+/// The bottom bar: a rounded pill that floats above the canvas instead of
+/// a full-width strip. The chosen tab is a filled brand-coloured capsule
+/// with icon and label side by side; the others are a quiet icon over a
+/// small label.
+class _FloatingNavBar extends StatelessWidget {
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+  final List<_NavItemData> items;
+
+  const _FloatingNavBar({
+    required this.selectedIndex,
+    required this.onSelected,
+    required this.items,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: AppColors.canvas,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+          child: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(color: AppColors.cardBorder),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.14),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-          ),
-          iconTheme: WidgetStateProperty.resolveWith(
-            (states) => IconThemeData(
-              size: 22,
-              color: states.contains(WidgetState.selected)
-                  ? AppColors.primary
-                  : AppColors.secondaryText,
+            child: Row(
+              children: [
+                for (var i = 0; i < items.length; i++)
+                  Expanded(
+                    // The chosen tab gets more room so its capsule fits.
+                    flex: i == selectedIndex ? 3 : 2,
+                    child: _NavButton(
+                      data: items[i],
+                      selected: i == selectedIndex,
+                      onTap: () => onSelected(i),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
-        child: NavigationBar(
-          selectedIndex: _selectedTabIndex,
-          onDestinationSelected: (index) =>
-              setState(() => _selectedTabIndex = index),
-          destinations: [
-            NavigationDestination(
-              icon: Icon(Icons.grid_view_rounded),
-              label: tr('Главная'),
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.menu_book_rounded),
-              label: tr('Уроки'),
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.bolt_rounded),
-              label: tr('Практика'),
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.bar_chart_rounded),
-              label: tr('Рейтинг'),
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_rounded),
-              label: tr('Профиль'),
-            ),
-          ],
+      ),
+    );
+  }
+}
+
+class _NavButton extends StatelessWidget {
+  final _NavItemData data;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _NavButton({
+    required this.data,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? Colors.white : AppColors.secondaryText;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: data.label,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          height: 48,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(26),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.38),
+                      blurRadius: 14,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: selected
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(data.icon, size: 22, color: color),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        data.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.fade,
+                        softWrap: false,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: color,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(data.icon, size: 22, color: color),
+                    const SizedBox(height: 2),
+                    Text(
+                      data.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.clip,
+                      softWrap: false,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: color,
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );
@@ -627,55 +736,52 @@ class _EconomyHeaderButtonState extends State<_EconomyHeaderButton> {
     }
   }
 
+  Future<void> _open() async {
+    await widget.onOpen();
+    _load();
+  }
+
+  /// One pill for the whole wallet: the diamond balance, a hairline, and
+  /// the shop/gifts entry -- both halves open the same screen.
   @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: () async {
-          await widget.onOpen();
-          _load();
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.diamond_rounded,
-                size: 18,
-                color: AppColors.primary,
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: tr('Магазин и подарки'),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: _open,
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.cardBorder),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.diamond_rounded, size: 18, color: AppColors.primary),
+            const SizedBox(width: 5),
+            Text(
+              _diamonds?.toString() ?? '—',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primaryDark,
               ),
-              const SizedBox(width: 5),
-              Text(
-                _diamonds?.toString() ?? '—',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primaryDark,
-                ),
-              ),
-            ],
-          ),
+            ),
+            Container(
+              width: 1,
+              height: 16,
+              margin: const EdgeInsets.symmetric(horizontal: 8),
+              color: AppColors.separator,
+            ),
+            Icon(Icons.card_giftcard_rounded, size: 19, color: AppColors.danger),
+          ],
         ),
       ),
-      IconButton(
-        tooltip: tr('Магазин и подарки'),
-        onPressed: () async {
-          await widget.onOpen();
-          _load();
-        },
-        icon: Icon(Icons.card_giftcard_rounded, color: AppColors.primary),
-        visualDensity: VisualDensity.compact,
-        constraints: const BoxConstraints.tightFor(width: 34, height: 40),
-        padding: EdgeInsets.zero,
-      ),
-    ],
+    ),
   );
 }
 
@@ -745,32 +851,53 @@ class _NotificationsButtonState extends State<_NotificationsButton>
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: tr('Уведомления'),
-      onPressed: _open,
-      icon: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Icon(Icons.notifications_none_rounded, color: AppColors.primaryDark),
-          if (_unread > 0)
-            Positioned(
-              right: -2,
-              top: -2,
-              child: Container(
-                // Keyed so a test can assert the indicator itself rather
-                // than a coloured box -- same convention the exercise
-                // screens use for their own hooks.
-                key: const ValueKey('notifications-unread-dot'),
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEF4056),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.canvas, width: 1.5),
-                ),
-              ),
+    return Padding(
+      padding: const EdgeInsets.only(left: 8),
+      child: Semantics(
+        button: true,
+        label: tr('Уведомления'),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: _open,
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.cardBorder),
             ),
-        ],
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  Icons.notifications_none_rounded,
+                  size: 22,
+                  color: AppColors.primaryDark,
+                ),
+                if (_unread > 0)
+                  Positioned(
+                    right: 9,
+                    top: 9,
+                    child: Container(
+                      // Keyed so a test can assert the indicator itself
+                      // rather than a coloured box -- same convention the
+                      // exercise screens use for their own hooks.
+                      key: const ValueKey('notifications-unread-dot'),
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4056),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.surface, width: 1.5),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
