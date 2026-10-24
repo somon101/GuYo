@@ -31,8 +31,8 @@ class _EconomyScreenState extends State<EconomyScreen> {
   @override
   void initState() {
     super.initState();
-    _data = widget.initial;
-    if (_data == null) _load();
+    _data = widget.initial ?? ApiClient.instance.cachedEconomy();
+    if (widget.initial == null) _load();
   }
 
   Future<void> _load() async {

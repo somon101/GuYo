@@ -1,0 +1,90 @@
+import 'package:flutter/material.dart';
+
+import '../l10n/l10n.dart';
+
+/// The game's own pictures for the three things people collect. Use these
+/// everywhere instead of stock icons or emoji, at any size (also tiny ones).
+class DiamondIcon extends StatelessWidget {
+  final double size;
+  const DiamondIcon({super.key, this.size = 20});
+
+  @override
+  Widget build(BuildContext context) => _GameIcon('assets/icons/diamond.png', size);
+}
+
+class FreezeIcon extends StatelessWidget {
+  final double size;
+  const FreezeIcon({super.key, this.size = 20});
+
+  @override
+  Widget build(BuildContext context) => _GameIcon('assets/icons/freeze.png', size);
+}
+
+class MergeIcon extends StatelessWidget {
+  final double size;
+  const MergeIcon({super.key, this.size = 20});
+
+  @override
+  Widget build(BuildContext context) => _GameIcon('assets/icons/merge.png', size);
+}
+
+/// The picture for a collectible by its short name: diamond, freeze or merge.
+Widget gameAsset(String name, double size) {
+  switch (name) {
+    case 'freeze':
+      return FreezeIcon(size: size);
+    case 'merge':
+      return MergeIcon(size: size);
+    default:
+      return DiamondIcon(size: size);
+  }
+}
+
+class _GameIcon extends StatelessWidget {
+  final String asset;
+  final double size;
+  const _GameIcon(this.asset, this.size);
+
+  @override
+  Widget build(BuildContext context) {
+    final px = (size * MediaQuery.devicePixelRatioOf(context)).round().clamp(32, 512);
+    return Image.asset(
+      asset,
+      width: size,
+      height: size,
+      cacheWidth: px,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.medium,
+      gaplessPlayback: true,
+      excludeFromSemantics: true,
+    );
+  }
+}
+
+/// 999 -> "999", 1500 -> "1.5к", 104078 -> "104к", 1250000 -> "1.3 млн",
+/// 2400000000 -> "2.4 млрд". Used for diamonds, so a big balance never breaks
+/// a layout; rating points are shown in full and do not use this.
+String compactNumber(num value) {
+  final n = value.round();
+  final negative = n < 0;
+  final a = n.abs();
+  String out;
+  if (a < 1000) {
+    out = '$a';
+  } else if (a < 1000000) {
+    out = _scaled(a / 1000, tr('к'));
+  } else if (a < 1000000000) {
+    out = _scaled(a / 1000000, ' ${tr('млн')}');
+  } else {
+    out = _scaled(a / 1000000000, ' ${tr('млрд')}');
+  }
+  return negative ? '-$out' : out;
+}
+
+String _scaled(double v, String suffix) {
+  // One decimal under 10 ("1.5к"), whole numbers above ("104к"); never "1000к".
+  var text = v < 10 ? v.toStringAsFixed(1) : v.floor().toString();
+  if (text.endsWith('.0')) text = text.substring(0, text.length - 2);
+  if (text == '1000') return '1${suffix.trim().isEmpty ? '' : ''}$suffix';
+  return '$text$suffix';
+}

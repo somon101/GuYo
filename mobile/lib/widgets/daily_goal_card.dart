@@ -18,7 +18,7 @@ class DailyGoalCard extends StatefulWidget {
 }
 
 class _DailyGoalCardState extends State<DailyGoalCard> {
-  DailyGoal? _goal;
+  DailyGoal? _goal = ApiClient.instance.cachedDailyGoal();
 
   @override
   void initState() {

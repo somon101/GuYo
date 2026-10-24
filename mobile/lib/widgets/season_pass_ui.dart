@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
 import '../models/season_pass.dart';
-import 'gift_art.dart';
+import 'game_icons.dart';
 import 'user_avatar.dart' show frameColors;
 
 /// The hero gradient of the season pass: deep violet into electric blue.
@@ -19,9 +19,9 @@ class RewardStyle {
   final IconData icon;
   final String label;
 
-  /// Drawn as the season-pass gift box instead of [icon].
-  final bool gift;
-  const RewardStyle(this.colors, this.icon, this.label, {this.gift = false});
+  /// The game's own picture (diamond, freeze or merge) drawn instead of [icon].
+  final String? asset;
+  const RewardStyle(this.colors, this.icon, this.label, {this.asset});
 
   Color get glow => colors.last;
 }
@@ -47,13 +47,14 @@ RewardStyle rewardStyle(PassReward r) {
         const [Color(0xFF7FDBFF), Color(0xFF3A7BFF)],
         Icons.ac_unit_rounded,
         tr('Заморозка серии'),
+        asset: 'freeze',
       );
     case 'diamonds':
       return RewardStyle(
         const [Color(0xFF87EFFF), Color(0xFF3A7BFF)],
         Icons.diamond_rounded,
         tr('Бриллианты'),
-        gift: true,
+        asset: 'diamond',
       );
     case 'frame':
       return RewardStyle(
@@ -77,8 +78,10 @@ RewardStyle rewardStyle(PassReward r) {
 }
 
 /// "+20" for counted rewards; a badge or title shows its own name instead.
-String rewardAmountText(PassReward r) =>
-    (r.type == 'badge' || r.type == 'title') ? '' : '+${r.amount}';
+String rewardAmountText(PassReward r) {
+  if (r.type == 'badge' || r.type == 'title' || r.type == 'frame') return '';
+  return r.type == 'diamonds' ? '+${compactNumber(r.amount)}' : '+${r.amount}';
+}
 
 /// A round progress ring with the level in the middle.
 class LevelRing extends StatelessWidget {
@@ -251,8 +254,8 @@ class RewardCard extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (style.gift)
-                      const GiftArt(size: 44)
+                    if (style.asset != null)
+                      gameAsset(style.asset!, 46)
                     else if (reward.type == 'badge')
                       Container(
                         padding: const EdgeInsets.all(2),
@@ -501,8 +504,8 @@ class RewardDialogViewState extends State<RewardDialogView>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (widget.style.gift)
-                      const GiftArt(size: 104)
+                    if (widget.style.asset != null)
+                      gameAsset(widget.style.asset!, 112)
                     else
                       Container(
                         width: 84,

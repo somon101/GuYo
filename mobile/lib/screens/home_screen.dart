@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../l10n/l10n.dart';
+import '../widgets/game_icons.dart';
 import '../widgets/guyo_ui.dart';
 
 import 'package:flutter/material.dart';
@@ -674,7 +675,8 @@ class _EconomyHeaderButton extends StatefulWidget {
 }
 
 class _EconomyHeaderButtonState extends State<_EconomyHeaderButton> {
-  int? _diamonds;
+  // The last known balance shows at once; the network refreshes it.
+  int? _diamonds = ApiClient.instance.economyBalance.value ?? (ApiClient.instance.cachedEconomy()?['diamonds'] as int?);
   @override
   void initState() {
     super.initState();
@@ -727,10 +729,10 @@ class _EconomyHeaderButtonState extends State<_EconomyHeaderButton> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.diamond_rounded, size: 18, color: AppColors.primary),
+            const DiamondIcon(size: 22),
             const SizedBox(width: 5),
             Text(
-              _diamonds?.toString() ?? '—',
+              _diamonds == null ? '—' : compactNumber(_diamonds!),
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w800,

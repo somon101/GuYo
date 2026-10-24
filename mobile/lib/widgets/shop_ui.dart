@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
+import 'game_icons.dart';
 
 /// Pieces of the «Магазин» screen: the balance header, the bright product
 /// cards with glossy art and golden price buttons.
@@ -63,10 +64,10 @@ Widget productArt(String itemType, int quantity) {
   if (itemType == 'streak_merge') {
     return const Gem(
       colors: [Color(0xFFFFC46B), Color(0xFFE5375F)],
-      child: MergeGlyph(size: 46),
+      child: MergeIcon(size: 56),
     );
   }
-  const flake = Icon(Icons.ac_unit_rounded, size: 40, color: Colors.white);
+  const flake = FreezeIcon(size: 56);
   if (quantity <= 1) {
     return const Gem(colors: [Color(0xFF8EE3FF), Color(0xFF2E6BFF)], child: flake);
   }
@@ -77,14 +78,14 @@ Widget productArt(String itemType, int quantity) {
       const Positioned(
         left: 0,
         top: 16,
-        child: Gem(size: 46, colors: [Color(0xFFC3C9FF), Color(0xFF6A6BFF)], child: Icon(Icons.ac_unit_rounded, size: 22, color: Colors.white70)),
+        child: Gem(size: 46, colors: [Color(0xFFC3C9FF), Color(0xFF6A6BFF)], child: FreezeIcon(size: 30)),
       ),
       const Positioned(
         right: 0,
         top: 16,
-        child: Gem(size: 46, colors: [Color(0xFFC3C9FF), Color(0xFF6A6BFF)], child: Icon(Icons.ac_unit_rounded, size: 22, color: Colors.white70)),
+        child: Gem(size: 46, colors: [Color(0xFFC3C9FF), Color(0xFF6A6BFF)], child: FreezeIcon(size: 30)),
       ),
-      const Gem(size: 68, colors: [Color(0xFFA9B1FF), Color(0xFF4B3FE0)], child: Icon(Icons.ac_unit_rounded, size: 34, color: Colors.white)),
+      const Gem(size: 68, colors: [Color(0xFFA9B1FF), Color(0xFF4B3FE0)], child: FreezeIcon(size: 46)),
       Positioned(
         right: 6,
         bottom: 0,
@@ -96,32 +97,6 @@ Widget productArt(String itemType, int quantity) {
       ),
     ]),
   );
-}
-
-/// Two flames joined by a spark: merging a streak.
-class MergeGlyph extends StatelessWidget {
-  final double size;
-  const MergeGlyph({super.key, this.size = 36});
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-        width: size * 1.2,
-        height: size,
-        child: Stack(alignment: Alignment.center, children: [
-          Positioned(left: 0, child: Icon(Icons.local_fire_department_rounded, size: size * 0.72, color: const Color(0xFFFF7A1A))),
-          Positioned(right: 0, child: Icon(Icons.local_fire_department_rounded, size: size * 0.72, color: const Color(0xFFE5375F))),
-          Container(
-            width: size * 0.46,
-            height: size * 0.46,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFD54F),
-              shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4)],
-            ),
-            child: Icon(Icons.bolt_rounded, size: size * 0.36, color: const Color(0xFF8A2A00)),
-          ),
-        ]),
-      );
 }
 
 /// Card colours per product type.
@@ -155,9 +130,9 @@ class PriceButton extends StatelessWidget {
                   : null,
             ),
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(Icons.diamond_rounded, size: 17, color: enabled ? const Color(0xFF1D7BFF) : const Color(0xFF8C89A6)),
+              Opacity(opacity: enabled ? 1 : 0.5, child: const DiamondIcon(size: 22)),
               const SizedBox(width: 6),
-              Text('$price', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: enabled ? const Color(0xFF4A2D00) : const Color(0xFF8C89A6))),
+              Text(compactNumber(price), style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: enabled ? const Color(0xFF4A2D00) : const Color(0xFF8C89A6))),
             ]),
           ),
         ),
@@ -249,18 +224,18 @@ class ShopHeader extends StatelessWidget {
         child: Stack(children: [
           const Positioned.fill(child: CustomPaint(painter: Sparkles(Colors.white))),
           Row(children: [
-            const Gem(size: 64, colors: [Color(0xFFB8F4FF), Color(0xFF2FA8FF)], child: Icon(Icons.diamond_rounded, color: Colors.white, size: 34)),
+            const Gem(size: 64, colors: [Color(0xFFB8F4FF), Color(0xFF2FA8FF)], child: DiamondIcon(size: 46)),
             const SizedBox(width: 14),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(tr('Ваши бриллианты'), style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                Text('$diamonds', key: const ValueKey('shop-balance'), style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900, height: 1.05)),
+                Text(compactNumber(diamonds), key: const ValueKey('shop-balance'), style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900, height: 1.05)),
               ]),
             ),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              _HeldChip(icon: const Icon(Icons.ac_unit_rounded, color: Colors.white, size: 16), count: freezes),
+              _HeldChip(icon: const FreezeIcon(size: 22), count: freezes),
               const SizedBox(height: 6),
-              _HeldChip(icon: const MergeGlyph(size: 18), count: merges),
+              _HeldChip(icon: const MergeIcon(size: 22), count: merges),
             ]),
           ]),
         ]),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
+import '../widgets/game_icons.dart';
 import '../widgets/animated_fire.dart';
 import 'economy_screens.dart';
 
@@ -202,11 +203,7 @@ class _StreakSheetState extends State<_StreakSheet> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(
-                          Icons.ac_unit_rounded,
-                          size: 18,
-                          color: _ice,
-                        ),
+                        const FreezeIcon(size: 22),
                         const SizedBox(width: 6),
                         Text(
                           tr('Заморозок серии: {0}', [_freezes]),
@@ -252,8 +249,8 @@ class _StreakSheetState extends State<_StreakSheet> {
                         ),
                         FilledButton.icon(
                           onPressed: () => openEconomy(context),
-                          icon: const Icon(Icons.diamond_rounded),
-                          label: Text(tr('Магазин и подарки')),
+                          icon: const DiamondIcon(size: 20),
+                          label: Text(tr('Магазин')),
                         ),
                       ],
                     ),
@@ -370,7 +367,7 @@ class _Week extends StatelessWidget {
           color: _ice.withValues(alpha: 0.18),
           border: Border.all(color: _ice, width: 1.6),
         ),
-        child: const Icon(Icons.ac_unit_rounded, size: 17, color: _ice),
+        child: const Padding(padding: EdgeInsets.all(3), child: FreezeIcon(size: 24)),
       );
     }
     if (active.contains(d)) {

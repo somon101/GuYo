@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
 import '../models/duel.dart';
+import '../models/user_rating.dart';
 import '../models/user_profile.dart';
 import 'user_avatar.dart';
 import '../services/streak_state.dart';
@@ -18,7 +19,7 @@ class DuelCard extends StatefulWidget {
 }
 
 class _DuelCardState extends State<DuelCard> {
-  DuelState? _state;
+  DuelState? _state = ApiClient.instance.cachedDuels();
   UserProfile? _me;
   bool _busy = false;
 
@@ -67,10 +68,12 @@ class _DuelCardState extends State<DuelCard> {
   }
 
   Future<void> _pickFriend() async {
-    final friends = await ApiClient.instance
-        .fetchFriendsLeaderboard()
-        .then((b) => b.entries.where((e) => !e.isMe).toList())
-        .catchError((_) => <dynamic>[]);
+    List<LeaderboardEntry> friends;
+    try {
+      friends = (await ApiClient.instance.fetchFriendsLeaderboard()).entries.where((e) => !e.isMe).toList();
+    } catch (_) {
+      friends = [];
+    }
     if (!mounted) return;
     final chosen = await showModalBottomSheet<int>(
       context: context,
@@ -105,7 +108,7 @@ class _DuelCardState extends State<DuelCard> {
                         f.login,
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
-                      onTap: () => Navigator.of(ctx).pop(f.userId as int),
+                      onTap: () => Navigator.of(ctx).pop(f.userId),
                     ),
                 ],
               ),

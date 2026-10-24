@@ -599,9 +599,28 @@ class ApiClient {
   Future<Map<String, dynamic>> fetchEconomy() async {
     final res = await http.get(_uri('/shop'), headers: await _authHeaders());
     await _throwWithDetail(res);
-    final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    final data = _remember('shop', res) as Map<String, dynamic>;
     economyBalance.value = data['diamonds'] as int?;
     return data;
+  }
+
+  /// The last shop answer (balance, products), for an instant first frame.
+  Map<String, dynamic>? cachedEconomy() =>
+      _cached('shop', (j) => j as Map<String, dynamic>);
+  DailyGoal? cachedDailyGoal() => _cached(
+    'daily-goal',
+    (j) => DailyGoal.fromJson(j as Map<String, dynamic>),
+  );
+  DuelState? cachedDuels() =>
+      _cached('duels', (j) => DuelState.fromJson(j as Map<String, dynamic>));
+  SeasonPass? cachedSeasonPass() {
+    final body = DiskCache.get('season-pass');
+    if (body == null || body == 'null') return null;
+    try {
+      return SeasonPass.fromJson(jsonDecode(body) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<Map<String, dynamic>> buyShopProduct(int id) async {
@@ -1064,9 +1083,7 @@ class ApiClient {
         headers: await _authHeaders(),
       );
       if (res.statusCode >= 400) return null;
-      return DailyGoal.fromJson(
-        jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
-      );
+      return DailyGoal.fromJson(_remember('daily-goal', res) as Map<String, dynamic>);
     } catch (_) {
       return null;
     }
@@ -1117,9 +1134,7 @@ class ApiClient {
     try {
       final res = await http.get(_uri('/duels'), headers: await _authHeaders());
       if (res.statusCode >= 400) return null;
-      return DuelState.fromJson(
-        jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
-      );
+      return DuelState.fromJson(_remember('duels', res) as Map<String, dynamic>);
     } catch (_) {
       return null;
     }
@@ -1186,10 +1201,13 @@ class ApiClient {
         _uri('/season-pass'),
         headers: await _authHeaders(),
       );
+      // No live season (404) must not leave an old pass on screen.
+      if (res.statusCode == 404) {
+        DiskCache.put('season-pass', 'null');
+        return null;
+      }
       if (res.statusCode >= 400) return null;
-      return SeasonPass.fromJson(
-        jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
-      );
+      return SeasonPass.fromJson(_remember('season-pass', res) as Map<String, dynamic>);
     } catch (_) {
       return null;
     }

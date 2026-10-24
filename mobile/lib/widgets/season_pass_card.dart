@@ -18,7 +18,8 @@ class SeasonPassCard extends StatefulWidget {
 }
 
 class _SeasonPassCardState extends State<SeasonPassCard> {
-  SeasonPass? _pass;
+  // The last answer is shown at once; the network only refreshes it.
+  SeasonPass? _pass = ApiClient.instance.cachedSeasonPass();
 
   @override
   void initState() {
@@ -28,7 +29,11 @@ class _SeasonPassCardState extends State<SeasonPassCard> {
 
   Future<void> _load() async {
     final pass = await ApiClient.instance.fetchSeasonPass();
-    if (mounted) setState(() => _pass = pass);
+    if (!mounted) return;
+    // A failed request keeps what is on screen; "no live season" (cache says null) clears it.
+    if (pass != null || ApiClient.instance.cachedSeasonPass() == null) {
+      setState(() => _pass = pass);
+    }
   }
 
   Future<void> _open() async {
