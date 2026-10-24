@@ -2666,7 +2666,7 @@ export async function updateLearningSettings(input: Partial<LearningSettings>): 
 // --- Пропуск сезона (/admin/season-pass) -------------------------------------
 
 export interface PassReward {
-  type: "rating_points" | "premium_days" | "streak_freeze" | "badge" | "title" | "frame";
+  type: "rating_points" | "premium_days" | "streak_freeze" | "diamonds" | "badge" | "title" | "frame";
   amount: number;
   /** badge / frame: the look (one of the fixed set). */
   key?: string;

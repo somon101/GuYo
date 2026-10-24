@@ -19,7 +19,7 @@ from app.models.user import User
 
 # What a weekly task counts: the `source` of the XP events.
 METRICS = ("word", "lesson", "review", "quest", "streak")
-REWARD_TYPES = ("rating_points", "premium_days", "streak_freeze", "badge", "title", "frame")
+REWARD_TYPES = ("rating_points", "premium_days", "streak_freeze", "diamonds", "badge", "title", "frame")
 LEVEL_MAX = 100
 
 
@@ -41,7 +41,8 @@ def get_pass_settings(db: Session) -> PassSettings:
 
 def default_definition() -> dict:
     """30 levels at 80 XP. Free: rating points, a Premium day every 5th level;
-    Premium: more points, a few days of Premium on the 5th levels. A title at
+    Premium: more points, a few days of Premium on the 5th levels. Every third level
+    (1, 4, 7, 13, ...) is a diamonds gift: 10 free, 25 Premium. A title at
     level 10, a diamond badge (Premium) at 20 and the season's crown badge at
     30 (with a title for Premium)."""
     levels = []
@@ -57,6 +58,9 @@ def default_definition() -> dict:
             if milestone
             else {"type": "rating_points", "amount": 50}
         )
+        if n % 3 == 1 and not milestone:  # the gifts: diamonds only come from the pass
+            free = {"type": "diamonds", "amount": 10}
+            premium = {"type": "diamonds", "amount": 25}
         if n == 10:
             free = {"type": "title", "amount": 1, "text": "Знаток слов", "text_tg": "Донишманди калимаҳо", "text_uz": "So‘z bilimdoni"}
         if n == 20:
@@ -430,7 +434,7 @@ def user_state(db: Session, user: User) -> dict | None:
     }
 
 
-def _give(db: Session, user: User, reward: dict, note: str, season: Season | None = None) -> None:
+def _give(db: Session, user: User, reward: dict, note: str, season: Season | None = None, ref: str = "") -> None:
     if reward["type"] == "rating_points":
         from app.rating import grant_rating_points
 
@@ -438,6 +442,10 @@ def _give(db: Session, user: User, reward: dict, note: str, season: Season | Non
     elif reward["type"] == "streak_freeze":
         user.streak_freezes = (user.streak_freezes or 0) + reward["amount"]
         db.flush()
+    elif reward["type"] == "diamonds":
+        from app.economy.service import grant_diamonds
+
+        grant_diamonds(db, user, reward["amount"], "season_pass", f"pass:{season.id if season else 0}:{ref or note}")
     elif reward["type"] in ("badge", "title", "frame"):
         from app.seasonpass.cosmetics import grant
 
@@ -480,7 +488,7 @@ def claim_level(db: Session, user: User, level: int, track: str) -> dict:
         if (user.streak_freezes or 0) + reward["amount"] > cap:
             raise PassError(f"Запас заморозок полон (не больше {cap}). Награду можно забрать позже")
     _record_claim(db, user, season, track, str(level))
-    _give(db, user, reward, f"Пропуск сезона «{season.name}», уровень {level}", season)
+    _give(db, user, reward, f"Пропуск сезона «{season.name}», уровень {level}", season, ref=f"{track}:{level}")
     return reward
 
 

@@ -377,7 +377,7 @@ def claim_goal(db: Session, user: User, scope: str, goal_id: str) -> dict:
     awarded = award_xp(db, user, "team", f"team:{ref}", goal["xp"]) if goal["xp"] else 0
     reward = goal.get("reward")
     if reward:
-        _give(db, user, reward, f"Командная цель сезона «{season.name}»", season)
+        _give(db, user, reward, f"Командная цель сезона «{season.name}»", season, ref=f"team:{ref}")
     return {"xp": awarded, "reward": reward}
 
 

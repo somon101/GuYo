@@ -35,6 +35,7 @@ const REWARD_LABELS: Record<string, string> = {
   rating_points: "Звёзды рейтинга",
   premium_days: "Дни Premium",
   streak_freeze: "Заморозка серии",
+  diamonds: "Бриллианты (подарок)",
   badge: "Значок",
   title: "Титул",
   frame: "Рамка аватара",

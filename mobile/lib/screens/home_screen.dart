@@ -537,37 +537,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       ),
       body: _buildBody(),
-      bottomNavigationBar: _FloatingNavBar(
+      bottomNavigationBar: FloatingNavBar(
         selectedIndex: _selectedTabIndex,
         onSelected: (index) => setState(() => _selectedTabIndex = index),
         items: [
-          _NavItemData(Icons.grid_view_rounded, tr('Главная')),
-          _NavItemData(Icons.menu_book_rounded, tr('Уроки')),
-          _NavItemData(Icons.bolt_rounded, tr('Практика')),
-          _NavItemData(Icons.bar_chart_rounded, tr('Рейтинг')),
-          _NavItemData(Icons.person_rounded, tr('Профиль')),
+          NavItemData(Icons.grid_view_rounded, tr('Главная')),
+          NavItemData(Icons.menu_book_rounded, tr('Уроки')),
+          NavItemData(Icons.bolt_rounded, tr('Практика')),
+          NavItemData(Icons.bar_chart_rounded, tr('Рейтинг')),
+          NavItemData(Icons.person_rounded, tr('Профиль')),
         ],
       ),
     );
   }
 }
 
-class _NavItemData {
+class NavItemData {
   final IconData icon;
   final String label;
-  const _NavItemData(this.icon, this.label);
+  const NavItemData(this.icon, this.label);
 }
 
-/// The bottom bar: a rounded pill that floats above the canvas instead of
-/// a full-width strip. The chosen tab is a filled brand-coloured capsule
-/// with icon and label side by side; the others are a quiet icon over a
-/// small label.
-class _FloatingNavBar extends StatelessWidget {
+/// The bottom bar: a compact pill that floats above the canvas. Icons only,
+/// no captions: the chosen tab is a round brand-coloured button, the others
+/// are quiet grey icons spread evenly. A long press shows the tab's name.
+class FloatingNavBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelected;
-  final List<_NavItemData> items;
+  final List<NavItemData> items;
 
-  const _FloatingNavBar({
+  const FloatingNavBar({
     required this.selectedIndex,
     required this.onSelected,
     required this.items,
@@ -580,32 +579,30 @@ class _FloatingNavBar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 10),
           child: Container(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(32),
-              border: Border.all(color: AppColors.cardBorder),
+              borderRadius: BorderRadius.circular(30),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.14),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
+                  color: Colors.black.withValues(
+                    alpha: AppColors.dark ? 0.35 : 0.08,
+                  ),
+                  blurRadius: 22,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 for (var i = 0; i < items.length; i++)
-                  Expanded(
-                    // The chosen tab gets more room so its capsule fits.
-                    flex: i == selectedIndex ? 3 : 2,
-                    child: _NavButton(
-                      data: items[i],
-                      selected: i == selectedIndex,
-                      onTap: () => onSelected(i),
-                    ),
+                  NavButton(
+                    data: items[i],
+                    selected: i == selectedIndex,
+                    onTap: () => onSelected(i),
                   ),
               ],
             ),
@@ -616,12 +613,12 @@ class _FloatingNavBar extends StatelessWidget {
   }
 }
 
-class _NavButton extends StatelessWidget {
-  final _NavItemData data;
+class NavButton extends StatelessWidget {
+  final NavItemData data;
   final bool selected;
   final VoidCallback onTap;
 
-  const _NavButton({
+  const NavButton({
     required this.data,
     required this.selected,
     required this.onTap,
@@ -629,71 +626,40 @@ class _NavButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? Colors.white : AppColors.secondaryText;
     return Semantics(
       button: true,
       selected: selected,
       label: data.label,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          height: 48,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: selected ? AppColors.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(26),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.38),
-                      blurRadius: 14,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : null,
+      child: Tooltip(
+        message: data.label,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: selected ? AppColors.primary : Colors.transparent,
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.4),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Icon(
+              data.icon,
+              size: selected ? 22 : 24,
+              color: selected ? Colors.white : AppColors.muted,
+            ),
           ),
-          child: selected
-              ? Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(data.icon, size: 22, color: color),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        data.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.fade,
-                        softWrap: false,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: color,
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              : Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(data.icon, size: 22, color: color),
-                    const SizedBox(height: 2),
-                    Text(
-                      data.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.clip,
-                      softWrap: false,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: color,
-                      ),
-                    ),
-                  ],
-                ),
         ),
       ),
     );
@@ -777,7 +743,11 @@ class _EconomyHeaderButtonState extends State<_EconomyHeaderButton> {
               margin: const EdgeInsets.symmetric(horizontal: 8),
               color: AppColors.separator,
             ),
-            Icon(Icons.card_giftcard_rounded, size: 19, color: AppColors.danger),
+            Icon(
+              Icons.card_giftcard_rounded,
+              size: 19,
+              color: AppColors.danger,
+            ),
           ],
         ),
       ),
@@ -890,7 +860,10 @@ class _NotificationsButtonState extends State<_NotificationsButton>
                       decoration: BoxDecoration(
                         color: const Color(0xFFEF4056),
                         shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.surface, width: 1.5),
+                        border: Border.all(
+                          color: AppColors.surface,
+                          width: 1.5,
+                        ),
                       ),
                     ),
                   ),

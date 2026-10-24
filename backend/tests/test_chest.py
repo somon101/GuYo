@@ -3,7 +3,18 @@ import random
 import pytest
 
 from app.achievements.streak import record_activity
+from app.models.economy import GiftDefinition
 from app.seasonpass import chest, service
+
+
+@pytest.fixture(autouse=True)
+def _gift_on(db):
+    """The daily gift is off by default (diamonds come from the pass); these tests cover it switched on."""
+    db.query(GiftDefinition).filter_by(key="daily-chest").update({"enabled": True})
+    db.commit()
+    yield
+    db.query(GiftDefinition).filter_by(key="daily-chest").update({"enabled": False})
+    db.commit()
 
 
 def test_chest_needs_study_opens_once_and_pays(db, make_user, active_season):

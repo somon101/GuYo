@@ -44,6 +44,12 @@ RewardStyle rewardStyle(PassReward r) {
         Icons.ac_unit_rounded,
         tr('Заморозка серии'),
       );
+    case 'diamonds':
+      return RewardStyle(
+        const [Color(0xFF87EFFF), Color(0xFF3A7BFF)],
+        Icons.diamond_rounded,
+        tr('Бриллианты'),
+      );
     case 'frame':
       return RewardStyle(
         frameColors(r.key ?? 'gold').take(2).toList(),

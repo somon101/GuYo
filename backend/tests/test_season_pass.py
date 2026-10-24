@@ -71,3 +71,27 @@ def test_admin_economy(client, db, make_user, admin_headers, active_season):
     assert r["players"] == 2 and r["total_xp"] == 130
     assert {x["source"] for x in r["xp_by_source"]} == {"word", "lesson"}
     assert sum(x["people"] for x in r["level_distribution"]) == 2
+
+
+def test_pass_gives_diamonds_once(db, make_user, active_season):
+    user = make_user()
+    sp = service.season_pass(db, active_season)
+    first = sp.definition["levels"][0]
+    assert first["free"]["type"] == "diamonds"  # the default template starts with a gift
+    service.award_xp(db, user, "word", "big", 100_000)
+    db.commit()
+    service.claim_level(db, user, 1, "free")
+    db.commit()
+    db.refresh(user)
+    assert user.diamonds_balance == first["free"]["amount"]
+    with pytest.raises(PassError):
+        service.claim_level(db, user, 1, "free")
+    db.rollback()
+    db.refresh(user)
+    assert user.diamonds_balance == first["free"]["amount"]
+
+
+def test_diamonds_reward_is_validated(db):
+    assert service._reward({"type": "diamonds", "amount": 15}, 1) == {"type": "diamonds", "amount": 15}
+    with pytest.raises(PassError):
+        service._reward({"type": "diamonds", "amount": 0}, 1)

@@ -11,6 +11,7 @@ def test_daily_gift_grants_diamonds_and_shop_debits_wallet(db, make_user):
     user = make_user()
     record_activity(db, user)
     gift = db.query(GiftDefinition).filter_by(key="daily-chest").one()
+    gift.enabled = True  # off by default: diamonds come from the pass
     opened = open_gift(db, user, gift)
     db.commit()
     assert opened.kind == "diamonds"
@@ -22,6 +23,8 @@ def test_daily_gift_grants_diamonds_and_shop_debits_wallet(db, make_user):
     db.commit()
     assert user.diamonds_balance == 0
     assert user.streak_freezes == 1
+    gift.enabled = False
+    db.commit()
 
 
 def test_streak_merge_counts_unique_activity_and_spent_freeze_days(db, make_user):
