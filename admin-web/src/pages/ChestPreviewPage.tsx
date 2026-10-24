@@ -4,31 +4,25 @@ import { useEffect, useMemo, useRef, useState } from "react";
 // chest picture (public/preview/chest_closed.png + chest_open.png) comes alive:
 // it floats, shakes when pressed, bursts open with light and throws out rewards.
 
-type Tier = "small" | "medium" | "large";
+type Size = "small" | "medium" | "large";
 type Phase = "idle" | "shaking" | "open";
+type PrizeId = "diamond" | "freeze" | "merge";
+type Pick = PrizeId | "random";
 
-const TIERS: Record<Tier, { label: string; amount: number; items: { icon: string; count: number }[] }> = {
-  small: { label: "Малая", amount: 10, items: [{ icon: "💎", count: 3 }] },
-  medium: {
-    label: "Средняя",
-    amount: 50,
-    items: [
-      { icon: "💎", count: 6 },
-      { icon: "🪙", count: 4 },
-      { icon: "❄️", count: 1 },
-    ],
-  },
-  large: {
-    label: "Большая",
-    amount: 150,
-    items: [
-      { icon: "💎", count: 9 },
-      { icon: "🪙", count: 7 },
-      { icon: "❄️", count: 2 },
-      { icon: "🔥", count: 1 },
-    ],
-  },
+// How many diamonds a chest of each size holds (only used when the prize is diamonds).
+const SIZES: Record<Size, { label: string; diamonds: number }> = {
+  small: { label: "Малая", diamonds: 10 },
+  medium: { label: "Средняя", diamonds: 50 },
+  large: { label: "Большая", diamonds: 150 },
 };
+
+// What can fall out of the chest. Exactly ONE of these per opening.
+const PRIZES: Record<PrizeId, { name: string; img: string; amount: (size: Size) => number; unit: string }> = {
+  diamond: { name: "Бриллианты", img: "gem.png", amount: (s) => SIZES[s].diamonds, unit: "" },
+  freeze: { name: "Заморозка серии", img: "freeze.png", amount: () => 1, unit: "" },
+  merge: { name: "Объединитель серии", img: "merge.png", amount: () => 1, unit: "" },
+};
+const PRIZE_IDS = Object.keys(PRIZES) as PrizeId[];
 
 const SHAKE_MS = 750;
 const BASE = `${import.meta.env.BASE_URL}preview/`;
@@ -50,43 +44,29 @@ const css = `
 @keyframes cp-rays { from { transform: translate(-50%,-50%) rotate(0deg); } to { transform: translate(-50%,-50%) rotate(360deg); } }
 @keyframes cp-rays-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes cp-spark { 0% { opacity: 1; transform: translate(0,0) scale(0.4); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.2); } }
-@keyframes cp-loot {
-  0% { opacity: 0; transform: translate(0,0) scale(0.2); }
-  15% { opacity: 1; }
-  60% { transform: translate(var(--dx), var(--up)) scale(1.15); }
-  100% { opacity: 1; transform: translate(var(--dx), var(--dy)) scale(1); }
+@keyframes cp-prize {
+  0% { opacity: 0; transform: translate(-50%,-50%) translateY(0) scale(0.15) rotate(-25deg); }
+  18% { opacity: 1; }
+  55% { transform: translate(-50%,-50%) translateY(-135px) scale(1.35) rotate(10deg); }
+  75% { transform: translate(-50%,-50%) translateY(-112px) scale(1.12) rotate(-5deg); }
+  100% { opacity: 1; transform: translate(-50%,-50%) translateY(-120px) scale(1.2) rotate(0deg); }
 }
-@keyframes cp-bob { 0%,100% { margin-top: 0; } 50% { margin-top: -6px; } }
+@keyframes cp-bob { 0%,100% { margin-top: 0; } 50% { margin-top: -9px; } }
+@keyframes cp-halo { 0%,100% { opacity: 0.55; transform: scale(1); } 50% { opacity: 0.95; transform: scale(1.12); } }
 @keyframes cp-label { 0% { opacity: 0; transform: translateY(14px) scale(0.7); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes cp-glow { 0%,100% { opacity: 0.35; } 50% { opacity: 0.6; } }
 `;
 
 export function ChestPreviewPage() {
-  const [tier, setTier] = useState<Tier>("medium");
+  const [size, setSize] = useState<Size>("medium");
+  const [pick, setPick] = useState<Pick>("random");
   const [phase, setPhase] = useState<Phase>("idle");
+  const [prize, setPrize] = useState<PrizeId>("diamond");
   const [run, setRun] = useState(0); // restarts the CSS animations on every opening
+  const last = useRef<PrizeId | null>(null);
   const timer = useRef<number | null>(null);
 
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
-
-  const loot = useMemo(() => {
-    const out: { icon: string; dx: number; dy: number; up: number; delay: number; size: number }[] = [];
-    const list = TIERS[tier].items.flatMap((it) => Array.from({ length: it.count }, () => it.icon));
-    list.forEach((icon, i) => {
-      const angle = ((i + 0.5) / list.length) * Math.PI - Math.PI; // a fan above the chest
-      const spread = 120 + (i % 3) * 22;
-      out.push({
-        icon,
-        dx: Math.cos(angle) * spread * 1.15,
-        dy: -Math.abs(Math.sin(angle)) * spread * 0.7 - 70,
-        up: -Math.abs(Math.sin(angle)) * spread * 0.7 - 150,
-        delay: 0.05 * i,
-        size: icon === "💎" ? 38 : 32,
-      });
-    });
-    return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tier, run]);
 
   const sparks = useMemo(
     () =>
@@ -99,8 +79,18 @@ export function ChestPreviewPage() {
     [run],
   );
 
+  // One prize per opening, picked at random (never the same twice in a row when it is random).
+  const roll = (): PrizeId => {
+    if (pick !== "random") return pick;
+    const pool = PRIZE_IDS.filter((id) => id !== last.current);
+    return pool[Math.floor(Math.random() * pool.length)];
+  };
+
   const open = () => {
     if (phase !== "idle") return;
+    const next = roll();
+    last.current = next;
+    setPrize(next);
     setRun((n) => n + 1);
     setPhase("shaking");
     timer.current = window.setTimeout(() => setPhase("open"), SHAKE_MS);
@@ -110,7 +100,8 @@ export function ChestPreviewPage() {
     setPhase("idle");
   };
 
-  const t = TIERS[tier];
+  const p = PRIZES[prize];
+  const amount = p.amount(size);
   const isOpen = phase === "open";
 
   return (
@@ -119,8 +110,8 @@ export function ChestPreviewPage() {
       <header>
         <h1 className="text-2xl font-bold">Предпросмотр сундука</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Только показ: как картинка сундука оживает. Нажмите на сундук или кнопку «Открыть». Ни приложение, ни сервер, ни
-          награды этим не затрагиваются.
+          Только показ: как картинка сундука оживает. Нажмите на сундук или кнопку «Открыть»: из него выпадает один случайный
+          приз. Ни приложение, ни сервер, ни награды этим не затрагиваются.
         </p>
       </header>
 
@@ -132,13 +123,11 @@ export function ChestPreviewPage() {
           boxShadow: "0 18px 50px rgba(30,20,90,0.35)",
         }}
       >
-        {/* soft light under the chest */}
         <div
           className="absolute left-1/2 rounded-full"
           style={{ top: 360, width: 360, height: 90, transform: "translateX(-50%)", background: "radial-gradient(closest-side, rgba(255,214,120,0.5), rgba(255,214,120,0))", animation: isOpen ? "cp-glow 1.6s ease-in-out infinite" : undefined, opacity: isOpen ? 1 : 0.25 }}
         />
 
-        {/* rotating rays behind the opened chest */}
         {isOpen && (
           <div
             key={`rays-${run}`}
@@ -154,8 +143,7 @@ export function ChestPreviewPage() {
           />
         )}
 
-        {/* the chest */}
-        <div className="absolute left-1/2" style={{ top: 70, width: 340, transform: "translateX(-50%)" }}>
+        <div className="absolute left-1/2" style={{ top: 90, width: 320, transform: "translateX(-50%)" }}>
           <div
             onClick={open}
             role="button"
@@ -173,40 +161,39 @@ export function ChestPreviewPage() {
 
           {isOpen && (
             <>
-              {/* burst flash */}
               <div
                 key={`flash-${run}`}
                 className="absolute rounded-full"
                 style={{ left: "50%", top: "34%", width: 300, height: 300, marginLeft: -150, marginTop: -150, background: "radial-gradient(closest-side, #fff, rgba(255,240,180,0.7) 45%, rgba(255,240,180,0))", animation: "cp-flash 0.7s ease-out both", pointerEvents: "none" }}
               />
-              {/* sparks */}
-              {sparks.map((s, i) => (
+              {sparks.map((sp, i) => (
                 <span
                   key={`sp-${run}-${i}`}
                   className="absolute"
                   style={{
-                    left: "52%", top: "34%", width: s.s, height: s.s, background: "#fff4c2", borderRadius: "50%", boxShadow: "0 0 10px 3px rgba(255,214,102,0.9)",
-                    ["--dx" as string]: `${s.dx}px`, ["--dy" as string]: `${s.dy}px`,
-                    animation: `cp-spark 0.9s ease-out ${s.delay}s both`, pointerEvents: "none",
+                    left: "52%", top: "34%", width: sp.s, height: sp.s, background: "#fff4c2", borderRadius: "50%", boxShadow: "0 0 10px 3px rgba(255,214,102,0.9)",
+                    ["--dx" as string]: `${sp.dx}px`, ["--dy" as string]: `${sp.dy}px`,
+                    animation: `cp-spark 0.9s ease-out ${sp.delay}s both`, pointerEvents: "none",
                   }}
                 />
               ))}
-              {/* the loot */}
-              {loot.map((l, i) => (
-                <span
-                  key={`loot-${run}-${i}`}
-                  className="absolute select-none"
-                  style={{
-                    left: "52%", top: "30%", fontSize: l.size, lineHeight: 1, marginLeft: -l.size / 2,
-                    filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.35))",
-                    ["--dx" as string]: `${l.dx}px`, ["--dy" as string]: `${l.dy}px`, ["--up" as string]: `${l.up}px`,
-                    animation: `cp-loot 1s cubic-bezier(.2,.8,.3,1) ${0.25 + l.delay}s both, cp-bob 2.2s ease-in-out ${1.4 + l.delay}s infinite`,
-                    pointerEvents: "none",
-                  }}
-                >
-                  {l.icon}
-                </span>
-              ))}
+
+              {/* the one prize: rises out of the chest, glows and floats */}
+              <div key={`prize-${run}`} className="absolute" style={{ left: "52%", top: "36%", width: 0, height: 0, pointerEvents: "none" }}>
+                <div
+                  className="absolute rounded-full"
+                  style={{ left: -125, top: -245, width: 250, height: 250, background: "radial-gradient(closest-side, rgba(255,246,200,0.95), rgba(255,226,140,0.45) 55%, rgba(255,226,140,0))", animation: "cp-halo 1.8s ease-in-out 1.2s infinite both", opacity: 0 }}
+                />
+                <div style={{ animation: "cp-bob 2.2s ease-in-out 1.5s infinite" }}>
+                  <img
+                    src={`${BASE}${p.img}`}
+                    alt={p.name}
+                    draggable={false}
+                    className="absolute select-none"
+                    style={{ left: 0, top: 0, width: 150, height: 150, maxWidth: "none", objectFit: "contain", filter: "drop-shadow(0 8px 14px rgba(0,0,0,0.45))", animation: "cp-prize 1.25s cubic-bezier(.2,.8,.3,1) 0.2s both" }}
+                  />
+                </div>
+              </div>
             </>
           )}
         </div>
@@ -215,12 +202,12 @@ export function ChestPreviewPage() {
           <div
             key={`label-${run}`}
             className="absolute left-1/2 text-center"
-            style={{ top: 462, transform: "translateX(-50%)", animation: "cp-label 0.5s ease-out 1.1s both" }}
+            style={{ top: 470, transform: "translateX(-50%)", animation: "cp-label 0.5s ease-out 1.2s both" }}
           >
-            <div style={{ fontSize: 34, fontWeight: 900, color: "#fff", textShadow: "0 3px 10px rgba(0,0,0,0.4)" }}>+{t.amount} 💎</div>
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)" }}>
-              {t.items.map((it) => `${it.icon} ×${it.count}`).join("   ")}
+            <div style={{ fontSize: 34, fontWeight: 900, color: "#fff", textShadow: "0 3px 10px rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+              {prize === "diamond" ? `+${amount}` : `×${amount}`}
             </div>
+            <div style={{ fontSize: 15, color: "rgba(255,255,255,0.85)" }}>{p.name}</div>
           </div>
         )}
 
@@ -231,30 +218,44 @@ export function ChestPreviewPage() {
         )}
       </section>
 
-      <section className="card flex flex-wrap items-center gap-3 p-4">
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-slate-500">Награда:</span>
-          {(Object.keys(TIERS) as Tier[]).map((k) => (
+      <section className="card space-y-3 p-4">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-slate-500">Приз:</span>
+          {(["random", ...PRIZE_IDS] as Pick[]).map((k) => (
             <button
               key={k}
               type="button"
-              onClick={() => { reset(); setTier(k); }}
-              className={`rounded-lg px-3 py-1.5 text-sm ${tier === k ? "bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50" : "border border-slate-300 text-slate-700"}`}
+              onClick={() => { reset(); setPick(k); }}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm ${pick === k ? "bg-indigo-600 text-white" : "border border-slate-300 text-slate-700"}`}
             >
-              {TIERS[k].label}
+              {k !== "random" && <img src={`${BASE}${PRIZES[k].img}`} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />}
+              {k === "random" ? "Случайный" : PRIZES[k].name}
             </button>
           ))}
         </div>
-        <div className="ml-auto flex gap-2">
-          <button type="button" className="bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 rounded-lg px-4 py-2 text-sm" disabled={phase !== "idle"} onClick={open}>
-            Открыть
-          </button>
-          <button type="button" className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700" disabled={phase === "idle"} onClick={reset}>
-            Закрыть снова
-          </button>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-slate-500">Размер (для бриллиантов):</span>
+          {(Object.keys(SIZES) as Size[]).map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => { reset(); setSize(k); }}
+              className={`rounded-lg px-3 py-1.5 text-sm ${size === k ? "bg-indigo-600 text-white" : "border border-slate-300 text-slate-700"}`}
+            >
+              {SIZES[k].label}: {SIZES[k].diamonds}
+            </button>
+          ))}
+          <div className="ml-auto flex gap-2">
+            <button type="button" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50" disabled={phase !== "idle"} onClick={open}>
+              Открыть
+            </button>
+            <button type="button" className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 disabled:opacity-50" disabled={phase === "idle"} onClick={reset}>
+              Закрыть снова
+            </button>
+          </div>
         </div>
-        <p className="w-full text-xs text-slate-500">
-          Внутри (условно, для показа): {t.items.map((it) => `${it.icon} ×${it.count}`).join(", ")}, всего +{t.amount} 💎. Реальное содержимое и количество зададим позже.
+        <p className="text-xs text-slate-500">
+          Из сундука всегда выпадает один приз. При «Случайном» каждый раз другой, не повторяется два раза подряд. Реальные призы и шансы зададим позже.
         </p>
       </section>
     </main>
