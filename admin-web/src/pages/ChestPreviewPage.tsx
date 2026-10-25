@@ -57,6 +57,7 @@ const css = `
   75% { transform: translate(-50%,-50%) translateY(14px) scale(1.65) rotate(-4deg); }
   100% { opacity: 1; transform: translate(-50%,-50%) translateY(0) scale(1.55) rotate(0deg); }
 }
+@keyframes cp-fly { 0% { opacity: 0; transform: translate(-50%,-50%) translate(0px,-70px) scale(0.1) rotate(-40deg); } 20% { opacity: 1; } 60% { transform: translate(-50%,-50%) translate(var(--tx),calc(var(--ty) - 60px)) scale(1.25) rotate(10deg); } 100% { opacity: 1; transform: translate(-50%,-50%) translate(var(--tx),var(--ty)) scale(1) rotate(0deg); } }
 @keyframes cp-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 @keyframes cp-halo { 0%,100% { opacity: 0.6; transform: translate(-50%,-50%) scale(1); } 50% { opacity: 1; transform: translate(-50%,-50%) scale(1.14); } }
 @keyframes cp-shine { 0% { transform: translateX(-130%) skewX(-20deg); } 55%,100% { transform: translateX(230%) skewX(-20deg); } }
@@ -76,6 +77,8 @@ export function ChestPreviewPage() {
   const [types, setTypes] = useState<ChestType[]>(FALLBACK);
   const [chestKey, setChestKey] = useState("wood");
   const [amount, setAmount] = useState(1);
+  const [count, setCount] = useState(1); // how many chests are opened at once
+  const [batch, setBatch] = useState<{ id: PrizeId; amount: number }[]>([]);
   const [pick, setPick] = useState<Pick>("random");
   const [phase, setPhase] = useState<Phase>("idle");
   const [taps, setTaps] = useState(0);
@@ -123,6 +126,11 @@ export function ChestPreviewPage() {
       last.current = next;
       setPrize(next);
       setAmount(1 + Math.floor(Math.random() * Math.max(1, PRIZES[next].cap(chest))));
+      const possible = PRIZE_IDS.filter((id) => PRIZES[id].cap(chest) > 0);
+      setBatch(Array.from({ length: count }, () => {
+        const id = pick !== "random" && possible.includes(pick) ? pick : possible[Math.floor(Math.random() * possible.length)];
+        return { id, amount: 1 + Math.floor(Math.random() * Math.max(1, PRIZES[id].cap(chest))) };
+      }));
       setRun((r) => r + 1);
       setPhase("bursting");
       timer.current = window.setTimeout(() => setPhase("open"), BURST_MS);
@@ -223,7 +231,7 @@ export function ChestPreviewPage() {
         </div>
 
         {/* the prize: flies out of the chest and settles in the middle of the stage */}
-        {isOpen && (
+        {isOpen && count === 1 && (
           <div key={`prize-${run}`} className="absolute" style={{ left: "50%", top: 250, width: 0, height: 0, pointerEvents: "none" }}>
             <div
               className="absolute rounded-full"
@@ -260,7 +268,42 @@ export function ChestPreviewPage() {
           </div>
         )}
 
-        {isOpen && (
+        {isOpen && count > 1 && (
+          <div key={`batch-${run}`} className="absolute" style={{ left: "50%", top: 215, width: 0, height: 0, pointerEvents: "none" }}>
+            {batch.map((b, i) => {
+              const cols = count > 5 ? 5 : count;
+              const rows = Math.ceil(count / cols);
+              const col = i % cols, row = Math.floor(i / cols);
+              const tx = (col - (cols - 1) / 2) * 118;
+              const ty = (row - (rows - 1) / 2) * 118 + 20;
+              const pr = PRIZES[b.id];
+              return (
+                <div key={i} className="absolute" style={{ left: 0, top: 0, width: 96, textAlign: "center", ["--tx" as string]: `${tx}px`, ["--ty" as string]: `${ty}px`, animation: `cp-fly 1.1s cubic-bezier(.2,.8,.3,1) ${0.45 + i * 0.12}s both`, opacity: 0 }}>
+                  <div style={{ height: 66, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 58, lineHeight: 1, color: "#ffc53d" }}>
+                    {pr.img ? <img src={`${BASE}${pr.img}`} alt="" draggable={false} style={{ maxWidth: "none", width: 66, height: 66, objectFit: "contain", filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.5)) drop-shadow(0 0 14px rgba(255,236,160,0.6))" }} /> : "★"}
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: "#fff", textShadow: "0 2px 8px rgba(0,0,0,0.6)" }}>+{b.amount}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {isOpen && count > 1 && (
+          <div key={`total-${run}`} className="absolute left-1/2 text-center" style={{ top: 470, transform: "translateX(-50%)", animation: `cp-label 0.5s ease-out ${0.9 + count * 0.12}s both`, whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: 15, color: "rgba(255,255,255,0.85)", marginBottom: 2 }}>Открыто сундуков: {count}. Всего:</div>
+            <div className="flex items-center justify-center gap-4" style={{ color: "#fff", fontSize: 24, fontWeight: 900 }}>
+              {PRIZE_IDS.filter((id) => batch.some((b) => b.id === id)).map((id) => (
+                <span key={id} className="flex items-center gap-1">
+                  {PRIZES[id].img ? <img src={`${BASE}${PRIZES[id].img}`} alt="" style={{ maxWidth: "none", width: 28, height: 28, objectFit: "contain" }} /> : <span style={{ color: "#ffc53d" }}>★</span>}
+                  +{batch.filter((b) => b.id === id).reduce((s, b) => s + b.amount, 0)}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {isOpen && count === 1 && (
           <div
             key={`label-${run}`}
             className="absolute left-1/2 text-center"
@@ -306,6 +349,15 @@ export function ChestPreviewPage() {
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-slate-500">Открыть сразу:</span>
+          {[1, 5, 10].map((n) => (
+            <button key={n} type="button" onClick={() => { reset(); setCount(n); }}
+              className={`rounded-lg px-3 py-1.5 text-sm ${count === n ? "bg-indigo-600 text-white" : "border border-slate-300 text-slate-700"}`}>
+              {n === 1 ? "1 сундук" : `${n} сундуков`}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="text-slate-500">Сундук:</span>
           {types.map((c) => (
             <button
@@ -336,7 +388,7 @@ export function ChestPreviewPage() {
           Из сундука всегда выпадает один приз. При «Случайном» каждый раз другой, не повторяется два раза подряд. Количество выпадает случайно от 1 до потолка выбранного сундука.
         </p>
       </section>
-      <ChestBankMock types={types} onOpenOne={(k) => { reset(); setChestKey(k); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
+      <ChestBankMock types={types} onOpen={(k, n) => { reset(); setChestKey(k); setCount(n); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
     </main>
   );
 }
