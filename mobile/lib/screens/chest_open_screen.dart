@@ -10,15 +10,19 @@ import '../services/chest_sound.dart';
 import '../services/streak_state.dart';
 import '../widgets/game_icons.dart';
 
-/// Opens the person's chests one after another: three taps, each shakes the
-/// chest, the third bursts it open; the chest leaves and the prize shines in
-/// the middle.
+/// Opens [count] (1, 5 or 10) chests of one kind: three taps, each shakes the
+/// chest, the third bursts it open; the chest leaves and the prizes (one for a
+/// single chest, one per chest for a batch) fly out and settle in the middle.
+/// Pops with the refreshed bank when the person takes the prizes.
 class ChestOpenScreen extends StatefulWidget {
   final ChestBank bank;
+  final String chestKey;
+  final int count;
 
-  /// Replaces the server call (tests).
-  final Future<(ChestPrize, ChestBank)> Function(int id)? opener;
-  const ChestOpenScreen({super.key, required this.bank, this.opener});
+  /// Replace the server calls (tests).
+  final Future<(List<ChestPrize>, ChestBank)> Function(String key, int count)? opener;
+
+  const ChestOpenScreen({super.key, required this.bank, required this.chestKey, this.count = 1, this.opener});
 
   @override
   State<ChestOpenScreen> createState() => _ChestOpenScreenState();
@@ -29,13 +33,14 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
   late ChestBank _bank = widget.bank;
   late final AnimationController _float = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat();
   late final AnimationController _shake = AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
-  late final AnimationController _reveal = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200));
+  late final AnimationController _reveal = AnimationController(
+    vsync: this,
+    duration: Duration(milliseconds: widget.count > 1 ? 3800 : 2200),
+  );
   int _taps = 0;
   bool _busy = false;
-  ChestPrize? _prize;
+  List<ChestPrize>? _prizes;
   String? _error;
-
-  BankChest? get _current => _bank.chests.isEmpty ? null : _bank.chests.first;
 
   @override
   void dispose() {
@@ -47,8 +52,7 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
   }
 
   Future<void> _tap() async {
-    final chest = _current;
-    if (chest == null || _busy || _prize != null) return;
+    if (_busy || _prizes != null) return;
     setState(() {
       _taps++;
       _error = null;
@@ -59,12 +63,12 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
     if (_taps < _tapsNeeded) return;
     _busy = true;
     try {
-      final (prize, bank) = await (widget.opener ?? ApiClient.instance.openChest)(chest.id);
+      final (prizes, bank) = await (widget.opener ?? _openOnServer)(widget.chestKey, widget.count);
       if (widget.opener == null) ApiClient.instance.fetchEconomy();
       dailyGoalTick.value++;
       if (!mounted) return;
       setState(() {
-        _prize = prize;
+        _prizes = prizes;
         _bank = bank;
       });
       _reveal.forward(from: 0);
@@ -81,23 +85,18 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
     }
   }
 
-  void _next() {
-    if (_bank.chests.isEmpty) {
-      Navigator.of(context).pop();
-      return;
+  Future<(List<ChestPrize>, ChestBank)> _openOnServer(String key, int count) async {
+    if (count == 1) {
+      final id = _bank.chests.firstWhere((c) => c.chestKey == key).id;
+      final (prize, bank) = await ApiClient.instance.openChest(id);
+      return ([prize], bank);
     }
-    setState(() {
-      _prize = null;
-      _taps = 0;
-    });
-    _reveal.reset();
+    return ApiClient.instance.openManyChests(key, count);
   }
 
   @override
   Widget build(BuildContext context) {
-    final chest = _current ?? (_prize == null ? null : BankChest(id: 0, chestKey: _prize!.chestKey, source: ''));
-    final key = _prize?.chestKey ?? chest?.chestKey ?? 'wood';
-    final type = _bank.type(key);
+    final type = _bank.type(widget.chestKey);
     final color = Color(type?.color ?? 0xFFA0693B);
     return Scaffold(
       backgroundColor: const Color(0xFF14103A),
@@ -117,40 +116,39 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
               child: IconButton(
                 key: const ValueKey('chest-close'),
                 icon: const Icon(Icons.close_rounded, color: Colors.white70),
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => Navigator.of(context).pop(_bank),
               ),
             ),
-            Positioned.fill(child: _stage(key, color, type?.name ?? tr('Сундук'))),
+            Positioned.fill(child: _stage(color, type?.name ?? tr('Сундук'))),
           ]),
         ),
       ),
     );
   }
 
-  Widget _stage(String key, Color color, String name) {
+  Widget _stage(Color color, String name) {
     return AnimatedBuilder(
       animation: Listenable.merge([_float, _shake, _reveal]),
       builder: (context, _) {
         final r = _reveal.value;
-        final prize = _prize;
+        final prizes = _prizes;
+        final batch = widget.count > 1;
         final bob = math.sin(_float.value * 2 * math.pi) * 8;
         final decay = 1 - _shake.value;
         final angle = math.sin(_shake.value * math.pi * 6) * 0.13 * decay;
-        final grow = 1 + 0.08 * _taps * (prize == null ? 1 : 0);
-        // The chest bursts at 0..0.2 and then leaves downwards.
-        final leave = prize == null ? 0.0 : Curves.easeIn.transform(((r - 0.2) / 0.3).clamp(0.0, 1.0));
-        final flash = prize == null ? 0.0 : math.sin((r / 0.35).clamp(0.0, 1.0) * math.pi);
-        final shine = prize == null ? 0.0 : Curves.easeOutBack.transform(((r - 0.3) / 0.35).clamp(0.0, 1.0));
+        final grow = 1 + 0.08 * _taps * (prizes == null ? 1 : 0);
+        // The chest bursts open first and then leaves downwards (a batch reveal is longer, so scale the times).
+        final k = batch ? 2200 / 3800 : 1.0;
+        final leave = prizes == null ? 0.0 : Curves.easeIn.transform(((r - 0.2 * k) / (0.3 * k)).clamp(0.0, 1.0));
+        final flash = prizes == null ? 0.0 : math.sin((r / (0.35 * k)).clamp(0.0, 1.0) * math.pi);
+        final shine = prizes == null ? 0.0 : Curves.easeOutBack.transform(((r - 0.3 * k) / (0.35 * k)).clamp(0.0, 1.0));
         return Stack(alignment: Alignment.center, children: [
-          if (prize != null)
+          if (prizes != null)
             Opacity(
               opacity: shine.clamp(0.0, 1.0),
-              child: Transform.rotate(
-                angle: r * 2.2,
-                child: CustomPaint(size: const Size(360, 360), painter: _RaysPainter(color)),
-              ),
+              child: Transform.rotate(angle: r * 2.2, child: CustomPaint(size: const Size(360, 360), painter: _RaysPainter(color))),
             ),
-          if (prize == null || leave < 1)
+          if (prizes == null || leave < 1)
             Opacity(
               opacity: 1 - leave,
               child: Transform.translate(
@@ -158,12 +156,12 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
                 child: Transform.rotate(
                   angle: angle,
                   child: Transform.scale(
-                    scale: (grow * (1 - 0.35 * leave)),
+                    scale: grow * (1 - 0.35 * leave),
                     child: GestureDetector(
                       key: const ValueKey('chest-tap'),
                       behavior: HitTestBehavior.opaque,
                       onTap: _tap,
-                      child: ChestImage(key, open: prize != null, size: 260),
+                      child: ChestImage(widget.chestKey, open: prizes != null, size: 260),
                     ),
                   ),
                 ),
@@ -180,16 +178,21 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
                 ),
               ),
             ),
-          if (prize != null)
+          if (prizes != null && !batch)
             Opacity(
               opacity: shine.clamp(0.0, 1.0),
-              child: Transform.scale(scale: 0.6 + 0.4 * shine, child: _prizeView(prize)),
+              child: Transform.scale(scale: 0.6 + 0.4 * shine, child: _prizeView(prizes.first)),
             ),
-          if (prize == null)
+          if (prizes != null && batch) ..._flyingPrizes(prizes, r),
+          if (prizes != null && batch) _totals(prizes, r),
+          if (prizes == null)
             Positioned(
               bottom: 56,
               child: Column(children: [
-                Text(name, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
+                Text(
+                  widget.count > 1 ? '$name ×${widget.count}' : name,
+                  style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
+                ),
                 const SizedBox(height: 8),
                 Text(tr('Нажмите на сундук 3 раза'), style: const TextStyle(color: Colors.white70, fontSize: 14)),
                 const SizedBox(height: 12),
@@ -199,32 +202,26 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
                       margin: const EdgeInsets.symmetric(horizontal: 4),
                       width: 12,
                       height: 12,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: i < _taps ? const Color(0xFFFFD54F) : Colors.white24,
-                      ),
+                      decoration: BoxDecoration(shape: BoxShape.circle, color: i < _taps ? const Color(0xFFFFD54F) : Colors.white24),
                     ),
                 ]),
                 if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Text(_error!, style: const TextStyle(color: Color(0xFFFF8A80))),
-                  ),
+                  Padding(padding: const EdgeInsets.only(top: 12), child: Text(_error!, style: const TextStyle(color: Color(0xFFFF8A80)))),
               ]),
             ),
-          if (prize != null && r > 0.75)
+          if (prizes != null && r > 0.75)
             Positioned(
-              bottom: 56,
+              bottom: 40,
               child: FilledButton(
                 key: const ValueKey('chest-collect'),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFFFC53D),
-                  foregroundColor: const Color(0xFF3B2600),
-                  padding: const EdgeInsets.symmetric(horizontal: 44, vertical: 14),
+                  backgroundColor: const Color(0xFF3FD43A),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 14),
                   textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
                 ),
-                onPressed: _next,
-                child: Text(_bank.chests.isEmpty ? tr('Забрать') : tr('Следующий сундук')),
+                onPressed: () => Navigator.of(context).pop(_bank),
+                child: Text(tr('Забрать')),
               ),
             ),
         ]);
@@ -232,28 +229,108 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
     );
   }
 
+  /// One prize per chest, flying out of the chest one after another into a grid.
+  List<Widget> _flyingPrizes(List<ChestPrize> prizes, double r) {
+    final n = prizes.length;
+    final cols = n > 5 ? 5 : n;
+    final rows = (n / cols).ceil();
+    const cell = 68.0;
+    final out = <Widget>[];
+    for (var i = 0; i < n; i++) {
+      final col = i % cols, row = i ~/ cols;
+      final tx = (col - (cols - 1) / 2) * cell;
+      final ty = (row - (rows - 1) / 2) * (cell + 24) - 40;
+      // each prize starts a little after the previous one
+      final start = 0.16 + i * 0.035;
+      final p = ((r - start) / 0.28).clamp(0.0, 1.0);
+      if (p == 0) continue;
+      final ease = Curves.easeOutCubic.transform(p);
+      final scale = p < 0.6 ? 0.1 + 1.15 * (p / 0.6) : 1.25 - 0.25 * ((p - 0.6) / 0.4);
+      out.add(Transform.translate(
+        offset: Offset(tx * ease, -70 + (ty + 70) * ease - 50 * math.sin(p * math.pi)),
+        child: Opacity(
+          opacity: (p * 4).clamp(0.0, 1.0),
+          child: Transform.scale(scale: scale, child: _smallPrize(prizes[i])),
+        ),
+      ));
+    }
+    return out;
+  }
+
+  Widget _smallPrize(ChestPrize p) => SizedBox(
+        width: 64,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          _prizeIcon(p.kind, 46),
+          const SizedBox(height: 2),
+          Text(
+            '+${p.kind == 'diamonds' ? compactNumber(p.amount) : p.amount}',
+            style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900),
+          ),
+        ]),
+      );
+
+  Widget _totals(List<ChestPrize> prizes, double r) {
+    final sums = <String, int>{};
+    for (final p in prizes) {
+      sums[p.kind] = (sums[p.kind] ?? 0) + p.amount;
+    }
+    final t = ((r - 0.62) / 0.15).clamp(0.0, 1.0);
+    return Positioned(
+      bottom: 110,
+      child: Opacity(
+        opacity: t,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('${tr('Всего')}:', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+          const SizedBox(height: 4),
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            for (final e in sums.entries)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(children: [
+                  _prizeIcon(e.key, 26),
+                  const SizedBox(width: 3),
+                  Text(
+                    '+${e.key == 'diamonds' ? compactNumber(e.value) : e.value}',
+                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
+                  ),
+                ]),
+              ),
+          ]),
+        ]),
+      ),
+    );
+  }
+
+  Widget _prizeIcon(String kind, double size) {
+    switch (kind) {
+      case 'freeze':
+        return FreezeIcon(size: size);
+      case 'merge':
+        return MergeIcon(size: size);
+      case 'points':
+        return PointsIcon(size: size);
+      default:
+        return DiamondIcon(size: size);
+    }
+  }
+
   Widget _prizeView(ChestPrize p) {
-    final Widget icon;
     final String label;
     switch (p.kind) {
       case 'freeze':
-        icon = const FreezeIcon(size: 150);
         label = tr('Заморозки серии');
         break;
       case 'merge':
-        icon = const MergeIcon(size: 150);
         label = tr('Объединители серии');
         break;
       case 'points':
-        icon = const PointsIcon(size: 150);
         label = tr('Очки рейтинга');
         break;
       default:
-        icon = const DiamondIcon(size: 150);
         label = tr('Бриллианты');
     }
     return Column(mainAxisSize: MainAxisSize.min, children: [
-      icon,
+      _prizeIcon(p.kind, 150),
       const SizedBox(height: 10),
       Text(
         '+${p.kind == 'diamonds' ? compactNumber(p.amount) : p.amount}',

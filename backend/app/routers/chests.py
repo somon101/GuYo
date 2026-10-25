@@ -53,6 +53,28 @@ def open_one(chest_id: int, db: Session = Depends(get_db), user: User = Depends(
     }
 
 
+class OpenManyIn(BaseModel):
+    chest_key: str
+    count: int = Field(ge=1, le=10)
+
+
+@router.post("/open-many")
+def open_many(payload: OpenManyIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    try:
+        opened = service.open_many(db, user, payload.chest_key, payload.count)
+    except ChestError as e:
+        db.rollback()
+        raise _conflict(e) from None
+    db.commit()
+    db.refresh(user)
+    return {
+        "chest_key": payload.chest_key,
+        "prizes": [{"kind": c.prize_kind, "amount": c.prize_amount} for c in opened],
+        "diamonds": user.diamonds_balance,
+        "state": service.user_state(db, user),
+    }
+
+
 # ---- admin ------------------------------------------------------------------
 
 class TypeIn(BaseModel):

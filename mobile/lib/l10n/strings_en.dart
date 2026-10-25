@@ -876,4 +876,6 @@ const Map<String, String> enStrings = {
   'Нажмите на сундук 3 раза': 'Tap the chest 3 times',
   'Двойные награды из сундуков!': 'Double chest rewards!',
   'Нажмите, чтобы забрать': 'Tap to take it',
+  'Всего': 'Total',
+  'Пока сундуков нет': 'No chests yet',
 };

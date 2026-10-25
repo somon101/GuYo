@@ -1602,4 +1602,6 @@ const Map<String, (String, String)> uiStrings = {
   'Нажмите на сундук 3 раза': ('Ба сандуқ 3 маротиба зер кунед', 'Sandiqqa 3 marta bosing'),
   'Двойные награды из сундуков!': ('Мукофотҳои дукарата аз сандуқҳо!', 'Sandiqlardan ikki barobar mukofot!'),
   'Нажмите, чтобы забрать': ('Барои гирифтан зер кунед', 'Olish uchun bosing'),
+  'Всего': ('Ҳамагӣ', 'Jami'),
+  'Пока сундуков нет': ('Ҳоло сандуқ нест', "Hozircha sandiq yo'q"),
 };

@@ -184,6 +184,19 @@ def open_chest(db: Session, user: User, chest_id: int, rng: _random.Random | Non
     return chest
 
 
+def open_many(
+    db: Session, user: User, chest_key: str, count: int, rng: _random.Random | None = None
+) -> list[UserChest]:
+    """Opens `count` (1, 5 or 10) chests of ONE kind, oldest first. All or nothing:
+    fewer than `count` in the bank is refused."""
+    if count not in (1, 5, 10):
+        raise ChestError("Можно открыть 1, 5 или 10 сундуков")
+    ids = [c.id for c in unopened(db, user) if c.chest_key == chest_key]
+    if len(ids) < count:
+        raise ChestError("Столько сундуков этого вида нет")
+    return [open_chest(db, user, i, rng) for i in ids[:count]]
+
+
 def award_prize(db: Session, user: User, kind: str, amount: int, reference: str) -> None:
     if kind == "diamonds":
         grant_diamonds(db, user, amount, "chest", reference)

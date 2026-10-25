@@ -140,3 +140,18 @@ def test_streak_comeback_duel_and_pass_chests(db, make_user, active_season):
     _give(db, user, {"type": "chest", "amount": 1, "key": "purple"}, "n", active_season, ref="free:2")
     assert db.query(UserChest).filter_by(user_id=user.id, chest_key="purple", source="pass").count() == 1
     assert rewards.validate_rewards(db, [{"type": "diamonds", "amount": 3}])
+
+
+def test_open_many_one_kind_all_or_nothing(client, db, make_user, auth):
+    user = make_user()
+    for i in range(7):
+        service.grant_chest(db, user, "wood", "admin", f"m{i}", force=True)
+    service.grant_chest(db, user, "gold", "admin", "g", force=True)
+    db.commit()
+    h = auth(user)
+    r = client.post("/chests/open-many", headers=h, json={"chest_key": "wood", "count": 5})
+    assert r.status_code == 200 and len(r.json()["prizes"]) == 5
+    assert sum(1 for c in r.json()["state"]["chests"] if c["chest_key"] == "wood") == 2
+    assert client.post("/chests/open-many", headers=h, json={"chest_key": "wood", "count": 5}).status_code == 409
+    assert client.post("/chests/open-many", headers=h, json={"chest_key": "wood", "count": 3}).status_code == 409
+    assert client.post("/chests/open-many", headers=h, json={"chest_key": "gold", "count": 1}).status_code == 200

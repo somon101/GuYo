@@ -1136,6 +1136,26 @@ class ApiClient {
     return ChestBank.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
+  /// Opens 1, 5 or 10 chests of one kind at once; returns every prize and the refreshed bank.
+  Future<(List<ChestPrize>, ChestBank)> openManyChests(String chestKey, int count) async {
+    final res = await http.post(
+      _uri('/chests/open-many'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'chest_key': chestKey, 'count': count}),
+    );
+    await _throwWithDetail(res);
+    final json = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    final bank = ChestBank.fromJson(json['state'] as Map<String, dynamic>);
+    DiskCache.put('chests', jsonEncode(json['state']));
+    return (
+      [
+        for (final p in json['prizes'] as List<dynamic>)
+          ChestPrize(chestKey: chestKey, kind: p['kind'] as String, amount: p['amount'] as int),
+      ],
+      bank,
+    );
+  }
+
   /// Opens one chest; returns the prize and the refreshed bank.
   Future<(ChestPrize, ChestBank)> openChest(int id) async {
     final res = await http.post(_uri('/chests/$id/open'), headers: await _authHeaders());
