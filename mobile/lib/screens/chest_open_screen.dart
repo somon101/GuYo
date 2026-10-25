@@ -54,6 +54,7 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
       _error = null;
     });
     _shake.forward(from: 0);
+    ChestSound.buzzTap();
     if (widget.opener == null) unawaited(ChestSound.tap());
     if (_taps < _tapsNeeded) return;
     _busy = true;
@@ -67,6 +68,7 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
         _bank = bank;
       });
       _reveal.forward(from: 0);
+      ChestSound.buzzOpen();
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
       _taps = 0;

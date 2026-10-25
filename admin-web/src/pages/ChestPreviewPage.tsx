@@ -100,7 +100,8 @@ export function ChestPreviewPage() {
     click.current.currentTime = 0;
     void click.current.play().catch(() => undefined);
   };
-  useEffect(() => () => { click.current?.pause(); }, []);
+  const buzz = (pattern: number | number[]) => { try { navigator.vibrate?.(pattern); } catch { /* not supported */ } };
+  useEffect(() => () => { click.current?.pause(); buzz(0); }, []);
 
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
 
@@ -129,6 +130,7 @@ export function ChestPreviewPage() {
     if (phase !== "idle") return;
     playClick();
     const n = taps + 1;
+    buzz(n >= TAPS_TO_OPEN ? [70, 40, 70, 40, 70, 40, 140] : 30);
     setTaps(n);
     setTapRun((r) => r + 1);
     if (n >= TAPS_TO_OPEN) {
@@ -148,6 +150,7 @@ export function ChestPreviewPage() {
   };
   const reset = () => {
     click.current?.pause();
+    buzz(0);
     if (timer.current) window.clearTimeout(timer.current);
     setPhase("idle");
     setTaps(0);
