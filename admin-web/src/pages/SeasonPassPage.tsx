@@ -653,6 +653,24 @@ function TemplatesSection() {
     });
   }
 
+  /** Saves the template and copies it into the season that is running now (players see it at once). */
+  async function saveAndApply() {
+    if (!editing) return;
+    const running = (await listSeasons()).find((s) => s.status === "active");
+    if (!running) {
+      setMessage("Сейчас нет идущего сезона: шаблон сохранён только как шаблон.");
+      await save();
+      return;
+    }
+    if (!window.confirm(`Заменить пропуск идущего сезона «${running.name}» этим шаблоном? Уже полученные игроками награды остаются.`)) return;
+    await run(async () => {
+      const id = editing.id == null ? (await createPassTemplate(editing.name, editing.definition)).id : (await updatePassTemplate(editing.id, editing.name, editing.definition)).id;
+      await applyPassTemplate(running.id, id);
+      setEditing(null);
+      setMessage(`Шаблон сохранён и применён к сезону «${running.name}»`);
+    });
+  }
+
   return (
     <Section title="Шаблоны">
       {message && <p className="mb-2 text-sm text-red-600">{message}</p>}
@@ -699,6 +717,9 @@ function TemplatesSection() {
           <div className="flex gap-3">
             <button onClick={save} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
               Сохранить шаблон
+            </button>
+            <button onClick={saveAndApply} className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
+              Сохранить и применить к идущему сезону
             </button>
             <button onClick={() => setEditing(null)} className="text-sm text-slate-500">
               Отмена
