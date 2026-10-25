@@ -46,6 +46,8 @@ def _out(notification: Notification) -> NotificationOut:
         is_read=notification.read_at is not None,
         read_at=notification.read_at,
         created_at=notification.created_at,
+        action=notification.action,
+        payload=notification.payload,
     )
 
 

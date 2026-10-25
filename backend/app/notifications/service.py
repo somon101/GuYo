@@ -29,6 +29,8 @@ def send_notification(
     title: str | None = None,
     source: str = SOURCE_MANUAL,
     dedupe_key: str | None = None,
+    action: str | None = None,
+    payload: list | None = None,
 ) -> Notification | None:
     """Puts one message in `user`'s inbox and returns it.
 
@@ -76,6 +78,8 @@ def send_notification(
         title=(title.strip() or None) if title else None,
         body=text,
         dedupe_key=stored_key,
+        action=action,
+        payload=payload,
     )
     try:
         with db.begin_nested():

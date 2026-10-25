@@ -287,6 +287,12 @@ def finish_duels(db: Session) -> int:
     return finish_due(db)
 
 
+def notify_goal_rewards(db: Session, today) -> int:
+    from app.chests.rewards import notify_unclaimed
+
+    return notify_unclaimed(db, today)
+
+
 def send_season_summaries(db: Session) -> int:
     from app.seasonpass.reminders import send_season_summaries as send
 
@@ -304,6 +310,7 @@ def run_reminders(db: Session) -> int:
         + send_season_summaries(db)
         + send_weekly_digest(db, now.date(), now.hour, settings)
         + finish_duels(db)
+        + notify_goal_rewards(db, now.date())
     )
 
 

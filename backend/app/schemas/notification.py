@@ -18,6 +18,8 @@ class NotificationOut(BaseModel):
     is_read: bool
     read_at: datetime | None
     created_at: datetime
+    action: str | None = None
+    payload: list | None = None
 
 
 class NotificationListOut(BaseModel):

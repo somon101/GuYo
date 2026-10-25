@@ -16,7 +16,7 @@ not reshaping this table.
 
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import JSON, Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -61,6 +61,10 @@ class Notification(Base):
     title: Mapped[str | None] = mapped_column(String(120), nullable=True)
     body: Mapped[str] = mapped_column(Text, nullable=False)
     dedupe_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # An optional button on the message, e.g. "claim_goal:12" (take the daily-goal reward), and the
+    # rewards it offers so the app can show them without another request.
+    action: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    payload: Mapped[list | None] = mapped_column(JSON, nullable=True)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 

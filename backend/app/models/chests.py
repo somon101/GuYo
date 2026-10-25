@@ -81,6 +81,9 @@ class DailyGoalClaim(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     day: Mapped[date] = mapped_column(Date, nullable=False)
     words: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Earned when the goal is filled; paid only when the person presses «Получить».
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    notified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
 
 
 class RewardMarker(Base):

@@ -3,7 +3,7 @@ milestone, comeback) and the daily-goal tiers. A reward is
 {"type": "xp" | "chest" | "diamonds" | "rating_points", "amount": n} or, for a
 chest, {"type": "chest", "key": "gold", "amount": count}."""
 
-from datetime import date
+from datetime import date, datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -130,15 +130,81 @@ def daily_tiers(db: Session) -> list[dict]:
     return get_rule(db, DAILY_GOAL_KEY)
 
 
-def claim_daily_goal(db: Session, user: User, done: int, today: date) -> dict | None:
-    """Pays the tier the person picked once it is filled, once per day per tier."""
+def earn_daily_goal(db: Session, user: User, done: int, today: date) -> bool:
+    """Marks the picked tier as earned once it is filled (once per day per tier). Nothing is
+    paid here: the person takes the reward with «Получить». True on the call that earned it."""
     tier = next((t for t in daily_tiers(db) if t["words"] == user.daily_goal), None)
     if tier is None or done < tier["words"]:
-        return None
+        return False
     try:
         with db.begin_nested():
             db.add(DailyGoalClaim(user_id=user.id, day=today, words=tier["words"]))
             db.flush()
     except IntegrityError:
-        return None
-    return give(db, user, tier["rewards"], "daily_goal", f"goal:{today.isoformat()}:{tier['words']}")
+        return False
+    return True
+
+
+def waiting_claim(db: Session, user: User, today: date) -> DailyGoalClaim | None:
+    """Today's earned-but-not-taken reward of the picked tier."""
+    return (
+        db.query(DailyGoalClaim)
+        .filter_by(user_id=user.id, day=today, words=user.daily_goal)
+        .filter(DailyGoalClaim.claimed_at.is_(None))
+        .first()
+    )
+
+
+def claim_goal(db: Session, user: User, claim_id: int) -> dict:
+    """Pays an earned daily-goal reward, once."""
+    claim = (
+        db.query(DailyGoalClaim)
+        .filter(DailyGoalClaim.id == claim_id, DailyGoalClaim.user_id == user.id)
+        .with_for_update()
+        .first()
+    )
+    if claim is None:
+        raise ChestError("Награда не найдена")
+    if claim.claimed_at is not None:
+        raise ChestError("Награда уже получена")
+    tier = next((t for t in daily_tiers(db) if t["words"] == claim.words), None)
+    rewards_list = tier["rewards"] if tier else []
+    claim.claimed_at = datetime.now(timezone.utc)
+    db.flush()
+    return give(db, user, rewards_list, "daily_goal", f"goal:{claim.day.isoformat()}:{claim.words}")
+
+
+def notify_unclaimed(db: Session, today: date) -> int:
+    """Rewards earned on an earlier day and still not taken go to the person's notifications,
+    with a «Получить» button. Once per reward."""
+    from app.notifications.service import send_notification
+
+    sent = 0
+    rows = (
+        db.query(DailyGoalClaim)
+        .filter(DailyGoalClaim.day < today, DailyGoalClaim.claimed_at.is_(None), DailyGoalClaim.notified.is_(False))
+        .limit(500)
+        .all()
+    )
+    for claim in rows:
+        user = db.get(User, claim.user_id)
+        claim.notified = True
+        if user is None:
+            continue
+        tier = next((t for t in daily_tiers(db) if t["words"] == claim.words), None)
+        title, body = _TEXTS.get(user.ui_language, _TEXTS["ru"])
+        send_notification(
+            db, user, body.format(words=claim.words), title=title, source="goal_reward",
+            dedupe_key=f"goal-claim:{claim.id}", action=f"claim_goal:{claim.id}", payload=tier["rewards"] if tier else [],
+        )
+        sent += 1
+    return sent
+
+
+_TEXTS = {
+    "ru": ("Награда за цель дня ждёт вас", "Вы выполнили цель ({words} слов). Заберите подарок!"),
+    "en": ("Your daily goal reward is waiting", "You reached your goal ({words} words). Take your gift!"),
+    "tg": ("Мукофоти ҳадафи рӯз мунтазир аст", "Шумо ҳадафро иҷро кардед ({words} калима). Тӯҳфаро гиред!"),
+    "uz": ("Kun maqsadi mukofoti sizni kutmoqda", "Siz maqsadni bajardingiz ({words} so'z). Sovg'ani oling!"),
+    "zh": ("每日目标奖励在等你", "你完成了目标（{words}个词）。快来领取礼物！"),
+}

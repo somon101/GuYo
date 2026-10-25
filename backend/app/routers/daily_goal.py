@@ -43,6 +43,9 @@ class DailyGoalOut(BaseModel):
     points: int = 0
     # True once today's goal is filled: the choice is then fixed until tomorrow.
     locked: bool = False
+    # The reward is earned but not taken yet: the app shows «Получить» (claim_id says which).
+    reward_ready: bool = False
+    claim_id: int | None = None
     options: list[int] = []
     tiers: list[TierOut] = []
 
@@ -70,16 +73,29 @@ def state(db: Session, user: User) -> DailyGoalOut:
     if user.daily_goal not in options:
         user.daily_goal = min(options, key=lambda g: abs(g - user.daily_goal))
     completed = done >= user.daily_goal
-    # Once per day per tier: the claim row is unique on (user, day, tier).
-    given = rewards.claim_daily_goal(db, user, done, today) if completed else None
-    claimed = {c.words for c in db.query(DailyGoalClaim).filter_by(user_id=user.id, day=today)}
+    # Filling the goal only EARNS the reward (once per day per tier); the person takes it by hand.
+    just = rewards.earn_daily_goal(db, user, done, today) if completed else False
+    rewards.notify_unclaimed(db, today)
+    waiting = rewards.waiting_claim(db, user, today) if completed else None
+    claimed = {c.words for c in db.query(DailyGoalClaim).filter_by(user_id=user.id, day=today).filter(DailyGoalClaim.claimed_at.is_not(None))}
     return DailyGoalOut(
-        goal=user.daily_goal, done=done, completed=completed, locked=completed, just_completed=given is not None,
-        xp=given["xp"] if given else 0, chests=given["chests"] if given else [],
-        diamonds=given["diamonds"] if given else 0, points=given["points"] if given else 0,
+        goal=user.daily_goal, done=done, completed=completed, locked=completed, just_completed=just,
+        reward_ready=waiting is not None, claim_id=waiting.id if waiting else None,
         options=options,
         tiers=[TierOut(words=t["words"], rewards=t["rewards"], claimed=t["words"] in claimed) for t in tiers],
     )
+
+
+class ClaimIn(BaseModel):
+    claim_id: int
+
+
+class ClaimOut(BaseModel):
+    xp: int = 0
+    diamonds: int = 0
+    points: int = 0
+    chests: list[str] = []
+    state: DailyGoalOut
 
 
 @router.get("", response_model=DailyGoalOut)
@@ -98,5 +114,20 @@ def set_goal(payload: DailyGoalIn, db: Session = Depends(get_db), user: User = D
         payload.goal = min(options, key=lambda g: abs(g - payload.goal))
     user.daily_goal = payload.goal
     out = state(db, user)
+    db.commit()
+    return out
+
+
+@router.post("/claim", response_model=ClaimOut)
+def claim_reward(payload: ClaimIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """«Получить»: pays the earned daily-goal reward (once) and returns what was given."""
+    from app.chests.service import ChestError
+
+    try:
+        given = rewards.claim_goal(db, user, payload.claim_id)
+    except ChestError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from None
+    out = ClaimOut(xp=given["xp"], diamonds=given["diamonds"], points=given["points"], chests=given["chests"], state=state(db, user))
     db.commit()
     return out
