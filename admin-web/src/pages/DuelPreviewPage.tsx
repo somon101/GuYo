@@ -13,15 +13,14 @@ const DEFAULTS: Record<string, EventReward[]> = {
 type Stage = "none" | "pending" | "active" | "done";
 type Outcome = "win" | "draw" | "lose";
 
-const CHEST_NAMES: Record<string, string> = { wood: "Деревянный сундук", silver: "Серебряный сундук", purple: "Фиолетовый сундук", gold: "Золотой сундук" };
 
 function Reward({ r, big = false }: { r: EventReward; big?: boolean }) {
   const s = big ? 34 : 24;
-  const box = "inline-flex items-center justify-center gap-1 rounded-xl px-2 py-1 text-center";
+  const box = "inline-flex shrink-0 items-center justify-center gap-1 rounded-xl px-2 py-1 text-center";
   const bg = { background: "rgba(255,255,255,0.12)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.2)" };
   const num = { fontWeight: 900, fontSize: big ? 14 : 12, color: "#fff" } as const;
   if (r.type === "chest")
-    return <span className={box} style={bg}><img src={`${BASE}chests/${r.key ?? "wood"}_closed.png`} alt="" style={{ width: s + 8, height: s + 8, objectFit: "contain" }} /><span style={num}>{r.amount > 1 ? `×${r.amount}` : CHEST_NAMES[r.key ?? "wood"]?.split(" ")[0]}</span></span>;
+    return <span className={box} style={bg}><img src={`${BASE}chests/${r.key ?? "wood"}_closed.png`} alt="" style={{ width: s + 8, height: s + 8, objectFit: "contain" }} />{r.amount > 1 && <span style={num}>×{r.amount}</span>}</span>;
   if (r.type === "diamonds")
     return <span className={box} style={bg}><img src={`${BASE}preview/gem.png`} alt="" style={{ width: s, height: s, objectFit: "contain" }} /><span style={num}>+{r.amount}</span></span>;
   if (r.type === "rating_points")
@@ -31,7 +30,16 @@ function Reward({ r, big = false }: { r: EventReward; big?: boolean }) {
 
 function Rewards({ list, big }: { list: EventReward[]; big?: boolean }) {
   if (!list.length) return <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 13 }}>без награды</span>;
-  return <span className="flex flex-wrap justify-center gap-1.5">{list.map((r, i) => <Reward key={i} r={r} big={big} />)}</span>;
+  return <span className="flex flex-nowrap items-center gap-1.5" style={{ whiteSpace: "nowrap" }}>{list.map((r, i) => <Reward key={i} r={r} big={big} />)}</span>;
+}
+
+/** One line that scrolls sideways when it does not fit, so the card never grows taller. */
+function Row({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}>
+      {children}
+    </div>
+  );
 }
 
 function Avatar({ name, color }: { name: string; color: string }) {
@@ -96,10 +104,14 @@ export function DuelPreviewPage() {
           <div className={shell} style={bg}>
             <div className="mb-1 text-base font-black">⚔️ Дуэль недели</div>
             <p className="mb-2 text-xs text-white/80">Вызовите друга: кто за неделю наберёт больше энергии, тот победил.</p>
-            <div className="mb-2 space-y-1 rounded-xl bg-black/20 p-2">
-              <div className="text-xs font-bold uppercase tracking-wide text-white/60">Что можно выиграть</div>
-              <div className="flex items-center justify-between gap-2"><span className="text-sm font-bold">🏆 Победа</span><Rewards list={rules.duel_win} /></div>
-              <div className="flex items-center justify-between gap-2"><span className="text-sm font-bold">🤝 Ничья</span><Rewards list={rules.duel_draw} /></div>
+            <div className="mb-2 rounded-xl bg-black/20 px-2 py-1.5">
+              <Row>
+                <span className="shrink-0 text-[11px] font-black uppercase text-white/70">🏆 Победа</span>
+                <Rewards list={rules.duel_win} />
+                <span className="shrink-0 text-white/30">|</span>
+                <span className="shrink-0 text-[11px] font-bold text-white/70">🤝 Ничья</span>
+                <Rewards list={rules.duel_draw} />
+              </Row>
             </div>
             <button className="w-full rounded-xl px-4 py-2 text-sm font-black uppercase" style={green}>Вызвать друга</button>
           </div>
@@ -122,10 +134,16 @@ export function DuelPreviewPage() {
             {stage === "active" && (
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/30"><div style={{ width: "60%", height: "100%", background: "linear-gradient(90deg,#ffe56b,#ffab1a)" }} /></div>
             )}
-            <div className="mt-3 rounded-xl px-2 py-2" style={{ background: "linear-gradient(180deg,rgba(255,213,79,0.22),rgba(255,171,26,0.1))", boxShadow: "inset 0 0 0 1px rgba(255,213,79,0.5)" }}>
-              <div className="mb-1 text-center text-[11px] font-black uppercase tracking-wide" style={{ color: "#ffd54f" }}>🏆 Победитель получит</div>
-              <Rewards list={rules.duel_win} big />
-              {rules.duel_draw.length > 0 && <div className="mt-1 flex items-center justify-center gap-2 text-xs text-white/70">Ничья: <Rewards list={rules.duel_draw} /></div>}
+            <div className="mt-2 rounded-xl px-2 py-1.5" style={{ background: "linear-gradient(180deg,rgba(255,213,79,0.22),rgba(255,171,26,0.1))", boxShadow: "inset 0 0 0 1px rgba(255,213,79,0.5)" }}>
+              <Row>
+                <span className="shrink-0 text-[11px] font-black uppercase" style={{ color: "#ffd54f" }}>🏆 Победа</span>
+                <Rewards list={rules.duel_win} big />
+                {rules.duel_draw.length > 0 && <>
+                  <span className="shrink-0 text-white/30">|</span>
+                  <span className="shrink-0 text-[11px] font-bold text-white/70">🤝 Ничья</span>
+                  <Rewards list={rules.duel_draw} />
+                </>}
+              </Row>
             </div>
           </div>
         )}
@@ -140,10 +158,12 @@ export function DuelPreviewPage() {
               <div className="text-center"><div className="text-2xl font-black">{mine} : {theirs}</div><div className="text-xs text-white/70">итоговая энергия</div></div>
               <div className="flex flex-col items-center gap-1"><span style={{ filter: outcome === "win" ? "grayscale(0.6)" : undefined }}><Avatar name="vaygo" color="#c2185b" /></span><span className="text-sm font-bold">vaygo</span></div>
             </div>
-            <div className="rounded-xl bg-black/20 p-2">
-              <div className="mb-1 text-center text-[11px] font-black uppercase tracking-wide text-white/70">Ваша награда</div>
-              <Rewards list={rules[key]} big />
-              {outcome === "lose" && <p className="mt-2 text-center text-xs text-white/70">В этот раз без награды. Отыграйтесь в следующей дуэли!</p>}
+            <div className="rounded-xl bg-black/20 px-2 py-1.5">
+              <Row>
+                <span className="shrink-0 text-[11px] font-black uppercase text-white/70">Ваша награда</span>
+                <Rewards list={rules[key]} big />
+              </Row>
+              {outcome === "lose" && <p className="mt-1 text-center text-[11px] text-white/70">В этот раз без награды. Отыграйтесь в следующей дуэли!</p>}
             </div>
             <button className="mt-3 w-full rounded-xl px-4 py-2 text-sm font-black uppercase" style={green}>Новая дуэль</button>
             <button className="mt-1.5 w-full rounded-xl bg-white/10 px-4 py-1.5 text-xs font-bold text-white/80">Закрыть</button>
