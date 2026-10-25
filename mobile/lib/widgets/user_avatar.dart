@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import 'cosmetic_art.dart';
 import 'remote_image.dart';
 
 /// A small, fixed palette of GuYo-toned gradients a generated avatar picks
@@ -41,6 +42,17 @@ class UserAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final key = frame;
     if (key == null || key.isEmpty) return _plain();
+    if (isCatalogKey(key)) {
+      // The ring is a picture laid over the photo; the photo shrinks inside it, the box stays.
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Stack(alignment: Alignment.center, children: [
+          UserAvatar(avatarUrl: avatarUrl, login: login, size: size * 0.74),
+          Positioned.fill(child: IgnorePointer(child: CosmeticImage(key, width: size, height: size))),
+        ]),
+      );
+    }
     // The ring sits inside the same box, so layouts do not move.
     final ring = size * 0.07 < 2.5 ? 2.5 : size * 0.07;
     return Container(

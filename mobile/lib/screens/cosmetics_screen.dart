@@ -4,6 +4,7 @@ import '../api/api_client.dart';
 import '../l10n/l10n.dart';
 import '../models/season_pass.dart';
 import '../theme/app_colors.dart';
+import '../widgets/cosmetic_art.dart';
 import '../widgets/season_pass_ui.dart';
 import '../widgets/user_avatar.dart';
 
@@ -264,15 +265,18 @@ class _TitleRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(colors: [Color(0xFF6EE7B7), Color(0xFF0E9F6E)]),
+              if (isCatalogKey(title.key))
+                TitleRibbon(artKey: title.key, text: title.label, width: 120)
+              else
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(colors: [Color(0xFF6EE7B7), Color(0xFF0E9F6E)]),
+                  ),
+                  child: const Icon(Icons.badge_rounded, color: Colors.white, size: 22),
                 ),
-                child: const Icon(Icons.badge_rounded, color: Colors.white, size: 22),
-              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

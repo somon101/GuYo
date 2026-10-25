@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:guyo_app/models/season_pass.dart';
 import 'package:guyo_app/screens/cosmetics_screen.dart';
+import 'package:guyo_app/widgets/cosmetic_art.dart';
 import 'package:guyo_app/widgets/user_avatar.dart';
 
 void main() {
@@ -12,10 +13,16 @@ void main() {
   });
 
   testWidgets('an avatar keeps its size with or without a frame', (tester) async {
-    for (final frame in [null, 'gold']) {
+    for (final frame in [null, 'gold', '12']) {
       await tester.pumpWidget(MaterialApp(home: Center(child: UserAvatar(avatarUrl: null, login: 'Nigina', size: 60, frame: frame))));
       expect(tester.getSize(find.byType(UserAvatar).first), const Size(60, 60));
     }
+  });
+
+  test('catalog keys are plain digits', () {
+    expect(isCatalogKey('12'), isTrue);
+    expect(isCatalogKey('gold'), isFalse);
+    expect(isCatalogKey(null), isFalse);
   });
 
   test('the collection parses frames, and older servers without them', () {

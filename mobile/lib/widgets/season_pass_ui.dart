@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../l10n/l10n.dart';
 import '../models/season_pass.dart';
 import 'game_icons.dart';
+import 'cosmetic_art.dart';
 import 'user_avatar.dart' show frameColors;
 
 /// The hero gradient of the season pass: deep violet into electric blue.
@@ -27,6 +28,14 @@ class RewardStyle {
 }
 
 RewardStyle rewardStyle(PassReward r) {
+  if ((r.type == 'badge' || r.type == 'frame') && isCatalogKey(r.key)) {
+    return RewardStyle(
+      const [Color(0xFF5B2EE0), Color(0xFF2A1670)],
+      Icons.workspace_premium_rounded,
+      (r.text ?? '').isEmpty ? tr(r.type == 'badge' ? 'Значок' : 'Рамка') : r.text!,
+      asset: 'cosmetic:${r.key}',
+    );
+  }
   if (r.type == 'badge') {
     final look = badgeLook(r.key ?? 'crown');
     return RewardStyle(
@@ -78,7 +87,7 @@ RewardStyle rewardStyle(PassReward r) {
       );
     case 'title':
       return RewardStyle(
-        const [Color(0xFF6EE7B7), Color(0xFF0E9F6E)],
+        isCatalogKey(r.key) ? const [Color(0xFF5B2EE0), Color(0xFF2A1670)] : const [Color(0xFF6EE7B7), Color(0xFF0E9F6E)],
         Icons.badge_rounded,
         (r.text ?? '').isEmpty ? tr('Титул') : r.text!,
       );
@@ -650,6 +659,7 @@ class BadgeGlyph extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (isCatalogKey(badgeKey)) return CosmeticImage(badgeKey, width: size, height: size);
     final look = badgeLook(badgeKey);
     return Container(
       width: size,

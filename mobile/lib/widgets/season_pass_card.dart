@@ -40,6 +40,9 @@ class _SeasonPassCardState extends State<SeasonPassCard> {
   Future<void> _open() async {
     await Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => const SeasonPassScreen()));
+    // What the pass screen just claimed is already in the cache: the card follows at once.
+    final fresh = ApiClient.instance.cachedSeasonPass();
+    if (mounted && fresh != null) setState(() => _pass = fresh);
     _load();
   }
 

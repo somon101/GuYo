@@ -41,6 +41,9 @@ class UserProfile {
   final String? frame;
   final String? title;
 
+  /// The ribbon picture (catalog id) of that title.
+  final String? titleKey;
+
   bool get isPremium => premiumUntil != null;
 
   /// Topic codes from "Мои темы" (see models/learning_topics.dart).
@@ -79,6 +82,7 @@ class UserProfile {
     this.badge,
     this.frame,
     this.title,
+    this.titleKey,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -103,6 +107,7 @@ class UserProfile {
       badge: json['badge'] as String?,
       frame: json['frame'] as String?,
       title: json['title'] as String?,
+      titleKey: json['title_key'] as String?,
     );
   }
 }

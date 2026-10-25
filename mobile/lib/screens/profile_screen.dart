@@ -22,6 +22,7 @@ import '../widgets/position_change.dart';
 import '../widgets/premium_ui.dart';
 import '../widgets/rank_icon.dart';
 import '../widgets/remote_image.dart';
+import '../widgets/cosmetic_art.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/user_name.dart';
 import 'achievements_screen.dart';
@@ -666,26 +667,16 @@ class _ProfileHeader extends StatelessWidget {
               if (profile.title != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 3, bottom: 1),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF6EE7B7), Color(0xFF0E9F6E)],
-                      ),
-                    ),
-                    child: Text(
-                      profile.title!,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
+                  child: isCatalogKey(profile.titleKey)
+                      ? TitleRibbon(artKey: profile.titleKey, text: profile.title!, width: 190)
+                      : Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            gradient: const LinearGradient(colors: [Color(0xFF6EE7B7), Color(0xFF0E9F6E)]),
+                          ),
+                          child: Text(profile.title!, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.white)),
+                        ),
                 ),
               const SizedBox(height: 2),
               // The 9-digit account number -- `id` is internal and never

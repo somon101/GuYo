@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'cosmetic_art.dart';
+
 import '../l10n/l10n.dart';
 
 /// The game's own pictures for the three things people collect. Use these
@@ -58,6 +60,7 @@ class MergeIcon extends StatelessWidget {
 /// The picture for a collectible by its short name: diamond, freeze or merge.
 Widget gameAsset(String name, double size) {
   if (name.startsWith('chest:')) return ChestImage(name.substring(6), size: size);
+  if (name.startsWith('cosmetic:')) return CosmeticImage(name.substring(9), width: size, height: size);
   switch (name) {
     case 'freeze':
       return FreezeIcon(size: size);

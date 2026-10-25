@@ -4,6 +4,7 @@ import 'dart:async';
 
 import '../services/google_auth.dart';
 import '../services/disk_cache.dart';
+import '../services/error_reporter.dart';
 import '../widgets/study_times_editor.dart' show StudyTime;
 import '../widgets/update_required.dart';
 import '../screens/stats_screen.dart' show UserStats;
@@ -485,6 +486,16 @@ class ApiClient {
   // --- Last answers kept on the device (DiskCache) ---------------------
   // Each main screen opens on these and refreshes in the background.
 
+  /// A server-side failure (5xx) goes to the admin's «Ошибки приложения» with the request that
+  /// failed, so a person's "Ошибка сервера (502)" is not lost.
+  void _reportServerError(http.Response res) {
+    if (res.statusCode < 500) return;
+    ErrorReporter.report(
+      'Ошибка сервера ${res.statusCode}: ${res.request?.method} ${res.request?.url.path}',
+      null,
+    );
+  }
+
   dynamic _remember(String key, http.Response res) {
     final body = utf8.decode(res.bodyBytes);
     DiskCache.put(key, body);
@@ -707,6 +718,7 @@ class ApiClient {
       );
     }
     if (res.statusCode >= 400) {
+      _reportServerError(res);
       throw ApiException(
         tr('Ошибка сервера ({0})', [res.statusCode]),
         statusCode: res.statusCode,
@@ -738,6 +750,7 @@ class ApiClient {
       );
     }
     if (res.statusCode >= 400) {
+      _reportServerError(res);
       String message = tr('Ошибка сервера ({0})', [res.statusCode]);
       try {
         final body =
@@ -1468,9 +1481,7 @@ class ApiClient {
       body: jsonEncode({'level': level, 'track': track}),
     );
     await _throwWithDetail(res);
-    return SeasonPass.fromJson(
-      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
-    );
+    return SeasonPass.fromJson(_remember('season-pass', res) as Map<String, dynamic>);
   }
 
   Future<SeasonPass> claimPassTask(String taskId) async {
@@ -1480,9 +1491,7 @@ class ApiClient {
       body: jsonEncode({'task_id': taskId}),
     );
     await _throwWithDetail(res);
-    return SeasonPass.fromJson(
-      jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
-    );
+    return SeasonPass.fromJson(_remember('season-pass', res) as Map<String, dynamic>);
   }
 
   /// The check shown before a lesson's first pass (null on any failure: the
