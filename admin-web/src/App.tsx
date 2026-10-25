@@ -47,6 +47,7 @@ import { EconomyPage } from "./pages/EconomyPage";
 import { ChestPreviewPage } from "./pages/ChestPreviewPage";
 import { ChestsPage } from "./pages/ChestsPage";
 import { DuelPreviewPage } from "./pages/DuelPreviewPage";
+import { BoosterPreviewPage } from "./pages/BoosterPreviewPage";
 import { DailyGoalPreviewPage } from "./pages/DailyGoalPreviewPage";
 import { AchievementPreviewPage } from "./pages/AchievementPreviewPage";
 
@@ -468,6 +469,7 @@ export default function App() {
           <Route path="/economy" element={<ProtectedRoute><Layout><EconomyPage /></Layout></ProtectedRoute>} />
           <Route path="/achievement-preview" element={<ProtectedRoute><Layout><AchievementPreviewPage /></Layout></ProtectedRoute>} />
           <Route path="/daily-goal-preview" element={<ProtectedRoute><Layout><DailyGoalPreviewPage /></Layout></ProtectedRoute>} />
+          <Route path="/booster-preview" element={<ProtectedRoute><Layout><BoosterPreviewPage /></Layout></ProtectedRoute>} />
           <Route path="/duel-preview" element={<ProtectedRoute><Layout><DuelPreviewPage /></Layout></ProtectedRoute>} />
           <Route path="/chests" element={<ProtectedRoute><Layout><ChestsPage /></Layout></ProtectedRoute>} />
           <Route path="/chest-preview" element={<ProtectedRoute><Layout><ChestPreviewPage /></Layout></ProtectedRoute>} />
