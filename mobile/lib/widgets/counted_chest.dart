@@ -51,7 +51,10 @@ class GreenButton extends StatelessWidget {
   final String label;
   final VoidCallback? onTap;
   final EdgeInsets padding;
-  const GreenButton({super.key, required this.label, required this.onTap, this.padding = const EdgeInsets.symmetric(horizontal: 18, vertical: 10)});
+
+  /// A smaller button for tight places (cards, lists).
+  final bool compact;
+  const GreenButton({super.key, required this.label, required this.onTap, this.padding = const EdgeInsets.symmetric(horizontal: 18, vertical: 10), this.compact = false});
 
   @override
   Widget build(BuildContext context) {
@@ -61,24 +64,24 @@ class GreenButton extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: padding,
+          padding: compact ? const EdgeInsets.symmetric(horizontal: 14, vertical: 6) : padding,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF0F6B1D), width: 2),
+            borderRadius: BorderRadius.circular(compact ? 11 : 14),
+            border: Border.all(color: const Color(0xFF0F6B1D), width: compact ? 1.5 : 2),
             gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF9DFF72), Color(0xFF3FD43A), Color(0xFF1EA82C)], stops: [0, 0.48, 1]),
-            boxShadow: const [
-              BoxShadow(color: Color(0xFF0F6B1D), offset: Offset(0, 4)),
-              BoxShadow(color: Color(0x59000000), blurRadius: 12, offset: Offset(0, 8)),
+            boxShadow: [
+              BoxShadow(color: const Color(0xFF0F6B1D), offset: Offset(0, compact ? 3 : 4)),
+              BoxShadow(color: const Color(0x40000000), blurRadius: compact ? 8 : 12, offset: Offset(0, compact ? 5 : 8)),
             ],
           ),
           child: Text(
             label.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w900,
-              fontSize: 14,
-              letterSpacing: 0.6,
+              fontSize: compact ? 12.5 : 14,
+              letterSpacing: compact ? 0.4 : 0.6,
               shadows: [Shadow(color: Color(0xFF0F6B1D), offset: Offset(0, 2)), Shadow(color: Color(0x99003C00), blurRadius: 6)],
             ),
           ),

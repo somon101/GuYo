@@ -86,45 +86,9 @@ class _DailyGoalCardState extends State<DailyGoalCard> {
     if (goal == null) return;
     final chosen = await showModalBottomSheet<int>(
       context: context,
-      backgroundColor: AppColors.surface,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 6),
-              child: Text(
-                tr('Сколько слов в день?'),
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primaryDark,
-                ),
-              ),
-            ),
-            for (final n in goal.options)
-              ListTile(
-                key: ValueKey('daily-goal-$n'),
-                title: Text(
-                  tr('{0} слов', [n]),
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                subtitle: (goal.tiers[n] ?? const []).isEmpty
-                    ? null
-                    : Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: RewardChips(rewards: goal.tiers[n]!, color: AppColors.primaryDark),
-                      ),
-                trailing: n == goal.goal
-                    ? (goal.rewardReady
-                        ? GreenButton(key: const ValueKey('goal-claim-sheet'), label: tr('Получить'), onTap: () => Navigator.of(ctx).pop(-1), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8))
-                        : Icon(Icons.check_circle_rounded, color: AppColors.primary))
-                    : null,
-                onTap: goal.locked ? null : () => Navigator.of(ctx).pop(n),
-              ),
-          ],
-        ),
-      ),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => _GoalSheet(goal: goal),
     );
     if (chosen == -1) {
       await _claim();
@@ -217,7 +181,7 @@ class DailyGoalCardView extends StatelessWidget {
                 const SizedBox(height: 8),
                 Row(children: [
                   Expanded(child: rewards.isEmpty ? const SizedBox.shrink() : RewardChips(rewards: rewards, size: 22)),
-                  GreenButton(key: const ValueKey('goal-claim'), label: tr('Получить'), onTap: onClaim, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10)),
+                  GreenButton(key: const ValueKey('goal-claim'), label: tr('Получить'), onTap: onClaim, compact: true),
                 ]),
               ],
               if (notice != null)
@@ -263,4 +227,71 @@ class _WobblingGiftState extends State<_WobblingGift> with SingleTickerProviderS
           child: Transform.scale(scale: 1 + 0.14 * _c.value, child: const GiftIcon(size: 40)),
         ),
       );
+}
+
+
+/// «Сколько слов в день?»: dark game panel; each row shows the reward as slots. A filled goal is
+/// fixed for the day, so its row carries «Получить» (while the reward waits) and the others are dimmed.
+class _GoalSheet extends StatelessWidget {
+  final DailyGoal goal;
+  const _GoalSheet({required this.goal});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+        decoration: const BoxDecoration(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF2E2275), Color(0xFF1A1247)]),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 42, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(99))),
+          const SizedBox(height: 12),
+          Text(tr('Сколько слов в день?'), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 12),
+          for (final n in goal.options) _row(context, n),
+          if (goal.locked)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(tr('Выполненную цель до завтра сменить нельзя'), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+            ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _row(BuildContext context, int n) {
+    final mine = n == goal.goal;
+    final dim = goal.locked && !mine;
+    final rewards = goal.tiers[n] ?? const [];
+    return Opacity(
+      opacity: dim ? 0.5 : 1,
+      child: GestureDetector(
+        key: ValueKey('daily-goal-$n'),
+        behavior: HitTestBehavior.opaque,
+        onTap: goal.locked ? null : () => Navigator.of(context).pop(n),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: mine ? const Color(0x24FFD54F) : Colors.white.withValues(alpha: 0.07),
+            border: Border.all(color: mine ? const Color(0xB3FFD54F) : Colors.transparent, width: 1.5),
+          ),
+          child: Row(children: [
+            SizedBox(width: 62, child: Text(tr('{0} слов', [n]), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15))),
+            Expanded(child: rewards.isEmpty ? const SizedBox.shrink() : RewardChips(rewards: rewards, size: 20, silver: !mine)),
+            if (mine && goal.rewardReady)
+              GreenButton(key: const ValueKey('goal-claim-sheet'), label: tr('Получить'), onTap: () => Navigator.of(context).pop(-1), compact: true)
+            else if (mine)
+              const Icon(Icons.check_circle_rounded, color: Color(0xFF3FD43A), size: 26)
+            else
+              const Icon(Icons.circle_outlined, color: Colors.white24, size: 24),
+          ]),
+        ),
+      ),
+    );
+  }
 }

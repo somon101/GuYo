@@ -71,7 +71,8 @@ class RewardSlot extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            gradient: const RadialGradient(center: Alignment(0, -0.3), radius: 0.9, colors: [Color(0x2EFFFFFF), Color(0x8C0A0628)]),
+            // Solid dark violet, so the slot looks the same on a light or a dark screen.
+            gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF3B2D96), Color(0xFF1A1247)]),
             border: Border.all(color: frame.withValues(alpha: 0.85), width: 2),
             boxShadow: const [BoxShadow(color: Color(0x59000000), blurRadius: 6, offset: Offset(0, 3))],
           ),

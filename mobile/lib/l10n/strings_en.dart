@@ -894,4 +894,5 @@ const Map<String, String> enStrings = {
   '{0} ч': '{0} h',
   'Приз скорректирован: начислено +{0} вместо +{1}': 'Prize corrected: +{0} paid instead of +{1}',
   'Награда получена. Новую цель выберете завтра': 'Reward taken. Pick a new goal tomorrow',
+  'Выполненную цель до завтра сменить нельзя': 'A finished goal cannot be changed until tomorrow',
 };

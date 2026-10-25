@@ -1620,4 +1620,5 @@ const Map<String, (String, String)> uiStrings = {
   '{0} ч': ('{0} соат', '{0} soat'),
   'Приз скорректирован: начислено +{0} вместо +{1}': ('Ҷоиза ислоҳ шуд: +{0} ба ҷои +{1} дода шуд', "Sovrin tuzatildi: +{1} o'rniga +{0} berildi"),
   'Награда получена. Новую цель выберете завтра': ('Мукофот гирифта шуд. Ҳадафи навро фардо интихоб мекунед', 'Mukofot olindi. Yangi maqsadni ertaga tanlaysiz'),
+  'Выполненную цель до завтра сменить нельзя': ('Ҳадафи иҷрошударо то фардо иваз кардан мумкин нест', 'Bajarilgan maqsadni ertagacha almashtirib bo‘lmaydi'),
 };

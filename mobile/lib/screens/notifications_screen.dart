@@ -204,7 +204,7 @@ class _NotificationCard extends StatelessWidget {
                 if (notification.action != null && onAction != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 4, bottom: 2),
-                    child: GreenButton(key: ValueKey('notification-action-${notification.id}'), label: tr('Получить'), onTap: onAction, padding: const EdgeInsets.symmetric(vertical: 10)),
+                    child: GreenButton(key: ValueKey('notification-action-${notification.id}'), label: tr('Получить'), onTap: onAction, compact: true),
                   ),
                 const SizedBox(height: 8),
                 Row(
