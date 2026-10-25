@@ -101,7 +101,14 @@ export function ChestPreviewPage() {
     void click.current.play().catch(() => undefined);
   };
   const buzz = (pattern: number | number[]) => { try { navigator.vibrate?.(pattern); } catch { /* not supported */ } };
-  useEffect(() => () => { click.current?.pause(); buzz(0); }, []);
+  const reveal = useRef<HTMLAudioElement | null>(null);
+  const playReveal = () => {
+    click.current?.pause();
+    if (!reveal.current) reveal.current = new Audio(`${BASE}chest-open.mp3`);
+    reveal.current.currentTime = 0;
+    void reveal.current.play().catch(() => undefined);
+  };
+  useEffect(() => () => { click.current?.pause(); reveal.current?.pause(); buzz(0); }, []);
 
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
 
@@ -128,6 +135,7 @@ export function ChestPreviewPage() {
   // Every press shakes the chest harder; the third one bursts it open.
   const tap = () => {
     if (phase !== "idle") return;
+    reveal.current?.pause();
     playClick();
     const n = taps + 1;
     buzz(n >= TAPS_TO_OPEN ? [70, 40, 70, 40, 70, 40, 140] : 30);
@@ -145,11 +153,13 @@ export function ChestPreviewPage() {
       }));
       setRun((r) => r + 1);
       setPhase("bursting");
+      playReveal();
       timer.current = window.setTimeout(() => setPhase("open"), BURST_MS);
     }
   };
   const reset = () => {
     click.current?.pause();
+    reveal.current?.pause();
     buzz(0);
     if (timer.current) window.clearTimeout(timer.current);
     setPhase("idle");

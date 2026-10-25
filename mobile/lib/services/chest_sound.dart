@@ -10,6 +10,7 @@ class ChestSound {
   ChestSound._();
 
   static AudioPlayer? _player;
+  static AudioPlayer? _openPlayer;
 
   /// Bumped by every tap and by [stop]: a click still being prepared when a newer
   /// tap (or the close) comes in sees it is stale and never starts.
@@ -50,6 +51,8 @@ class ChestSound {
   static Future<void> tap() async {
     final mine = ++_seq;
     try {
+      // ignore: unawaited_futures
+      _openPlayer?.stop().catchError((_) {});
       final p = _get();
       await p.stop();
       if (mine != _seq) return;
@@ -60,14 +63,33 @@ class ChestSound {
     }
   }
 
+  /// The magic reveal when the chest bursts open. Cuts the tap click and any
+  /// reveal still sounding, and never starts once [stop] has been called.
+  static Future<void> open() async {
+    final mine = ++_seq;
+    try {
+      // ignore: unawaited_futures
+      _player?.stop().catchError((_) {});
+      final p = _openPlayer ??= AudioPlayer()..setReleaseMode(ReleaseMode.stop);
+      await p.stop();
+      if (mine != _seq) return;
+      await p.play(AssetSource('sounds/chest-open.mp3')).timeout(const Duration(seconds: 2));
+    } catch (_) {
+      final dead = _openPlayer;
+      _openPlayer = null;
+      // ignore: unawaited_futures
+      dead?.dispose().timeout(const Duration(seconds: 1)).catchError((_) {});
+    }
+  }
+
   /// Stops the click right now (the screen is closing).
   static void stop() {
     _seq++;
     _cancelPulses();
-    final p = _player;
-    if (p == null) return;
     // ignore: unawaited_futures
-    p.stop().catchError((_) {});
+    _player?.stop().catchError((_) {});
+    // ignore: unawaited_futures
+    _openPlayer?.stop().catchError((_) {});
   }
 
   static void _discard() {
