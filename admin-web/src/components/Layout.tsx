@@ -39,6 +39,7 @@ const navGroups = [
       { to: "/season-pass", icon: "crown", label: "Пропуск сезона" },
       { to: "/economy", icon: "gift", label: "Магазин" },
       { to: "/chests", icon: "sparkles", label: "Сундуки" },
+      { to: "/duel-preview", icon: "sparkles", label: "Предпросмотр дуэли" },
       { to: "/chest-preview", icon: "sparkles", label: "Предпросмотр сундука" },
       { to: "/achievements", icon: "trophy", label: "Достижения" },
       { to: "/quests", icon: "target", label: "Квесты" },
