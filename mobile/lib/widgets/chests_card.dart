@@ -26,6 +26,14 @@ class _ChestsCardState extends State<ChestsCard> {
   String? _notice;
   Timer? _noticeTimer;
 
+  void _onCorrection() {
+    final m = ChestQueue.correction.value;
+    if (m != null && mounted) {
+      ChestQueue.correction.value = null;
+      _say(m);
+    }
+  }
+
   void _say(String message) {
     _noticeTimer?.cancel();
     setState(() => _notice = message);
@@ -38,12 +46,14 @@ class _ChestsCardState extends State<ChestsCard> {
   void initState() {
     super.initState();
     dailyGoalTick.addListener(_load);
+    ChestQueue.correction.addListener(_onCorrection);
     _load();
   }
 
   @override
   void dispose() {
     dailyGoalTick.removeListener(_load);
+    ChestQueue.correction.removeListener(_onCorrection);
     _noticeTimer?.cancel();
     super.dispose();
   }

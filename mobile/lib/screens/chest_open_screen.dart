@@ -111,7 +111,7 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
             doubled: twice && c.prizeKind != 'booster',
           ),
       ];
-      if (widget.opener == null) ChestQueue.opened(ids);
+      if (widget.opener == null) ChestQueue.opened([for (final p in prizes.indexed) (ids[p.$1], p.$2.kind, p.$2.amount)]);
       dailyGoalTick.value++;
       setState(() {
         _prizes = prizes;

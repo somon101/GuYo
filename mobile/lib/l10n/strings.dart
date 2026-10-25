@@ -1618,4 +1618,5 @@ const Map<String, (String, String)> uiStrings = {
   'Идёт удвоение. Ещё один билет прибавит время.': ('Дучандкунӣ идома дорад. Билети дигар вақтро илова мекунад.', "Ikkilantirish ketmoqda. Yana bir chipta vaqt qo'shadi."),
   'Включите билет, чтобы призы из сундуков удваивались, пока идёт время.': ('Билетро фаъол кунед, то ҷоизаҳои сандуқ дар муддати вақт дучанд шаванд.', "Chiptani yoqing: vaqt davomida sandiq sovrinlari ikki barobar bo'ladi."),
   '{0} ч': ('{0} соат', '{0} soat'),
+  'Приз скорректирован: начислено +{0} вместо +{1}': ('Ҷоиза ислоҳ шуд: +{0} ба ҷои +{1} дода шуд', "Sovrin tuzatildi: +{1} o'rniga +{0} berildi"),
 };

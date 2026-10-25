@@ -892,4 +892,5 @@ const Map<String, String> enStrings = {
   'Идёт удвоение. Ещё один билет прибавит время.': 'Doubling is on. Another ticket adds time.',
   'Включите билет, чтобы призы из сундуков удваивались, пока идёт время.': 'Switch a ticket on: chest prizes are doubled while the time runs.',
   '{0} ч': '{0} h',
+  'Приз скорректирован: начислено +{0} вместо +{1}': 'Prize corrected: +{0} paid instead of +{1}',
 };

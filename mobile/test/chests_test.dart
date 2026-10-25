@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:guyo_app/models/chest.dart';
 import 'package:guyo_app/screens/chest_list_screen.dart';
+import 'package:guyo_app/services/chest_queue.dart';
 import 'package:guyo_app/screens/chest_open_screen.dart';
 import 'package:guyo_app/widgets/chests_card.dart';
 
@@ -98,6 +99,14 @@ void main() {
 
 // Opening with sealed prizes needs no network at all.
 void sealedTests() {
+  test('the person is told when the server paid less than the phone showed', () {
+    ChestQueue.correction.value = null;
+    ChestQueue.compareForTest([1], {1: {'amount': 80, 'kind': 'diamonds'}}, {1: ('diamonds', 80)});
+    expect(ChestQueue.correction.value, isNull); // the same: silence
+    ChestQueue.compareForTest([1], {1: {'amount': 80, 'kind': 'diamonds'}}, {1: ('diamonds', 40)});
+    expect(ChestQueue.correction.value, contains('+40'));
+  });
+
   testWidgets('with an x2 ticket running the sealed prize is shown doubled', (tester) async {
     final until = DateTime.now().add(const Duration(minutes: 20)).toUtc().toIso8601String();
     final bank = ChestBank.fromJson({

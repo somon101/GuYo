@@ -1144,7 +1144,7 @@ class ApiClient {
   }
 
   /// Tells the server these chests were opened on the phone (idempotent). Throws when it cannot.
-  Future<void> sendOpenedChests(List<(int, String?)> opened) async {
+  Future<Map<int, (String, int)>> sendOpenedChests(List<(int, String?)> opened) async {
     final res = await http.post(
       _uri('/chests/open-ids'),
       headers: await _authHeaders(),
@@ -1154,6 +1154,10 @@ class ApiClient {
     );
     await _throwWithDetail(res);
     _remember('chests', res.statusCode == 200 ? _stateOnly(res) : res);
+    final json = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    return {
+      for (final p in json['prizes'] as List<dynamic>) (p['id'] as int): (p['kind'] as String, p['amount'] as int),
+    };
   }
 
   http.Response _stateOnly(http.Response res) {

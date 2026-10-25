@@ -39,6 +39,7 @@ class _ChestListScreenState extends State<ChestListScreen> {
     // A system toast left over from another screen must not hang over this one.
     WidgetsBinding.instance.addPostFrameCallback((_) => ScaffoldMessenger.maybeOf(context)?.clearSnackBars());
     _loadBoosters();
+    ChestQueue.correction.addListener(_onCorrection);
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted && (_boosters?.running ?? false)) setState(() {});
     });
@@ -46,6 +47,7 @@ class _ChestListScreenState extends State<ChestListScreen> {
 
   @override
   void dispose() {
+    ChestQueue.correction.removeListener(_onCorrection);
     _tick?.cancel();
     _noticeTimer?.cancel();
     super.dispose();
@@ -70,6 +72,14 @@ class _ChestListScreenState extends State<ChestListScreen> {
       if (mounted) _say(e.message);
     } catch (_) {
       if (mounted) _say(tr('Не удалось. Проверьте интернет.'));
+    }
+  }
+
+  void _onCorrection() {
+    final m = ChestQueue.correction.value;
+    if (m != null && mounted) {
+      ChestQueue.correction.value = null;
+      _say(m);
     }
   }
 
@@ -137,6 +147,14 @@ class _ChestListScreenState extends State<ChestListScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
+          if (_notice != null)
+            Container(
+              key: const ValueKey('chest-notice'),
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(color: const Color(0x33FFB020), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0x80FFB020))),
+              child: Text(_notice!, style: const TextStyle(color: Color(0xFFFFD27A), fontSize: 13, fontWeight: FontWeight.w700)),
+            ),
           if (_boosters != null && (_boosters!.total > 0 || _boosters!.running)) _boostersTile(_boosters!),
           if (daily.enabled && !daily.claimed) _dailyTile(daily),
           for (final t in _bank.types) _row(t),
@@ -214,14 +232,6 @@ class _ChestListScreenState extends State<ChestListScreen> {
               Text(tr('Сундук дня'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
               const SizedBox(height: 2),
               Text(daily.available ? tr('Нажмите, чтобы забрать') : daily.conditions, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-              if (_notice != null)
-                Container(
-                  key: const ValueKey('chest-notice'),
-                  margin: const EdgeInsets.only(top: 6),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(color: const Color(0x33FFB020), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0x80FFB020))),
-                  child: Text(_notice!, style: const TextStyle(color: Color(0xFFFFD27A), fontSize: 12, fontWeight: FontWeight.w700)),
-                ),
             ]),
           ),
           if (daily.available) GreenButton(label: tr('Забрать'), onTap: _claim),
