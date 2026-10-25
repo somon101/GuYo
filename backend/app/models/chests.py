@@ -21,6 +21,8 @@ class ChestType(Base):
     max_freezes: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     max_merges: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     max_points: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    # Minutes of the "x2" ticket this chest can hold as a prize (0 = it never does).
+    booster_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
 
@@ -40,6 +42,7 @@ class UserChest(Base):
     prize_kind: Mapped[str | None] = mapped_column(String(16), nullable=True)  # diamonds | freeze | merge | points
     prize_amount: Mapped[int | None] = mapped_column(Integer, nullable=True)
     low_roll: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    doubled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
 
 
 class ChestSettings(Base):
@@ -95,3 +98,26 @@ class RewardMarker(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     key: Mapped[str] = mapped_column(String(160), nullable=False)
+
+
+class UserBooster(Base):
+    """"x2" tickets a person holds, by duration. They are switched on by hand."""
+
+    __tablename__ = "user_boosters"
+    __table_args__ = (UniqueConstraint("user_id", "minutes", name="uq_user_booster_minutes"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    qty: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+
+
+class BoosterUse(Base):
+    """One switched-on ticket: the prizes of chests opened between starts_at and ends_at are doubled."""
+
+    __tablename__ = "booster_uses"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)

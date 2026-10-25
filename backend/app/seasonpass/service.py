@@ -19,7 +19,7 @@ from app.models.user import User
 
 # What a weekly task counts: the `source` of the XP events.
 METRICS = ("word", "lesson", "review", "quest", "streak")
-REWARD_TYPES = ("rating_points", "premium_days", "streak_freeze", "diamonds", "badge", "title", "frame", "chest")
+REWARD_TYPES = ("rating_points", "premium_days", "streak_freeze", "diamonds", "badge", "title", "frame", "chest", "booster")
 LEVEL_MAX = 100
 
 
@@ -183,6 +183,11 @@ def _reward(value: dict | None, level) -> dict | None:
                 raise PassError(f"Награда {level}: выберите вид значка" if isinstance(level, str) else f"Уровень {level}: выберите вид значка")
             out["key"] = value["key"]
         return out
+    if value["type"] == "booster":
+        minutes = int(value.get("amount", 0))
+        if not 1 <= minutes <= 10_080:
+            raise PassError(f"Награда {level}: время удвоителя от 1 минуты до недели" if isinstance(level, str) else f"Уровень {level}: время удвоителя от 1 минуты до недели")
+        return {"type": "booster", "amount": minutes}
     if value["type"] == "chest":
         if value.get("key") not in ("wood", "silver", "purple", "gold"):
             raise PassError(f"Награда {level}: выберите сундук" if isinstance(level, str) else f"Уровень {level}: выберите сундук")
@@ -459,6 +464,12 @@ def _give(db: Session, user: User, reward: dict, note: str, season: Season | Non
         from app.seasonpass.cosmetics import grant
 
         grant(db, user, reward, season)
+    elif reward["type"] == "booster":
+        from app.chests.boosters import add_booster
+        from app.chests.rewards import _once
+
+        if _once(db, user, f"pass-booster:{season.id if season else 0}:{ref or note}"):
+            add_booster(db, user, reward["amount"])
     elif reward["type"] == "chest":
         from app.chests.service import grant_chest
 

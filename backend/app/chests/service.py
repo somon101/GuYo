@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.dates import dushanbe_day_start, dushanbe_today
 from app.economy.service import grant_diamonds
 from app.models.achievement import UserActivityDay
+from app.chests import boosters
 from app.models.chests import ChestSettings, ChestType, UserChest
 from app.models.user import User
 
@@ -165,13 +166,18 @@ def roll_chest(db: Session, user: User, chest: UserChest, rng: _random.Random | 
     rng = rng or _random.SystemRandom()
     ctype = db.get(ChestType, chest.chest_key)
     options = [k for k in PRIZE_KINDS if getattr(ctype, _CAP_FIELD[k]) > 0]
+    if ctype.booster_minutes > 0:
+        options.append("booster")
     if not options:
         raise ChestError("В этом сундуке нет призов")
     settings = get_settings(db)
     kind = rng.choice(options)
+    if kind == "booster":
+        # the amount of a ticket prize is its duration in minutes; it is never doubled
+        chest.prize_kind, chest.prize_amount, chest.low_roll = kind, ctype.booster_minutes, False
+        db.flush()
+        return
     amount, low = _roll_amount(getattr(ctype, _CAP_FIELD[kind]), rng, _pity_due(db, user, settings))
-    if double_active(settings):
-        amount *= 2
     chest.prize_kind, chest.prize_amount, chest.low_roll = kind, amount, low
     db.flush()
 
@@ -181,9 +187,12 @@ def roll_all(db: Session, user: User) -> None:
         roll_chest(db, user, c)
 
 
-def open_chest(db: Session, user: User, chest_id: int, rng: _random.Random | None = None) -> UserChest:
+def open_chest(
+    db: Session, user: User, chest_id: int, rng: _random.Random | None = None, opened_at: datetime | None = None
+) -> UserChest:
     """Opens a chest. Opening twice is harmless: the second call returns the same prize
-    without paying again (the app retries when the network drops)."""
+    without paying again (the app retries when the network drops). A prize is doubled when
+    an "x2" ticket (or the admin's double-rewards event) was running at the moment of opening."""
     chest = (
         db.query(UserChest)
         .filter(UserChest.id == chest_id, UserChest.user_id == user.id)
@@ -195,15 +204,19 @@ def open_chest(db: Session, user: User, chest_id: int, rng: _random.Random | Non
     if chest.opened_at is not None:
         return chest
     roll_chest(db, user, chest, rng)
+    when = boosters.clamp_time(opened_at)
+    if chest.prize_kind != "booster" and (boosters.active_at(db, user, when) or double_active(get_settings(db))):
+        chest.doubled = True
+        chest.prize_amount = chest.prize_amount * 2
     chest.opened_at = datetime.now(timezone.utc)
     award_prize(db, user, chest.prize_kind, chest.prize_amount, f"chest:{chest.id}")
     db.flush()
     return chest
 
 
-def open_ids(db: Session, user: User, ids: list[int]) -> list[UserChest]:
+def open_ids(db: Session, user: User, ids: list[int], opened_at: dict[int, datetime] | None = None) -> list[UserChest]:
     """Opens the given chests (any that are already open are returned as they are)."""
-    return [open_chest(db, user, i) for i in ids]
+    return [open_chest(db, user, i, None, (opened_at or {}).get(i)) for i in ids]
 
 
 def open_many(
@@ -230,6 +243,8 @@ def award_prize(db: Session, user: User, kind: str, amount: int, reference: str)
         from app.rating import grant_rating_points
 
         grant_rating_points(db, user, amount)
+    elif kind == "booster":
+        boosters.add_booster(db, user, amount)
     else:
         raise ChestError("Неизвестный приз")
 
@@ -246,6 +261,7 @@ def user_state(db: Session, user: User) -> dict:
         ],
         "daily": daily_state(db, user),
         "double": double_active(s),
+        "booster_until": (boosters.active_until(db, user).isoformat() if boosters.active_until(db, user) else None),
         "inventory_max": s.inventory_max,
     }
 
@@ -254,6 +270,7 @@ def type_out(t: ChestType) -> dict:
     return {
         "key": t.key, "name": t.name, "color": t.color, "max_diamonds": t.max_diamonds,
         "max_freezes": t.max_freezes, "max_merges": t.max_merges, "max_points": t.max_points,
+        "booster_minutes": t.booster_minutes,
     }
 
 

@@ -13,7 +13,7 @@ def _restore_types(db):
     yield
     db.rollback()
     db.query(ChestType).filter_by(key="wood").update(
-        {"name": "Деревянный сундук", "max_diamonds": 10, "max_freezes": 1, "max_merges": 1, "max_points": 20}
+        {"name": "Деревянный сундук", "max_diamonds": 10, "max_freezes": 1, "max_merges": 1, "max_points": 20, "booster_minutes": 0}
     )
     db.commit()
 
@@ -172,3 +172,72 @@ def test_prizes_are_sealed_in_the_bank_and_opening_is_idempotent(client, db, mak
     balance = first["diamonds"]
     again = client.post("/chests/open-ids", headers=h, json={"ids": ids}).json()  # a retry pays nothing
     assert again["diamonds"] == balance and len(again["state"]["chests"]) == 1
+
+
+def test_booster_doubles_chest_prizes_only_while_it_runs(client, db, make_user, auth, admin_headers):
+    from app.chests import boosters
+
+    user = make_user(login="boost")
+    wood = db.get(ChestType, "wood")
+    wood.max_freezes = wood.max_merges = wood.max_points = 0
+    wood.max_diamonds = 1
+    db.commit()
+    h = auth(user)
+    # held ticket, then switched on by hand
+    assert client.post("/admin/chests/send-booster", headers=admin_headers, json={"user": "boost", "minutes": 30, "count": 2}).status_code == 200
+    st = client.get("/boosters", headers=h).json()
+    assert {i["minutes"]: i["qty"] for i in st["items"]}[30] == 2 and st["active_until"] is None
+    for i in range(3):
+        service.grant_chest(db, user, "wood", "admin", f"b{i}", force=True)
+    db.commit()
+    ids = [c["id"] for c in client.get("/chests", headers=h).json()["chests"]]
+    first = client.post("/chests/open-ids", headers=h, json={"ids": ids[:1]}).json()
+    assert first["prizes"][0]["amount"] == 1 and first["prizes"][0]["doubled"] is False  # no ticket: plain
+    assert client.post("/boosters/activate", headers=h, json={"minutes": 30}).status_code == 200
+    second = client.post("/chests/open-ids", headers=h, json={"ids": ids[1:2]}).json()
+    assert second["prizes"][0]["amount"] == 2 and second["prizes"][0]["doubled"] is True  # ticket on: doubled
+    # a second ticket adds its time to the running one
+    before = client.get("/boosters", headers=h).json()["seconds_left"]
+    client.post("/boosters/activate", headers=h, json={"minutes": 30})
+    assert client.get("/boosters", headers=h).json()["seconds_left"] > before + 1700
+    assert client.post("/boosters/activate", headers=h, json={"minutes": 30}).status_code == 409  # none left
+
+
+def test_a_chest_opened_offline_is_judged_by_when_it_was_opened(client, db, make_user, auth):
+    from datetime import datetime, timedelta, timezone
+
+    from app.chests import boosters
+
+    user = make_user()
+    wood = db.get(ChestType, "wood")
+    wood.max_freezes = wood.max_merges = wood.max_points = 0
+    wood.max_diamonds = 1
+    db.commit()
+    boosters.add_booster(db, user, 30)
+    boosters.activate(db, user, 30)
+    c = service.grant_chest(db, user, "wood", "admin", "o", force=True)
+    db.commit()
+    h = auth(user)
+    client.get("/chests", headers=h)
+    long_ago = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    out = client.post("/chests/open-ids", headers=h, json={"items": [{"id": c.id, "opened_at": long_ago}]}).json()
+    assert out["prizes"][0]["doubled"] is False  # it was opened before the ticket was on
+
+
+def test_booster_is_a_reward_and_a_chest_prize(db, make_user):
+    from app.chests import boosters, rewards
+
+    user = make_user()
+    assert rewards.validate_rewards(db, [{"type": "booster", "amount": 60}]) == [{"type": "booster", "amount": 60}]
+    given = rewards.give(db, user, [{"type": "booster", "amount": 60}], "duel", "d:1")
+    assert given["boosters"] == [60]
+    assert rewards.give(db, user, [{"type": "booster", "amount": 60}], "duel", "d:1")["boosters"] == []  # once
+    wood = db.get(ChestType, "wood")
+    wood.max_diamonds = wood.max_freezes = wood.max_merges = wood.max_points = 0
+    wood.booster_minutes = 1440
+    db.commit()
+    c = service.grant_chest(db, user, "wood", "admin", "bp", force=True)
+    opened = service.open_chest(db, user, c.id)
+    assert (opened.prize_kind, opened.prize_amount, opened.doubled) == ("booster", 1440, False)
+    held = {i["minutes"]: i["qty"] for i in boosters.state(db, user)["items"]}
+    assert held[60] == 1 and held[1440] == 1

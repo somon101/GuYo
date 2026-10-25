@@ -13,7 +13,7 @@ from app.chests.service import ChestError
 from app.models.chests import ChestType, DailyGoalClaim, RewardMarker, RewardRule
 from app.models.user import User
 
-REWARD_TYPES = ("xp", "chest", "diamonds", "rating_points")
+REWARD_TYPES = ("xp", "chest", "diamonds", "rating_points", "booster")
 RULE_KEYS = ("duel_win", "duel_draw", "duel_lose", "streak_7", "streak_30", "streak_100", "comeback")
 DAILY_GOAL_KEY = "daily_goal"
 MAX_REWARDS = 6
@@ -44,7 +44,7 @@ def validate_rewards(db: Session, rewards) -> list[dict]:
         if kind not in REWARD_TYPES:
             raise ChestError("Неизвестная награда")
         amount = int(r.get("amount", 1))
-        if not 1 <= amount <= (10 if kind == "chest" else 100_000):
+        if not 1 <= amount <= (10 if kind == "chest" else 10_080 if kind == "booster" else 100_000):
             raise ChestError("Неверное количество награды")
         item = {"type": kind, "amount": amount}
         if kind == "chest":
@@ -96,7 +96,7 @@ def give(db: Session, user: User, rewards: list[dict], source: str, ref: str) ->
     from app.rating import grant_rating_points
     from app.seasonpass.service import award_xp
 
-    given = {"xp": 0, "diamonds": 0, "points": 0, "chests": []}
+    given = {"xp": 0, "diamonds": 0, "points": 0, "chests": [], "boosters": []}
     for i, r in enumerate(rewards):
         key = f"{ref}:{i}"
         if r["type"] == "xp":
@@ -107,6 +107,12 @@ def give(db: Session, user: User, rewards: list[dict], source: str, ref: str) ->
             if _once(db, user, key):
                 grant_rating_points(db, user, r["amount"])
                 given["points"] += r["amount"]
+        elif r["type"] == "booster":
+            if _once(db, user, key):
+                from app.chests.boosters import add_booster
+
+                add_booster(db, user, r["amount"])
+                given["boosters"].append(r["amount"])
         elif r["type"] == "chest":
             for n in range(r["amount"]):
                 if service.grant_chest(db, user, r["key"], source, f"{key}:{n}", force=True):
