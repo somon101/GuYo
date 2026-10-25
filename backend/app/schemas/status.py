@@ -62,6 +62,8 @@ class StatusOptionsOut(BaseModel):
     emojis: list[StatusEmojiOption]
     phrases: list[StatusPhraseOption]
     mine: MyStatusOut
+    # A status is a Premium feature: False means the picker shows the Premium offer instead.
+    premium: bool = True
 
 
 class MyStatusIn(BaseModel):

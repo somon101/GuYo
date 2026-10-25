@@ -5,7 +5,9 @@ import 'package:flutter/services.dart';
 import '../api/api_client.dart';
 import '../models/status.dart';
 import '../theme/app_colors.dart';
+import '../widgets/game_icons.dart';
 import '../widgets/ios_ui.dart';
+import '../widgets/premium_ui.dart';
 import '../widgets/remote_image.dart';
 
 /// Opens the status picker: one emoji and one phrase from the admin's
@@ -114,7 +116,14 @@ class _StatusPickerSheetState extends State<_StatusPickerSheet> {
                             FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
                           ]),
                   )
-                : ListView(
+                : !options.premium
+                    ? _PremiumOffer(onOpen: () {
+                        final nav = Navigator.of(context);
+                        final host = nav.context;
+                        nav.pop();
+                        openPremiumScreen(host);
+                      })
+                    : ListView(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     children: [
                       _Preview(emojiUrl: _emojiUrl, text: _phraseText),
@@ -255,4 +264,27 @@ class _EmojiTile extends StatelessWidget {
       ),
     );
   }
+}
+
+
+/// «Статус доступен с Premium»: shown in place of the picker for a person without Premium.
+class _PremiumOffer extends StatelessWidget {
+  final VoidCallback onOpen;
+  const _PremiumOffer({required this.onOpen});
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const PremiumIcon(size: 72),
+            const SizedBox(height: 14),
+            Text(tr('Статус доступен с Premium'), textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+            const SizedBox(height: 6),
+            Text(tr('Его увидят все в рейтинге'), textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: AppColors.secondaryText)),
+            const SizedBox(height: 16),
+            FilledButton(key: const ValueKey('status-premium-offer'), onPressed: onOpen, child: const Text('GuYo Premium')),
+          ]),
+        ),
+      );
 }

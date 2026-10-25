@@ -440,6 +440,8 @@ const Map<String, String> enStrings = {
   'Наград пока нет': 'No rewards yet',
   'Подарки и награды, которые ждут, будут здесь': 'Gifts and rewards waiting for you will be here',
   'Билетов нет': 'No tickets',
+  'Статус доступен с Premium': 'Status is available with Premium',
+  'Его увидят все в рейтинге': 'Everyone in the rating will see it',
   'Ошибка сервера ({0})': 'Server error ({0})',
   'Ошибка сети. Проверьте интернет.': 'Network error. Check your internet.',
   'Ошибки': 'Mistakes',

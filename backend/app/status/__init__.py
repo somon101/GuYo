@@ -12,6 +12,11 @@ def statuses_for(db: Session, users: list[User]) -> dict[int, tuple[str | None, 
     """{user_id: (emoji_url, phrase_text)} for every user that shows a
     status, in two queries however many users -- what the leaderboard
     needs for its up to 100 rows. A switched-off item shows as unset."""
+    from app.premium.service import effective_premium_user_ids
+
+    # A status is a Premium feature: without Premium nobody sees it (it is kept, not deleted).
+    premium = effective_premium_user_ids(db, [u.id for u in users])
+    users = [u for u in users if u.id in premium]
     emoji_ids = {u.status_emoji_id for u in users if u.status_emoji_id}
     phrase_ids = {u.status_phrase_id for u in users if u.status_phrase_id}
     emojis = {
@@ -31,8 +36,11 @@ def statuses_for(db: Session, users: list[User]) -> dict[int, tuple[str | None, 
 
 
 def my_status(db: Session, user: User) -> MyStatusOut:
-    emoji = db.get(StatusEmoji, user.status_emoji_id) if user.status_emoji_id else None
-    phrase = db.get(StatusPhrase, user.status_phrase_id) if user.status_phrase_id else None
+    from app.premium.service import effective_premium_user_ids
+
+    shown = user.id in effective_premium_user_ids(db, [user.id])
+    emoji = db.get(StatusEmoji, user.status_emoji_id) if user.status_emoji_id and shown else None
+    phrase = db.get(StatusPhrase, user.status_phrase_id) if user.status_phrase_id and shown else None
     if emoji is not None and not emoji.enabled:
         emoji = None
     if phrase is not None and not phrase.enabled:

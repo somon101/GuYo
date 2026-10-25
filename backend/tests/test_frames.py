@@ -60,3 +60,20 @@ def test_catalog_lists_where_each_item_is_used(client, db, admin_headers, active
     db.commit()
     rows = client.get("/admin/cosmetics", headers=admin_headers).json()
     assert rows[0]["used_in"] == [active_season.name]
+
+
+def test_status_is_a_premium_feature(client, db, make_user, auth):
+    from app.models.status import StatusPhrase
+    from app.premium.service import grant_premium
+
+    phrase = StatusPhrase(text="Цель — топ-1", enabled=True, order=0)
+    db.add(phrase)
+    db.commit()
+    user = make_user("statusy")
+    h = auth(user)
+    assert client.get("/status/options", headers=h).json()["premium"] is False
+    assert client.put("/status/me", headers=h, json={"emoji_id": None, "phrase_id": phrase.id}).status_code == 403
+    grant_premium(db, user, 30, note="test")
+    db.commit()
+    assert client.get("/status/options", headers=h).json()["premium"] is True
+    assert client.put("/status/me", headers=h, json={"emoji_id": None, "phrase_id": phrase.id}).json()["text"] == "Цель — топ-1"

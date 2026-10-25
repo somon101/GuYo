@@ -9,6 +9,7 @@ from app.core.storage import delete_by_key, save_upload, url_for_key
 from app.database import get_db
 from app.models.status import StatusEmoji, StatusPhrase
 from app.models.user import User
+from app.premium.service import effective_premium_user_ids
 from app.routers.admin_rating import _read_validated_icon
 from app.schemas.status import (
     MyStatusIn,
@@ -51,13 +52,16 @@ def status_options(db: Session = Depends(get_db), user: User = Depends(get_curre
         emojis=[StatusEmojiOption(id=e.id, name=e.name, image_url=url_for_key(e.image_key)) for e in _emojis(db, True)],
         phrases=[StatusPhraseOption(id=p.id, text=p.text) for p in _phrases(db, True)],
         mine=my_status(db, user),
+        premium=user.id in effective_premium_user_ids(db, [user.id]),
     )
 
 
 @router.put("/me", response_model=MyStatusOut)
 def set_my_status(payload: MyStatusIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """Sets both parts at once; null clears a part. Only an enabled item
-    from the admin's lists can be picked."""
+    from the admin's lists can be picked. Premium only."""
+    if user.id not in effective_premium_user_ids(db, [user.id]):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Статус доступен с Premium")
     if payload.emoji_id is not None:
         emoji = db.get(StatusEmoji, payload.emoji_id)
         if emoji is None or not emoji.enabled:

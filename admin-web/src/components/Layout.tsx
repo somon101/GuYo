@@ -44,6 +44,7 @@ const navGroups = [
       { to: "/pass-preview", icon: "sparkles", label: "Предпросмотр пропуска" },
       { to: "/cosmetics-catalog", icon: "sparkles", label: "Каталог наград" },
       { to: "/showcase", icon: "sparkles", label: "Витрина наград" },
+      { to: "/premium-name-preview", icon: "sparkles", label: "Предпросмотр ника Premium" },
       { to: "/booster-preview", icon: "sparkles", label: "Предпросмотр удвоителя" },
       { to: "/duel-preview", icon: "sparkles", label: "Предпросмотр дуэли" },
       { to: "/chest-preview", icon: "sparkles", label: "Предпросмотр сундука" },

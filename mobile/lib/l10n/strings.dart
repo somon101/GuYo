@@ -19,6 +19,8 @@ const Map<String, (String, String)> uiStrings = {
   'Наград пока нет': ('Ҳоло ҷоиза нест', 'Hozircha mukofot yoʻq'),
   'Подарки и награды, которые ждут, будут здесь': ('Тӯҳфаҳо ва ҷоизаҳои мунтазир дар ин ҷо мешаванд', 'Kutayotgan sovgʻa va mukofotlar shu yerda boʻladi'),
   'Билетов нет': ('Чиптаҳо нест', 'Biletlar yoʻq'),
+  'Статус доступен с Premium': ('Статус бо Premium дастрас аст', 'Status Premium bilan mavjud'),
+  'Его увидят все в рейтинге': ('Онро ҳама дар рейтинг мебинанд', 'Uni reytingda hamma koʻradi'),
   'Ошибка сервера ({0})': ('Хатои сервер ({0})', 'Server xatosi ({0})'),
   'Сессия истекла, войдите снова': (
     'Сессия ба охир расид, аз нав ворид шавед',

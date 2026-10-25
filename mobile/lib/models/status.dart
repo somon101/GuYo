@@ -48,7 +48,10 @@ class StatusOptions {
   final List<StatusPhraseOption> phrases;
   final MyStatus mine;
 
-  StatusOptions({required this.emojis, required this.phrases, required this.mine});
+  /// False: a status needs Premium, the picker shows the offer.
+  final bool premium;
+
+  StatusOptions({required this.emojis, required this.phrases, required this.mine, this.premium = true});
 
   factory StatusOptions.fromJson(Map<String, dynamic> json) => StatusOptions(
         emojis: (json['emojis'] as List<dynamic>)
@@ -58,5 +61,6 @@ class StatusOptions {
             .map((e) => StatusPhraseOption.fromJson(e as Map<String, dynamic>))
             .toList(),
         mine: MyStatus.fromJson(json['mine'] as Map<String, dynamic>),
+        premium: (json['premium'] as bool?) ?? true,
       );
 }
