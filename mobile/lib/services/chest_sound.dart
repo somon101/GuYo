@@ -18,6 +18,7 @@ class ChestSound {
   static int _seq = 0;
 
   static bool? _canVibrate;
+  static String _tapAsset = 'sounds/chest-tap.mp3';
   static bool _tapReady = false;
   static bool _openReady = false;
 
@@ -28,13 +29,17 @@ class ChestSound {
 
   /// Loads both sounds ahead of the first tap, so nothing waits on a file read
   /// when the chest is pressed. Safe to call again; never throws.
-  static Future<void> warmUp() async {
+  static Future<void> warmUp({String tapAsset = 'sounds/chest-tap.mp3'}) async {
+    if (tapAsset != _tapAsset) {
+      _tapAsset = tapAsset;
+      _tapReady = false;
+    }
     try {
       _canVibrate ??= await Vibration.hasVibrator();
     } catch (_) {}
     try {
       if (!_tapReady) {
-        await _get().setSource(AssetSource('sounds/chest-tap.mp3'));
+        await _get().setSource(AssetSource(_tapAsset));
         _tapReady = true;
       }
       if (!_openReady) {
@@ -69,13 +74,13 @@ class ChestSound {
   /// A short buzz for one tap.
   static void buzzTap() {
     // ignore: unawaited_futures
-    _vibrate(duration: 35, amplitude: 180);
+    _vibrate(duration: 70, amplitude: 255);
   }
 
   /// A longer rumble for the moment the chest bursts open.
   static void buzzOpen() {
     // ignore: unawaited_futures
-    _vibrate(pattern: const [0, 90, 50, 90, 50, 200], amplitude: 255);
+    _vibrate(pattern: const [0, 180, 70, 180, 70, 420], amplitude: 255);
   }
 
   /// Plays the click from the start, cutting any click still sounding.
@@ -90,7 +95,7 @@ class ChestSound {
       if (_tapReady) {
         await p.resume().timeout(const Duration(seconds: 2));
       } else {
-        await p.play(AssetSource('sounds/chest-tap.mp3')).timeout(const Duration(seconds: 2));
+        await p.play(AssetSource(_tapAsset)).timeout(const Duration(seconds: 2));
       }
     } catch (_) {
       // A sound is decoration: a broken audio backend must never block opening.
@@ -120,6 +125,12 @@ class ChestSound {
       // ignore: unawaited_futures
       dead?.dispose().timeout(const Duration(seconds: 1)).catchError((_) {});
     }
+  }
+
+  /// Back to the chest click for the next screen that uses it.
+  static void resetTapSound() {
+    _tapAsset = 'sounds/chest-tap.mp3';
+    _tapReady = false;
   }
 
   /// Stops the click right now (the screen is closing).

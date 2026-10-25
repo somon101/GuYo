@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
+import '../services/chest_sound.dart';
 import '../models/user_profile.dart';
 import '../theme/app_colors.dart';
 import '../widgets/achievement_icon.dart';
@@ -308,6 +309,9 @@ class _AchievementCelebrationScreenState extends State<AchievementCelebrationScr
   @override
   void initState() {
     super.initState();
+    // The wall-hit sound for every tap; the chest-opening sound when the shell gives way.
+    // ignore: unawaited_futures
+    ChestSound.warmUp(tapAsset: 'sounds/achievement-tap.mp3');
     if (widget.achievements.isEmpty) {
       // The caller only ever sends achievements it has just taken, but a race
       // could still hand us an empty list: leave rather than show a blank
@@ -337,6 +341,8 @@ class _AchievementCelebrationScreenState extends State<AchievementCelebrationScr
 
   @override
   void dispose() {
+    ChestSound.stop();
+    ChestSound.resetTapSound();
     _break.dispose();
     _crack.dispose();
     _shake.dispose();
@@ -405,6 +411,15 @@ class _AchievementCelebrationScreenState extends State<AchievementCelebrationScr
   void _onTap() {
     if (_broken || _break.isAnimating || _break.isCompleted) return;
     setState(() => _taps++);
+    if (_taps >= _kTapsToBreak) {
+      ChestSound.buzzOpen();
+      // ignore: unawaited_futures
+      ChestSound.open();
+    } else {
+      ChestSound.buzzTap();
+      // ignore: unawaited_futures
+      ChestSound.tap();
+    }
     if (!_calm) {
       _shake.forward(from: 0);
       _crack.forward(from: 0);
@@ -427,6 +442,9 @@ class _AchievementCelebrationScreenState extends State<AchievementCelebrationScr
   void _skip() {
     if (_broken) return;
     setState(() => _taps = _kTapsToBreak);
+    ChestSound.buzzOpen();
+    // ignore: unawaited_futures
+    ChestSound.open();
     _giveWay();
   }
 
