@@ -3,6 +3,7 @@ import 'game_icons.dart';
 
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
+import '../services/streak_state.dart';
 import '../models/season_pass.dart';
 import '../screens/season_pass_screen.dart';
 import '../theme/app_colors.dart';
@@ -27,6 +28,13 @@ class _SeasonPassCardState extends State<SeasonPassCard> {
   void initState() {
     super.initState();
     _load();
+    dailyGoalTick.addListener(_load);
+  }
+
+  @override
+  void dispose() {
+    dailyGoalTick.removeListener(_load);
+    super.dispose();
   }
 
   Future<void> _load() async {

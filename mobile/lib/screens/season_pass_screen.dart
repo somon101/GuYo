@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
+import '../services/streak_state.dart';
 import '../models/season_pass.dart';
 import '../theme/app_colors.dart';
 import '../widgets/game_icons.dart';
@@ -62,12 +63,22 @@ class _SeasonPassScreenState extends State<SeasonPassScreen>
       _pass = widget.initialPass;
       _loading = false;
     } else {
-      _load();
+      _pass = ApiClient.instance.cachedSeasonPass();
+      _loading = _pass == null;
     }
+    // Always ask for fresh numbers: the cached ones may be a lesson behind.
+    _load();
+    dailyGoalTick.addListener(_refreshQuietly);
+  }
+
+  void _refreshQuietly() async {
+    final pass = await ApiClient.instance.fetchSeasonPass();
+    if (mounted && pass != null) setState(() => _pass = pass);
   }
 
   @override
   void dispose() {
+    dailyGoalTick.removeListener(_refreshQuietly);
     _pulseController.dispose();
     super.dispose();
   }

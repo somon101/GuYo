@@ -5,6 +5,7 @@ import '../widgets/game_icons.dart';
 import '../widgets/guyo_ui.dart';
 
 import 'package:flutter/material.dart';
+import '../services/streak_state.dart';
 
 import '../api/api_client.dart';
 import '../models/dictionary.dart';
@@ -150,6 +151,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _refreshDictionariesInBackground();
       _logReturn();
+      dailyGoalTick.value++; // the cards (pass, goal, duel, chests) show fresh numbers on return
     }
   }
 

@@ -4,6 +4,8 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/services.dart';
 import 'package:vibration/vibration.dart';
 
+import 'error_reporter.dart';
+
 /// The click and the buzz of a chest being tapped. One dedicated player: every tap cuts the
 /// previous click and starts a new one (never two at once), and [stop] silences
 /// it the moment the chest screen closes.
@@ -50,13 +52,36 @@ class ChestSound {
     } catch (_) {}
   }
 
-  /// A real vibration of the motor for [duration] ms at full strength. One plain call, as a plain
-  /// call is what every phone obeys; if it fails the system haptic tick is used. Never throws.
+  static bool? _hasVibrator;
+  static bool? _hasAmplitude;
+  static bool _reported = false;
+
+  /// A real vibration of the motor for [duration] ms. Phones differ: some ignore a set strength, some
+  /// swallow a plain call, so the strength is used only where the phone has it, a long buzz is sent as
+  /// a pattern, and the system haptic always backs it up. Never throws.
   static Future<void> _vibrate(int duration) async {
     _buzzUntil = DateTime.now().add(Duration(milliseconds: duration));
     try {
-      await Vibration.vibrate(duration: duration, amplitude: 255);
-    } catch (_) {
+      _hasVibrator ??= await Vibration.hasVibrator();
+      if (_hasVibrator == false) {
+        await HapticFeedback.heavyImpact();
+        return;
+      }
+      _hasAmplitude ??= await Vibration.hasAmplitudeControl();
+      if (_hasAmplitude == true) {
+        await Vibration.vibrate(duration: duration, amplitude: 255);
+      } else if (duration > 200) {
+        await Vibration.vibrate(pattern: [0, duration ~/ 2, 40, duration ~/ 2]);
+      } else {
+        await Vibration.vibrate(duration: duration);
+      }
+      // The system click rides along: it is the one thing every phone obeys.
+      unawaited(HapticFeedback.mediumImpact());
+    } catch (e) {
+      if (!_reported) {
+        _reported = true;
+        ErrorReporter.report('Вибрация не сработала: $e', null);
+      }
       try {
         await HapticFeedback.heavyImpact();
       } catch (_) {}

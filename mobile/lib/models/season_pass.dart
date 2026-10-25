@@ -6,6 +6,9 @@ class PassReward {
   final bool claimable;
   final bool lockedByPremium;
 
+  /// Reached and free to take, but the server would refuse it now (a full stock of freezes).
+  final bool blocked;
+
   /// A badge's look (an icon key) and a badge's / title's own name.
   final String? key;
   final String? text;
@@ -18,6 +21,7 @@ class PassReward {
     required this.claimed,
     required this.claimable,
     required this.lockedByPremium,
+    this.blocked = false,
   });
 
   factory PassReward.fromJson(Map<String, dynamic> json) => PassReward(
@@ -28,6 +32,7 @@ class PassReward {
         claimed: json['claimed'] as bool,
         claimable: json['claimable'] as bool,
         lockedByPremium: (json['locked_by_premium'] as bool?) ?? false,
+        blocked: (json['blocked'] as bool?) ?? false,
       );
 }
 

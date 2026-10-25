@@ -117,3 +117,23 @@ def test_admin_showcase_is_read_only(client, db, make_user, admin_headers):
     body = r.json()
     assert body["login"] == "showme" and body["collection"]["frames"][0]["key"] == "ocean"
     assert client.get("/admin/season-pass/showcase", headers=admin_headers, params={"user": "zzz"}).status_code == 404
+
+
+def test_full_freeze_stock_is_blocked_not_waiting(db, make_user, active_season):
+    from app.seasonpass import service
+
+    user = make_user("frz")
+    sp = service.season_pass(db, active_season)
+    definition = dict(sp.definition)
+    definition["levels"] = [dict(definition["levels"][0], free={"type": "streak_freeze", "amount": 1})] + definition["levels"][1:]
+    sp.definition = definition
+    service.award_xp(db, user, "word", "x1", 500)
+    db.commit()
+    user.streak_freezes = service.get_pass_settings(db).freeze_cap
+    db.commit()
+    free = service.user_state(db, user)["levels"][0]["free"]
+    assert free["blocked"] is True and free["claimable"] is False
+    user.streak_freezes = 0
+    db.commit()
+    free = service.user_state(db, user)["levels"][0]["free"]
+    assert free["blocked"] is False and free["claimable"] is True

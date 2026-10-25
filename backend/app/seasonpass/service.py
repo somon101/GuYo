@@ -387,6 +387,7 @@ def user_state(db: Session, user: User) -> dict | None:
     reached, into, cost = level_for_xp(levels, xp)
     claimed = _claims(db, user.id, season.id)
     has_premium = _has_premium(db, user)
+    freeze_cap = get_pass_settings(db).freeze_cap
 
     def lane(lv: dict, kind: str) -> dict | None:
         reward = lv.get(kind)
@@ -400,11 +401,14 @@ def user_state(db: Session, user: User) -> dict | None:
         text = label_for(reward, user.ui_language) if reward.get("text") else None
         if not text and str(reward.get("key") or "").isdigit():
             text = def_label(db, reward["key"], user.ui_language)
+        # A reward the server would refuse (a full stock of freezes) is not "waiting": it is blocked.
+        blocked = reward["type"] == "streak_freeze" and (user.streak_freezes or 0) + reward["amount"] > freeze_cap
         return {
             **reward,
             "text": text,
             "claimed": taken,
-            "claimable": unlocked and allowed and not taken,
+            "claimable": unlocked and allowed and not taken and not blocked,
+            "blocked": bool(blocked and not taken),
             "locked_by_premium": kind == "premium" and not has_premium,
         }
 

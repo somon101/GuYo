@@ -427,6 +427,7 @@ const Map<String, String> enStrings = {
   'очков': 'points',
   'очков сегодня': 'points today',
   'Ошибка': 'Error',
+  'Запас заморозок полон': 'Freeze stock is full',
   'Ошибка сервера ({0})': 'Server error ({0})',
   'Ошибка сети. Проверьте интернет.': 'Network error. Check your internet.',
   'Ошибки': 'Mistakes',

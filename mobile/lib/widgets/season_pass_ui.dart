@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
 import '../models/season_pass.dart';
+import '../services/chest_sound.dart';
 import 'game_icons.dart';
 import 'cosmetic_art.dart';
 import 'user_avatar.dart' show frameColors;
@@ -331,6 +332,14 @@ class RewardCard extends StatelessWidget {
                         color: Colors.white.withValues(alpha: 0.95),
                       ),
                     ),
+                    if (reward.blocked) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        tr('Запас заморозок полон'),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.white.withValues(alpha: 0.9)),
+                      ),
+                    ],
                     if (claimable) ...[
                       const SizedBox(height: 6),
                       SizedBox(
@@ -478,7 +487,17 @@ class RewardDialogViewState extends State<RewardDialogView>
   )..forward();
 
   @override
+  void initState() {
+    super.initState();
+    // Getting a reward is felt and heard: the long buzz and the reveal sound.
+    ChestSound.buzzOpen();
+    // ignore: unawaited_futures
+    ChestSound.open();
+  }
+
+  @override
   void dispose() {
+    ChestSound.stop();
     _burst.dispose();
     super.dispose();
   }
