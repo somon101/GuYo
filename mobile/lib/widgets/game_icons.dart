@@ -114,3 +114,11 @@ String _scaled(double v, String suffix) {
   if (text == '1000') return '1${suffix.trim().isEmpty ? '' : ''}$suffix';
   return '$text$suffix';
 }
+
+/// Decodes an asset at the size it will be drawn, ahead of time, so the first
+/// frame that shows it does not stall. Never throws.
+void precacheGame(BuildContext context, String asset, double size) {
+  final px = (size * MediaQuery.devicePixelRatioOf(context)).round().clamp(32, 512);
+  // ignore: unawaited_futures
+  precacheImage(ResizeImage(AssetImage(asset), width: px), context).catchError((_) {});
+}

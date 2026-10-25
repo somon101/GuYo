@@ -61,6 +61,17 @@ ThemeData buildAppTheme() {
     scaffoldBackgroundColor: dark ? AppColors.canvas : null,
     dialogTheme: dark ? DialogThemeData(backgroundColor: AppColors.surface) : null,
     bottomSheetTheme: dark ? BottomSheetThemeData(backgroundColor: AppColors.surface) : null,
+    // One look for every short message: a rounded violet plate that floats above the
+    // bottom bar and leaves quickly, instead of the grey system strip.
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: const Color(0xFF2A1F6B),
+      contentTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0x55FFFFFF))),
+      elevation: 6,
+      insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+      showCloseIcon: false,
+    ),
     appBarTheme: dark
         ? AppBarTheme(backgroundColor: AppColors.canvas, foregroundColor: AppColors.primaryDark, surfaceTintColor: Colors.transparent)
         : null,

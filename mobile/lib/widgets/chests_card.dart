@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
@@ -20,6 +22,16 @@ class ChestsCard extends StatefulWidget {
 class _ChestsCardState extends State<ChestsCard> {
   ChestBank? _bank = ApiClient.instance.cachedChests();
   bool _busy = false;
+  String? _notice;
+  Timer? _noticeTimer;
+
+  void _say(String message) {
+    _noticeTimer?.cancel();
+    setState(() => _notice = message);
+    _noticeTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _notice = null);
+    });
+  }
 
   @override
   void initState() {
@@ -31,6 +43,7 @@ class _ChestsCardState extends State<ChestsCard> {
   @override
   void dispose() {
     dailyGoalTick.removeListener(_load);
+    _noticeTimer?.cancel();
     super.dispose();
   }
 
@@ -53,11 +66,9 @@ class _ChestsCardState extends State<ChestsCard> {
       if (!mounted) return;
       setState(() => _bank = bank);
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) _say(e.message);
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Не удалось. Проверьте интернет.'))));
-      }
+      if (mounted) _say(tr('Не удалось. Проверьте интернет.'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -76,6 +87,7 @@ class _ChestsCardState extends State<ChestsCard> {
         bank: bank,
         onClaim: _busy || !daily.available ? null : _claim,
         onOpen: () => _openList(bank),
+        notice: _notice,
       ),
     );
   }
@@ -85,7 +97,8 @@ class ChestsCardView extends StatelessWidget {
   final ChestBank bank;
   final VoidCallback? onClaim;
   final VoidCallback? onOpen;
-  const ChestsCardView({super.key, required this.bank, this.onClaim, this.onOpen});
+  final String? notice;
+  const ChestsCardView({super.key, required this.bank, this.onClaim, this.onOpen, this.notice});
 
   @override
   Widget build(BuildContext context) {
@@ -125,6 +138,14 @@ class ChestsCardView extends StatelessWidget {
                 ),
                 if (daily.available) const Icon(Icons.chevron_right_rounded, color: Colors.white),
               ]),
+            ),
+          if (notice != null)
+            Container(
+              key: const ValueKey('chest-notice'),
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(color: const Color(0x33FFB020), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0x80FFB020))),
+              child: Text(notice!, style: const TextStyle(color: Color(0xFFFFD27A), fontSize: 12, fontWeight: FontWeight.w700)),
             ),
           if (showDaily && bank.chests.isNotEmpty) const Divider(color: Colors.white24, height: 22),
           if (bank.chests.isNotEmpty)

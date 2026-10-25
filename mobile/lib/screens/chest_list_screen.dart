@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
@@ -22,6 +24,29 @@ class _ChestListScreenState extends State<ChestListScreen> {
   late ChestBank _bank = widget.bank;
   final Map<String, int> _mode = {};
   bool _busy = false;
+  String? _notice;
+  Timer? _noticeTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // A system toast left over from another screen must not hang over this one.
+    WidgetsBinding.instance.addPostFrameCallback((_) => ScaffoldMessenger.maybeOf(context)?.clearSnackBars());
+  }
+
+  @override
+  void dispose() {
+    _noticeTimer?.cancel();
+    super.dispose();
+  }
+
+  void _say(String message) {
+    _noticeTimer?.cancel();
+    setState(() => _notice = message);
+    _noticeTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _notice = null);
+    });
+  }
 
   int _count(String key) => _bank.chests.where((c) => c.chestKey == key).length;
 
@@ -55,9 +80,9 @@ class _ChestListScreenState extends State<ChestListScreen> {
       final bank = await ApiClient.instance.claimDailyChest();
       if (mounted) setState(() => _bank = bank);
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) _say(e.message);
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Не удалось. Проверьте интернет.'))));
+      if (mounted) _say(tr('Не удалось. Проверьте интернет.'));
     }
   }
 
@@ -103,6 +128,14 @@ class _ChestListScreenState extends State<ChestListScreen> {
               Text(tr('Сундук дня'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
               const SizedBox(height: 2),
               Text(daily.available ? tr('Нажмите, чтобы забрать') : daily.conditions, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              if (_notice != null)
+                Container(
+                  key: const ValueKey('chest-notice'),
+                  margin: const EdgeInsets.only(top: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(color: const Color(0x33FFB020), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0x80FFB020))),
+                  child: Text(_notice!, style: const TextStyle(color: Color(0xFFFFD27A), fontSize: 12, fontWeight: FontWeight.w700)),
+                ),
             ]),
           ),
           if (daily.available) GreenButton(label: tr('Забрать'), onTap: _claim),

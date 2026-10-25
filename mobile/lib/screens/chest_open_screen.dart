@@ -37,13 +37,33 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
     vsync: this,
     duration: Duration(milliseconds: widget.count > 1 ? 3800 : 2200),
   );
+  late final AnimationController _burst = AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
   int _taps = 0;
   bool _busy = false;
+  bool _opening = false;
+  Future<(List<ChestPrize>, ChestBank)>? _pending;
   List<ChestPrize>? _prizes;
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.opener == null) unawaited(ChestSound.warmUp());
+    // Decode the pictures the opening needs now, so the burst never waits on them.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      precacheGame(context, 'assets/chests/${widget.chestKey}_open.png', 260);
+      for (final a in const ['diamond', 'freeze', 'merge', 'points']) {
+        for (final s in widget.count > 1 ? const [46.0, 26.0] : const [150.0]) {
+          precacheGame(context, 'assets/icons/$a.png', s);
+        }
+      }
+    });
+  }
+
+  @override
   void dispose() {
+    _burst.dispose();
     ChestSound.stop();
     _float.dispose();
     _shake.dispose();
@@ -52,7 +72,7 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
   }
 
   Future<void> _tap() async {
-    if (_busy || _prizes != null) return;
+    if (_opening || _prizes != null) return;
     setState(() {
       _taps++;
       _error = null;
@@ -60,10 +80,17 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
     _shake.forward(from: 0);
     ChestSound.buzzTap();
     if (widget.opener == null) unawaited(ChestSound.tap());
+    // The server call starts one tap early, so the answer is already here when the chest bursts.
+    if (_taps == _tapsNeeded - 1) _pending = (widget.opener ?? _openOnServer)(widget.chestKey, widget.count);
     if (_taps < _tapsNeeded) return;
-    _busy = true;
+    _opening = true;
+    _pending ??= (widget.opener ?? _openOnServer)(widget.chestKey, widget.count);
+    // Burst at once: flash, rumble and sound do not wait for the answer.
+    _burst.forward(from: 0);
+    ChestSound.buzzOpen();
+    if (widget.opener == null) unawaited(ChestSound.open());
     try {
-      final (prizes, bank) = await (widget.opener ?? _openOnServer)(widget.chestKey, widget.count);
+      final (prizes, bank) = await _pending!;
       if (widget.opener == null) ApiClient.instance.fetchEconomy();
       dailyGoalTick.value++;
       if (!mounted) return;
@@ -72,17 +99,19 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
         _bank = bank;
       });
       _reveal.forward(from: 0);
-      ChestSound.buzzOpen();
-      if (widget.opener == null) unawaited(ChestSound.open());
     } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.message);
-      _taps = 0;
+      _failed(e.message);
     } catch (_) {
-      if (mounted) setState(() => _error = tr('Не удалось. Проверьте интернет.'));
-      _taps = 0;
-    } finally {
-      _busy = false;
+      _failed(tr('Не удалось. Проверьте интернет.'));
     }
+  }
+
+  void _failed(String message) {
+    ChestSound.stop();
+    _pending = null;
+    _opening = false;
+    _taps = 0;
+    if (mounted) setState(() => _error = message);
   }
 
   Future<(List<ChestPrize>, ChestBank)> _openOnServer(String key, int count) async {
@@ -128,7 +157,7 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
 
   Widget _stage(Color color, String name) {
     return AnimatedBuilder(
-      animation: Listenable.merge([_float, _shake, _reveal]),
+      animation: Listenable.merge([_float, _shake, _reveal, _burst]),
       builder: (context, _) {
         final r = _reveal.value;
         final prizes = _prizes;
@@ -140,7 +169,7 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
         // The chest bursts open first and then leaves downwards (a batch reveal is longer, so scale the times).
         final k = batch ? 2200 / 3800 : 1.0;
         final leave = prizes == null ? 0.0 : Curves.easeIn.transform(((r - 0.2 * k) / (0.3 * k)).clamp(0.0, 1.0));
-        final flash = prizes == null ? 0.0 : math.sin((r / (0.35 * k)).clamp(0.0, 1.0) * math.pi);
+        final flash = prizes == null ? (_opening ? math.sin(_burst.value * math.pi) : 0.0) : math.sin((r / (0.35 * k)).clamp(0.0, 1.0) * math.pi);
         final shine = prizes == null ? 0.0 : Curves.easeOutBack.transform(((r - 0.3 * k) / (0.35 * k)).clamp(0.0, 1.0));
         return Stack(alignment: Alignment.center, children: [
           if (prizes != null)
@@ -161,7 +190,7 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
                       key: const ValueKey('chest-tap'),
                       behavior: HitTestBehavior.opaque,
                       onTap: _tap,
-                      child: ChestImage(widget.chestKey, open: prizes != null, size: 260),
+                      child: ChestImage(widget.chestKey, open: prizes != null || (_opening && _burst.value > 0.45), size: 260),
                     ),
                   ),
                 ),
