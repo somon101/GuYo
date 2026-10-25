@@ -1,5 +1,5 @@
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   applyPassTemplate,
   copyPassTemplate,
@@ -28,6 +28,7 @@ import {
   type PassTemplate,
 } from "../api/endpoints";
 import type { Season } from "../types";
+import { BADGE_LOOKS, BadgeMark, FRAME_LOOKS, FrameAvatar, ProfileMock, Tile, TitleChip } from "../components/rewardVisuals";
 
 const inputClass = "field px-2 py-1.5 text-sm";
 
@@ -43,29 +44,6 @@ const REWARD_LABELS: Record<string, string> = {
   frame: "Рамка аватара",
 };
 const CHEST_NAMES: Record<string, string> = { wood: "Деревянный", silver: "Серебряный", purple: "Фиолетовый", gold: "Золотой" };
-const FRAME_LOOKS: Record<string, string> = {
-  gold: "Золото",
-  aurora: "Северное сияние",
-  fire: "Огонь",
-  ocean: "Океан",
-  emerald: "Изумруд",
-  royal: "Королевская",
-  rose: "Роза",
-  ice: "Лёд",
-};
-const BADGE_LOOKS: Record<string, string> = {
-  crown: "Корона",
-  champion: "Кубок",
-  medal: "Медаль",
-  flame: "Огонь",
-  star: "Звезда",
-  diamond: "Бриллиант",
-  rocket: "Ракета",
-  shield: "Щит",
-  bolt: "Молния",
-  heart: "Сердце",
-  leaf: "Лист",
-};
 const METRIC_LABELS: Record<string, string> = {
   word: "Выучить слов",
   lesson: "Пройти уроков",
@@ -199,97 +177,98 @@ function SettingsSection() {
 
 // --- Definition editor -----------------------------------------------------------
 
-function RewardEditor({ value, onChange }: { value: PassReward | null; onChange: (v: PassReward | null) => void }) {
-  const isCosmetic = value?.type === "badge" || value?.type === "title" || value?.type === "frame";
+const NUMERIC_TYPES = ["rating_points", "premium_days", "streak_freeze", "diamonds"];
+
+/** One small picture for a reward type or choice, so nothing has to be read to be understood. */
+function RewardThumb({ r, size = 40 }: { r: PassReward; size?: number }) {
+  switch (r.type) {
+    case "frame": return <FrameAvatar frameKey={r.key ?? "gold"} size={size + 8} />;
+    case "badge": return <BadgeMark badgeKey={r.key ?? "crown"} size={size} />;
+    case "title": return <TitleChip text={r.text || "Титул"} />;
+    default: {
+      const l = passLook(r);
+      return l.img
+        ? <img src={l.img} alt="" style={{ width: size, height: size, objectFit: "contain", maxWidth: "none" }} />
+        : <span className="flex items-center justify-center rounded-full text-xl text-white" style={{ width: size, height: size, background: `linear-gradient(135deg,${l.colors[0]},${l.colors[1]})` }}>{l.glyph}</span>;
+    }
+  }
+}
+
+function defaultReward(type: PassReward["type"]): PassReward {
+  if (type === "badge") return { type, amount: 1, key: "crown", text: "" };
+  if (type === "frame") return { type, amount: 1, key: "gold", text: "" };
+  if (type === "title") return { type, amount: 1, text: "" };
+  if (type === "chest") return { type, amount: 1, key: "wood" };
+  if (type === "booster") return { type, amount: 30 };
+  return { type, amount: 1 };
+}
+
+/** The picker window: every kind of reward and every variant drawn as it looks in the app. */
+function RewardPicker({ value, onChange, onClose }: { value: PassReward | null; onChange: (v: PassReward | null) => void; onClose: () => void }) {
+  const t = value?.type;
+  const section = (title: string, body: ReactNode) => (
+    <div><div className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">{title}</div><div className="flex flex-wrap gap-2 rounded-2xl p-2" style={{ background: "#0d0f1c" }}>{body}</div></div>
+  );
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-1">
-        <select
-          className={`${inputClass} w-36`}
-          value={value?.type ?? ""}
-          onChange={(e) => {
-            const type = e.target.value as PassReward["type"] | "";
-            if (!type) return onChange(null);
-            if (type === "badge") return onChange({ type, amount: 1, key: "crown", text: "" });
-            if (type === "frame") return onChange({ type, amount: 1, key: "gold", text: "" });
-            if (type === "title") return onChange({ type, amount: 1, text: "" });
-            if (type === "chest") return onChange({ type, amount: 1, key: "wood" });
-            if (type === "booster") return onChange({ type, amount: 30 });
-            onChange({ type, amount: value && !isCosmetic ? value.amount : 1 });
-          }}
-        >
-          <option value="">— нет —</option>
-          {Object.entries(REWARD_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </select>
-        {value?.type === "booster" && (
-          <select className={`${inputClass} w-28`} value={value.amount} onChange={(e) => onChange({ ...value, amount: Number(e.target.value) })}>
-            <option value={30}>30 минут</option>
-            <option value={60}>1 час</option>
-            <option value={1440}>24 часа</option>
-          </select>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-2xl space-y-3 overflow-y-auto rounded-2xl bg-white p-4" onClick={(e) => e.stopPropagation()}>
+        <div className="text-lg font-semibold">Что выдаём</div>
+        {section("Тип награды", <>
+          <Tile selected={!value} onClick={() => onChange(null)} label="Нет"><span style={{ width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>∅</span></Tile>
+          {Object.entries(REWARD_LABELS).map(([k, v]) => {
+            const sample = k === value?.type ? value : defaultReward(k as PassReward["type"]);
+            return <Tile key={k} selected={t === k} onClick={() => t !== k && onChange(defaultReward(k as PassReward["type"]))} label={v}><RewardThumb r={sample} /></Tile>;
+          })}
+        </>)}
+        {value && NUMERIC_TYPES.includes(value.type) && (
+          <label className="flex items-center gap-2 text-sm">Сколько<input type="number" min={1} className={`${inputClass} w-24`} value={value.amount} onChange={(e) => onChange({ ...value, amount: Math.max(1, Number(e.target.value) || 1) })} /></label>
         )}
-        {value && !isCosmetic && value.type !== "chest" && value.type !== "booster" && (
-          <input
-            type="number"
-            min={1}
-            className={`${inputClass} w-16`}
-            value={value.amount}
-            onChange={(e) => onChange({ ...value, amount: Math.max(1, Number(e.target.value) || 1) })}
-          />
-        )}
-        {value?.type === "chest" && (
+        {value?.type === "chest" && section("Какой сундук", Object.entries(CHEST_NAMES).map(([k, v]) => (
+          <Tile key={k} selected={(value.key ?? "wood") === k} onClick={() => onChange({ ...value, key: k })} label={v}><img src={`${IMG}chests/${k}_closed.png`} alt="" style={{ width: 52, height: 52, objectFit: "contain" }} /></Tile>
+        )))}
+        {value?.type === "booster" && section("На сколько", [[30, "30 минут"], [60, "1 час"], [1440, "24 часа"]].map(([m, name]) => (
+          <Tile key={m} selected={value.amount === m} onClick={() => onChange({ ...value, amount: Number(m) })} label={String(name)}><img src={`${IMG}preview/booster.png`} alt="" style={{ width: 48, height: 48, objectFit: "contain" }} /></Tile>
+        )))}
+        {value?.type === "frame" && section("Какая рамка (на аватаре)", Object.entries(FRAME_LOOKS).map(([k, v]) => (
+          <Tile key={k} selected={(value.key ?? "gold") === k} onClick={() => onChange({ ...value, key: k })} label={v.name}><FrameAvatar frameKey={k} size={60} /></Tile>
+        )))}
+        {value?.type === "badge" && section("Какой значок", Object.entries(BADGE_LOOKS).map(([k, v]) => (
+          <Tile key={k} selected={(value.key ?? "crown") === k} onClick={() => onChange({ ...value, key: k })} label={v.name}><BadgeMark badgeKey={k} size={48} /></Tile>
+        )))}
+        {value && (value.type === "badge" || value.type === "frame" || value.type === "title") && (
           <>
-            <img src={`${import.meta.env.BASE_URL}chests/${value.key ?? "wood"}_closed.png`} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
-            <select className={`${inputClass} w-32`} value={value.key ?? "wood"} onChange={(e) => onChange({ ...value, key: e.target.value })}>
-              {Object.entries(CHEST_NAMES).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
-              ))}
-            </select>
+            <div className="space-y-1">
+              <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Название</div>
+              <input className={`${inputClass} w-full`} placeholder="Название (по-русски)" value={value.text ?? ""} onChange={(e) => onChange({ ...value, text: e.target.value })} />
+              <div className="flex gap-2">
+                <input className={`${inputClass} flex-1`} placeholder="Тоҷикӣ" value={value.text_tg ?? ""} onChange={(e) => onChange({ ...value, text_tg: e.target.value })} />
+                <input className={`${inputClass} flex-1`} placeholder="Oʻzbekcha" value={value.text_uz ?? ""} onChange={(e) => onChange({ ...value, text_uz: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <div className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">Так будет в профиле игрока</div>
+              <ProfileMock frame={value.type === "frame" ? value.key ?? "gold" : null} badge={value.type === "badge" ? value.key ?? "crown" : null} title={value.type === "title" ? value.text ?? "" : undefined} />
+            </div>
           </>
         )}
-        {(value?.type === "badge" || value?.type === "frame") && (
-          <select
-            className={`${inputClass} w-28`}
-            value={value.key ?? (value.type === "frame" ? "gold" : "crown")}
-            onChange={(e) => onChange({ ...value, key: e.target.value })}
-          >
-            {Object.entries(value.type === "frame" ? FRAME_LOOKS : BADGE_LOOKS).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-        )}
+        <div className="flex justify-end"><button type="button" onClick={onClose} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Готово</button></div>
       </div>
-      {value && isCosmetic && (
-        <div className="flex flex-col gap-1">
-          <input
-            className={`${inputClass} w-64`}
-            placeholder="Название (по-русски)"
-            value={value.text ?? ""}
-            onChange={(e) => onChange({ ...value, text: e.target.value })}
-          />
-          <div className="flex gap-1">
-            <input
-              className={`${inputClass} w-32`}
-              placeholder="Тоҷикӣ"
-              value={value.text_tg ?? ""}
-              onChange={(e) => onChange({ ...value, text_tg: e.target.value })}
-            />
-            <input
-              className={`${inputClass} w-32`}
-              placeholder="Oʻzbekcha"
-              value={value.text_uz ?? ""}
-              onChange={(e) => onChange({ ...value, text_uz: e.target.value })}
-            />
-          </div>
-        </div>
-      )}
     </div>
+  );
+}
+
+function RewardEditor({ value, onChange }: { value: PassReward | null; onChange: (v: PassReward | null) => void }) {
+  const [open, setOpen] = useState(false);
+  const summary = value ? passLook(value).label + (NUMERIC_TYPES.includes(value.type) ? ` ×${value.amount}` : "") : "— нет —";
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} title="Выбрать награду" className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-2 py-1 text-left text-sm hover:border-indigo-400">
+        {value ? <RewardThumb r={value} size={28} /> : <span className="w-7 text-center text-slate-400">∅</span>}
+        <span className="max-w-[9rem] truncate">{summary}</span>
+        <span className="text-slate-400">▾</span>
+      </button>
+      {open && <RewardPicker value={value} onChange={onChange} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 
@@ -858,10 +837,6 @@ function SeasonsSection() {
 
 // --- The running pass, drawn as in the app ---------------------------------------------------
 
-const BADGE_COLORS: Record<string, [string, string]> = {
-  crown: ["#FFD54F", "#FF8F00"], champion: ["#FFD54F", "#FF8F00"], medal: ["#90CAF9", "#3F7CFF"], flame: ["#FFA06B", "#E5391F"],
-  star: ["#FFE066", "#FFA000"], diamond: ["#7FDBFF", "#7C4DFF"], rocket: ["#FF8AB8", "#8E3CFF"], shield: ["#6EE7B7", "#0E9F6E"], bolt: ["#FFF176", "#FFA000"],
-};
 const FRAME_COLORS: Record<string, [string, string]> = {
   gold: ["#FFD54F", "#FF9800"], aurora: ["#6EE7B7", "#60A5FA"], fire: ["#FF7043", "#FFB74D"], ocean: ["#38BDF8", "#2563EB"],
   emerald: ["#34D399", "#059669"], royal: ["#8B5CF6", "#FFD54F"], rose: ["#F472B6", "#FB7185"], ice: ["#BAE6FD", "#7DD3FC"],
@@ -876,7 +851,7 @@ function passLook(r: PassReward): { colors: [string, string]; img: string | null
     case "diamonds": return { colors: ["#87EFFF", "#3A7BFF"], img: `${IMG}preview/gem.png`, glyph: "", amount: `+${r.amount}`, label: "Бриллианты" };
     case "chest": return { colors: ["#FFB86B", "#B4541F"], img: `${IMG}chests/${r.key ?? "wood"}_closed.png`, glyph: "", amount: "", label: "Сундук" };
     case "booster": return { colors: ["#B07CFF", "#5B2EE0"], img: `${IMG}preview/booster.png`, glyph: "", amount: r.amount >= 60 && r.amount % 60 === 0 ? `${r.amount / 60}ч` : `${r.amount}м`, label: "Удвоитель" };
-    case "badge": return { colors: BADGE_COLORS[r.key ?? "crown"] ?? ["#FFD54F", "#FF8F00"], img: null, glyph: "🏅", amount: "", label: r.text || "Значок" };
+    case "badge": return { colors: (BADGE_LOOKS[r.key ?? "crown"] ?? BADGE_LOOKS.crown).colors, img: null, glyph: (BADGE_LOOKS[r.key ?? "crown"] ?? BADGE_LOOKS.crown).glyph, amount: "", label: r.text || "Значок" };
     case "frame": return { colors: FRAME_COLORS[r.key ?? "gold"] ?? ["#FFD54F", "#FF9800"], img: null, glyph: "◎", amount: "", label: r.text || "Рамка" };
     case "title": return { colors: ["#6EE7B7", "#0E9F6E"], img: null, glyph: "🎖", amount: "", label: r.text || "Титул" };
     default: return { colors: ["#A48BFF", "#5862DD"], img: `${IMG}preview/points.png`, glyph: "", amount: `+${r.amount}`, label: "Звёзды рейтинга" };
@@ -900,7 +875,9 @@ function PassCard({ reward, premium, onClick }: { reward: PassReward | null; pre
       style={{ minHeight: 112, padding: "10px 8px", borderRadius: 18, background: `linear-gradient(135deg, ${l.colors[0]}, ${l.colors[1]})`, boxShadow: "0 3px 8px rgba(0,0,0,0.12)", outline: premium ? "2px solid rgba(255,213,79,0.8)" : undefined }}
     >
       <div className="flex flex-col items-center justify-center">
-        {l.img ? (
+        {reward.type === "frame" || reward.type === "badge" ? (
+          <RewardThumb r={reward} size={38} />
+        ) : l.img ? (
           <img src={l.img} alt="" draggable={false} style={{ width: 46, height: 46, objectFit: "contain", maxWidth: "none" }} />
         ) : (
           <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full text-xl text-white" style={{ background: "rgba(255,255,255,0.25)" }}>{l.glyph}</span>
