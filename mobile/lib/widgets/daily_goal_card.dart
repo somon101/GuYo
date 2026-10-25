@@ -192,7 +192,7 @@ class DailyGoalCardView extends StatelessWidget {
                           ready
                               ? tr('Выполнена! Заберите награду')
                               : done
-                                  ? tr('Выполнена! Новую цель выберете завтра')
+                                  ? tr('Награда получена. Новую цель выберете завтра')
                                   : tr('{0} из {1} слов', [goal.done, goal.goal]),
                           style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
                         ),

@@ -29,8 +29,16 @@ class DuelOut(BaseModel):
     won: bool | None = None
 
 
+class RewardOut(BaseModel):
+    type: str
+    amount: int = 1
+    key: str | None = None
+
+
 class DuelStateOut(BaseModel):
     enabled: bool
+    # What a win, a draw and a loss give (win | draw | lose), edited in the admin.
+    rewards: dict[str, list[RewardOut]] = {}
     current: DuelOut | None
     recent: list[DuelOut]
 

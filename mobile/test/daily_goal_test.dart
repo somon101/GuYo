@@ -18,7 +18,7 @@ void main() {
     await show(const DailyGoal(goal: 10, done: 4, completed: false));
     expect(find.text('4 из 10 слов'), findsOneWidget);
     await show(const DailyGoal(goal: 10, done: 12, completed: true));
-    expect(find.text('Выполнена! Новую цель выберете завтра'), findsOneWidget);
+    expect(find.text('Награда получена. Новую цель выберете завтра'), findsOneWidget);
     expect(find.byIcon(Icons.check_rounded), findsOneWidget);
   });
 }

@@ -893,4 +893,5 @@ const Map<String, String> enStrings = {
   'Включите билет, чтобы призы из сундуков удваивались, пока идёт время.': 'Switch a ticket on: chest prizes are doubled while the time runs.',
   '{0} ч': '{0} h',
   'Приз скорректирован: начислено +{0} вместо +{1}': 'Prize corrected: +{0} paid instead of +{1}',
+  'Награда получена. Новую цель выберете завтра': 'Reward taken. Pick a new goal tomorrow',
 };

@@ -55,3 +55,11 @@ def test_decline_and_http(client, db, make_user, auth, active_season):
     assert r.status_code == 200 and r.json()["current"] is None
     assert db.get(Duel, duel_id).status == "declined"
     assert client.post("/duels", json={"friend_id": 424242}, headers=auth(a)).status_code == 409
+
+
+def test_duel_state_carries_the_rewards_for_the_card(client, db, make_user, auth, active_season):
+    a = make_user()
+    r = client.get("/duels", headers=auth(a)).json()
+    assert set(r["rewards"]) == {"win", "draw", "lose"}
+    assert any(x["type"] == "chest" for x in r["rewards"]["win"])
+    assert r["rewards"]["lose"] == []
