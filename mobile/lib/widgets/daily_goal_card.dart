@@ -117,14 +117,14 @@ class _DailyGoalCardState extends State<DailyGoalCard> {
     if (goal == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 14),
-      child: DailyGoalCardView(goal: goal, onTap: _pick),
+      child: DailyGoalCardView(goal: goal, onTap: goal.locked ? null : _pick),
     );
   }
 }
 
 class DailyGoalCardView extends StatelessWidget {
   final DailyGoal goal;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   const DailyGoalCardView({super.key, required this.goal, required this.onTap});
 
   @override
@@ -166,7 +166,7 @@ class DailyGoalCardView extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       done
-                          ? tr('Выполнена! Можно заниматься дальше')
+                          ? tr('Выполнена! Новую цель выберете завтра')
                           : tr('{0} из {1} слов', [goal.done, goal.goal]),
                       style: TextStyle(
                         fontSize: 13,

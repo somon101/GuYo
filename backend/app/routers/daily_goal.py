@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -41,6 +41,8 @@ class DailyGoalOut(BaseModel):
     chests: list[str] = []
     diamonds: int = 0
     points: int = 0
+    # True once today's goal is filled: the choice is then fixed until tomorrow.
+    locked: bool = False
     options: list[int] = []
     tiers: list[TierOut] = []
 
@@ -72,7 +74,7 @@ def state(db: Session, user: User) -> DailyGoalOut:
     given = rewards.claim_daily_goal(db, user, done, today) if completed else None
     claimed = {c.words for c in db.query(DailyGoalClaim).filter_by(user_id=user.id, day=today)}
     return DailyGoalOut(
-        goal=user.daily_goal, done=done, completed=completed, just_completed=given is not None,
+        goal=user.daily_goal, done=done, completed=completed, locked=completed, just_completed=given is not None,
         xp=given["xp"] if given else 0, chests=given["chests"] if given else [],
         diamonds=given["diamonds"] if given else 0, points=given["points"] if given else 0,
         options=options,
@@ -89,6 +91,8 @@ def get_goal(db: Session = Depends(get_db), user: User = Depends(get_current_use
 
 @router.put("", response_model=DailyGoalOut)
 def set_goal(payload: DailyGoalIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if words_today(db, user.id) >= user.daily_goal:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Цель дня выполнена. Новую можно выбрать завтра")
     options = [t["words"] for t in rewards.daily_tiers(db)]
     if payload.goal not in options:
         payload.goal = min(options, key=lambda g: abs(g - payload.goal))

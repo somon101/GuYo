@@ -8,6 +8,7 @@ class DailyGoal {
   final bool justCompleted;
   final int xp;
   final List<int> options;
+  final bool locked;
   final List<String> chests;
   final int diamonds;
   final int points;
@@ -20,6 +21,7 @@ class DailyGoal {
     this.justCompleted = false,
     this.xp = 0,
     this.options = const [5, 10, 20],
+    this.locked = false,
     this.chests = const [],
     this.diamonds = 0,
     this.points = 0,
@@ -39,6 +41,7 @@ class DailyGoal {
           for (final t in (json['tiers'] as List<dynamic>? ?? const []))
             (t as Map<String, dynamic>)['words'] as int: RewardSpec.list(t['rewards']),
         },
+        locked: (json['locked'] as bool?) ?? (json['completed'] as bool),
         options: ((json['options'] as List<dynamic>?) ?? const [5, 10, 20]).cast<int>(),
       );
 }

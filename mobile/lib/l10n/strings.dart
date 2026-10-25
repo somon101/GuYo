@@ -1604,4 +1604,5 @@ const Map<String, (String, String)> uiStrings = {
   'Нажмите, чтобы забрать': ('Барои гирифтан зер кунед', 'Olish uchun bosing'),
   'Всего': ('Ҳамагӣ', 'Jami'),
   'Пока сундуков нет': ('Ҳоло сандуқ нест', "Hozircha sandiq yo'q"),
+  'Выполнена! Новую цель выберете завтра': ('Иҷро шуд! Ҳадафи навро фардо интихоб мекунед', 'Bajarildi! Yangi maqsadni ertaga tanlaysiz'),
 };

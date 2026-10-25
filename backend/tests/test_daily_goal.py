@@ -27,26 +27,24 @@ def test_goal_counts_distinct_words_and_celebrates_once(client, db, make_user, a
     assert r["completed"] and not r["just_completed"]  # XP only once a day
 
 
-def test_tiers_pay_once_each_and_raising_the_goal_shows_partial(client, db, make_user, auth, make_dictionary, active_season):
-    from app.models.word import Word
+def test_goal_is_fixed_once_filled_until_tomorrow(client, db, make_user, auth, make_dictionary, active_season):
     from app.models.chests import UserChest
+    from app.models.word import Word
 
     user = make_user()
     words = db.query(Word).filter(Word.dictionary_id == make_dictionary(12).id).all()
     h = auth(user)
-    client.put("/daily-goal", json={"goal": 5}, headers=h)
+    assert client.put("/daily-goal", json={"goal": 10}, headers=h).status_code == 200
+    client.put("/daily-goal", json={"goal": 5}, headers=h)  # not filled yet: still free to change
     for w in words[:5]:
         _answer(db, user, w)
-    assert client.get("/daily-goal", headers=h).json()["just_completed"]
-    r = client.put("/daily-goal", json={"goal": 10}, headers=h).json()
-    assert (r["done"], r["completed"]) == (5, False)  # partial progress, not filled
-    for w in words[5:10]:
-        _answer(db, user, w)
     r = client.get("/daily-goal", headers=h).json()
-    assert r["completed"] and r["just_completed"] and r["chests"] == ["wood"]
-    r = client.put("/daily-goal", json={"goal": 5}, headers=h).json()
-    assert r["completed"] and not r["just_completed"]  # lower after higher: no repeat
-    assert db.query(UserChest).filter_by(user_id=user.id).count() == 1
+    assert r["completed"] and r["locked"] and r["just_completed"]
+    again = client.put("/daily-goal", json={"goal": 10}, headers=h)
+    assert again.status_code == 409  # filled: no second choice today
+    assert client.get("/daily-goal", headers=h).json()["goal"] == 5
+    assert not client.get("/daily-goal", headers=h).json()["just_completed"]  # paid once
+    assert db.query(UserChest).filter_by(user_id=user.id).count() == 0  # the 5-word tier pays XP only
 
 
 def test_admin_edits_options_and_rewards(client, db, make_user, auth, admin_headers):

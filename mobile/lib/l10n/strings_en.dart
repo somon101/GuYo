@@ -878,4 +878,5 @@ const Map<String, String> enStrings = {
   'Нажмите, чтобы забрать': 'Tap to take it',
   'Всего': 'Total',
   'Пока сундуков нет': 'No chests yet',
+  'Выполнена! Новую цель выберете завтра': 'Done! Pick a new goal tomorrow',
 };
