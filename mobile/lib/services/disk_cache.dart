@@ -35,6 +35,12 @@ class DiskCache {
     _saveTimer = Timer(const Duration(milliseconds: 1500), _save);
   }
 
+  /// Writes to the device right now (for data that must survive a closed app).
+  static Future<void> saveNow() {
+    _saveTimer?.cancel();
+    return _save();
+  }
+
   static Future<void> _save() async {
     try {
       await _storage.write(key: _key, value: jsonEncode(_bodies));

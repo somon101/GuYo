@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
 import '../models/chest.dart';
+import '../services/chest_queue.dart';
 import '../widgets/counted_chest.dart';
 import '../widgets/game_icons.dart';
 import 'chest_open_screen.dart';
@@ -65,9 +66,10 @@ class _ChestListScreenState extends State<ChestListScreen> {
     _busy = true;
     try {
       final result = await Navigator.of(context).push<ChestBank>(
-        MaterialPageRoute(builder: (_) => ChestOpenScreen(bank: _bank, chestKey: key, count: m)),
+        MaterialPageRoute(builder: (_) => ChestOpenScreen(bank: _bank, chests: [for (final c in _bank.chests) if (c.chestKey == key) c].take(m).toList())),
       );
       if (result != null && mounted) setState(() => _bank = result);
+      await ChestQueue.flush();
       final fresh = await ApiClient.instance.fetchChests();
       if (fresh != null && mounted) setState(() => _bank = fresh);
     } finally {

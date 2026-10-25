@@ -38,6 +38,7 @@ import '../models/word_check.dart';
 import '../models/season_pass.dart';
 import '../models/season_summary.dart';
 import '../models/chest.dart';
+import '../services/chest_queue.dart';
 import '../models/daily_goal.dart';
 import '../models/duel.dart';
 import '../models/my_progress.dart';
@@ -1112,7 +1113,7 @@ class ApiClient {
       final res = await http.get(_uri('/chests'), headers: await _authHeaders());
       if (res.statusCode >= 400) return null;
       _remember('chests', res);
-      return ChestBank.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+      return ChestBank.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>).without(ChestQueue.pending);
     } catch (_) {
       return null;
     }
@@ -1122,10 +1123,26 @@ class ApiClient {
     final raw = DiskCache.get('chests');
     if (raw == null) return null;
     try {
-      return ChestBank.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      return ChestBank.fromJson(jsonDecode(raw) as Map<String, dynamic>).without(ChestQueue.pending);
     } catch (_) {
       return null;
     }
+  }
+
+  /// Tells the server these chests were opened on the phone (idempotent). Throws when it cannot.
+  Future<void> sendOpenedChests(List<int> ids) async {
+    final res = await http.post(
+      _uri('/chests/open-ids'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'ids': ids}),
+    );
+    await _throwWithDetail(res);
+    _remember('chests', res.statusCode == 200 ? _stateOnly(res) : res);
+  }
+
+  http.Response _stateOnly(http.Response res) {
+    final json = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    return http.Response(jsonEncode(json['state']), 200, headers: res.headers);
   }
 
   /// Takes the chest of the day into the bank.

@@ -17,6 +17,7 @@ Map<String, dynamic> _json({List<Map<String, dynamic>> chests = const [], bool a
 };
 
 void main() {
+  sealedTests();
   test('the bank parses chests, types and the chest of the day', () {
     final bank = ChestBank.fromJson(_json(chests: [
       {'id': 1, 'chest_key': 'gold', 'source': 'pass'},
@@ -58,8 +59,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       home: ChestOpenScreen(
         bank: bankOf({'gold': 5}),
-        chestKey: 'gold',
-        count: 5,
+        chests: bankOf({'gold': 5}).chests,
         opener: (key, n) async => ([
               for (var i = 0; i < n; i++) ChestPrize(chestKey: key, kind: 'diamonds', amount: 10 + i),
             ], after),
@@ -81,7 +81,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       home: ChestOpenScreen(
         bank: bankOf({'gold': 1}),
-        chestKey: 'gold',
+        chests: bankOf({'gold': 1}).chests,
         opener: (key, n) async => ([const ChestPrize(chestKey: 'gold', kind: 'diamonds', amount: 12345)], after),
       ),
     ));
@@ -93,5 +93,40 @@ void main() {
     await tester.pump(const Duration(milliseconds: 2400));
     expect(find.text('+12к'), findsOneWidget);
     expect(find.byKey(const ValueKey('chest-collect')), findsOneWidget);
+  });
+}
+
+// Opening with sealed prizes needs no network at all.
+void sealedTests() {
+  testWidgets('sealed prizes open at once, without any server call', (tester) async {
+    var calls = 0;
+    final sealed = ChestBank.fromJson({
+      'types': [
+        {'key': 'wood', 'name': 'Деревянный сундук', 'color': '#a0693b', 'max_diamonds': 10, 'max_freezes': 1, 'max_merges': 1, 'max_points': 20},
+      ],
+      'chests': [
+        {'id': 1, 'chest_key': 'wood', 'source': 'pass', 'prize_kind': 'diamonds', 'prize_amount': 7},
+      ],
+      'daily': {'enabled': false, 'chest_key': 'wood', 'claimed': true, 'available': false, 'conditions': ''},
+      'double': false,
+      'inventory_max': 10,
+    });
+    await tester.pumpWidget(MaterialApp(
+      home: ChestOpenScreen(
+        bank: sealed,
+        chests: sealed.chests,
+        opener: (k, n) async {
+          calls++;
+          throw Exception('offline');
+        },
+      ),
+    ));
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byKey(const ValueKey('chest-tap')));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await tester.pump(const Duration(milliseconds: 2400));
+    expect(find.text('+7'), findsOneWidget);
+    expect(calls, 0);
   });
 }

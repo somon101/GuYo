@@ -148,26 +148,21 @@ def _pity_due(db: Session, user: User, settings: ChestSettings) -> bool:
         return False
     last = (
         db.query(UserChest.low_roll)
-        .filter(UserChest.user_id == user.id, UserChest.opened_at.is_not(None))
-        .order_by(UserChest.opened_at.desc(), UserChest.id.desc())
+        .filter(UserChest.user_id == user.id, UserChest.prize_kind.is_not(None))
+        .order_by(UserChest.id.desc())
         .limit(n)
         .all()
     )
     return len(last) == n and all(r[0] for r in last)
 
 
-def open_chest(db: Session, user: User, chest_id: int, rng: _random.Random | None = None) -> UserChest:
+def roll_chest(db: Session, user: User, chest: UserChest, rng: _random.Random | None = None) -> None:
+    """Decides what is inside a chest (once). The prize is sealed in the row and only
+    paid when the chest is opened, so the app can show the opening at once -- even with
+    no internet -- and tell the server afterwards."""
+    if chest.prize_kind is not None:
+        return
     rng = rng or _random.SystemRandom()
-    chest = (
-        db.query(UserChest)
-        .filter(UserChest.id == chest_id, UserChest.user_id == user.id)
-        .with_for_update()
-        .first()
-    )
-    if chest is None:
-        raise ChestError("Сундук не найден")
-    if chest.opened_at is not None:
-        raise ChestError("Этот сундук уже открыт")
     ctype = db.get(ChestType, chest.chest_key)
     options = [k for k in PRIZE_KINDS if getattr(ctype, _CAP_FIELD[k]) > 0]
     if not options:
@@ -178,10 +173,37 @@ def open_chest(db: Session, user: User, chest_id: int, rng: _random.Random | Non
     if double_active(settings):
         amount *= 2
     chest.prize_kind, chest.prize_amount, chest.low_roll = kind, amount, low
+    db.flush()
+
+
+def roll_all(db: Session, user: User) -> None:
+    for c in unopened(db, user):
+        roll_chest(db, user, c)
+
+
+def open_chest(db: Session, user: User, chest_id: int, rng: _random.Random | None = None) -> UserChest:
+    """Opens a chest. Opening twice is harmless: the second call returns the same prize
+    without paying again (the app retries when the network drops)."""
+    chest = (
+        db.query(UserChest)
+        .filter(UserChest.id == chest_id, UserChest.user_id == user.id)
+        .with_for_update()
+        .first()
+    )
+    if chest is None:
+        raise ChestError("Сундук не найден")
+    if chest.opened_at is not None:
+        return chest
+    roll_chest(db, user, chest, rng)
     chest.opened_at = datetime.now(timezone.utc)
-    award_prize(db, user, kind, amount, f"chest:{chest.id}")
+    award_prize(db, user, chest.prize_kind, chest.prize_amount, f"chest:{chest.id}")
     db.flush()
     return chest
+
+
+def open_ids(db: Session, user: User, ids: list[int]) -> list[UserChest]:
+    """Opens the given chests (any that are already open are returned as they are)."""
+    return [open_chest(db, user, i) for i in ids]
 
 
 def open_many(
@@ -218,7 +240,10 @@ def user_state(db: Session, user: User) -> dict:
     s = get_settings(db)
     return {
         "types": [type_out(t) for t in chest_types(db)],
-        "chests": [{"id": c.id, "chest_key": c.chest_key, "source": c.source} for c in unopened(db, user)],
+        "chests": [
+            {"id": c.id, "chest_key": c.chest_key, "source": c.source, "prize_kind": c.prize_kind, "prize_amount": c.prize_amount}
+            for c in unopened(db, user)
+        ],
         "daily": daily_state(db, user),
         "double": double_active(s),
         "inventory_max": s.inventory_max,

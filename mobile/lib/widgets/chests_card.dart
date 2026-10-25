@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
 import '../models/chest.dart';
+import '../services/chest_queue.dart';
 import '../screens/chest_list_screen.dart';
 import '../services/streak_state.dart';
 import 'counted_chest.dart';
@@ -48,6 +49,7 @@ class _ChestsCardState extends State<ChestsCard> {
   }
 
   Future<void> _load() async {
+    await ChestQueue.flush();
     final bank = await ApiClient.instance.fetchChests();
     if (mounted && bank != null) setState(() => _bank = bank);
   }

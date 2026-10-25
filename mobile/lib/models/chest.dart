@@ -18,7 +18,14 @@ class BankChest {
   final int id;
   final String chestKey;
   final String source;
-  const BankChest({required this.id, required this.chestKey, required this.source});
+
+  /// What is inside, decided by the server and sealed until the chest is opened.
+  /// Known prizes let the app open the chest at once, with no network.
+  final String? prizeKind;
+  final int? prizeAmount;
+  const BankChest({required this.id, required this.chestKey, required this.source, this.prizeKind, this.prizeAmount});
+
+  bool get hasPrize => prizeKind != null && prizeAmount != null;
 }
 
 /// The chest of the day: which chest, why it is given, and whether it can be taken now.
@@ -67,7 +74,13 @@ class ChestBank {
       types: [for (final t in json['types'] as List<dynamic>) ChestType.fromJson(t as Map<String, dynamic>)],
       chests: [
         for (final c in json['chests'] as List<dynamic>)
-          BankChest(id: c['id'] as int, chestKey: c['chest_key'] as String, source: c['source'] as String),
+          BankChest(
+            id: c['id'] as int,
+            chestKey: c['chest_key'] as String,
+            source: c['source'] as String,
+            prizeKind: c['prize_kind'] as String?,
+            prizeAmount: c['prize_amount'] as int?,
+          ),
       ],
       daily: DailyChest(
         enabled: d['enabled'] as bool,
@@ -80,6 +93,15 @@ class ChestBank {
       inventoryMax: (json['inventory_max'] as int?) ?? 10,
     );
   }
+
+  /// The same bank without the given chests (already opened on this phone).
+  ChestBank without(Set<int> ids) => ChestBank(
+        types: types,
+        chests: [for (final c in chests) if (!ids.contains(c.id)) c],
+        daily: daily,
+        doubleRewards: doubleRewards,
+        inventoryMax: inventoryMax,
+      );
 
   ChestType? type(String key) {
     for (final t in types) {

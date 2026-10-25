@@ -29,8 +29,8 @@ def test_open_gives_one_prize_within_ceiling(db, make_user):
         assert 1 <= opened.prize_amount <= cap
         seen.add(opened.prize_kind)
     assert seen == {"diamonds", "freeze", "merge", "points"}
-    with pytest.raises(service.ChestError):
-        service.open_chest(db, user, chest.id)
+    again = service.open_chest(db, user, chest.id)  # a repeat is harmless: same prize, paid once
+    assert (again.prize_kind, again.prize_amount) == (opened.prize_kind, opened.prize_amount)
 
 
 def test_zero_ceiling_removes_prize_kind(db, make_user):
@@ -155,3 +155,20 @@ def test_open_many_one_kind_all_or_nothing(client, db, make_user, auth):
     assert client.post("/chests/open-many", headers=h, json={"chest_key": "wood", "count": 5}).status_code == 409
     assert client.post("/chests/open-many", headers=h, json={"chest_key": "wood", "count": 3}).status_code == 409
     assert client.post("/chests/open-many", headers=h, json={"chest_key": "gold", "count": 1}).status_code == 200
+
+
+def test_prizes_are_sealed_in_the_bank_and_opening_is_idempotent(client, db, make_user, auth):
+    user = make_user()
+    for i in range(3):
+        service.grant_chest(db, user, "wood", "admin", f"s{i}", force=True)
+    db.commit()
+    h = auth(user)
+    bank = client.get("/chests", headers=h).json()["chests"]
+    assert len(bank) == 3 and all(c["prize_kind"] and c["prize_amount"] >= 1 for c in bank)
+    assert client.get("/chests", headers=h).json()["chests"] == bank  # the same prizes every time
+    ids = [c["id"] for c in bank[:2]]
+    first = client.post("/chests/open-ids", headers=h, json={"ids": ids}).json()
+    assert [p["kind"] for p in first["prizes"]] == [c["prize_kind"] for c in bank[:2]]
+    balance = first["diamonds"]
+    again = client.post("/chests/open-ids", headers=h, json={"ids": ids}).json()  # a retry pays nothing
+    assert again["diamonds"] == balance and len(again["state"]["chests"]) == 1

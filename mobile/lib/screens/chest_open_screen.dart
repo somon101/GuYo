@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
 import '../models/chest.dart';
+import '../services/chest_queue.dart';
 import '../services/chest_sound.dart';
 import '../services/streak_state.dart';
 import '../widgets/game_icons.dart';
@@ -16,13 +17,18 @@ import '../widgets/game_icons.dart';
 /// Pops with the refreshed bank when the person takes the prizes.
 class ChestOpenScreen extends StatefulWidget {
   final ChestBank bank;
-  final String chestKey;
-  final int count;
+
+  /// The chests to open (one kind). When each carries its sealed prize, the opening
+  /// needs no network at all: it is shown at once and the server is told afterwards.
+  final List<BankChest> chests;
 
   /// Replace the server calls (tests).
   final Future<(List<ChestPrize>, ChestBank)> Function(String key, int count)? opener;
 
-  const ChestOpenScreen({super.key, required this.bank, required this.chestKey, this.count = 1, this.opener});
+  const ChestOpenScreen({super.key, required this.bank, required this.chests, this.opener});
+
+  String get chestKey => chests.first.chestKey;
+  int get count => chests.length;
 
   @override
   State<ChestOpenScreen> createState() => _ChestOpenScreenState();
@@ -80,15 +86,30 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
     _shake.forward(from: 0);
     ChestSound.buzzTap();
     if (widget.opener == null) unawaited(ChestSound.tap());
-    // The server call starts one tap early, so the answer is already here when the chest bursts.
-    if (_taps == _tapsNeeded - 1) _pending = (widget.opener ?? _openOnServer)(widget.chestKey, widget.count);
-    if (_taps < _tapsNeeded) return;
+    if (_taps < _tapsNeeded) {
+      // Without sealed prizes the answer is fetched one tap early, so it is ready at the burst.
+      if (_taps == _tapsNeeded - 1 && !_local) _pending = (widget.opener ?? _openOnServer)(widget.chestKey, widget.count);
+      return;
+    }
     _opening = true;
-    _pending ??= (widget.opener ?? _openOnServer)(widget.chestKey, widget.count);
-    // Burst at once: flash, rumble and sound do not wait for the answer.
+    // Burst at once: flash, rumble and sound do not wait for anything.
     _burst.forward(from: 0);
     ChestSound.buzzOpen();
     if (widget.opener == null) unawaited(ChestSound.open());
+    if (_local) {
+      // Everything is known already: show the prizes now and tell the server later.
+      final ids = [for (final c in widget.chests) c.id];
+      final prizes = [for (final c in widget.chests) ChestPrize(chestKey: c.chestKey, kind: c.prizeKind!, amount: c.prizeAmount!)];
+      if (widget.opener == null) ChestQueue.opened(ids);
+      dailyGoalTick.value++;
+      setState(() {
+        _prizes = prizes;
+        _bank = _bank.without(ids.toSet());
+      });
+      _reveal.forward(from: 0);
+      return;
+    }
+    _pending ??= (widget.opener ?? _openOnServer)(widget.chestKey, widget.count);
     try {
       final (prizes, bank) = await _pending!;
       if (widget.opener == null) ApiClient.instance.fetchEconomy();
@@ -106,6 +127,8 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
     }
   }
 
+  bool get _local => widget.chests.every((c) => c.hasPrize);
+
   void _failed(String message) {
     ChestSound.stop();
     _pending = null;
@@ -116,8 +139,7 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
 
   Future<(List<ChestPrize>, ChestBank)> _openOnServer(String key, int count) async {
     if (count == 1) {
-      final id = _bank.chests.firstWhere((c) => c.chestKey == key).id;
-      final (prize, bank) = await ApiClient.instance.openChest(id);
+      final (prize, bank) = await ApiClient.instance.openChest(widget.chests.first.id);
       return ([prize], bank);
     }
     return ApiClient.instance.openManyChests(key, count);

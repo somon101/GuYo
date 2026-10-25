@@ -24,6 +24,11 @@ def _conflict(e: ChestError) -> HTTPException:
 
 @router.get("")
 def my_chests(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    try:
+        service.roll_all(db, user)  # every chest in the bank carries its sealed prize
+    except ChestError:
+        db.rollback()
+    db.commit()
     return service.user_state(db, user)
 
 
@@ -31,6 +36,7 @@ def my_chests(db: Session = Depends(get_db), user: User = Depends(get_current_us
 def claim_daily(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     try:
         service.claim_daily(db, user)
+        service.roll_all(db, user)
     except ChestError as e:
         db.rollback()
         raise _conflict(e) from None
@@ -70,6 +76,29 @@ def open_many(payload: OpenManyIn, db: Session = Depends(get_db), user: User = D
     return {
         "chest_key": payload.chest_key,
         "prizes": [{"kind": c.prize_kind, "amount": c.prize_amount} for c in opened],
+        "diamonds": user.diamonds_balance,
+        "state": service.user_state(db, user),
+    }
+
+
+class OpenIdsIn(BaseModel):
+    ids: list[int] = Field(min_length=1, max_length=10)
+
+
+@router.post("/open-ids")
+def open_ids(payload: OpenIdsIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Tells the server which chests the app has just opened (it showed the prizes at once).
+    Idempotent: safe to repeat after a dropped connection."""
+    try:
+        opened = service.open_ids(db, user, payload.ids)
+        service.roll_all(db, user)
+    except ChestError as e:
+        db.rollback()
+        raise _conflict(e) from None
+    db.commit()
+    db.refresh(user)
+    return {
+        "prizes": [{"id": c.id, "kind": c.prize_kind, "amount": c.prize_amount} for c in opened],
         "diamonds": user.diamonds_balance,
         "state": service.user_state(db, user),
     }
