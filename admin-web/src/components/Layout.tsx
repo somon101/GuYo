@@ -40,6 +40,7 @@ const navGroups = [
       { to: "/economy", icon: "gift", label: "Магазин" },
       { to: "/chests", icon: "sparkles", label: "Сундуки" },
       { to: "/achievement-preview", icon: "sparkles", label: "Предпросмотр достижения" },
+      { to: "/daily-goal-preview", icon: "sparkles", label: "Предпросмотр цели дня" },
       { to: "/duel-preview", icon: "sparkles", label: "Предпросмотр дуэли" },
       { to: "/chest-preview", icon: "sparkles", label: "Предпросмотр сундука" },
       { to: "/achievements", icon: "trophy", label: "Достижения" },

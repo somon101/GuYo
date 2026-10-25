@@ -23,7 +23,7 @@ const Bolt = ({ size }: { size: number }) => (
 );
 
 /** One reward as a game "slot": a dark rounded tile with the picture and a small number plate in the corner. No words. */
-function Reward({ r, big = false, tone = "gold" }: { r: EventReward; big?: boolean; tone?: "gold" | "silver" }) {
+export function Reward({ r, big = false, tone = "gold" }: { r: EventReward; big?: boolean; tone?: "gold" | "silver" }) {
   const side = big ? 52 : 44;
   const icon = side - 12;
   const frame = tone === "gold" ? "rgba(255,213,79,0.85)" : "rgba(200,210,235,0.7)";
@@ -42,7 +42,7 @@ function Reward({ r, big = false, tone = "gold" }: { r: EventReward; big?: boole
   return <span style={slot}><Bolt size={icon - 4} />{plate(`${r.amount}`)}</span>;
 }
 
-function Rewards({ list, big, tone }: { list: EventReward[]; big?: boolean; tone?: "gold" | "silver" }) {
+export function Rewards({ list, big, tone }: { list: EventReward[]; big?: boolean; tone?: "gold" | "silver" }) {
   if (!list.length)
     return <span style={{ width: big ? 52 : 44, height: big ? 52 : 44, borderRadius: 14, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "rgba(255,255,255,0.4)", fontSize: 22, boxShadow: "inset 0 0 0 2px rgba(255,255,255,0.18)", opacity: 0.7 }}>✕</span>;
   return <span className="flex flex-nowrap items-center gap-2 pr-1" style={{ whiteSpace: "nowrap" }}>{list.map((r, i) => <Reward key={i} r={r} big={big} tone={tone} />)}</span>;
@@ -61,7 +61,7 @@ function Avatar({ name, color }: { name: string; color: string }) {
   return <span className="flex items-center justify-center rounded-full text-base font-black text-white" style={{ width: 40, height: 40, background: color, boxShadow: "0 0 0 2px rgba(255,255,255,0.35)" }}>{name[0].toUpperCase()}</span>;
 }
 
-const green = {
+export const green = {
   background: "linear-gradient(180deg,#9dff72 0%,#3fd43a 48%,#1ea82c 100%)",
   boxShadow: "0 4px 0 #0f6b1d, 0 8px 12px rgba(0,0,0,0.35), inset 0 2px 0 rgba(255,255,255,0.7)",
   border: "2px solid #0f6b1d", color: "#fff", textShadow: "0 2px 0 #0f6b1d", letterSpacing: 0.6,
