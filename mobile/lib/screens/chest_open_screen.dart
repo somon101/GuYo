@@ -79,7 +79,12 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
   }
 
   Future<void> _tap() async {
-    if (_opening || _prizes != null) return;
+    if (_prizes != null) {
+      // the chest is still under the finger while the prizes arrive: a tap skips the show
+      if (_reveal.value < 1) _reveal.value = 1;
+      return;
+    }
+    if (_opening) return;
     setState(() {
       _taps++;
       _error = null;
@@ -182,7 +187,15 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
                 onPressed: () => Navigator.of(context).pop(_bank),
               ),
             ),
-            Positioned.fill(child: _stage(color, type?.name ?? tr('Сундук'))),
+            Positioned.fill(
+              child: GestureDetector(
+                key: const ValueKey('chest-skip'),
+                behavior: HitTestBehavior.translucent,
+                // While the prizes are still arriving, a tap shows the result at once.
+                onTap: _prizes != null && _reveal.value < 1 ? () => _reveal.value = 1 : null,
+                child: _stage(color, type?.name ?? tr('Сундук')),
+              ),
+            ),
             if (widget.bank.boosterRunning)
               Positioned(
                 top: 8,
@@ -286,6 +299,11 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
                 if (_error != null)
                   Padding(padding: const EdgeInsets.only(top: 12), child: Text(_error!, style: const TextStyle(color: Color(0xFFFF8A80)))),
               ]),
+            ),
+          if (prizes != null && r <= 0.75)
+            Positioned(
+              bottom: 56,
+              child: Text(tr('Нажмите, чтобы пропустить'), style: const TextStyle(color: Colors.white38, fontSize: 13)),
             ),
           if (prizes != null && r > 0.75)
             Positioned(

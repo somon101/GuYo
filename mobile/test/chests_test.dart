@@ -99,6 +99,31 @@ void main() {
 
 // Opening with sealed prizes needs no network at all.
 void sealedTests() {
+  testWidgets('a tap while the prizes arrive shows the whole result at once', (tester) async {
+    final bank = ChestBank.fromJson({
+      'types': [
+        {'key': 'gold', 'name': 'Золотой сундук', 'color': '#f5b700', 'max_diamonds': 10, 'max_freezes': 1, 'max_merges': 1, 'max_points': 20},
+      ],
+      'chests': [
+        for (var i = 0; i < 5; i++) {'id': i + 1, 'chest_key': 'gold', 'source': 'pass', 'prize_kind': 'diamonds', 'prize_amount': 10 + i},
+      ],
+      'daily': {'enabled': false, 'chest_key': 'gold', 'claimed': true, 'available': false, 'conditions': ''},
+      'double': false,
+      'inventory_max': 10,
+    });
+    await tester.pumpWidget(MaterialApp(home: ChestOpenScreen(bank: bank, chests: bank.chests, opener: (k, n) async => throw Exception('offline'))));
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byKey(const ValueKey('chest-tap')));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await tester.pump(const Duration(milliseconds: 600)); // the prizes are still arriving
+    expect(find.byKey(const ValueKey('chest-collect')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('chest-skip')), warnIfMissed: false);
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.byKey(const ValueKey('chest-collect')), findsOneWidget);
+    expect(find.text('+14'), findsOneWidget);
+  });
+
   test('the person is told when the server paid less than the phone showed', () {
     ChestQueue.correction.value = null;
     ChestQueue.compareForTest([1], {1: {'amount': 80, 'kind': 'diamonds'}}, {1: ('diamonds', 80)});

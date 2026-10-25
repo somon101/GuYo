@@ -114,17 +114,19 @@ class _ChestListScreenState extends State<ChestListScreen> {
     if (_busy) return;
     final m = _multiplier(key);
     _busy = true;
+    ChestBank? result;
     try {
-      final result = await Navigator.of(context).push<ChestBank>(
+      result = await Navigator.of(context).push<ChestBank>(
         MaterialPageRoute(builder: (_) => ChestOpenScreen(bank: _bank, chests: [for (final c in _bank.chests) if (c.chestKey == key) c].take(m).toList())),
       );
-      if (result != null && mounted) setState(() => _bank = result);
-      await ChestQueue.flush();
-      final fresh = await ApiClient.instance.fetchChests();
-      if (fresh != null && mounted) setState(() => _bank = fresh);
     } finally {
+      // The buttons are live again the moment the opening screen is closed.
       _busy = false;
     }
+    if (result != null && mounted) setState(() => _bank = result!);
+    // The server catch-up happens quietly in the background.
+    // ignore: unawaited_futures
+    _refresh();
   }
 
   Future<void> _claim() async {
