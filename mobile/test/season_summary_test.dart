@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:guyo_app/widgets/game_icons.dart';
 import 'package:guyo_app/models/season_summary.dart';
 import 'package:guyo_app/screens/season_summary_screen.dart';
 
@@ -41,7 +42,8 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     await tester.pumpWidget(MaterialApp(home: SeasonSummaryScreen(initial: SeasonSummary.fromJson(_json()))));
     await tester.pump();
-    expect(find.text('⚡ 640 энергии'), findsOneWidget);
+    expect(find.textContaining('640 энергии', findRichText: true), findsOneWidget);
+    expect(find.byType(EnergyIcon), findsOneWidget);
     expect(find.text('58'), findsOneWidget);
     expect(find.text('Серебро'), findsOneWidget);
     expect(find.text('Чемпион октября'), findsOneWidget);

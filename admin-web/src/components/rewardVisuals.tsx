@@ -4,10 +4,22 @@ import { API_URL, api } from "../api/client";
 // How season-pass cosmetics look. Frames, badges and titles are pictures the admin
 // uploaded (the catalog); the title picture is an empty ribbon, its name is written on it.
 
-export type CosmeticDef = { id: number; kind: "frame" | "badge" | "title"; name: string; names: Record<string, string> };
+export type CosmeticDef = { id: number; kind: "frame" | "badge" | "title"; name: string; names: Record<string, string>; used_in?: string[] };
+
+export const BOOSTER_KINDS = {
+  chest: { label: "Удвоитель сундуков", does: "призы из сундуков ×2", icon: "preview/booster.png" },
+  rating: { label: "Удвоитель рейтинга", does: "очки рейтинга ×2, откуда бы ни пришли", icon: "preview/booster_rating.png" },
+  xp: { label: "Удвоитель пропуска", does: "энергия пропуска ×2, откуда бы ни пришла", icon: "preview/booster_xp.png" },
+} as const;
+export type BoosterKind = keyof typeof BOOSTER_KINDS;
 
 /** Catalog ids the pass being edited already hands out: the picker does not offer them again. */
-export const UsedCosmetics = createContext<Set<string>>(new Set());
+export const UsedCosmetics = createContext<{ keys: Set<string>; season: string | null }>({ keys: new Set(), season: null });
+
+/** Hidden from the picker: handed out in this pass already, or by the pass of another season. */
+export function isTaken(d: CosmeticDef, used: { keys: Set<string>; season: string | null }): boolean {
+  return used.keys.has(String(d.id)) || (d.used_in ?? []).some((n) => n !== used.season);
+}
 
 export function usedCosmetics(def: { levels: { free?: { key?: string | null; type?: string } | null; premium?: { key?: string | null; type?: string } | null }[] } | null | undefined): Set<string> {
   const out = new Set<string>();

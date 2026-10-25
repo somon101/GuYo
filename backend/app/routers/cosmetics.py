@@ -53,7 +53,24 @@ def art(def_id: int, db: Session = Depends(get_db)):
 
 @admin_router.get("")
 def list_defs(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
-    return [_out(d) for d in db.query(CosmeticDef).order_by(CosmeticDef.kind, CosmeticDef.id).all()]
+    """The catalog, each item with the seasons whose pass already hands it out (`used_in`)."""
+    from app.models.rating import Season
+    from app.models.season_pass import SeasonPass
+
+    used: dict[str, list[str]] = {}
+    for definition, season_name in db.query(SeasonPass.definition, Season.name).join(Season, Season.id == SeasonPass.season_id).order_by(Season.id).all():
+        rewards = []
+        for lv in (definition or {}).get("levels", []):
+            rewards += [lv.get("free"), lv.get("premium")]
+        for g in list((definition or {}).get("team_goals") or []) + [(definition or {}).get("team_season_goal")]:
+            if isinstance(g, dict):
+                rewards.append(g.get("reward"))
+        for r in rewards:
+            if isinstance(r, dict) and r.get("type") in KINDS and r.get("key"):
+                names = used.setdefault(f"{r['type']}:{r['key']}", [])
+                if season_name not in names:
+                    names.append(season_name)
+    return [{**_out(d), "used_in": used.get(f"{d.kind}:{d.id}", [])} for d in db.query(CosmeticDef).order_by(CosmeticDef.kind, CosmeticDef.id).all()]
 
 
 @admin_router.post("", status_code=status.HTTP_201_CREATED)

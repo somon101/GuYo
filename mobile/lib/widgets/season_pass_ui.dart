@@ -551,7 +551,7 @@ class RewardDialogViewState extends State<RewardDialogView>
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Text(
+                    IconText(
                       widget.text,
                       textAlign: TextAlign.center,
                       style: TextStyle(

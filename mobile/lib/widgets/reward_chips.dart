@@ -61,7 +61,7 @@ class RewardSlot extends StatelessWidget {
         plate = boosterShort(reward.amount);
         break;
       default:
-        picture = Icon(Icons.bolt_rounded, size: icon, color: const Color(0xFFFFC928));
+        picture = EnergyIcon(size: icon);
         plate = '${reward.amount}';
     }
     return SizedBox(

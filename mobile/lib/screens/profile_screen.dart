@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import '../widgets/game_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -1087,7 +1088,7 @@ class _RankCard extends StatelessWidget {
                               color: color,
                             ),
                             const SizedBox(width: 5),
-                            Text(
+                            IconText(
                               '⭐ ${rating.totalPoints}',
                               style: TextStyle(
                                 fontSize: 14,

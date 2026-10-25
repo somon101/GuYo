@@ -287,7 +287,7 @@ class _Hero extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(
+                    IconText(
                       '⚡ ${pass.xp} ${tr('энергии')}',
                       style: const TextStyle(
                         fontSize: 30,

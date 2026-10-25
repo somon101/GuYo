@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import '../widgets/game_icons.dart';
 import 'package:flutter/rendering.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -279,7 +280,7 @@ class _SummaryHero extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
+                IconText(
                   '⚡ ${summary.xp} ${tr('энергии')}',
                   style: const TextStyle(
                     fontSize: 32,

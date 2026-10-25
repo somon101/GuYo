@@ -104,10 +104,12 @@ class UserBooster(Base):
     """"x2" tickets a person holds, by duration. They are switched on by hand."""
 
     __tablename__ = "user_boosters"
-    __table_args__ = (UniqueConstraint("user_id", "minutes", name="uq_user_booster_minutes"),)
+    __table_args__ = (UniqueConstraint("user_id", "kind", "minutes", name="uq_user_booster_kind_minutes"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    # "chest" (doubles chest prizes), "rating" (doubles rating points), "xp" (doubles pass energy)
+    kind: Mapped[str] = mapped_column(String(8), nullable=False, default="chest", server_default="chest")
     minutes: Mapped[int] = mapped_column(Integer, nullable=False)
     qty: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
@@ -119,5 +121,6 @@ class BoosterUse(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    kind: Mapped[str] = mapped_column(String(8), nullable=False, default="chest", server_default="chest")
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)

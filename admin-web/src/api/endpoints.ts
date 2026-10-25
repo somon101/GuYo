@@ -2668,8 +2668,10 @@ export async function updateLearningSettings(input: Partial<LearningSettings>): 
 export interface PassReward {
   type: "rating_points" | "premium_days" | "streak_freeze" | "diamonds" | "badge" | "title" | "frame" | "chest" | "booster";
   amount: number;
-  /** badge / frame: the look (one of the fixed set). */
+  /** frame / badge / title: the catalog id; chest: the chest key. */
   key?: string;
+  /** booster: what it doubles (default: chest prizes). */
+  kind?: "chest" | "rating" | "xp";
   /** badge/title: the name, in Russian, and optionally Tajik / Uzbek. */
   text?: string;
   text_tg?: string;

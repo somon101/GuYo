@@ -44,7 +44,7 @@ function GiftToUser() {
     setBusy(true); setError(''); setResult('');
     try {
       const r = await giftDiamonds(user.trim(), amount, note);
-      setResult(`${r.login}: +${r.amount} 💎, теперь ${r.diamonds}`);
+      setResult(`${r.login}: +${r.amount} бриллиантов, теперь ${r.diamonds}`);
       setNote('');
     } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   };
@@ -73,7 +73,7 @@ function GrantPassXp() {
     setBusy(true); setError(''); setResult('');
     try {
       const r = await grantPassXp(user.trim(), amount);
-      setResult(`${r.login}: +${r.amount} ⚡, уровень пропуска ${r.level}, всего ${r.xp}`);
+      setResult(`${r.login}: +${r.amount} энергии, уровень пропуска ${r.level}, всего ${r.xp}`);
     } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   };
   return <section className="card p-4">

@@ -28,7 +28,7 @@ import {
   type PassTemplate,
 } from "../api/endpoints";
 import type { Season } from "../types";
-import { BadgeMark, catalogName, FrameAvatar, ProfileMock, Tile, TitleRibbon, UsedCosmetics, usedCosmetics, useCatalog, type CosmeticDef } from "../components/rewardVisuals";
+import { BOOSTER_KINDS, BadgeMark, isTaken, catalogName, FrameAvatar, ProfileMock, Tile, TitleRibbon, UsedCosmetics, usedCosmetics, useCatalog, type BoosterKind, type CosmeticDef } from "../components/rewardVisuals";
 import { CosmeticCreateForm } from "../components/CosmeticCreateForm";
 
 const inputClass = "field px-2 py-1.5 text-sm";
@@ -228,18 +228,22 @@ function RewardPicker({ value, onChange, onClose }: { value: PassReward | null; 
         {value?.type === "chest" && section("Какой сундук", Object.entries(CHEST_NAMES).map(([k, v]) => (
           <Tile key={k} selected={(value.key ?? "wood") === k} onClick={() => onChange({ ...value, key: k })} label={v}><img src={`${IMG}chests/${k}_closed.png`} alt="" style={{ width: 52, height: 52, objectFit: "contain" }} /></Tile>
         )))}
+        {value?.type === "booster" && section("Какой удвоитель", (Object.keys(BOOSTER_KINDS) as BoosterKind[]).map((k) => (
+          <Tile key={k} selected={(value.kind ?? "chest") === k} onClick={() => onChange({ ...value, kind: k === "chest" ? undefined : k })} label={BOOSTER_KINDS[k].label}><img src={`${IMG}${BOOSTER_KINDS[k].icon}`} alt="" style={{ width: 52, height: 52, objectFit: "contain" }} /></Tile>
+        )))}
+        {value?.type === "booster" && <p className="text-xs text-slate-500">{BOOSTER_KINDS[value.kind ?? "chest"].does}</p>}
         {value?.type === "booster" && section("На сколько", [[30, "30 минут"], [60, "1 час"], [1440, "24 часа"]].map(([m, name]) => (
-          <Tile key={m} selected={value.amount === m} onClick={() => onChange({ ...value, amount: Number(m) })} label={String(name)}><img src={`${IMG}preview/booster.png`} alt="" style={{ width: 48, height: 48, objectFit: "contain" }} /></Tile>
+          <Tile key={m} selected={value.amount === m} onClick={() => onChange({ ...value, amount: Number(m) })} label={String(name)}><img src={`${IMG}${BOOSTER_KINDS[value.kind ?? "chest"].icon}`} alt="" style={{ width: 48, height: 48, objectFit: "contain" }} /></Tile>
         )))}
         {value && (value.type === "frame" || value.type === "badge" || value.type === "title") && (
           <>
             {section(value.type === "frame" ? "Какая рамка (из каталога)" : value.type === "badge" ? "Какой значок (из каталога)" : "Какой титул (из каталога)",
-              defs.filter((d) => d.kind === value.type && (!used.has(String(d.id)) || value.key === String(d.id))).map((d) => (
+              defs.filter((d) => d.kind === value.type && (!isTaken(d, used) || value.key === String(d.id))).map((d) => (
                 <Tile key={d.id} selected={value.key === String(d.id)} onClick={() => onChange({ ...value, key: String(d.id) })} label={d.name}>
                   {d.kind === "frame" ? <FrameAvatar frameKey={String(d.id)} size={72} /> : d.kind === "badge" ? <BadgeMark badgeKey={String(d.id)} size={56} /> : <TitleRibbon titleKey={String(d.id)} text={d.name} width={150} />}
                 </Tile>
               )))}
-            {defs.filter((d) => d.kind === value.type && (!used.has(String(d.id)) || value.key === String(d.id))).length === 0 && <p className="text-sm text-slate-500">Свободных нет: все уже в этом пропуске. Создайте новую.</p>}
+            {defs.filter((d) => d.kind === value.type && (!isTaken(d, used) || value.key === String(d.id))).length === 0 && <p className="text-sm text-slate-500">Свободных нет: все уже в этом пропуске. Создайте новую.</p>}
             <div>
               <button type="button" onClick={() => setCreating(!creating)} className="rounded-lg border border-indigo-400 px-3 py-1.5 text-sm text-indigo-600 hover:bg-indigo-50">{creating ? "Скрыть форму" : "+ Создать новую"}</button>
               {creating && (
@@ -301,7 +305,7 @@ function DefinitionEditor({
     onChange({ ...value, tasks: value.tasks.map((t, j) => (j === i ? { ...t, ...patch } : t)) });
 
   return (
-    <UsedCosmetics.Provider value={usedCosmetics(value)}>
+    <UsedCosmetics.Provider value={{ keys: usedCosmetics(value), season: null }}>
     <div className="flex flex-col gap-5">
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Уровни</p>
@@ -542,7 +546,7 @@ function EconomySection() {
                 <div className="h-3 flex-1 rounded bg-slate-100">
                   <div className="h-3 rounded bg-indigo-500" style={{ width: `${(x.xp / maxXp) * 100}%` }} />
                 </div>
-                <span className="w-24 text-right">⚡ {x.xp} · {x.events}</span>
+                <span className="w-24 text-right"><img src={`${IMG}preview/energy.png`} alt="" style={{ display: "inline", width: 14, height: 14, verticalAlign: "-2px" }} /> {x.xp} · {x.events}</span>
               </div>
             ))}
           </div>
@@ -860,7 +864,7 @@ function passLook(r: PassReward): { colors: [string, string]; img: string | null
     case "streak_freeze": return { colors: ["#7FDBFF", "#3A7BFF"], img: `${IMG}preview/freeze.png`, glyph: "", amount: `+${r.amount}`, label: "Заморозка серии" };
     case "diamonds": return { colors: ["#87EFFF", "#3A7BFF"], img: `${IMG}preview/gem.png`, glyph: "", amount: `+${r.amount}`, label: "Бриллианты" };
     case "chest": return { colors: ["#FFB86B", "#B4541F"], img: `${IMG}chests/${r.key ?? "wood"}_closed.png`, glyph: "", amount: "", label: "Сундук" };
-    case "booster": return { colors: ["#B07CFF", "#5B2EE0"], img: `${IMG}preview/booster.png`, glyph: "", amount: r.amount >= 60 && r.amount % 60 === 0 ? `${r.amount / 60}ч` : `${r.amount}м`, label: "Удвоитель" };
+    case "booster": return { colors: ["#B07CFF", "#5B2EE0"], img: `${IMG}${BOOSTER_KINDS[r.kind ?? "chest"].icon}`, glyph: "", amount: r.amount >= 60 && r.amount % 60 === 0 ? `${r.amount / 60}ч` : `${r.amount}м`, label: BOOSTER_KINDS[r.kind ?? "chest"].label };
     case "badge": return { colors: ["#5B2EE0", "#2A1670"], img: null, glyph: "", amount: "", label: r.text || catalogName(r.key) || "Значок" };
     case "frame": return { colors: ["#5B2EE0", "#2A1670"], img: null, glyph: "", amount: "", label: r.text || catalogName(r.key) || "Рамка" };
     case "title": return { colors: ["#5B2EE0", "#2A1670"], img: null, glyph: "", amount: "", label: r.text || catalogName(r.key) || "Титул" };
@@ -936,7 +940,7 @@ function PassStripSection() {
     return <Section title="Текущий пропуск">{message ? <p className="text-sm text-red-600">{message}</p> : <p className="text-sm text-slate-500">Сейчас нет идущего сезона.</p>}</Section>;
   }
   return (
-    <UsedCosmetics.Provider value={usedCosmetics(def)}>
+    <UsedCosmetics.Provider value={{ keys: usedCosmetics(def), season: season.name }}>
     <Section title={`Пропуск сезона «${season.name}» как в приложении`}>
       {message && <p className="mb-2 text-sm text-slate-500">{message}</p>}
       <p className="mb-2 text-xs text-slate-500">Листайте вбок. Сверху бесплатная награда, снизу Premium. Нажмите на награду, чтобы изменить её (сохраняется в этот сезон).</p>

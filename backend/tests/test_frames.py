@@ -45,3 +45,18 @@ def test_catalog_upload_art_and_title_key(client, db, make_user, auth, admin_hea
     db.commit()
     assert client.get("/users/me/profile", headers=auth(user)).json()["title"] == "Keeper"
     assert client.delete(f"/admin/cosmetics/{item['id']}", headers=admin_headers).status_code == 409  # already earned
+
+
+def test_catalog_lists_where_each_item_is_used(client, db, admin_headers, active_season):
+    from app.seasonpass import service
+
+    png = b"\x89PNG\r\n\x1a\n" + b"0" * 32
+    item = client.post("/admin/cosmetics", headers=admin_headers, data={"kind": "frame", "name": "Рамка"}, files={"image": ("f.png", png, "image/png")}).json()
+    assert client.get("/admin/cosmetics", headers=admin_headers).json()[0]["used_in"] == []
+    sp = service.season_pass(db, active_season)
+    definition = dict(sp.definition)
+    definition["levels"] = [dict(definition["levels"][0], free={"type": "frame", "amount": 1, "key": str(item["id"]), "text": ""})] + definition["levels"][1:]
+    sp.definition = definition
+    db.commit()
+    rows = client.get("/admin/cosmetics", headers=admin_headers).json()
+    assert rows[0]["used_in"] == [active_season.name]

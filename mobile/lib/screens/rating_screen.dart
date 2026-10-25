@@ -937,7 +937,7 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
                   f.login,
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
-                subtitle: Text('⭐ ${f.totalPoints}'),
+                subtitle: IconText('⭐ ${f.totalPoints}'),
                 trailing: IconButton(
                   icon: Icon(
                     Icons.person_remove_rounded,

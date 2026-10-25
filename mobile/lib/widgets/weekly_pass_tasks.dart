@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'game_icons.dart';
 
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
@@ -94,7 +95,8 @@ class _WeeklyPassTasksState extends State<WeeklyPassTasks>
           _metricStyles[task.metric]?.colors ??
               const [Color(0xFFA48BFF), Color(0xFF5862DD)],
           _metricStyles[task.metric]?.icon ?? Icons.bolt_rounded,
-          '⚡',
+          tr('Энергия'),
+          asset: 'energy',
         ),
         title: tr('Награда получена!'),
         text: '+${task.xp} ${tr('энергии')}',
@@ -332,7 +334,7 @@ class _TaskCard extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    Text('+${task.xp} ⚡', style: const TextStyle(fontSize: 11)),
+                    IconText('+${task.xp} ⚡', style: const TextStyle(fontSize: 11)),
                   ],
                 ),
               )
@@ -343,7 +345,7 @@ class _TaskCard extends StatelessWidget {
                   color: AppColors.violetSurface,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(
+                child: IconText(
                   '+${task.xp} ⚡',
                   style: TextStyle(
                     fontSize: 12,

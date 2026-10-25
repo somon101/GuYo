@@ -39,7 +39,7 @@ export function PassPreviewPage() {
             <div className="flex h-16 w-16 items-center justify-center rounded-full text-xl font-black text-white" style={{ boxShadow: "inset 0 0 0 6px rgba(255,255,255,0.25)" }}>7</div>
             <div className="min-w-0 flex-1">
               <div className="text-[17px] font-black text-white">Пропуск сезона</div>
-              <div className="text-xs text-white/80">Сезон 1 · ⚡ 340</div>
+              <div className="text-xs text-white/80">Сезон 1 · <img src={`${BASE}preview/energy.png`} alt="" style={{ display: "inline", width: 14, height: 14, verticalAlign: "-2px" }} /> 340</div>
               <div className="mt-2 h-[7px] overflow-hidden rounded-full bg-white/20"><div className="h-full w-3/5" style={{ background: "#ffd54f" }} /></div>
             </div>
             <span className="text-2xl text-white">›</span>

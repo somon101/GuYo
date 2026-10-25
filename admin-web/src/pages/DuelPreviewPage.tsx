@@ -14,15 +14,8 @@ type Stage = "none" | "pending" | "active" | "done";
 type Outcome = "win" | "draw" | "lose";
 
 
-const Bolt = ({ size }: { size: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
-    <defs><linearGradient id="bolt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff3a0" /><stop offset="0.5" stopColor="#ffc928" /><stop offset="1" stopColor="#ff8a00" /></linearGradient></defs>
-    <path d="M13.5 1.5 4.5 13.2h6l-1.6 9.3 9.6-12.4h-6.3z" fill="url(#bolt)" stroke="#b35a00" strokeWidth="0.9" strokeLinejoin="round" />
-    <path d="M12.6 4.2 7.4 11.3h3.2" fill="none" stroke="#fff" strokeOpacity="0.75" strokeWidth="1" strokeLinecap="round" />
-  </svg>
-);
+const Bolt = ({ size }: { size: number }) => <img src={`${import.meta.env.BASE_URL}preview/energy.png`} alt="" draggable={false} style={{ width: size, height: size, objectFit: "contain" }} />;
 
-/** One reward as a game "slot": a dark rounded tile with the picture and a small number plate in the corner. No words. */
 export function Reward({ r, big = false, tone = "gold" }: { r: EventReward; big?: boolean; tone?: "gold" | "silver" }) {
   const side = big ? 52 : 44;
   const icon = side - 12;

@@ -46,7 +46,7 @@ def get_or_create_user_rating(db: Session, user_id: int) -> UserRating:
     return rating
 
 
-def grant_rating_points(db: Session, user: User, points: int) -> None:
+def grant_rating_points(db: Session, user: User, points: int, boost: bool = True) -> None:
     """The one other place (besides award_word_points_if_new) rating
     points ever get added -- used by the Quest system's own reward on
     successful completion (see app/quests/service.py). Deliberately NOT
@@ -54,6 +54,10 @@ def grant_rating_points(db: Session, user: User, points: int) -> None:
     a quest's daily one-word-per-day limit is enforced entirely on the
     Quest side (UserQuestWordDay), not by this generic grant function,
     which just applies whatever point delta it's given."""
+    if boost:
+        from app.chests.boosters import double_if_active
+
+        points = double_if_active(db, user, points, "rating")
     rating = get_or_create_user_rating(db, user.id)
     rating.total_points += points
     db.flush()
@@ -162,7 +166,9 @@ def award_word_points_if_new(db: Session, user: User, word_id: int) -> int:
         return 0
 
     settings = get_rating_settings(db)
-    points = settings.points_per_learned_word
+    from app.chests.boosters import double_if_active
+
+    points = double_if_active(db, user, settings.points_per_learned_word, "rating")
 
     try:
         with db.begin_nested():

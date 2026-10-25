@@ -171,7 +171,10 @@ def _reward(value: dict | None, level) -> dict | None:
         minutes = int(value.get("amount", 0))
         if not 1 <= minutes <= 10_080:
             raise PassError(f"Награда {level}: время удвоителя от 1 минуты до недели" if isinstance(level, str) else f"Уровень {level}: время удвоителя от 1 минуты до недели")
-        return {"type": "booster", "amount": minutes}
+        out = {"type": "booster", "amount": minutes}
+        if value.get("kind") in ("rating", "xp"):
+            out["kind"] = value["kind"]
+        return out
     if value["type"] == "chest":
         if value.get("key") not in ("wood", "silver", "purple", "gold"):
             raise PassError(f"Награда {level}: выберите сундук" if isinstance(level, str) else f"Уровень {level}: выберите сундук")
@@ -275,6 +278,10 @@ def award_xp(db: Session, user: User, source: str, key: str, amount: int | None 
             amount = xp_for(get_pass_settings(db), source)
         if amount <= 0:
             return 0
+        if source != "admin":
+            from app.chests.boosters import double_if_active
+
+            amount = double_if_active(db, user, amount, "xp")
         try:
             with db.begin_nested():
                 db.add(PassXpEvent(user_id=user.id, season_id=season.id, source=source, amount=amount, dedupe_key=key))
@@ -461,7 +468,7 @@ def _give(db: Session, user: User, reward: dict, note: str, season: Season | Non
         from app.chests.rewards import _once
 
         if _once(db, user, f"pass-booster:{season.id if season else 0}:{ref or note}"):
-            add_booster(db, user, reward["amount"])
+            add_booster(db, user, reward["amount"], kind=reward.get("kind", "chest"))
     elif reward["type"] == "chest":
         from app.chests.service import grant_chest
 

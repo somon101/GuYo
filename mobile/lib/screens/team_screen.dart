@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/game_icons.dart';
 
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
@@ -110,10 +111,11 @@ class _TeamScreenState extends State<TeamScreen>
       final reward = goal.reward;
       final style = reward != null
           ? rewardStyle(reward)
-          : const RewardStyle(
+          : RewardStyle(
               [Color(0xFF14B8A6), Color(0xFF2563EB)],
               Icons.bolt_rounded,
-              '⚡',
+              tr('Энергия'),
+              asset: 'energy',
             );
       final parts = [
         if (result.xp > 0) '+${result.xp} ⚡',
@@ -621,7 +623,7 @@ class _GoalCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
+                  IconText(
                     '${goal.progress} / ${goal.target} · +${goal.xp} ⚡${goal.reward != null ? ' · ${rewardSentence(goal.reward!)}' : ''}',
                     style: TextStyle(
                       fontSize: 12,
@@ -746,7 +748,7 @@ class _SeasonGoalCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(
+                child: IconText(
                   '${goal.progress} / ${goal.target} · +${goal.xp} ⚡${reward != null ? ' · ${rewardSentence(reward)}' : ''}',
                   style: TextStyle(
                     fontSize: 12.5,
@@ -842,7 +844,7 @@ class _MemberRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          Text(
+          IconText(
             '⚡ ${member.weekXp}',
             style: TextStyle(
               fontSize: 13,

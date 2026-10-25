@@ -745,11 +745,7 @@ class _EconomyHeaderButtonState extends State<_EconomyHeaderButton> {
               margin: const EdgeInsets.symmetric(horizontal: 8),
               color: AppColors.separator,
             ),
-            Icon(
-              Icons.card_giftcard_rounded,
-              size: 19,
-              color: AppColors.danger,
-            ),
+            const GiftIcon(size: 22),
           ],
         ),
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'game_icons.dart';
 
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
@@ -119,7 +120,7 @@ class SeasonPassCardView extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(
+                    IconText(
                       '${passSeasonName(pass)} · ⚡ ${pass.xp}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

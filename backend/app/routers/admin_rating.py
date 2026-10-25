@@ -473,7 +473,7 @@ def grant_points(user_id: int, payload: GrantRatingPointsIn, db: Session = Depen
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     rating = get_or_create_user_rating(db, user.id)
-    grant_rating_points(db, user, payload.points)
+    grant_rating_points(db, user, payload.points, boost=False)
     rating.total_points = max(0, rating.total_points)
     db.commit()
     db.refresh(rating)

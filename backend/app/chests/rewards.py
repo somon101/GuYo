@@ -47,6 +47,9 @@ def validate_rewards(db: Session, rewards) -> list[dict]:
         if not 1 <= amount <= (10 if kind == "chest" else 10_080 if kind == "booster" else 100_000):
             raise ChestError("Неверное количество награды")
         item = {"type": kind, "amount": amount}
+        if kind == "booster":
+            if r.get("kind") in ("rating", "xp"):
+                item["kind"] = r["kind"]
         if kind == "chest":
             if db.get(ChestType, r.get("key")) is None:
                 raise ChestError("Выберите сундук")
@@ -111,7 +114,7 @@ def give(db: Session, user: User, rewards: list[dict], source: str, ref: str) ->
             if _once(db, user, key):
                 from app.chests.boosters import add_booster
 
-                add_booster(db, user, r["amount"])
+                add_booster(db, user, r["amount"], kind=r.get("kind", "chest"))
                 given["boosters"].append(r["amount"])
         elif r["type"] == "chest":
             for n in range(r["amount"]):

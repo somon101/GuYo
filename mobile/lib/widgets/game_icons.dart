@@ -14,6 +14,50 @@ class DiamondIcon extends StatelessWidget {
   Widget build(BuildContext context) => _GameIcon('assets/icons/diamond.png', size);
 }
 
+/// Season-pass energy (XP): the lightning bolt.
+class EnergyIcon extends StatelessWidget {
+  final double size;
+  const EnergyIcon({super.key, this.size = 20});
+
+  @override
+  Widget build(BuildContext context) => _GameIcon('assets/icons/energy.png', size);
+}
+
+/// Text where ⚡ ⭐ 💎 ❄ 🎁 are drawn as the game's own pictures instead of system emoji.
+class IconText extends StatelessWidget {
+  final String text;
+  final TextStyle? style;
+  final int? maxLines;
+  final TextOverflow? overflow;
+  final TextAlign? textAlign;
+  const IconText(this.text, {super.key, this.style, this.maxLines, this.overflow, this.textAlign});
+
+  static const _marks = {'⚡': 'energy', '⭐': 'points', '💎': 'diamond', '❄': 'freeze', '🎁': 'gift'};
+
+  @override
+  Widget build(BuildContext context) {
+    final base = style ?? DefaultTextStyle.of(context).style;
+    final size = (base.fontSize ?? 14) * 1.2;
+    final spans = <InlineSpan>[];
+    final buf = StringBuffer();
+    for (final rune in text.runes) {
+      final ch = String.fromCharCode(rune);
+      final name = _marks[ch];
+      if (name == null) {
+        if (ch != '\uFE0F') buf.write(ch);
+        continue;
+      }
+      if (buf.isNotEmpty) {
+        spans.add(TextSpan(text: buf.toString()));
+        buf.clear();
+      }
+      spans.add(WidgetSpan(alignment: PlaceholderAlignment.middle, child: gameAsset(name, size)));
+    }
+    if (buf.isNotEmpty) spans.add(TextSpan(text: buf.toString()));
+    return Text.rich(TextSpan(style: style, children: spans), maxLines: maxLines, overflow: overflow, textAlign: textAlign);
+  }
+}
+
 /// Rating points: the golden star.
 class PointsIcon extends StatelessWidget {
   final double size;
@@ -68,6 +112,12 @@ Widget gameAsset(String name, double size) {
       return MergeIcon(size: size);
     case 'points':
       return PointsIcon(size: size);
+    case 'energy':
+      return EnergyIcon(size: size);
+    case 'diamond':
+      return DiamondIcon(size: size);
+    case 'gift':
+      return GiftIcon(size: size);
     case 'booster':
       return BoosterIcon(size: size);
     default:
