@@ -58,6 +58,9 @@ const css = `
   100% { opacity: 1; transform: translate(-50%,-50%) translateY(0) scale(1.55) rotate(0deg); }
 }
 @keyframes cp-fly { 0% { opacity: 0; transform: translate(-50%,-50%) translate(0px,-70px) scale(0.1) rotate(-40deg); } 20% { opacity: 1; } 60% { transform: translate(-50%,-50%) translate(var(--tx),calc(var(--ty) - 60px)) scale(1.25) rotate(10deg); } 100% { opacity: 1; transform: translate(-50%,-50%) translate(var(--tx),var(--ty)) scale(1) rotate(0deg); } }
+@keyframes cp-old { 0% { opacity: 1; transform: scale(1); } 60% { opacity: 1; transform: scale(1); } 100% { opacity: 0.45; transform: scale(0.7) translateY(-6px); } }
+@keyframes cp-new { 0% { opacity: 0; transform: scale(0.3); } 60% { opacity: 1; transform: scale(1.35); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes cp-tix { 0% { opacity: 0; transform: translate(-90px, 30px) scale(0.3) rotate(-30deg); } 55% { opacity: 1; transform: translate(0,0) scale(1.3) rotate(8deg); } 100% { opacity: 1; transform: translate(0,0) scale(1) rotate(0); } }
 @keyframes cp-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 @keyframes cp-halo { 0%,100% { opacity: 0.6; transform: translate(-50%,-50%) scale(1); } 50% { opacity: 1; transform: translate(-50%,-50%) scale(1.14); } }
 @keyframes cp-shine { 0% { transform: translateX(-130%) skewX(-20deg); } 55%,100% { transform: translateX(230%) skewX(-20deg); } }
@@ -78,6 +81,8 @@ export function ChestPreviewPage() {
   const [chestKey, setChestKey] = useState("wood");
   const [amount, setAmount] = useState(1);
   const [count, setCount] = useState(1); // how many chests are opened at once
+  const [boost, setBoost] = useState(false); // the x2 ticket is switched on
+  const mult = boost ? 2 : 1;
   const [batch, setBatch] = useState<{ id: PrizeId; amount: number }[]>([]);
   const [pick, setPick] = useState<Pick>("random");
   const [phase, setPhase] = useState<Phase>("idle");
@@ -202,6 +207,13 @@ export function ChestPreviewPage() {
           style={{ top: 360, width: 360, height: 90, transform: "translateX(-50%)", background: "radial-gradient(closest-side, rgba(255,214,120,0.5), rgba(255,214,120,0))", animation: phase !== "idle" ? "cp-glow 1.6s ease-in-out infinite" : undefined, opacity: phase !== "idle" ? 1 : 0.2 + taps * 0.12 }}
         />
 
+        {boost && (
+          <div className="absolute flex items-center gap-1.5 rounded-full px-2.5 py-1" style={{ top: 14, right: 14, background: "rgba(0,0,0,0.35)", boxShadow: "inset 0 0 0 1.5px rgba(255,213,79,0.85)" }}>
+            <img src={`${BASE}booster.png`} alt="" style={{ width: 24, height: 24, objectFit: "contain" }} />
+            <span style={{ color: "#ffd54f", fontWeight: 900, fontSize: 13 }}>Награды ×2</span>
+          </div>
+        )}
+
         {/* light rays behind the scene, centred where the prize ends up */}
         {isOpen && (
           <div
@@ -306,7 +318,7 @@ export function ChestPreviewPage() {
                   <div style={{ height: 66, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 58, lineHeight: 1, color: "#ffc53d" }}>
                     {pr.img ? <img src={`${BASE}${pr.img}`} alt="" draggable={false} style={{ maxWidth: "none", width: 66, height: 66, objectFit: "contain", filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.5)) drop-shadow(0 0 14px rgba(255,236,160,0.6))" }} /> : "★"}
                   </div>
-                  <div style={{ fontSize: 20, fontWeight: 900, color: "#fff", textShadow: "0 2px 8px rgba(0,0,0,0.6)" }}>+{b.amount}</div>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: boost ? "#ffd54f" : "#fff", textShadow: boost ? "0 0 12px rgba(255,200,60,0.9), 0 2px 8px rgba(0,0,0,0.6)" : "0 2px 8px rgba(0,0,0,0.6)" }}>+{b.amount * mult}</div>
                 </div>
               );
             })}
@@ -315,12 +327,12 @@ export function ChestPreviewPage() {
 
         {isOpen && count > 1 && (
           <div key={`total-${run}`} className="absolute left-1/2 text-center" style={{ top: 470, transform: "translateX(-50%)", animation: `cp-label 0.5s ease-out ${0.9 + count * 0.12}s both`, whiteSpace: "nowrap" }}>
-            <div style={{ fontSize: 15, color: "rgba(255,255,255,0.85)", marginBottom: 2 }}>Открыто сундуков: {count}. Всего:</div>
+            <div style={{ fontSize: 15, color: "rgba(255,255,255,0.85)", marginBottom: 2 }}>Открыто сундуков: {count}. Всего{boost ? " " : ":"}{boost && <img src={`${BASE}booster.png`} alt="" style={{ display: "inline-block", width: 26, height: 26, maxWidth: "none", objectFit: "contain", verticalAlign: "middle", margin: "0 2px" }} />}{boost && ":"}</div>
             <div className="flex items-center justify-center gap-4" style={{ color: "#fff", fontSize: 24, fontWeight: 900 }}>
               {PRIZE_IDS.filter((id) => batch.some((b) => b.id === id)).map((id) => (
                 <span key={id} className="flex items-center gap-1">
                   {PRIZES[id].img ? <img src={`${BASE}${PRIZES[id].img}`} alt="" style={{ maxWidth: "none", width: 28, height: 28, objectFit: "contain" }} /> : <span style={{ color: "#ffc53d" }}>★</span>}
-                  +{batch.filter((b) => b.id === id).reduce((s, b) => s + b.amount, 0)}
+                  +{batch.filter((b) => b.id === id).reduce((s, b) => s + b.amount * mult, 0)}
                 </span>
               ))}
             </div>
@@ -333,9 +345,15 @@ export function ChestPreviewPage() {
             className="absolute left-1/2 text-center"
             style={{ top: 440, transform: "translateX(-50%)", animation: "cp-label 0.5s ease-out 1.9s both" }}
           >
-            <div style={{ fontSize: 38, fontWeight: 900, color: "#fff", textShadow: "0 3px 12px rgba(0,0,0,0.45)" }}>
-              +{amount}
-            </div>
+            {boost ? (
+              <div className="flex items-center justify-center gap-3" style={{ minHeight: 56 }}>
+                <span style={{ fontSize: 26, fontWeight: 800, color: "rgba(255,255,255,0.7)", textDecoration: "line-through", animation: "cp-old 0.9s ease-in 2.3s both" }}>+{amount}</span>
+                <img src={`${BASE}booster.png`} alt="" style={{ width: 54, height: 54, maxWidth: "none", objectFit: "contain", animation: "cp-tix 0.8s cubic-bezier(.2,.9,.3,1.2) 2.2s both", opacity: 0 }} />
+                <span style={{ fontSize: 46, fontWeight: 900, color: "#ffd54f", textShadow: "0 0 18px rgba(255,200,60,0.9), 0 3px 12px rgba(0,0,0,0.45)", animation: "cp-new 0.6s ease-out 3s both", opacity: 0 }}>+{amount * 2}</span>
+              </div>
+            ) : (
+              <div style={{ fontSize: 38, fontWeight: 900, color: "#fff", textShadow: "0 3px 12px rgba(0,0,0,0.45)" }}>+{amount}</div>
+            )}
             <div style={{ fontSize: 16, color: "rgba(255,255,255,0.9)" }}>{p.name}</div>
           </div>
         )}
@@ -371,6 +389,14 @@ export function ChestPreviewPage() {
               {k === "random" ? "Случайный" : PRIZES[k].name}
             </button>
           ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-slate-500">Удвоитель:</span>
+          <button type="button" onClick={() => { reset(); setBoost(!boost); }}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm ${boost ? "bg-indigo-600 text-white" : "border border-slate-300 text-slate-700"}`}>
+            <img src={`${BASE}booster.png`} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
+            {boost ? "Включён: награды ×2" : "Выключен"}
+          </button>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="text-slate-500">Открыть сразу:</span>
