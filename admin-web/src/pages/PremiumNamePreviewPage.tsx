@@ -12,8 +12,8 @@ type Style = "A" | "B" | "C" | "D";
 const GOLD_DARK = "linear-gradient(90deg,#b8860b,#f5d76e 45%,#b8860b)";
 const GOLD_LIGHT = "linear-gradient(90deg,#7a5200,#c8961c 45%,#7a5200)";
 
-function PremiumName({ text, style, dark }: { text: string; style: Style; dark: boolean }) {
-  const gold = dark ? GOLD_DARK : GOLD_LIGHT;
+function PremiumName({ text, style, dark, grad }: { text: string; style: Style; dark: boolean; grad?: [string, string] }) {
+  const gold = grad ? (dark ? grad[0] : grad[1]) : dark ? GOLD_DARK : GOLD_LIGHT;
   const common = { fontWeight: 800 } as const;
   if (style === "A") return <span style={{ ...common, background: gold, WebkitBackgroundClip: "text", color: "transparent" }}>{text}</span>;
   if (style === "B") return <span style={{ ...common, backgroundImage: `linear-gradient(110deg,transparent 40%,rgba(255,255,255,0.95) 50%,transparent 60%),${gold}`, backgroundSize: "250% 100%,100% 100%", WebkitBackgroundClip: "text", color: "transparent", animation: "pn-shine 3.5s ease-in-out infinite" }}>{text}</span>;
@@ -29,17 +29,17 @@ const PEOPLE: Person[] = [
   { name: "zafar", premium: false, badge: false },
 ];
 
-function NameLine({ p, style, dark, size = 15, badgeKey }: { p: Person; style: Style; dark: boolean; size?: number; badgeKey: string | null }) {
+function NameLine({ p, style, dark, size = 15, badgeKey, grad }: { p: Person; style: Style; dark: boolean; size?: number; badgeKey: string | null; grad?: [string, string] }) {
   const color = dark ? "#fff" : "#1b1247";
   return (
     <span className="inline-flex items-center gap-1.5" style={{ fontSize: size }}>
-      {p.premium ? <PremiumName text={p.name} style={style} dark={dark} /> : <span style={{ fontWeight: 700, color }}>{p.name}</span>}
+      {p.premium ? <PremiumName text={p.name} style={style} dark={dark} grad={grad} /> : <span style={{ fontWeight: 700, color }}>{p.name}</span>}
       {p.badge ? (badgeKey ? <BadgeMark badgeKey={badgeKey} size={size * 1.3} /> : <img src={`${BASE}preview/gem.png`} alt="" style={{ width: size * 1.3, height: size * 1.3 }} />) : p.premium ? <img src={`${BASE}preview/premium.png`} alt="" style={{ width: size * 1.2, height: size * 1.2 }} /> : null}
     </span>
   );
 }
 
-function Panel({ dark, style, badgeKey }: { dark: boolean; style: Style; badgeKey: string | null }) {
+function Panel({ dark, style, badgeKey, grad }: { dark: boolean; style: Style; badgeKey: string | null; grad?: [string, string] }) {
   const bg = dark ? "#12151f" : "#f4f5fa";
   return (
     <div className="space-y-2 rounded-2xl p-3" style={{ background: dark ? "#0d0f1c" : "#ffffff", boxShadow: dark ? undefined : "inset 0 0 0 1px #e5e7eb" }}>
@@ -47,7 +47,7 @@ function Panel({ dark, style, badgeKey }: { dark: boolean; style: Style; badgeKe
         {PEOPLE.slice(0, 3).map((p, i) => (
           <div key={p.name} className="flex flex-col items-center gap-1">
             <span className="flex items-center justify-center rounded-full text-sm font-black text-white" style={{ width: i === 0 ? 52 : 40, height: i === 0 ? 52 : 40, background: "linear-gradient(135deg,#8b93ff,#5862dd)" }}>{p.name[0].toUpperCase()}</span>
-            <NameLine p={p} style={style} dark={dark} size={i === 0 ? 14 : 12} badgeKey={badgeKey} />
+            <NameLine p={p} style={style} dark={dark} size={i === 0 ? 14 : 12} badgeKey={badgeKey} grad={grad} />
           </div>
         ))}
       </div>
@@ -55,12 +55,23 @@ function Panel({ dark, style, badgeKey }: { dark: boolean; style: Style; badgeKe
         <div key={p.name} className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: bg }}>
           <span className="w-4 text-xs opacity-50" style={{ color: dark ? "#fff" : "#1b1247" }}>{i + 4}</span>
           <span className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-black text-white" style={{ background: "linear-gradient(135deg,#f472b6,#be185d)" }}>{p.name[0].toUpperCase()}</span>
-          <NameLine p={p} style={style} dark={dark} badgeKey={badgeKey} />
+          <NameLine p={p} style={style} dark={dark} badgeKey={badgeKey} grad={grad} />
         </div>
       ))}
     </div>
   );
 }
+
+const g = (a: string, b: string, c: string) => `linear-gradient(90deg,${a},${b} 50%,${c})`;
+// Colour options for the gradient (A): [on dark, on light].
+const PALETTES: { id: string; title: string; note: string; grad: [string, string] }[] = [
+  { id: "1", title: "1 · Шампанское", note: "Мягкое золото с розовым оттенком, без жёлтизны.", grad: [g("#e8c9a0", "#fff1dc", "#e8c9a0"), g("#9c6b3c", "#c9955f", "#9c6b3c")] },
+  { id: "2", title: "2 · Розовое золото", note: "Тёплое, чуть розовое. Нежно и дорого.", grad: [g("#e3a98f", "#ffd9c7", "#e3a98f"), g("#a8553a", "#d98466", "#a8553a")] },
+  { id: "3", title: "3 · Янтарь → медь", note: "Глубже и насыщеннее, как старое золото.", grad: [g("#ffb454", "#ffd9a0", "#e07a3a"), g("#a85a10", "#d98c2b", "#8f3f0a")] },
+  { id: "4", title: "4 · Платина", note: "Холодное серебро с голубым отливом.", grad: [g("#c9d3e6", "#ffffff", "#9fb0cf"), g("#4d5f85", "#7f93bd", "#4d5f85")] },
+  { id: "5", title: "5 · Аметист", note: "От фиолетового к светло-сиреневому, к цветам значка.", grad: [g("#b79bff", "#f0e4ff", "#8b93ff"), g("#5b3fd0", "#8b6bf0", "#3f4fd8")] },
+  { id: "6", title: "6 · Золото+бронза", note: "Золото без лимонного, ближе к бронзе.", grad: [g("#d4af6a", "#f6e3b0", "#c08a3e"), g("#8a6420", "#b98a3c", "#6e4a12")] },
+];
 
 const VARIANTS: { id: Style; title: string; note: string }[] = [
   { id: "A", title: "A · Золотой градиент", note: "Ник плавно переходит от тёмного золота к светлому. Спокойно и дорого." },
@@ -83,6 +94,22 @@ export function PremiumNamePreviewPage() {
           Четыре примера игроков: Premium с выбранным значком, Premium без значка, без Premium со значком, без всего.
         </p>
       </header>
+      <section className="card space-y-3 p-4">
+        <h2 className="text-lg font-semibold">Цвет для варианта A (золото без желтизны)</h2>
+        <p className="text-xs text-slate-500">Тот же градиент по нику, шесть цветовых вариантов. Скажите номер.</p>
+        <div className="grid gap-3 md:grid-cols-3">
+          {PALETTES.map((pl) => (
+            <div key={pl.id} className="space-y-1">
+              <div className="text-sm font-bold">{pl.title}</div>
+              <div className="text-[11px] text-slate-500">{pl.note}</div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <Panel dark style="A" badgeKey={badgeKey} grad={pl.grad} />
+                <Panel dark={false} style="A" badgeKey={badgeKey} grad={pl.grad} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
       <div className="grid gap-4 md:grid-cols-2">
         {VARIANTS.map((v) => (
           <section key={v.id} className="card space-y-2 p-4">
