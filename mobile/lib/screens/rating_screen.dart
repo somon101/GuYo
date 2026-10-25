@@ -4,6 +4,7 @@ import 'add_friend_sheet.dart';
 import '../widgets/guyo_ui.dart';
 
 import 'package:flutter/material.dart';
+import '../widgets/cosmetic_art.dart';
 
 import '../api/api_client.dart';
 import '../services/session_cache.dart';
@@ -454,30 +455,39 @@ class _PodiumPlace extends StatelessWidget {
               alignment: Alignment.topCenter,
               clipBehavior: Clip.none,
               children: [
-                Container(
-                  width: avatarSize,
-                  height: avatarSize,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: color.withValues(alpha: 0.55),
-                      width: isFirst ? 3 : 2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withValues(alpha: 0.18),
-                        blurRadius: 14,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  padding: EdgeInsets.all(isFirst ? 3 : 2),
-                  child: UserAvatar(
+                // Someone who wears a season-pass frame shows it; everyone else gets the podium's own ring.
+                if (isCatalogKey(person.frame))
+                  UserAvatar(
                     avatarUrl: person.avatarUrl,
                     login: person.login,
-                    size: avatarSize - (isFirst ? 12 : 8),
+                    size: avatarSize,
+                    frame: person.frame,
+                  )
+                else
+                  Container(
+                    width: avatarSize,
+                    height: avatarSize,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: color.withValues(alpha: 0.55),
+                        width: isFirst ? 3 : 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: color.withValues(alpha: 0.18),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    padding: EdgeInsets.all(isFirst ? 3 : 2),
+                    child: UserAvatar(
+                      avatarUrl: person.avatarUrl,
+                      login: person.login,
+                      size: avatarSize - (isFirst ? 12 : 8),
+                    ),
                   ),
-                ),
                 // How far this person moved in their rank, in the
                 // avatar's top-right corner.
                 Positioned(
@@ -538,11 +548,7 @@ class _PodiumPlace extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.stars_rounded,
-                size: isFirst ? 15 : 13,
-                color: AppColors.gold,
-              ),
+              PointsIcon(size: isFirst ? 20 : 17),
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
