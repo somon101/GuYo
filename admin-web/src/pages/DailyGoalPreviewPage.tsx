@@ -10,10 +10,11 @@ const DEFAULT_TIERS: GoalTier[] = [
   { words: 10, rewards: [{ type: "xp", amount: 15 }, { type: "chest", key: "wood", amount: 1 }] },
   { words: 20, rewards: [{ type: "xp", amount: 25 }, { type: "chest", key: "silver", amount: 1 }] },
 ];
+const BASE = `${import.meta.env.BASE_URL}`;
 type Stage = "going" | "ready" | "sheet" | "notice" | "taken";
 
 const css = `
-@keyframes dg-pulse { 0%,100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,213,79,0.7); } 50% { transform: scale(1.12); box-shadow: 0 0 0 8px rgba(255,213,79,0); } }
+@keyframes dg-pulse { 0%,100% { transform: scale(1) rotate(-6deg); } 50% { transform: scale(1.15) rotate(6deg); } }
 @keyframes dg-rays { from { transform: translate(-50%,-50%) rotate(0); } to { transform: translate(-50%,-50%) rotate(360deg); } }
 @keyframes dg-gift { 0% { transform: translate(-50%,-50%) scale(0.2) rotate(-20deg); opacity: 0; } 35% { transform: translate(-50%,-50%) scale(1.25) rotate(8deg); opacity: 1; } 55% { transform: translate(-50%,-50%) scale(1) rotate(-3deg); } 70% { transform: translate(-50%,-50%) scale(1.05) rotate(2deg); } 100% { transform: translate(-50%,-80%) scale(0.7); opacity: 0; } }
 @keyframes dg-pop { 0% { transform: translateY(18px) scale(0.3); opacity: 0; } 70% { transform: translateY(-4px) scale(1.15); opacity: 1; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
@@ -71,7 +72,7 @@ export function DailyGoalPreviewPage() {
             <div className={card("")} style={{ background: "#12151f", boxShadow: `inset 0 0 0 1.5px ${done && stage !== "taken" ? "#ffd54f" : done ? "#2ecc71" : "rgba(124,132,240,0.45)"}` }}>
               {/* the "reward is waiting" mark on the card's corner */}
               {stage !== "going" && stage !== "taken" && (
-                <span style={{ position: "absolute", top: -10, right: 12, width: 30, height: 30, borderRadius: 99, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(180deg,#ffe56b,#ffab1a)", fontSize: 17, animation: "dg-pulse 1.6s ease-in-out infinite", boxShadow: "0 3px 0 #b36a00" }}>🎁</span>
+                <span style={{ position: "absolute", top: -16, right: 10, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", animation: "dg-pulse 1.6s ease-in-out infinite" }}><img src={`${BASE}preview/gift.png`} alt="" style={{ width: 34, height: 34, objectFit: "contain", filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.5))" }} /></span>
               )}
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -119,7 +120,7 @@ export function DailyGoalPreviewPage() {
             <div className="mb-2 text-xs font-bold uppercase tracking-wide text-white/50">Уведомления</div>
             <div className="rounded-2xl p-3" style={{ background: "#151a2b", boxShadow: "inset 0 0 0 1px rgba(255,213,79,0.4)" }}>
               <div className="flex items-start gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl" style={{ background: "linear-gradient(180deg,#ffe56b,#ffab1a)" }}>🎁</span>
+                <img src={`${BASE}preview/gift.png`} alt="" className="shrink-0" style={{ width: 44, height: 44, objectFit: "contain" }} />
                 <div className="min-w-0 flex-1">
                   <div className="font-black text-white">Награда за цель дня ждёт вас</div>
                   <div className="text-xs text-white/60">Вчера вы выполнили цель: {tier.words} слов. Заберите подарок!</div>
@@ -134,7 +135,7 @@ export function DailyGoalPreviewPage() {
         {showEffect && (
           <div key={effect} className="absolute inset-0 overflow-hidden" style={{ background: "radial-gradient(circle at 50% 50%, rgba(20,16,58,0.9), rgba(8,6,28,0.97))" }}>
             <div className="absolute left-1/2 top-1/2" style={{ width: 520, height: 520, borderRadius: "50%", background: "repeating-conic-gradient(from 0deg, rgba(255,226,140,0.5) 0deg 9deg, rgba(255,226,140,0) 9deg 22deg)", WebkitMaskImage: "radial-gradient(closest-side, #000 15%, transparent 72%)", maskImage: "radial-gradient(closest-side, #000 15%, transparent 72%)", animation: "dg-rays 14s linear infinite" }} />
-            <div className="absolute left-1/2 top-1/2 text-center" style={{ fontSize: 110, lineHeight: 1, animation: "dg-gift 1.3s ease-in-out both", filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.5))" }}>🎁</div>
+            <img src={`${BASE}preview/gift.png`} alt="" className="absolute left-1/2 top-1/2" style={{ width: 150, height: 150, maxWidth: "none", objectFit: "contain", animation: "dg-gift 1.3s ease-in-out both", filter: "drop-shadow(0 10px 20px rgba(0,0,0,0.5))" }} />
             <div className="absolute left-1/2 top-1/2" style={{ width: 360, height: 360, borderRadius: "50%", background: "radial-gradient(closest-side,#fff,rgba(255,240,180,0.7) 45%,rgba(255,240,180,0))", animation: "dg-flash .9s ease-out 1s both", opacity: 0 }} />
             {sparks.map((s, i) => <span key={i} className="absolute rounded-full" style={{ left: "50%", top: "50%", width: 8, height: 8, background: "#fff4c2", boxShadow: "0 0 10px 3px rgba(255,214,102,0.9)", ["--dx" as string]: `${s.dx}px`, ["--dy" as string]: `${s.dy}px`, animation: `dg-spark 1.1s ease-out ${1 + (i % 4) * 0.05}s both`, opacity: 0 }} />)}
             <div className="absolute left-0 right-0 text-center" style={{ top: "30%", color: "#ffd54f", fontWeight: 900, letterSpacing: 2, animation: "dg-pop .6s ease-out 1.1s both", opacity: 0 }}>ЦЕЛЬ ДНЯ ВЫПОЛНЕНА!</div>
