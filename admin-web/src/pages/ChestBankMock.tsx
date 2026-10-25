@@ -6,6 +6,24 @@ import type { ChestType } from "../api/endpoints";
 
 const BASE = `${import.meta.env.BASE_URL}`;
 
+function mix(hex: string, to: number, k: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(v + (to - v) * k));
+  return `rgb(${ch[0]},${ch[1]},${ch[2]})`;
+}
+
+/** A glossy, pressable button in the chest's own colour. */
+function chestButton(color: string): React.CSSProperties {
+  return {
+    background: `linear-gradient(180deg, ${mix(color, 255, 0.45)} 0%, ${color} 50%, ${mix(color, 0, 0.22)} 100%)`,
+    boxShadow: `0 4px 0 ${mix(color, 0, 0.5)}, 0 9px 14px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.65), inset 0 -2px 0 rgba(0,0,0,0.12)`,
+    color: "#fff",
+    textShadow: "0 1px 2px rgba(0,0,0,0.5)",
+    border: "1px solid rgba(255,255,255,0.35)",
+    letterSpacing: 0.2,
+  };
+}
+
 export function ChestBankMock({ types, onOpen }: { types: ChestType[]; onOpen: (key: string, count: number) => void }) {
   const [counts, setCounts] = useState<Record<string, number>>({ wood: 6, silver: 3, purple: 1, gold: 0 });
   const [screen, setScreen] = useState<"card" | "list">("card");
@@ -15,14 +33,13 @@ export function ChestBankMock({ types, onOpen }: { types: ChestType[]; onOpen: (
 
   const shell = "mx-auto w-full max-w-sm rounded-3xl p-4 text-white";
   const bg = { background: "linear-gradient(135deg,#3d2b8f,#1e1560)" };
-  const btn = "rounded-xl px-3 py-2 text-sm font-bold disabled:opacity-40";
-  const gold = { background: "#ffc53d", color: "#3b2600" };
+  const btn = "rounded-xl px-4 py-2 text-sm font-extrabold transition active:translate-y-0.5 disabled:opacity-40";
 
   return (
     <section className="card space-y-3 p-4">
       <h2 className="text-lg font-semibold">Макет: «Мои сундуки» в приложении</h2>
       <p className="text-sm text-slate-500">
-        Нажмите на карточку: откроется весь список накопленного. У каждого сундука можно открыть 1, 5 или 10 сразу: анимация при этом показывается на сцене выше (из сундука вылетает столько призов, сколько сундуков открыто). Количество сундуков ниже
+        Нажмите на карточку: откроется весь список накопленного. У каждого сундука можно открыть 1, 5 или 10 сразу: анимация при этом показывается на сцене выше (из сундука вылетает столько призов, сколько сундуков открыто). Сундуки разных видов за один раз не открываются: только один вид. Количество сундуков ниже
         придумано для показа, его можно менять кнопками +/−.
       </p>
 
@@ -38,7 +55,7 @@ export function ChestBankMock({ types, onOpen }: { types: ChestType[]; onOpen: (
                 {all > 4 && <span className="ml-1 font-black">+{all - 4}</span>}
               </div>
             </div>
-            <span className={btn} style={gold}>Открыть</span>
+            <span className={btn} style={chestButton(types.find((c) => (counts[c.key] ?? 0) > 0)?.color ?? "#f5b700")}>Открыть</span>
           </div>
         </div>
       )}
@@ -69,10 +86,10 @@ export function ChestBankMock({ types, onOpen }: { types: ChestType[]; onOpen: (
                   </div>
                   {n > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      <button className={btn} style={gold} onClick={() => onOpen(c.key, 1)}>Открыть 1</button>
-                      {n >= 5 && <button className={btn} style={gold} onClick={() => onOpen(c.key, 5)}>Открыть 5</button>}
-                      {n >= 10 && <button className={btn} style={gold} onClick={() => onOpen(c.key, 10)}>Открыть 10</button>}
-                      {n > 1 && <button className={btn} style={gold} onClick={() => onOpen(c.key, Math.min(n, 10))}>Все ({Math.min(n, 10)})</button>}
+                      <button className={btn} style={chestButton(c.color)} onClick={() => onOpen(c.key, 1)}>Открыть 1</button>
+                      {n >= 5 && <button className={btn} style={chestButton(c.color)} onClick={() => onOpen(c.key, 5)}>Открыть 5</button>}
+                      {n >= 10 && <button className={btn} style={chestButton(c.color)} onClick={() => onOpen(c.key, 10)}>Открыть 10</button>}
+                      {n > 1 && <button className={btn} style={chestButton(c.color)} onClick={() => onOpen(c.key, Math.min(n, 10))}>Все ({Math.min(n, 10)})</button>}
                     </div>
                   )}
                 </div>
