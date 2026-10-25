@@ -5,6 +5,7 @@ import '../l10n/l10n.dart';
 import '../models/season_pass.dart';
 import '../screens/season_pass_screen.dart';
 import '../theme/app_colors.dart';
+import 'gift_badge.dart';
 import 'season_pass_ui.dart';
 
 /// The way into «Пропуск сезона» from Главная: the level ring, how close the
@@ -70,7 +71,7 @@ class SeasonPassCardView extends StatelessWidget {
         ? 1.0
         : (pass.xpIntoLevel / next).clamp(0.0, 1.0);
     final waiting = pass.claimableCount;
-    return Material(
+    final card = Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
@@ -138,44 +139,16 @@ class SeasonPassCardView extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              if (waiting > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFE066), Color(0xFFFFA000)],
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.card_giftcard_rounded,
-                        size: 16,
-                        color: Color(0xFF5A3B00),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$waiting',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF5A3B00),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                const Icon(Icons.chevron_right_rounded, color: Colors.white),
+              const Icon(Icons.chevron_right_rounded, color: Colors.white),
             ],
           ),
         ),
       ),
     );
+    if (waiting == 0) return card;
+    return Stack(clipBehavior: Clip.none, children: [
+      card,
+      Positioned(top: -14, right: 10, child: IgnorePointer(child: GiftBadge(count: waiting))),
+    ]);
   }
 }

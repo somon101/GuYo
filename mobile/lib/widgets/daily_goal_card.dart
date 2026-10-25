@@ -7,7 +7,7 @@ import '../l10n/l10n.dart';
 import '../models/daily_goal.dart';
 import '../services/streak_state.dart';
 import '../theme/app_colors.dart';
-import 'game_icons.dart';
+import 'gift_badge.dart';
 import 'counted_chest.dart' show GreenButton;
 import 'reward_chips.dart';
 import 'reward_claim_effect.dart';
@@ -197,38 +197,10 @@ class DailyGoalCardView extends StatelessWidget {
         ),
       ),
       if (ready)
-        const Positioned(top: -14, right: 10, child: IgnorePointer(child: _WobblingGift())),
+        const Positioned(top: -14, right: 10, child: IgnorePointer(child: GiftBadge())),
     ]);
   }
 }
-
-/// The small gift on the card's corner: a reward is waiting.
-class _WobblingGift extends StatefulWidget {
-  const _WobblingGift();
-
-  @override
-  State<_WobblingGift> createState() => _WobblingGiftState();
-}
-
-class _WobblingGiftState extends State<_WobblingGift> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500))..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-        animation: _c,
-        builder: (_, __) => Transform.rotate(
-          angle: (_c.value - 0.5) * 0.24,
-          child: Transform.scale(scale: 1 + 0.14 * _c.value, child: const GiftIcon(size: 40)),
-        ),
-      );
-}
-
 
 /// «Сколько слов в день?»: dark game panel; each row shows the reward as slots. A filled goal is
 /// fixed for the day, so its row carries «Получить» (while the reward waits) and the others are dimmed.

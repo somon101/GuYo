@@ -5,6 +5,7 @@ import '../api/api_client.dart';
 import '../l10n/l10n.dart';
 import '../models/season_pass.dart';
 import '../theme/app_colors.dart';
+import '../widgets/game_icons.dart';
 import '../widgets/season_pass_ui.dart';
 import '../models/team.dart';
 import 'cosmetics_screen.dart';
@@ -324,29 +325,19 @@ class _Hero extends StatelessWidget {
             const SizedBox(height: 14),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 10),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFFE066), Color(0xFFFFA000)],
-                ),
+                color: Colors.white.withValues(alpha: 0.16),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
-                    Icons.card_giftcard_rounded,
-                    size: 20,
-                    color: Color(0xFF5A3B00),
-                  ),
+                  const GiftIcon(size: 28),
                   const SizedBox(width: 8),
                   Text(
                     tr('Наград к получению: {0}', [waiting]),
-                    style: const TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFF5A3B00),
-                    ),
+                    style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900, color: Colors.white),
                   ),
                 ],
               ),

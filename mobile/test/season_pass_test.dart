@@ -1,7 +1,10 @@
 // The season pass model: what is waiting to be claimed, parsed from the
 // server's JSON.
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:guyo_app/widgets/gift_badge.dart';
+import 'package:guyo_app/widgets/season_pass_card.dart';
 import 'package:guyo_app/models/season_pass.dart';
 
 Map<String, dynamic> _json() => {
@@ -50,5 +53,14 @@ void main() {
   test('the top of the ladder has no next level', () {
     final json = _json()..['xp_for_next'] = null;
     expect(SeasonPass.fromJson(json).xpForNext, isNull);
+  });
+
+  testWidgets('a waiting reward is shown by the small gift, not a yellow pill', (tester) async {
+    final pass = SeasonPass.fromJson(_json());
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: Padding(padding: const EdgeInsets.all(24), child: SeasonPassCardView(pass: pass, onTap: () {})))));
+    await tester.pump();
+    expect(find.byType(GiftBadge), findsOneWidget);
+    expect(find.byIcon(Icons.card_giftcard_rounded), findsNothing);
+    expect(find.byIcon(Icons.chevron_right_rounded), findsOneWidget);
   });
 }
