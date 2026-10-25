@@ -118,6 +118,11 @@ void sealedTests() {
     }
     await tester.pump(const Duration(milliseconds: 600)); // the prizes are still arriving
     expect(find.byKey(const ValueKey('chest-collect')), findsNothing);
+    // before the first prize is out a tap changes nothing
+    await tester.tap(find.byKey(const ValueKey('chest-skip')), warnIfMissed: false);
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.byKey(const ValueKey('chest-collect')), findsNothing);
+    await tester.pump(const Duration(milliseconds: 1200)); // the first prize has flown out
     await tester.tap(find.byKey(const ValueKey('chest-skip')), warnIfMissed: false);
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.byKey(const ValueKey('chest-collect')), findsOneWidget);

@@ -78,10 +78,18 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
     super.dispose();
   }
 
+  /// A single chest plays its show to the end. With several, a tap skips the rest only once the
+  /// first prize has flown out (before that the opening animation just plays).
+  void _skipShow() {
+    final prizes = _prizes;
+    if (prizes == null || prizes.length < 2) return;
+    if (_reveal.value < 0.44 || _reveal.value >= 1) return;
+    _reveal.value = 1;
+  }
+
   Future<void> _tap() async {
     if (_prizes != null) {
-      // the chest is still under the finger while the prizes arrive: a tap skips the show
-      if (_reveal.value < 1) _reveal.value = 1;
+      _skipShow();
       return;
     }
     if (_opening) return;
@@ -192,7 +200,7 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
                 key: const ValueKey('chest-skip'),
                 behavior: HitTestBehavior.translucent,
                 // While the prizes are still arriving, a tap shows the result at once.
-                onTap: _prizes != null && _reveal.value < 1 ? () => _reveal.value = 1 : null,
+                onTap: _skipShow,
                 child: _stage(color, type?.name ?? tr('Сундук')),
               ),
             ),
