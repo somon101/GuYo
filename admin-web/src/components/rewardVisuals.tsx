@@ -29,22 +29,23 @@ export const BADGE_LOOKS: Record<string, { name: string; colors: [string, string
 };
 
 /** A stand-in avatar: a round face on a soft background. */
-function Face({ size }: { size: number }) {
+function Face({ size, src }: { size: number; src?: string | null }) {
+  if (src) return <img src={src} alt="" style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover" }} />;
   return (
     <span style={{ width: size, height: size, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg,#8b93ff,#5862dd)", color: "#fff", fontWeight: 900, fontSize: size * 0.42 }}>S</span>
   );
 }
 
 /** The avatar with a season-pass frame, as the app wears it (a coloured ring round the photo). */
-export function FrameAvatar({ frameKey, size = 64 }: { frameKey?: string | null; size?: number }) {
+export function FrameAvatar({ frameKey, size = 64, src }: { frameKey?: string | null; size?: number; src?: string | null }) {
   const look = frameKey ? FRAME_LOOKS[frameKey] : undefined;
-  if (!look) return <Face size={size} />;
+  if (!look) return <Face size={size} src={src} />;
   const ring = Math.max(2.5, size * 0.07);
   const c = look.colors;
   return (
     <span style={{ width: size, height: size, borderRadius: "50%", padding: ring, display: "inline-flex", background: `conic-gradient(${[...c, c[0]].join(",")})` }}>
       <span style={{ padding: ring * 0.35, borderRadius: "50%", background: "#12151f", display: "inline-flex" }}>
-        <Face size={size - 2 * ring - ring * 0.7} />
+        <Face size={size - 2 * ring - ring * 0.7} src={src} />
       </span>
     </span>
   );
@@ -66,12 +67,12 @@ export function TitleChip({ text }: { text?: string }) {
 }
 
 /** A mini profile: how the person looks with the chosen frame, badge and title. */
-export function ProfileMock({ frame, badge, title }: { frame?: string | null; badge?: string | null; title?: string }) {
+export function ProfileMock({ frame, badge, title, src, login = "somon" }: { frame?: string | null; badge?: string | null; title?: string; src?: string | null; login?: string }) {
   return (
     <div className="flex items-center gap-3 rounded-2xl p-3" style={{ background: "#12151f", width: 280 }}>
-      <FrameAvatar frameKey={frame} size={64} />
+      <FrameAvatar frameKey={frame} size={64} src={src} />
       <div className="min-w-0">
-        <div className="flex items-center gap-2 font-black text-white">somon {badge !== undefined && badge !== null && <BadgeMark badgeKey={badge} size={22} />}</div>
+        <div className="flex items-center gap-2 font-black text-white">{login} {badge !== undefined && badge !== null && <BadgeMark badgeKey={badge} size={22} />}</div>
         <div className="mt-1">{title !== undefined ? <TitleChip text={title} /> : <span className="text-xs text-white/40">без звания</span>}</div>
       </div>
     </div>

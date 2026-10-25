@@ -104,3 +104,16 @@ def test_admin_grants_pass_xp(client, db, make_user, admin_headers, active_seaso
     assert r.json()["xp"] == 5000 and r.json()["level"] >= 1
     r = client.post("/admin/season-pass/grant-xp", headers=admin_headers, json={"user": "nobody", "amount": 5})
     assert r.status_code == 404
+
+
+def test_admin_showcase_is_read_only(client, db, make_user, admin_headers):
+    from app.models.season_pass import UserCosmetic
+
+    user = make_user("showme")
+    db.add(UserCosmetic(user_id=user.id, kind="frame", key="ocean", label="Океан"))
+    db.commit()
+    r = client.get("/admin/season-pass/showcase", headers=admin_headers, params={"user": "showme"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["login"] == "showme" and body["collection"]["frames"][0]["key"] == "ocean"
+    assert client.get("/admin/season-pass/showcase", headers=admin_headers, params={"user": "zzz"}).status_code == 404

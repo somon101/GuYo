@@ -349,3 +349,61 @@ def grant_xp(payload: GrantXpIn, db: Session = Depends(get_db), admin=Depends(ge
 
     state = user_state(db, user)
     return {"user_id": user.id, "login": user.login, "amount": given, "level": state["level"] if state else None, "xp": state["xp"] if state else None}
+
+
+@router.get("/showcase")
+def showcase(user: str, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+    """Read-only: what one person wears and owns (frames, badges, titles) and their
+    achievements, for the admin showcase page. Changes nothing, tells nobody."""
+    from sqlalchemy import func
+
+    from app.core.storage import url_for_key
+    from app.models.achievement import Achievement, UserAchievement
+    from app.models.season_pass import UserCosmetic
+    from app.models.user import User
+    from app.seasonpass.cosmetics import collection, label_for
+
+    key = user.strip()
+    query = db.query(User).filter(User.deleted_at.is_(None))
+    found = query.filter(User.public_id == int(key)).first() if key.isdigit() else None
+    if found is None:
+        found = query.filter(func.lower(User.login) == key.lower()).first()
+    if found is None:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    coll = collection(db, found)
+
+    def key_of(item_id):
+        row = db.get(UserCosmetic, item_id) if item_id else None
+        return row.key if row else None
+
+    def title_of(item_id):
+        row = db.get(UserCosmetic, item_id) if item_id else None
+        return label_for(row, found.ui_language) if row else None
+
+    earned = {
+        ua.achievement_id: ua.earned_at
+        for ua in db.query(UserAchievement).filter(UserAchievement.user_id == found.id).all()
+    }
+    achievements = [
+        {
+            "id": a.id,
+            "title": a.title,
+            "description": a.description,
+            "color": a.color,
+            "icon_url": url_for_key(a.icon_key),
+            "earned_at": earned[a.id].isoformat() if a.id in earned else None,
+        }
+        for a in db.query(Achievement).filter(Achievement.enabled.is_(True)).order_by(Achievement.order, Achievement.id).all()
+    ]
+    return {
+        "login": found.login,
+        "public_id": found.public_id,
+        "avatar_url": url_for_key(found.avatar_key),
+        "worn": {
+            "frame": key_of(found.equipped_frame_id),
+            "badge": key_of(found.equipped_badge_id),
+            "title": title_of(found.equipped_title_id),
+        },
+        "collection": coll,
+        "achievements": achievements,
+    }
