@@ -214,13 +214,9 @@ def gift_diamonds(payload: AdminGiftIn, db: Session = Depends(get_db), admin=Dep
         user = query.filter(func.lower(User.login) == key.lower()).first()
     if user is None:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
-    service.grant_diamonds(db, user, payload.amount, "admin_gift", f"admin:{admin.id}:{uuid.uuid4().hex}")
-    lang = user.ui_language if user.ui_language in _GIFT_TEXTS else "ru"
-    title, body = _GIFT_TEXTS[lang]
-    body = body.format(n=payload.amount)
-    if payload.note.strip():
-        body = f"{body}. {payload.note.strip()}"
-    send_notification(db, user, body, title=title, source="admin_gift")
+    from app.chests.rewards import send_gift
+
+    send_gift(db, user, [{"type": "diamonds", "amount": payload.amount}], payload.note)
     db.commit()
     db.refresh(user)
     return {"user_id": user.id, "login": user.login, "amount": payload.amount, "diamonds": user.diamonds_balance}

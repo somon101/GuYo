@@ -1104,6 +1104,13 @@ class ApiClient {
   }
 
   /// «Получить»: takes an earned daily-goal reward. Throws [ApiException] when it cannot.
+  /// «Получить» on a gift an admin sent (waits in the notifications). Throws [ApiException] when it
+  /// was taken already.
+  Future<void> claimGift(int notificationId) async {
+    final res = await http.post(_uri('/notifications/$notificationId/claim'), headers: await _authHeaders());
+    await _throwWithDetail(res);
+  }
+
   Future<DailyGoal> claimDailyGoal(int claimId) async {
     final res = await http.post(
       _uri('/daily-goal/claim'),

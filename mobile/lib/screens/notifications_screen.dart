@@ -28,7 +28,9 @@ class NotificationsScreen extends StatefulWidget {
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> {
+class _NotificationsScreenState extends State<NotificationsScreen> with SingleTickerProviderStateMixin {
+  late final TabController _tabs = TabController(length: 2, vsync: this)..addListener(() => setState(() {}));
+
   bool _isLoading = true;
   String? _loadError;
   List<AppNotification> _items = [];
@@ -42,6 +44,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     super.initState();
     _load();
   }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
+
+  /// Rewards waiting to be taken (an admin's gift or an unclaimed daily goal) live in «Награды».
+  List<AppNotification> get _gifts => [for (final n in _items) if (n.action != null) n];
+  List<AppNotification> get _messages => [for (final n in _items) if (n.action == null) n];
 
   Future<void> _load() async {
     if (!mounted) return;
@@ -75,11 +87,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _takeReward(AppNotification item) async {
     final id = int.tryParse((item.action ?? '').split(':').last);
     if (id == null) return;
+    final isGift = (item.action ?? '').startsWith('claim_gift:');
     try {
-      await ApiClient.instance.claimDailyGoal(id);
+      if (isGift) {
+        await ApiClient.instance.claimGift(id);
+      } else {
+        await ApiClient.instance.claimDailyGoal(id);
+      }
       if (!mounted) return;
       ApiClient.instance.fetchEconomy();
-      await showRewardClaimEffect(context, title: tr('Цель дня выполнена!'), rewards: item.payload);
+      await showRewardClaimEffect(context, title: isGift ? tr('Подарок получен!') : tr('Цель дня выполнена!'), rewards: item.payload);
       dailyGoalTick.value++;
     } on ApiException catch (_) {
       // Already taken somewhere else: the list below simply loses its button.
@@ -102,6 +119,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
         ),
         iconTheme: IconThemeData(color: AppColors.primaryDark),
+        bottom: TabBar(
+          controller: _tabs,
+          labelColor: AppColors.primary,
+          unselectedLabelColor: AppColors.secondaryText,
+          indicatorColor: AppColors.primary,
+          tabs: [
+            Tab(key: const ValueKey('tab-messages'), text: tr('Уведомления')),
+            Tab(key: const ValueKey('tab-gifts'), text: _gifts.isEmpty ? tr('Награды') : '${tr('Награды')} · ${_gifts.length}'),
+          ],
+        ),
       ),
       body: SafeArea(child: RefreshIndicator(onRefresh: _load, child: _buildBody())),
     );
@@ -128,14 +155,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ],
       );
     }
-    if (_items.isEmpty) {
+    final onGifts = _tabs.index == 1;
+    final shown = onGifts ? _gifts : _messages;
+    if (shown.isEmpty) {
       return ListView(
         children: [
           const SizedBox(height: 70),
           GuyoEmptyState(
-            icon: Icons.notifications_none_rounded,
-            title: tr('Пока нет уведомлений'),
-            message: tr('Здесь появятся сообщения от GuYo'),
+            icon: onGifts ? Icons.card_giftcard_rounded : Icons.notifications_none_rounded,
+            title: onGifts ? tr('Наград пока нет') : tr('Пока нет уведомлений'),
+            message: onGifts ? tr('Подарки и награды, которые ждут, будут здесь') : tr('Здесь появятся сообщения от GuYo'),
           ),
         ],
       );
@@ -144,7 +173,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
-        for (final item in _items) ...[
+        for (final item in shown) ...[
           _NotificationCard(
             notification: item,
             isNew: _newOnThisVisit.contains(item.id),

@@ -49,11 +49,30 @@ def test_kinds_keep_their_own_time_and_stock(db, make_user):
     assert state["active_until"] is None  # the chest kind keeps its old shape
 
 
-def test_admin_sends_a_booster_of_each_kind(client, db, make_user, admin_headers):
+def test_admin_sends_a_booster_of_each_kind(client, db, make_user, admin_headers, take_gifts):
     user = make_user("boosty")
     r = client.post("/admin/chests/send-booster", headers=admin_headers, json={"user": "boosty", "minutes": 60, "count": 2, "kind": "rating"})
     assert r.status_code == 200
+    take_gifts(user)
+    db.expire_all()
     state = boosters.state(db, user)
     assert {i["minutes"]: i["qty"] for i in state["kinds"]["rating"]["items"]}[60] == 2
     assert {i["minutes"]: i["qty"] for i in state["kinds"]["chest"]["items"]}[60] == 0
     assert client.post("/admin/chests/send-booster", headers=admin_headers, json={"user": "boosty", "minutes": 60, "kind": "nope"}).status_code == 422
+
+
+def test_a_gift_is_paid_once_and_rating_gift_is_not_doubled(client, db, make_user, admin_headers, auth, take_gifts):
+    from app.models.notification import Notification
+
+    user = make_user("giftee")
+    _run(db, user, "rating")
+    db.commit()
+    client.post("/admin/economy/gift", headers=admin_headers, json={"user": "giftee", "amount": 40, "note": "Спасибо"})
+    note = db.query(Notification).filter(Notification.user_id == user.id, Notification.action.like("claim_gift:%")).one()
+    assert note.payload == [{"type": "diamonds", "amount": 40}]
+    h = auth(user)
+    assert client.post(f"/notifications/{note.id}/claim", headers=h).status_code == 200
+    assert client.post(f"/notifications/{note.id}/claim", headers=h).status_code == 409  # taken already
+    assert client.post(f"/notifications/{note.id + 999}/claim", headers=h).status_code == 409
+    db.refresh(user)
+    assert user.diamonds_balance == 40

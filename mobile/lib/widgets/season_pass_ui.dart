@@ -91,6 +91,7 @@ RewardStyle rewardStyle(PassReward r) {
         isCatalogKey(r.key) ? const [Color(0xFF5B2EE0), Color(0xFF2A1670)] : const [Color(0xFF6EE7B7), Color(0xFF0E9F6E)],
         Icons.badge_rounded,
         (r.text ?? '').isEmpty ? tr('Титул') : r.text!,
+        asset: isCatalogKey(r.key) ? 'title:${r.key}' : null,
       );
     default:
       return RewardStyle(

@@ -108,7 +108,7 @@ def give(db: Session, user: User, rewards: list[dict], source: str, ref: str) ->
             given["diamonds"] += grant_diamonds(db, user, r["amount"], source, key)
         elif r["type"] == "rating_points":
             if _once(db, user, key):
-                grant_rating_points(db, user, r["amount"])
+                grant_rating_points(db, user, r["amount"], boost=source != "admin")
                 given["points"] += r["amount"]
         elif r["type"] == "booster":
             if _once(db, user, key):
@@ -221,3 +221,45 @@ _TEXTS = {
     "uz": ("Kun maqsadi mukofoti sizni kutmoqda", "Siz maqsadni bajardingiz ({words} so'z). Sovg'ani oling!"),
     "zh": ("每日目标奖励在等你", "你完成了目标（{words}个词）。快来领取礼物！"),
 }
+
+
+# ---- gifts from the admin: they wait in the person's notifications until taken -------------------
+
+_GIFT_TEXTS = {
+    "ru": ("Вам подарок!", "Вам отправили подарок. Нажмите «Получить»."),
+    "tg": ("Ба шумо тӯҳфа!", "Ба шумо тӯҳфа фиристоданд. «Гирифтан»-ро пахш кунед."),
+    "uz": ("Sizga sovg'a!", "Sizga sovg'a yuborildi. «Olish» tugmasini bosing."),
+    "en": ("A gift for you!", "You were sent a gift. Tap «Get»."),
+}
+
+
+def send_gift(db: Session, user: User, rewards_list: list[dict], note: str = "") -> "Notification":
+    """Puts a gift in the person's «Награды» (a notification with a «Получить» button). Nothing is
+    given until they take it. Does not commit."""
+    from app.notifications.service import send_notification
+
+    title, body = _GIFT_TEXTS.get(user.ui_language or "ru", _GIFT_TEXTS["ru"])
+    if note.strip():
+        body = f"{body} {note.strip()}"
+    n = send_notification(db, user, body, title=title, source="admin_gift")
+    n.payload = rewards_list
+    n.action = f"claim_gift:{n.id}"
+    db.flush()
+    return n
+
+
+def claim_gift(db: Session, user: User, notification_id: int) -> dict:
+    """Pays a waiting gift once."""
+    from app.models.notification import Notification
+
+    n = (
+        db.query(Notification)
+        .filter(Notification.id == notification_id, Notification.user_id == user.id)
+        .with_for_update()
+        .first()
+    )
+    if n is None or not (n.action or "").startswith("claim_gift:"):
+        raise ChestError("Подарок уже получен или не найден")
+    n.action = None
+    db.flush()
+    return give(db, user, list(n.payload or []), "admin", f"gift:{n.id}")

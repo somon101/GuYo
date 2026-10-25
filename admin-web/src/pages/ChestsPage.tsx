@@ -167,12 +167,12 @@ function SendSection({ types }: { types: ChestType[] }) {
   const send = async () => {
     if (!user.trim()) return;
     setMsg(""); setErr("");
-    try { const r = await sendChest(user.trim(), key, count); setMsg(`${r.login}: отправлено, в копилке теперь ${r.bank}`); } catch (e) { setErr(errorMessage(e)); }
+    try { const r = await sendChest(user.trim(), key, count); setMsg(`${r.login}: отправлено подарком в «Награды»`); } catch (e) { setErr(errorMessage(e)); }
   };
   return (
     <section className="card space-y-3 p-4">
       <h2 className="text-lg font-semibold">Отправить сундук пользователю</h2>
-      <p className="text-sm text-slate-500">Можно отправлять повторно и по несколько штук, лимиты не мешают. Пользователь получит уведомление, а сундук появится на главном экране.</p>
+      <p className="text-sm text-slate-500">Можно отправлять повторно и по несколько штук, лимиты не мешают. Подарок ждёт в уведомлениях, в разделе «Награды»: сундук появится у человека, когда он нажмёт «Получить».</p>
       <div className="flex flex-wrap items-end gap-2">
         <input className={`${field} w-56`} placeholder="Логин или ID" value={user} onChange={(e) => setUser(e.target.value)} />
         <input className={`${field} w-20`} type="number" min={1} max={10} value={count} onChange={(e) => setCount(Math.min(10, Math.max(1, Number(e.target.value) || 1)))} />

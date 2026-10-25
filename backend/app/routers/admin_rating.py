@@ -473,7 +473,12 @@ def grant_points(user_id: int, payload: GrantRatingPointsIn, db: Session = Depen
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     rating = get_or_create_user_rating(db, user.id)
-    grant_rating_points(db, user, payload.points, boost=False)
+    if payload.points > 0:
+        from app.chests.rewards import send_gift
+
+        send_gift(db, user, [{"type": "rating_points", "amount": payload.points}])  # a gift to take, not given at once
+    else:
+        grant_rating_points(db, user, payload.points, boost=False)  # a correction is immediate
     rating.total_points = max(0, rating.total_points)
     db.commit()
     db.refresh(rating)

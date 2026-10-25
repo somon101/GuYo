@@ -341,13 +341,17 @@ def grant_xp(payload: GrantXpIn, db: Session = Depends(get_db), admin=Depends(ge
         user = query.filter(func.lower(User.login) == key.lower()).first()
     if user is None:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
-    given = award_xp(db, user, "admin", f"admin:{admin.id}:{uuid.uuid4().hex}", amount=payload.amount)
-    if not given:
+    from app.chests.rewards import send_gift
+    from app.seasonpass.service import _active_season
+
+    if _active_season(db) is None:
         raise HTTPException(status_code=409, detail="Нет идущего сезона")
+    send_gift(db, user, [{"type": "xp", "amount": payload.amount}])
     db.commit()
     from app.seasonpass.service import user_state
 
     state = user_state(db, user)
+    given = payload.amount
     return {"user_id": user.id, "login": user.login, "amount": given, "level": state["level"] if state else None, "xp": state["xp"] if state else None}
 
 

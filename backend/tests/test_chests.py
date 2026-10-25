@@ -107,11 +107,12 @@ def test_pity_after_low_rolls_and_double(db, make_user):
     assert service.open_chest(db, user, c.id, Low()).prize_amount == 2
 
 
-def test_api_flow_and_admin_send(client, db, make_user, admin_headers, auth):
+def test_api_flow_and_admin_send(client, db, make_user, admin_headers, auth, take_gifts):
     user = make_user(login="somon")
     r = client.post("/admin/chests/send", headers=admin_headers, json={"user": "somon", "chest_key": "gold", "count": 2})
-    assert r.status_code == 200 and r.json()["bank"] == 2
+    assert r.status_code == 200 and r.json()["bank"] == 0  # a gift waits in the notifications until taken
     client.post("/admin/chests/send", headers=admin_headers, json={"user": "somon", "chest_key": "gold"})
+    assert take_gifts(user) == 2
     st = client.get("/chests", headers=auth(user)).json()
     assert len(st["chests"]) == 3 and len(st["types"]) == 4
     opened = client.post(f"/chests/{st['chests'][0]['id']}/open", headers=auth(user)).json()
@@ -174,7 +175,7 @@ def test_prizes_are_sealed_in_the_bank_and_opening_is_idempotent(client, db, mak
     assert again["diamonds"] == balance and len(again["state"]["chests"]) == 1
 
 
-def test_booster_doubles_chest_prizes_only_while_it_runs(client, db, make_user, auth, admin_headers):
+def test_booster_doubles_chest_prizes_only_while_it_runs(client, db, make_user, auth, admin_headers, take_gifts):
     from app.chests import boosters
 
     user = make_user(login="boost")
@@ -185,6 +186,8 @@ def test_booster_doubles_chest_prizes_only_while_it_runs(client, db, make_user, 
     h = auth(user)
     # held ticket, then switched on by hand
     assert client.post("/admin/chests/send-booster", headers=admin_headers, json={"user": "boost", "minutes": 30, "count": 2}).status_code == 200
+    assert {i["minutes"]: i["qty"] for i in client.get("/boosters", headers=h).json()["items"]}[30] == 0  # not given yet
+    take_gifts(user)
     st = client.get("/boosters", headers=h).json()
     assert {i["minutes"]: i["qty"] for i in st["items"]}[30] == 2 and st["active_until"] is None
     for i in range(3):

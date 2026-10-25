@@ -223,12 +223,9 @@ def send_chest(payload: SendIn, db: Session = Depends(get_db), admin=Depends(get
         user = query.filter(func.lower(User.login) == key.lower()).first()
     if user is None:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
-    try:
-        for _ in range(payload.count):
-            service.grant_chest(db, user, payload.chest_key, "admin", f"admin:{admin.id}:{uuid.uuid4().hex}", force=True)
-    except ChestError as e:
-        db.rollback()
-        raise HTTPException(status_code=422, detail=str(e)) from None
+    if db.get(ChestType, payload.chest_key) is None:
+        raise HTTPException(status_code=422, detail="Выберите сундук")
+    rewards.send_gift(db, user, [{"type": "chest", "key": payload.chest_key, "amount": payload.count}])
     db.commit()
     return {"login": user.login, "chest_key": payload.chest_key, "count": payload.count,
             "bank": len(service.unopened(db, user))}
@@ -266,6 +263,9 @@ def send_booster(payload: SendBoosterIn, db: Session = Depends(get_db), _admin=D
         user = query.filter(func.lower(User.login) == key.lower()).first()
     if user is None:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
-    boosters.add_booster(db, user, payload.minutes, payload.count, payload.kind)
+    item = {"type": "booster", "amount": payload.minutes}
+    if payload.kind != "chest":
+        item["kind"] = payload.kind
+    rewards.send_gift(db, user, [dict(item) for _ in range(payload.count)])
     db.commit()
     return {"login": user.login, "minutes": payload.minutes, "count": payload.count}

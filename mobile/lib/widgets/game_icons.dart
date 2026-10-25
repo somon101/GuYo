@@ -114,6 +114,7 @@ class MergeIcon extends StatelessWidget {
 /// The picture for a collectible by its short name: diamond, freeze or merge.
 Widget gameAsset(String name, double size) {
   if (name.startsWith('chest:')) return ChestImage(name.substring(6), size: size);
+  if (name.startsWith('title:')) return TitleRibbon(artKey: name.substring(6), text: '', width: (size * 2.4).clamp(0, 240).toDouble());
   if (name.startsWith('booster:')) return BoosterIcon(size: size, kind: name.substring(8));
   if (name.startsWith('cosmetic:')) return CosmeticImage(name.substring(9), width: size, height: size);
   switch (name) {

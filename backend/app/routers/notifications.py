@@ -105,6 +105,21 @@ def mark_all_notifications_read(db: Session = Depends(get_db), user: User = Depe
     return NotificationListOut(unread_count=unread_count(db, user), items=[_out(n) for n in items])
 
 
+@router.post("/notifications/{notification_id}/claim")
+def claim_notification_gift(notification_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """«Получить» on a gift the admin sent: pays it once."""
+    from app.chests.rewards import claim_gift
+    from app.chests.service import ChestError
+
+    try:
+        given = claim_gift(db, user, notification_id)
+    except ChestError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from None
+    db.commit()
+    return given
+
+
 @router.post("/notifications/push-token", status_code=status.HTTP_204_NO_CONTENT)
 def register_push_token(payload: PushTokenIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """The app reports its phone's FCM token after every login and whenever

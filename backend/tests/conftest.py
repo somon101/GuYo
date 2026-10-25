@@ -150,3 +150,19 @@ def active_season(db):
     db.add(season)
     db.commit()
     return season
+
+
+@pytest.fixture
+def take_gifts(client, db, auth):
+    """Presses «Получить» on every gift waiting in the person's notifications."""
+
+    def take(user):
+        from app.models.notification import Notification
+
+        db.expire_all()
+        ids = [n.id for n in db.query(Notification).filter(Notification.user_id == user.id, Notification.action.like("claim_gift:%"))]
+        for i in ids:
+            assert client.post(f"/notifications/{i}/claim", headers=auth(user)).status_code == 200
+        return len(ids)
+
+    return take

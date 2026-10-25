@@ -44,13 +44,13 @@ function GiftToUser() {
     setBusy(true); setError(''); setResult('');
     try {
       const r = await giftDiamonds(user.trim(), amount, note);
-      setResult(`${r.login}: +${r.amount} бриллиантов, теперь ${r.diamonds}`);
+      setResult(`${r.login}: подарок +${r.amount} бриллиантов отправлен в «Награды», получит, когда нажмёт «Получить»`);
       setNote('');
     } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   };
   return <section className="card p-4">
     <h2 className="mb-1 text-lg font-semibold">Подарить бриллианты</h2>
-    <p className="mb-3 text-sm text-slate-500">Человек сразу получит бриллианты и уведомление о подарке.</p>
+    <p className="mb-3 text-sm text-slate-500">Подарок придёт в уведомления, в раздел «Награды»; бриллианты зачислятся, когда человек нажмёт «Получить».</p>
     <div className="flex flex-wrap items-center gap-2">
       <input className={`${field} w-48`} placeholder="Логин или ID" value={user} onChange={(e) => setUser(e.target.value)} />
       <input className={`${field} w-24`} type="number" min={1} max={100000} value={amount} onChange={(e) => setAmount(Math.max(1, Number(e.target.value) || 1))} />
@@ -73,12 +73,12 @@ function GrantPassXp() {
     setBusy(true); setError(''); setResult('');
     try {
       const r = await grantPassXp(user.trim(), amount);
-      setResult(`${r.login}: +${r.amount} энергии, уровень пропуска ${r.level}, всего ${r.xp}`);
+      setResult(`${r.login}: подарок +${r.amount} энергии пропуска отправлен в «Награды» (сейчас уровень ${r.level}, всего ${r.xp})`);
     } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   };
   return <section className="card p-4">
     <h2 className="mb-1 text-lg font-semibold">Отправить энергию пропуска</h2>
-    <p className="mb-3 text-sm text-slate-500">Сколько укажете, столько человек и получит: уровень пропуска поднимется сразу.</p>
+    <p className="mb-3 text-sm text-slate-500">Придёт подарком в «Награды»: уровень пропуска поднимется, когда человек нажмёт «Получить».</p>
     <div className="flex flex-wrap items-center gap-2">
       <input className={`${field} w-48`} placeholder="Логин или ID" value={user} onChange={(e) => setUser(e.target.value)} />
       <input className={`${field} w-28`} type="number" min={1} value={amount} onChange={(e) => setAmount(Math.max(1, Number(e.target.value) || 1))} />
