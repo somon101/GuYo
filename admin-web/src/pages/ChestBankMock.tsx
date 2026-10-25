@@ -6,23 +6,15 @@ import type { ChestType } from "../api/endpoints";
 
 const BASE = `${import.meta.env.BASE_URL}`;
 
-function mix(hex: string, to: number, k: number): string {
-  const n = parseInt(hex.slice(1), 16);
-  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(v + (to - v) * k));
-  return `rgb(${ch[0]},${ch[1]},${ch[2]})`;
-}
-
-/** A glossy, pressable button in the chest's own colour. */
-function chestButton(color: string): React.CSSProperties {
-  return {
-    background: `linear-gradient(180deg, ${mix(color, 255, 0.45)} 0%, ${color} 50%, ${mix(color, 0, 0.22)} 100%)`,
-    boxShadow: `0 4px 0 ${mix(color, 0, 0.5)}, 0 9px 14px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.65), inset 0 -2px 0 rgba(0,0,0,0.12)`,
-    color: "#fff",
-    textShadow: "0 1px 2px rgba(0,0,0,0.5)",
-    border: "1px solid rgba(255,255,255,0.35)",
-    letterSpacing: 0.2,
-  };
-}
+/** The one big "open" button: bright candy green with a thick edge, like a game's play button. */
+const playButton: React.CSSProperties = {
+  background: "linear-gradient(180deg,#9dff72 0%,#3fd43a 48%,#1ea82c 100%)",
+  boxShadow: "0 4px 0 #0f6b1d, 0 8px 12px rgba(0,0,0,0.35), inset 0 2px 0 rgba(255,255,255,0.7), inset 0 -2px 0 rgba(0,0,0,0.12)",
+  border: "2px solid #0f6b1d",
+  color: "#fff",
+  textShadow: "0 2px 0 #0f6b1d, 0 0 6px rgba(0,60,0,0.6)",
+  letterSpacing: 0.6,
+};
 
 export function ChestBankMock({ types, onOpen }: { types: ChestType[]; onOpen: (key: string, count: number) => void }) {
   const [counts, setCounts] = useState<Record<string, number>>({ wood: 6, silver: 3, purple: 1, gold: 0 });
@@ -34,15 +26,25 @@ export function ChestBankMock({ types, onOpen }: { types: ChestType[]; onOpen: (
 
   const shell = "mx-auto w-full max-w-sm rounded-3xl p-4 text-white";
   const bg = { background: "linear-gradient(135deg,#3d2b8f,#1e1560)" };
-  const btn = "rounded-xl px-4 py-2 text-sm font-extrabold transition active:translate-y-0.5 disabled:opacity-40";
 
   return (
     <section className="card space-y-3 p-4">
       <h2 className="text-lg font-semibold">Макет: «Мои сундуки» в приложении</h2>
       <p className="text-sm text-slate-500">
-        Нажмите на карточку: откроется весь список накопленного. У каждого вида одна кнопка «Открыть» и переключатель ×1 / ×5 / ×10: ×5 открывает сразу 5 сундуков, ×10 сразу 10; если сундуков меньше, доступен только меньший вариант (например при 7: сначала ×5, затем два оставшихся по одному). Анимация при этом показывается на сцене выше (из сундука вылетает столько призов, сколько сундуков открыто). Сундуки разных видов за один раз не открываются: только один вид. Количество сундуков ниже
+        Нажмите на карточку: откроется весь список накопленного. У каждого вида одна кнопка «Открыть». Если сундуков меньше 5, они открываются по одному. От 5 появляется ×5, от 10 появляется ×10 (например при 7: сначала ×5, затем два оставшихся по одному). Анимация при этом показывается на сцене выше (из сундука вылетает столько призов, сколько сундуков открыто). Сундуки разных видов за один раз не открываются: только один вид. Количество сундуков ниже
         придумано для показа, его можно менять кнопками +/−.
       </p>
+
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-slate-500">Набор для проверки:</span>
+        {[["3 / 1 / 0 / 0", [3, 1, 0, 0]], ["7 / 4 / 1 / 0", [7, 4, 1, 0]], ["12 / 10 / 5 / 2", [12, 10, 5, 2]]].map(([label, v]) => (
+          <button key={label as string} type="button" className="rounded-lg border border-slate-300 px-3 py-1 text-slate-700"
+            onClick={() => { const arr = v as number[]; setCounts(Object.fromEntries(types.map((c, i) => [c.key, arr[i] ?? 0]))); setMode({}); }}>
+            {label as string}
+          </button>
+        ))}
+        <span className="text-xs text-slate-400">(дерево / серебро / фиолет / золото)</span>
+      </div>
 
       {screen === "card" && (
         <div role="button" aria-label="Мои сундуки" className={`${shell} cursor-pointer`} style={bg} onClick={() => setScreen("list")}>
@@ -56,7 +58,7 @@ export function ChestBankMock({ types, onOpen }: { types: ChestType[]; onOpen: (
                 {all > 4 && <span className="ml-1 font-black">+{all - 4}</span>}
               </div>
             </div>
-            <span className={btn} style={chestButton(types.find((c) => (counts[c.key] ?? 0) > 0)?.color ?? "#f5b700")}>Открыть</span>
+            <span className="rounded-xl px-4 py-2 text-sm font-black uppercase" style={playButton}>Открыть</span>
           </div>
         </div>
       )}
@@ -79,27 +81,28 @@ export function ChestBankMock({ types, onOpen }: { types: ChestType[]; onOpen: (
                       <div className="truncate font-bold">{c.name}</div>
                       <div className="text-xs text-white/70">бриллианты до {c.max_diamonds}, очки до {c.max_points}</div>
                     </div>
-                    <div className="flex items-center gap-1 text-lg font-black">
-                      <button className="rounded-lg bg-white/15 px-2 text-sm" onClick={() => set(c.key, -1)}>−</button>
-                      <span style={{ minWidth: 28, textAlign: "center" }}>{n}</span>
-                      <button className="rounded-lg bg-white/15 px-2 text-sm" onClick={() => set(c.key, 1)}>+</button>
-                    </div>
+                    <div className="rounded-full px-3 py-1 text-base font-black" style={{ background: "rgba(0,0,0,0.3)", boxShadow: `inset 0 0 0 2px ${c.color}` }}>×{n}</div>
                   </div>
                   {n > 0 && (() => {
                     const mult = Math.min(mode[c.key] ?? 1, n >= 10 ? 10 : n >= 5 ? 5 : 1);
                     const m = mult >= 10 && n >= 10 ? 10 : mult >= 5 && n >= 5 ? 5 : 1;
+                    const options = [1, 5, 10].filter((x) => x === 1 || n >= x);
                     return (
-                      <div className="mt-3 flex items-center gap-2">
-                        <div className="flex rounded-xl bg-black/25 p-1">
-                          {[1, 5, 10].map((x) => (
-                            <button key={x} disabled={n < x} onClick={() => setMode({ ...mode, [c.key]: x })}
-                              className="rounded-lg px-3 py-1 text-sm font-black disabled:opacity-30"
-                              style={m === x ? { background: "rgba(255,255,255,0.92)", color: "#2a1a6b" } : { color: "rgba(255,255,255,0.75)" }}>
-                              ×{x}
-                            </button>
-                          ))}
-                        </div>
-                        <button className={`${btn} flex-1`} style={chestButton(c.color)} onClick={() => { onOpen(c.key, m); set(c.key, -m); }}>
+                      <div className="mt-2 flex items-center gap-2">
+                        {options.length > 1 && (
+                          <div className="flex gap-1">
+                            {options.map((x) => (
+                              <button key={x} onClick={() => setMode({ ...mode, [c.key]: x })}
+                                className="rounded-lg px-2.5 py-1 text-sm font-black transition active:scale-95"
+                                style={m === x
+                                  ? { background: "linear-gradient(180deg,#ffe56b,#ffab1a)", color: "#4a2a00", boxShadow: "0 2px 0 #b36a00, inset 0 1px 0 rgba(255,255,255,0.7)" }
+                                  : { background: "rgba(255,255,255,0.14)", color: "rgba(255,255,255,0.85)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25)" }}>
+                                ×{x}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <button className="flex-1 rounded-xl px-3 py-2 text-sm font-black uppercase transition active:translate-y-0.5" style={playButton} onClick={() => { onOpen(c.key, m); set(c.key, -m); }}>
                           Открыть{m > 1 ? ` ×${m}` : ""}
                         </button>
                       </div>
