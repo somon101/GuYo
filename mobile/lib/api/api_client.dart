@@ -1144,11 +1144,13 @@ class ApiClient {
   }
 
   /// Tells the server these chests were opened on the phone (idempotent). Throws when it cannot.
-  Future<void> sendOpenedChests(List<int> ids) async {
+  Future<void> sendOpenedChests(List<(int, String?)> opened) async {
     final res = await http.post(
       _uri('/chests/open-ids'),
       headers: await _authHeaders(),
-      body: jsonEncode({'ids': ids}),
+      body: jsonEncode({
+        'items': [for (final (id, at) in opened) {'id': id, if (at != null) 'opened_at': at}],
+      }),
     );
     await _throwWithDetail(res);
     _remember('chests', res.statusCode == 200 ? _stateOnly(res) : res);
@@ -1157,6 +1159,40 @@ class ApiClient {
   http.Response _stateOnly(http.Response res) {
     final json = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
     return http.Response(jsonEncode(json['state']), 200, headers: res.headers);
+  }
+
+  /// The "x2" tickets held and whether one is running.
+  Future<BoosterState?> fetchBoosters() async {
+    try {
+      final res = await http.get(_uri('/boosters'), headers: await _authHeaders());
+      if (res.statusCode >= 400) return null;
+      _remember('boosters', res);
+      return BoosterState.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  BoosterState? cachedBoosters() {
+    final raw = DiskCache.get('boosters');
+    if (raw == null) return null;
+    try {
+      return BoosterState.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Switches a ticket on. Throws [ApiException] when there is none.
+  Future<BoosterState> activateBooster(int minutes) async {
+    final res = await http.post(
+      _uri('/boosters/activate'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'minutes': minutes}),
+    );
+    await _throwWithDetail(res);
+    _remember('boosters', res);
+    return BoosterState.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
   }
 
   /// Takes the chest of the day into the bank.
@@ -1181,7 +1217,7 @@ class ApiClient {
     return (
       [
         for (final p in json['prizes'] as List<dynamic>)
-          ChestPrize(chestKey: chestKey, kind: p['kind'] as String, amount: p['amount'] as int),
+          ChestPrize(chestKey: chestKey, kind: p['kind'] as String, amount: p['amount'] as int, doubled: (p['doubled'] as bool?) ?? false),
       ],
       bank,
     );
@@ -1195,7 +1231,7 @@ class ApiClient {
     final bank = ChestBank.fromJson(json['state'] as Map<String, dynamic>);
     DiskCache.put('chests', jsonEncode(json['state']));
     return (
-      ChestPrize(chestKey: json['chest_key'] as String, kind: json['kind'] as String, amount: json['amount'] as int),
+      ChestPrize(chestKey: json['chest_key'] as String, kind: json['kind'] as String, amount: json['amount'] as int, doubled: (json['doubled'] as bool?) ?? false),
       bank,
     );
   }

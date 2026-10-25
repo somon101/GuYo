@@ -10,6 +10,7 @@ import '../services/chest_queue.dart';
 import '../services/chest_sound.dart';
 import '../services/streak_state.dart';
 import '../widgets/game_icons.dart';
+import '../widgets/reward_chips.dart' show boosterShort;
 
 /// Opens [count] (1, 5 or 10) chests of one kind: three taps, each shakes the
 /// chest, the third bursts it open; the chest leaves and the prizes (one for a
@@ -99,7 +100,17 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
     if (_local) {
       // Everything is known already: show the prizes now and tell the server later.
       final ids = [for (final c in widget.chests) c.id];
-      final prizes = [for (final c in widget.chests) ChestPrize(chestKey: c.chestKey, kind: c.prizeKind!, amount: c.prizeAmount!)];
+      // A running "x2" ticket doubles every prize but a ticket itself (the server checks the same moment).
+      final twice = widget.bank.boosterRunning;
+      final prizes = [
+        for (final c in widget.chests)
+          ChestPrize(
+            chestKey: c.chestKey,
+            kind: c.prizeKind!,
+            amount: twice && c.prizeKind != 'booster' ? c.prizeAmount! * 2 : c.prizeAmount!,
+            doubled: twice && c.prizeKind != 'booster',
+          ),
+      ];
       if (widget.opener == null) ChestQueue.opened(ids);
       dailyGoalTick.value++;
       setState(() {
@@ -171,6 +182,21 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
               ),
             ),
             Positioned.fill(child: _stage(color, type?.name ?? tr('Сундук'))),
+            if (widget.bank.boosterRunning)
+              Positioned(
+                top: 8,
+                right: 12,
+                child: Container(
+                  key: const ValueKey('boost-badge'),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(99), border: Border.all(color: const Color(0xFFFFD54F), width: 1.5)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const BoosterIcon(size: 24),
+                    const SizedBox(width: 4),
+                    Text(tr('Награды ×2'), style: const TextStyle(color: Color(0xFFFFD54F), fontWeight: FontWeight.w900, fontSize: 13)),
+                  ]),
+                ),
+              ),
           ]),
         ),
       ),
@@ -314,8 +340,13 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
           _prizeIcon(p.kind, 46),
           const SizedBox(height: 2),
           Text(
-            '+${p.kind == 'diamonds' ? compactNumber(p.amount) : p.amount}',
-            style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900),
+            _amountText(p),
+            style: TextStyle(
+              color: p.doubled ? const Color(0xFFFFD54F) : Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              shadows: p.doubled ? const [Shadow(color: Color(0xCCFFC83C), blurRadius: 10)] : null,
+            ),
           ),
         ]),
       );
@@ -331,7 +362,11 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
       child: Opacity(
         opacity: t,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('${tr('Всего')}:', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Text('${tr('Всего')}', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+            if (prizes.any((p) => p.doubled)) ...[const SizedBox(width: 4), const BoosterIcon(size: 24)],
+            const Text(':', style: TextStyle(color: Colors.white70, fontSize: 14)),
+          ]),
           const SizedBox(height: 4),
           Row(mainAxisSize: MainAxisSize.min, children: [
             for (final e in sums.entries)
@@ -341,8 +376,8 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
                   _prizeIcon(e.key, 26),
                   const SizedBox(width: 3),
                   Text(
-                    '+${e.key == 'diamonds' ? compactNumber(e.value) : e.value}',
-                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
+                    e.key == 'booster' ? '×${prizes.where((p) => p.kind == 'booster').length}' : '+${e.key == 'diamonds' ? compactNumber(e.value) : e.value}',
+                    style: TextStyle(color: prizes.any((p) => p.doubled && p.kind == e.key) ? const Color(0xFFFFD54F) : Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
                   ),
                 ]),
               ),
@@ -360,10 +395,15 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
         return MergeIcon(size: size);
       case 'points':
         return PointsIcon(size: size);
+      case 'booster':
+        return BoosterIcon(size: size);
       default:
         return DiamondIcon(size: size);
     }
   }
+
+  String _amountText(ChestPrize p) =>
+      p.kind == 'booster' ? boosterShort(p.amount) : '+${p.kind == 'diamonds' ? compactNumber(p.amount) : p.amount}';
 
   Widget _prizeView(ChestPrize p) {
     final String label;
@@ -377,17 +417,52 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
       case 'points':
         label = tr('Очки рейтинга');
         break;
+      case 'booster':
+        label = tr('Удвоитель наград');
+        break;
       default:
         label = tr('Бриллианты');
+    }
+    final big = TextStyle(color: Colors.white, fontSize: p.kind == 'booster' ? 40 : 52, fontWeight: FontWeight.w900, height: 1);
+    // With a ticket running the plain number shows first, the ticket flies in and it turns into the doubled gold one.
+    final t = _reveal.value;
+    double span(double a, double b) => ((t - a) / (b - a)).clamp(0.0, 1.0);
+    final Widget amount;
+    if (p.doubled) {
+      final k = widget.count > 1 ? 1.0 : 1.0;
+      final ticket = Curves.easeOutBack.transform(span(0.62 * k, 0.78 * k));
+      final fin = Curves.easeOutBack.transform(span(0.78 * k, 0.9 * k));
+      amount = SizedBox(
+        height: 70,
+        child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: [
+          Opacity(
+            opacity: (1 - 0.55 * fin).clamp(0.0, 1.0),
+            child: Transform.scale(
+              scale: 1 - 0.3 * fin,
+              child: Text('+${p.kind == 'diamonds' ? compactNumber(p.baseAmount) : p.baseAmount}', style: big.copyWith(fontSize: 30, color: Colors.white70, decoration: fin > 0.1 ? TextDecoration.lineThrough : null)),
+            ),
+          ),
+          Opacity(opacity: ticket.clamp(0.0, 1.0), child: Transform.scale(scale: ticket, child: const Padding(padding: EdgeInsets.symmetric(horizontal: 6), child: BoosterIcon(size: 58)))),
+          Opacity(
+            opacity: fin.clamp(0.0, 1.0),
+            child: Transform.scale(
+              scale: fin,
+              child: Text(
+                '+${p.kind == 'diamonds' ? compactNumber(p.amount) : p.amount}',
+                key: const ValueKey('chest-prize'),
+                style: big.copyWith(color: const Color(0xFFFFD54F), fontSize: 56, shadows: const [Shadow(color: Color(0xE6FFC83C), blurRadius: 18)]),
+              ),
+            ),
+          ),
+        ]),
+      );
+    } else {
+      amount = Text(_amountText(p), key: const ValueKey('chest-prize'), style: big);
     }
     return Column(mainAxisSize: MainAxisSize.min, children: [
       _prizeIcon(p.kind, 150),
       const SizedBox(height: 10),
-      Text(
-        '+${p.kind == 'diamonds' ? compactNumber(p.amount) : p.amount}',
-        key: const ValueKey('chest-prize'),
-        style: const TextStyle(color: Colors.white, fontSize: 52, fontWeight: FontWeight.w900, height: 1),
-      ),
+      amount,
       const SizedBox(height: 4),
       Text(label, style: const TextStyle(color: Colors.white70, fontSize: 17, fontWeight: FontWeight.w700)),
     ]);

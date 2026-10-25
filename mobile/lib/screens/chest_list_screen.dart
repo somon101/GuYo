@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 
@@ -6,7 +7,9 @@ import '../api/api_client.dart';
 import '../l10n/l10n.dart';
 import '../models/chest.dart';
 import '../services/chest_queue.dart';
+import '../models/reward_spec.dart';
 import '../widgets/counted_chest.dart';
+import '../widgets/reward_claim_effect.dart';
 import '../widgets/game_icons.dart';
 import 'chest_open_screen.dart';
 
@@ -25,6 +28,8 @@ class _ChestListScreenState extends State<ChestListScreen> {
   late ChestBank _bank = widget.bank;
   final Map<String, int> _mode = {};
   bool _busy = false;
+  BoosterState? _boosters = ApiClient.instance.cachedBoosters();
+  Timer? _tick;
   String? _notice;
   Timer? _noticeTimer;
 
@@ -33,12 +38,39 @@ class _ChestListScreenState extends State<ChestListScreen> {
     super.initState();
     // A system toast left over from another screen must not hang over this one.
     WidgetsBinding.instance.addPostFrameCallback((_) => ScaffoldMessenger.maybeOf(context)?.clearSnackBars());
+    _loadBoosters();
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && (_boosters?.running ?? false)) setState(() {});
+    });
   }
 
   @override
   void dispose() {
+    _tick?.cancel();
     _noticeTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadBoosters() async {
+    final b = await ApiClient.instance.fetchBoosters();
+    if (mounted && b != null) setState(() => _boosters = b);
+  }
+
+  /// «Включить»: switches a ticket on, with the effect, then refreshes the bank (the prizes of
+  /// the chests opened from now on are doubled).
+  Future<void> _activate(int minutes) async {
+    try {
+      final b = await ApiClient.instance.activateBooster(minutes);
+      if (!mounted) return;
+      setState(() => _boosters = b);
+      await showRewardClaimEffect(context, title: tr('Награды ×2'), rewards: [RewardSpec(type: 'booster', amount: minutes)]);
+      final fresh = await ApiClient.instance.fetchChests();
+      if (fresh != null && mounted) setState(() => _bank = fresh);
+    } on ApiException catch (e) {
+      if (mounted) _say(e.message);
+    } catch (_) {
+      if (mounted) _say(tr('Не удалось. Проверьте интернет.'));
+    }
   }
 
   void _say(String message) {
@@ -105,6 +137,7 @@ class _ChestListScreenState extends State<ChestListScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
+          if (_boosters != null && (_boosters!.total > 0 || _boosters!.running)) _boostersTile(_boosters!),
           if (daily.enabled && !daily.claimed) _dailyTile(daily),
           for (final t in _bank.types) _row(t),
           if (total == 0)
@@ -116,6 +149,57 @@ class _ChestListScreenState extends State<ChestListScreen> {
       ),
     );
   }
+
+  String _left(DateTime until) {
+    final s = until.difference(DateTime.now()).inSeconds.clamp(0, 1 << 30);
+    final h = s ~/ 3600, m = (s % 3600) ~/ 60, sec = s % 60;
+    String two(int n) => n.toString().padLeft(2, '0');
+    return h > 0 ? '$h:${two(m)}:${two(sec)}' : '${two(m)}:${two(sec)}';
+  }
+
+  Widget _boostersTile(BoosterState b) => Container(
+        key: const ValueKey('boosters-tile'),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(18)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(child: Text(tr('Мои бонусы'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900))),
+            if (b.running)
+              Container(
+                key: const ValueKey('boost-running'),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(99), border: Border.all(color: const Color(0xFFFFD54F), width: 1.5)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const BoosterIcon(size: 22),
+                  const SizedBox(width: 4),
+                  Text(_left(b.activeUntil!), style: const TextStyle(color: Color(0xFFFFD54F), fontWeight: FontWeight.w900, fontFeatures: [FontFeature.tabularFigures()])),
+                ]),
+              ),
+          ]),
+          const SizedBox(height: 4),
+          Text(
+            b.running ? tr('Идёт удвоение. Ещё один билет прибавит время.') : tr('Включите билет, чтобы призы из сундуков удваивались, пока идёт время.'),
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+          const SizedBox(height: 8),
+          for (final e in b.items.entries)
+            Opacity(
+              opacity: e.value > 0 ? 1 : 0.45,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(children: [
+                  CountedBoosterIcon(count: e.value),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(_minutesLabel(e.key), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800))),
+                  GreenButton(key: ValueKey('boost-on-${e.key}'), label: tr('Включить'), onTap: e.value > 0 ? () => _activate(e.key) : null, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8)),
+                ]),
+              ),
+            ),
+        ]),
+      );
+
+  String _minutesLabel(int m) => m >= 60 && m % 60 == 0 ? tr('{0} ч', [m ~/ 60]) : tr('{0} мин', [m]);
 
   Widget _dailyTile(DailyChest daily) => Container(
         key: const ValueKey('daily-tile'),
@@ -192,4 +276,33 @@ class _ChestListScreenState extends State<ChestListScreen> {
       ),
     );
   }
+}
+
+/// The ticket with the number held, on a corner plate (like the chests).
+class CountedBoosterIcon extends StatelessWidget {
+  final int count;
+  const CountedBoosterIcon({super.key, required this.count});
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: 52,
+        height: 52,
+        child: Stack(clipBehavior: Clip.none, children: [
+          const BoosterIcon(size: 52),
+          Positioned(
+            left: 52 * 0.8,
+            top: 52 * 0.76,
+            child: FractionalTranslation(
+              translation: const Offset(-0.5, -0.5),
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 22),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: const Color(0xFF1B1247), borderRadius: BorderRadius.circular(99), boxShadow: const [BoxShadow(color: Color(0xFFFFC928), spreadRadius: 2)]),
+                child: Text('$count', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12, height: 1)),
+              ),
+            ),
+          ),
+        ]),
+      );
 }

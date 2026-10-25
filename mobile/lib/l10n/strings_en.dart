@@ -883,4 +883,13 @@ const Map<String, String> enStrings = {
   'Дуэль окончена': 'Duel over',
   'В этот раз без награды': 'No reward this time',
   'Новая дуэль': 'New duel',
+  'Награды ×2': 'Rewards ×2',
+  'Награды ×2 идут': 'Rewards ×2 running',
+  'Есть билеты ×2': 'You have ×2 tickets',
+  'Мои бонусы': 'My bonuses',
+  'Включить': 'Switch on',
+  'Удвоитель наград': 'Reward doubler',
+  'Идёт удвоение. Ещё один билет прибавит время.': 'Doubling is on. Another ticket adds time.',
+  'Включите билет, чтобы призы из сундуков удваивались, пока идёт время.': 'Switch a ticket on: chest prizes are doubled while the time runs.',
+  '{0} ч': '{0} h',
 };

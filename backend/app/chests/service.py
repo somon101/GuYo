@@ -261,6 +261,7 @@ def user_state(db: Session, user: User) -> dict:
         ],
         "daily": daily_state(db, user),
         "double": double_active(s),
+        "booster_qty": boosters.total_qty(db, user),
         "booster_until": (boosters.active_until(db, user).isoformat() if boosters.active_until(db, user) else None),
         "inventory_max": s.inventory_max,
     }

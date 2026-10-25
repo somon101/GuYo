@@ -16,25 +16,31 @@ class ChestQueue {
   static const _key = 'chest-pending';
   static bool _flushing = false;
 
-  static Set<int> get pending {
+  /// id -> the moment it was opened on this phone (the server judges a doubled prize by it).
+  static Map<int, String> get _map {
     final raw = DiskCache.get(_key);
     if (raw == null) return {};
     try {
-      return (jsonDecode(raw) as List<dynamic>).cast<int>().toSet();
+      final decoded = jsonDecode(raw);
+      if (decoded is List) return {for (final i in decoded.cast<int>()) i: DateTime.now().toUtc().toIso8601String()};
+      return (decoded as Map<String, dynamic>).map((k, v) => MapEntry(int.parse(k), v as String));
     } catch (_) {
       return {};
     }
   }
 
-  static void _store(Set<int> ids) {
-    DiskCache.put(_key, jsonEncode(ids.toList()));
+  static Set<int> get pending => _map.keys.toSet();
+
+  static void _store(Map<int, String> map) {
+    DiskCache.put(_key, jsonEncode(map.map((k, v) => MapEntry('$k', v))));
     // ignore: unawaited_futures
     DiskCache.saveNow();
   }
 
-  /// Remembers these chests as opened, and tries to tell the server in the background.
+  /// Remembers these chests as opened (now), and tries to tell the server in the background.
   static void opened(List<int> ids) {
-    _store({...pending, ...ids});
+    final now = DateTime.now().toUtc().toIso8601String();
+    _store({..._map, for (final i in ids) i: now});
     // ignore: unawaited_futures
     flush();
   }
@@ -46,11 +52,12 @@ class ChestQueue {
     if (ids.isEmpty) return;
     _flushing = true;
     try {
+      final times = _map;
       final list = ids.toList();
       for (var i = 0; i < list.length; i += 10) {
         final part = list.sublist(i, i + 10 > list.length ? list.length : i + 10);
-        await ApiClient.instance.sendOpenedChests(part);
-        _store(pending..removeAll(part));
+        await ApiClient.instance.sendOpenedChests([for (final i in part) (i, times[i])]);
+        _store(_map..removeWhere((k, _) => part.contains(k)));
       }
       // ignore: unawaited_futures
       ApiClient.instance.fetchEconomy();

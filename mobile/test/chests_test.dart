@@ -98,6 +98,32 @@ void main() {
 
 // Opening with sealed prizes needs no network at all.
 void sealedTests() {
+  testWidgets('with an x2 ticket running the sealed prize is shown doubled', (tester) async {
+    final until = DateTime.now().add(const Duration(minutes: 20)).toUtc().toIso8601String();
+    final bank = ChestBank.fromJson({
+      'types': [
+        {'key': 'wood', 'name': 'Деревянный сундук', 'color': '#a0693b', 'max_diamonds': 10, 'max_freezes': 1, 'max_merges': 1, 'max_points': 20},
+      ],
+      'chests': [
+        {'id': 1, 'chest_key': 'wood', 'source': 'pass', 'prize_kind': 'diamonds', 'prize_amount': 7},
+      ],
+      'daily': {'enabled': false, 'chest_key': 'wood', 'claimed': true, 'available': false, 'conditions': ''},
+      'double': false,
+      'inventory_max': 10,
+      'booster_until': until,
+      'booster_qty': 1,
+    });
+    await tester.pumpWidget(MaterialApp(home: ChestOpenScreen(bank: bank, chests: bank.chests, opener: (k, n) async => throw Exception('offline'))));
+    expect(find.byKey(const ValueKey('boost-badge')), findsOneWidget);
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byKey(const ValueKey('chest-tap')));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await tester.pump(const Duration(milliseconds: 2400));
+    expect(find.text('+14'), findsOneWidget);
+    expect(find.text('+7'), findsOneWidget); // the plain number stays beside it, struck through
+  });
+
   testWidgets('sealed prizes open at once, without any server call', (tester) async {
     var calls = 0;
     final sealed = ChestBank.fromJson({

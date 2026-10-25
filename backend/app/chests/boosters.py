@@ -66,6 +66,10 @@ def activate(db: Session, user: User, minutes: int) -> datetime:
     return end
 
 
+def total_qty(db: Session, user: User) -> int:
+    return int(db.query(func.coalesce(func.sum(UserBooster.qty), 0)).filter(UserBooster.user_id == user.id).scalar() or 0)
+
+
 def state(db: Session, user: User) -> dict:
     held = {r.minutes: r.qty for r in db.query(UserBooster).filter_by(user_id=user.id)}
     minutes = sorted(set(STANDARD_MINUTES) | {m for m, q in held.items() if q > 0})

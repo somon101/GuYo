@@ -82,7 +82,7 @@ class _ChestsCardState extends State<ChestsCard> {
     if (bank == null) return const SizedBox.shrink();
     final daily = bank.daily;
     final showDaily = daily.enabled && !daily.claimed;
-    if (!showDaily && bank.chests.isEmpty) return const SizedBox.shrink();
+    if (!showDaily && bank.chests.isEmpty && bank.boosterQty == 0 && !bank.boosterRunning) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 14),
       child: ChestsCardView(
@@ -164,6 +164,21 @@ class ChestsCardView extends StatelessWidget {
               ),
               GreenButton(label: tr('Открыть'), onTap: onOpen),
             ]),
+          if (bank.boosterRunning || (bank.boosterQty > 0 && bank.chests.isEmpty && !showDaily))
+            Padding(
+              padding: EdgeInsets.only(top: (showDaily || bank.chests.isNotEmpty) ? 10 : 0),
+              child: Row(key: const ValueKey('boost-line'), children: [
+                const BoosterIcon(size: 28),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    bank.boosterRunning ? tr('Награды ×2 идут') : tr('Есть билеты ×2'),
+                    style: const TextStyle(color: Color(0xFFFFD54F), fontWeight: FontWeight.w800, fontSize: 14),
+                  ),
+                ),
+                if (bank.chests.isEmpty && !showDaily) GreenButton(label: tr('Открыть'), onTap: onOpen, padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8)),
+              ]),
+            ),
           if (bank.doubleRewards)
             Padding(
               padding: const EdgeInsets.only(top: 10),

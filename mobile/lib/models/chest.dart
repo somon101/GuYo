@@ -47,9 +47,28 @@ class DailyChest {
 /// What an opened chest gave.
 class ChestPrize {
   final String chestKey;
-  final String kind; // diamonds | freeze | merge | points
-  final int amount;
-  const ChestPrize({required this.chestKey, required this.kind, required this.amount});
+  final String kind; // diamonds | freeze | merge | points | booster
+  final int amount; // already doubled when [doubled]
+  final bool doubled;
+  const ChestPrize({required this.chestKey, required this.kind, required this.amount, this.doubled = false});
+
+  /// What it would have been without the "x2" ticket.
+  int get baseAmount => doubled ? amount ~/ 2 : amount;
+}
+
+/// The "x2" tickets a person holds and whether one is running now.
+class BoosterState {
+  final Map<int, int> items; // minutes -> how many
+  final DateTime? activeUntil;
+  const BoosterState({required this.items, this.activeUntil});
+
+  factory BoosterState.fromJson(Map<String, dynamic> json) => BoosterState(
+        items: {for (final i in json['items'] as List<dynamic>) i['minutes'] as int: i['qty'] as int},
+        activeUntil: json['active_until'] == null ? null : DateTime.parse(json['active_until'] as String).toLocal(),
+      );
+
+  bool get running => activeUntil != null && activeUntil!.isAfter(DateTime.now());
+  int get total => items.values.fold(0, (a, b) => a + b);
 }
 
 /// The bank and the chest of the day (GET /chests).
@@ -60,12 +79,20 @@ class ChestBank {
   final bool doubleRewards;
   final int inventoryMax;
 
+  /// A running "x2" ticket ends here (doubles prizes of chests opened before it), and how many are held.
+  final DateTime? boosterUntil;
+  final int boosterQty;
+
+  bool get boosterRunning => boosterUntil != null && boosterUntil!.isAfter(DateTime.now());
+
   const ChestBank({
     required this.types,
     required this.chests,
     required this.daily,
     this.doubleRewards = false,
     this.inventoryMax = 10,
+    this.boosterUntil,
+    this.boosterQty = 0,
   });
 
   factory ChestBank.fromJson(Map<String, dynamic> json) {
@@ -91,6 +118,8 @@ class ChestBank {
       ),
       doubleRewards: (json['double'] as bool?) ?? false,
       inventoryMax: (json['inventory_max'] as int?) ?? 10,
+      boosterUntil: json['booster_until'] == null ? null : DateTime.parse(json['booster_until'] as String).toLocal(),
+      boosterQty: (json['booster_qty'] as int?) ?? 0,
     );
   }
 
@@ -101,6 +130,8 @@ class ChestBank {
         daily: daily,
         doubleRewards: doubleRewards,
         inventoryMax: inventoryMax,
+        boosterUntil: boosterUntil,
+        boosterQty: boosterQty,
       );
 
   ChestType? type(String key) {
