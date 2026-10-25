@@ -85,7 +85,8 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
       _error = null;
     });
     _shake.forward(from: 0);
-    ChestSound.buzzTap();
+    // The last tap bursts the chest: it gets the long rumble, not the short tap buzz.
+    if (_taps < _tapsNeeded) ChestSound.buzzTap();
     if (widget.opener == null) unawaited(ChestSound.tap());
     if (_taps < _tapsNeeded) {
       // Without sealed prizes the answer is fetched one tap early, so it is ready at the burst.

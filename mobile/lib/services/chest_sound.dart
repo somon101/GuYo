@@ -46,33 +46,28 @@ class ChestSound {
     } catch (_) {}
   }
 
-  /// A real vibration: the motor is driven directly (a pattern for the long rumble) and the
-  /// system haptic is fired too, so one of the two is felt on any phone. The motor is tried
-  /// even when the phone does not report one: some report wrongly. Never throws.
-  static Future<void> _vibrate({int duration = 30, List<int>? pattern}) async {
+  /// A real vibration of the motor for [duration] ms at full strength. One plain call, as a plain
+  /// call is what every phone obeys; if it fails the system haptic tick is used. Never throws.
+  static Future<void> _vibrate(int duration) async {
     try {
-      // ignore: unawaited_futures
-      HapticFeedback.heavyImpact();
-    } catch (_) {}
-    try {
-      if (pattern != null) {
-        await Vibration.vibrate(pattern: pattern);
-      } else {
-        await Vibration.vibrate(duration: duration);
-      }
-    } catch (_) {}
+      await Vibration.vibrate(duration: duration, amplitude: 255);
+    } catch (_) {
+      try {
+        await HapticFeedback.heavyImpact();
+      } catch (_) {}
+    }
   }
 
   /// A short buzz for one tap.
   static void buzzTap() {
     // ignore: unawaited_futures
-    _vibrate(duration: 90);
+    _vibrate(90);
   }
 
-  /// A longer rumble for the moment the chest bursts open.
+  /// A long, strong rumble for the moment the chest bursts open (it replaces the tap's buzz).
   static void buzzOpen() {
     // ignore: unawaited_futures
-    _vibrate(pattern: const [0, 200, 80, 200, 80, 450]);
+    _vibrate(1000);
   }
 
   /// Plays the click from the start, cutting any click still sounding.
