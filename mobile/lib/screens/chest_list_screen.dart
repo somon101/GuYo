@@ -42,7 +42,7 @@ class _ChestListScreenState extends State<ChestListScreen> {
     _refresh();
     ChestQueue.correction.addListener(_onCorrection);
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted && (_boosters?.running ?? false)) setState(() {});
+      if (mounted && ['chest', 'rating', 'xp'].any((k) => _boosters?.of(k).running ?? false)) setState(() {});
     });
   }
 
@@ -68,12 +68,12 @@ class _ChestListScreenState extends State<ChestListScreen> {
 
   /// «Включить»: switches a ticket on, with the effect, then refreshes the bank (the prizes of
   /// the chests opened from now on are doubled).
-  Future<void> _activate(int minutes) async {
+  Future<void> _activate(int minutes, [String kind = 'chest']) async {
     try {
-      final b = await ApiClient.instance.activateBooster(minutes);
+      final b = await ApiClient.instance.activateBooster(minutes, kind: kind);
       if (!mounted) return;
       setState(() => _boosters = b);
-      await showRewardClaimEffect(context, title: tr('Награды ×2'), rewards: [RewardSpec(type: 'booster', amount: minutes)]);
+      await showRewardClaimEffect(context, title: kind == 'rating' ? tr('Очки рейтинга ×2') : kind == 'xp' ? tr('Энергия пропуска ×2') : tr('Награды ×2'), rewards: [RewardSpec(type: 'booster', amount: minutes, kind: kind)]);
       final fresh = await ApiClient.instance.fetchChests();
       if (fresh != null && mounted) setState(() => _bank = fresh);
     } on ApiException catch (e) {
@@ -167,7 +167,7 @@ class _ChestListScreenState extends State<ChestListScreen> {
               decoration: BoxDecoration(color: const Color(0x33FFB020), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0x80FFB020))),
               child: Text(_notice!, style: const TextStyle(color: Color(0xFFFFD27A), fontSize: 13, fontWeight: FontWeight.w700)),
             ),
-          if (_boosters != null && (_boosters!.total > 0 || _boosters!.running)) _boostersTile(_boosters!),
+          if (_boosters != null && ['chest', 'rating', 'xp'].any((k) => _boosters!.of(k).total > 0 || _boosters!.of(k).running)) _boostersTile(_boosters!),
           if (daily.enabled && !daily.claimed) _dailyTile(daily),
           for (final t in _bank.types) _row(t),
           if (total == 0)
@@ -187,31 +187,45 @@ class _ChestListScreenState extends State<ChestListScreen> {
     return h > 0 ? '$h:${two(m)}:${two(sec)}' : '${two(m)}:${two(sec)}';
   }
 
-  Widget _boostersTile(BoosterState b) => Container(
+  static const _kindNames = {'chest': 'Удвоитель сундуков', 'rating': 'Удвоитель рейтинга', 'xp': 'Удвоитель пропуска'};
+  static const _kindHints = {
+    'chest': 'Призы из сундуков удваиваются, пока идёт время.',
+    'rating': 'Все очки рейтинга удваиваются, пока идёт время.',
+    'xp': 'Вся энергия пропуска удваивается, пока идёт время.',
+  };
+
+  Widget _boostersTile(BoosterState all) => Container(
         key: const ValueKey('boosters-tile'),
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(18)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(tr('Мои бонусы'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
+          for (final kind in const ['chest', 'rating', 'xp'])
+            if (all.of(kind).total > 0 || all.of(kind).running) _kindSection(kind, all.of(kind)),
+        ]),
+      );
+
+  Widget _kindSection(String kind, BoosterState b) => Padding(
+        key: ValueKey('boosters-$kind'),
+        padding: const EdgeInsets.only(top: 10),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Expanded(child: Text(tr('Мои бонусы'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900))),
+            Expanded(child: Text(tr(_kindNames[kind]!), style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800))),
             if (b.running)
               Container(
-                key: const ValueKey('boost-running'),
+                key: ValueKey('boost-running-$kind'),
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(99), border: Border.all(color: const Color(0xFFFFD54F), width: 1.5)),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const BoosterIcon(size: 22),
+                  BoosterIcon(size: 22, kind: kind),
                   const SizedBox(width: 4),
                   Text(_left(b.activeUntil!), style: const TextStyle(color: Color(0xFFFFD54F), fontWeight: FontWeight.w900, fontFeatures: [FontFeature.tabularFigures()])),
                 ]),
               ),
           ]),
-          const SizedBox(height: 4),
-          Text(
-            b.running ? tr('Идёт удвоение. Ещё один билет прибавит время.') : tr('Включите билет, чтобы призы из сундуков удваивались, пока идёт время.'),
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
-          ),
+          const SizedBox(height: 2),
+          Text(b.running ? tr('Идёт удвоение. Ещё один билет прибавит время.') : tr(_kindHints[kind]!), style: const TextStyle(color: Colors.white70, fontSize: 12)),
           const SizedBox(height: 8),
           for (final e in b.items.entries)
             Opacity(
@@ -219,10 +233,10 @@ class _ChestListScreenState extends State<ChestListScreen> {
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Row(children: [
-                  CountedBoosterIcon(count: e.value),
+                  CountedBoosterIcon(count: e.value, kind: kind),
                   const SizedBox(width: 12),
                   Expanded(child: Text(_minutesLabel(e.key), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800))),
-                  GreenButton(key: ValueKey('boost-on-${e.key}'), label: tr('Включить'), onTap: e.value > 0 ? () => _activate(e.key) : null, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8)),
+                  GreenButton(key: ValueKey('boost-on-$kind-${e.key}'), label: tr('Включить'), onTap: e.value > 0 ? () => _activate(e.key, kind) : null, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8)),
                 ]),
               ),
             ),
@@ -303,14 +317,15 @@ class _ChestListScreenState extends State<ChestListScreen> {
 /// The ticket with the number held, on a corner plate (like the chests).
 class CountedBoosterIcon extends StatelessWidget {
   final int count;
-  const CountedBoosterIcon({super.key, required this.count});
+  final String kind;
+  const CountedBoosterIcon({super.key, required this.count, this.kind = 'chest'});
 
   @override
   Widget build(BuildContext context) => SizedBox(
         width: 52,
         height: 52,
         child: Stack(clipBehavior: Clip.none, children: [
-          const BoosterIcon(size: 52),
+          BoosterIcon(size: 52, kind: kind),
           Positioned(
             left: 52 * 0.8,
             top: 52 * 0.76,

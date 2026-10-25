@@ -1201,11 +1201,11 @@ class ApiClient {
   }
 
   /// Switches a ticket on. Throws [ApiException] when there is none.
-  Future<BoosterState> activateBooster(int minutes) async {
+  Future<BoosterState> activateBooster(int minutes, {String kind = 'chest'}) async {
     final res = await http.post(
       _uri('/boosters/activate'),
       headers: await _authHeaders(),
-      body: jsonEncode({'minutes': minutes}),
+      body: jsonEncode({'minutes': minutes, 'kind': kind}),
     );
     await _throwWithDetail(res);
     _remember('boosters', res);

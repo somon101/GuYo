@@ -77,8 +77,8 @@ RewardStyle rewardStyle(PassReward r) {
       return RewardStyle(
         const [Color(0xFFB07CFF), Color(0xFF5B2EE0)],
         Icons.confirmation_number_rounded,
-        tr('Удвоитель'),
-        asset: 'booster',
+        r.kind == 'rating' ? tr('Удвоитель рейтинга') : r.kind == 'xp' ? tr('Удвоитель пропуска') : tr('Удвоитель'),
+        asset: 'booster:${r.kind}',
       );
     case 'frame':
       return RewardStyle(

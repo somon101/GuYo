@@ -60,12 +60,22 @@ class ChestPrize {
 class BoosterState {
   final Map<int, int> items; // minutes -> how many
   final DateTime? activeUntil;
-  const BoosterState({required this.items, this.activeUntil});
+
+  /// All three kinds by name ('chest', 'rating', 'xp'); empty from an older server.
+  final Map<String, BoosterState> kinds;
+  const BoosterState({required this.items, this.activeUntil, this.kinds = const {}});
 
   factory BoosterState.fromJson(Map<String, dynamic> json) => BoosterState(
         items: {for (final i in json['items'] as List<dynamic>) i['minutes'] as int: i['qty'] as int},
         activeUntil: json['active_until'] == null ? null : DateTime.parse(json['active_until'] as String).toLocal(),
+        kinds: {
+          for (final e in ((json['kinds'] as Map<String, dynamic>?) ?? const {}).entries)
+            e.key: BoosterState.fromJson(e.value as Map<String, dynamic>),
+        },
       );
+
+  /// The state of one kind (the chest kind is this object's own numbers).
+  BoosterState of(String kind) => kind == 'chest' ? BoosterState(items: items, activeUntil: activeUntil) : (kinds[kind] ?? const BoosterState(items: {}));
 
   bool get running => activeUntil != null && activeUntil!.isAfter(DateTime.now());
   int get total => items.values.fold(0, (a, b) => a + b);

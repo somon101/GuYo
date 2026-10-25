@@ -57,7 +57,7 @@ class RewardSlot extends StatelessWidget {
         plate = '${reward.amount}';
         break;
       case 'booster':
-        picture = BoosterIcon(size: icon);
+        picture = BoosterIcon(size: icon, kind: reward.kind);
         plate = boosterShort(reward.amount);
         break;
       default:

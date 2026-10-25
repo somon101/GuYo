@@ -13,11 +13,15 @@ class PassReward {
   final String? key;
   final String? text;
 
+  /// A booster's kind: 'chest' (default), 'rating' or 'xp'.
+  final String kind;
+
   const PassReward({
     required this.type,
     required this.amount,
     this.key,
     this.text,
+    this.kind = 'chest',
     required this.claimed,
     required this.claimable,
     required this.lockedByPremium,
@@ -29,6 +33,7 @@ class PassReward {
         amount: json['amount'] as int,
         key: json['key'] as String?,
         text: json['text'] as String?,
+        kind: (json['kind'] as String?) ?? 'chest',
         claimed: json['claimed'] as bool,
         claimable: json['claimable'] as bool,
         lockedByPremium: (json['locked_by_premium'] as bool?) ?? false,

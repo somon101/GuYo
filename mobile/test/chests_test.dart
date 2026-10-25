@@ -18,6 +18,7 @@ Map<String, dynamic> _json({List<Map<String, dynamic>> chests = const [], bool a
 };
 
 void main() {
+  boosterKindsTests();
   sealedTests();
   test('the bank parses chests, types and the chest of the day', () {
     final bank = ChestBank.fromJson(_json(chests: [
@@ -193,5 +194,24 @@ void sealedTests() {
     await tester.pump(const Duration(milliseconds: 2400));
     expect(find.text('+7'), findsOneWidget);
     expect(calls, 0);
+  });
+}
+
+void boosterKindsTests() {
+  test('boosters parse the three kinds; an older server has only the chest one', () {
+    final b = BoosterState.fromJson({
+      'items': [{'minutes': 30, 'qty': 1}],
+      'active_until': null,
+      'kinds': {
+        'chest': {'items': [{'minutes': 30, 'qty': 1}], 'active_until': null},
+        'rating': {'items': [{'minutes': 60, 'qty': 2}], 'active_until': null},
+        'xp': {'items': [], 'active_until': null},
+      },
+    });
+    expect(b.of('rating').items[60], 2);
+    expect(b.of('chest').total, 1);
+    final old = BoosterState.fromJson({'items': [{'minutes': 30, 'qty': 3}], 'active_until': null});
+    expect(old.of('xp').total, 0);
+    expect(old.of('chest').total, 3);
   });
 }

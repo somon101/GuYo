@@ -70,10 +70,20 @@ class PointsIcon extends StatelessWidget {
 /// The "x2" ticket: doubles the prizes of opened chests while it runs.
 class BoosterIcon extends StatelessWidget {
   final double size;
-  const BoosterIcon({super.key, this.size = 20});
+
+  /// What it doubles: 'chest' (prizes of chests), 'rating' (rating points), 'xp' (pass energy).
+  final String kind;
+  const BoosterIcon({super.key, this.size = 20, this.kind = 'chest'});
 
   @override
-  Widget build(BuildContext context) => _GameIcon('assets/icons/booster.png', size);
+  Widget build(BuildContext context) => _GameIcon(
+        kind == 'rating'
+            ? 'assets/icons/booster_x2_rating.png'
+            : kind == 'xp'
+                ? 'assets/icons/booster_x2_xp.png'
+                : 'assets/icons/booster.png',
+        size,
+      );
 }
 
 /// A gift box: a reward is waiting.
@@ -104,6 +114,7 @@ class MergeIcon extends StatelessWidget {
 /// The picture for a collectible by its short name: diamond, freeze or merge.
 Widget gameAsset(String name, double size) {
   if (name.startsWith('chest:')) return ChestImage(name.substring(6), size: size);
+  if (name.startsWith('booster:')) return BoosterIcon(size: size, kind: name.substring(8));
   if (name.startsWith('cosmetic:')) return CosmeticImage(name.substring(9), width: size, height: size);
   switch (name) {
     case 'freeze':
