@@ -16,6 +16,24 @@ const playButton: React.CSSProperties = {
   letterSpacing: 0.6,
 };
 
+/** A chest picture with its count in a small plate at the bottom-right corner. */
+function CountedChest({ chestKey, color, count, size }: { chestKey: string; color: string; count: number; size: number }) {
+  return (
+    <span className="relative inline-block shrink-0" style={{ width: size, height: size }}>
+      <img src={`${BASE}chests/${chestKey}_closed.png`} alt="" style={{ width: size, height: size, objectFit: "contain" }} />
+      <span
+        className="absolute font-black leading-none text-white"
+        style={{
+          right: -6, bottom: -4, minWidth: 22, padding: "3px 6px", borderRadius: 999, textAlign: "center",
+          fontSize: size >= 56 ? 13 : 11, background: "#1b1247", boxShadow: `0 0 0 2px ${color}, 0 2px 4px rgba(0,0,0,0.5)`,
+        }}
+      >
+        {count}
+      </span>
+    </span>
+  );
+}
+
 export function ChestBankMock({ types, onOpen }: { types: ChestType[]; onOpen: (key: string, count: number) => void }) {
   const [counts, setCounts] = useState<Record<string, number>>({ wood: 6, silver: 3, purple: 1, gold: 0 });
   const [mode, setMode] = useState<Record<string, number>>({});
@@ -52,10 +70,9 @@ export function ChestBankMock({ types, onOpen }: { types: ChestType[]; onOpen: (
             <div className="min-w-0 flex-1">
               <div className="text-lg font-black">Мои сундуки · {all}</div>
               <div className="mt-2 flex items-center">
-                {types.flatMap((c) => Array.from({ length: Math.min(counts[c.key] ?? 0, 4) }, (_, i) => (
-                  <img key={`${c.key}${i}`} src={`${BASE}chests/${c.key}_closed.png`} alt="" style={{ width: 40, height: 40, objectFit: "contain" }} />
-                ))).slice(0, 4)}
-                {all > 4 && <span className="ml-1 font-black">+{all - 4}</span>}
+                {types.filter((c) => (counts[c.key] ?? 0) > 0).map((c) => (
+                  <span key={c.key} className="mr-2"><CountedChest chestKey={c.key} color={c.color} count={counts[c.key] ?? 0} size={42} /></span>
+                ))}
               </div>
             </div>
             <span className="rounded-xl px-4 py-2 text-sm font-black uppercase" style={playButton}>Открыть</span>
@@ -76,12 +93,11 @@ export function ChestBankMock({ types, onOpen }: { types: ChestType[]; onOpen: (
               return (
                 <div key={c.key} className="rounded-2xl bg-white/10 p-3" style={{ opacity: n ? 1 : 0.55 }}>
                   <div className="flex items-center gap-3">
-                    <img src={`${BASE}chests/${c.key}_closed.png`} alt="" style={{ width: 56, height: 56, objectFit: "contain" }} />
+                    <CountedChest chestKey={c.key} color={c.color} count={n} size={60} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-bold">{c.name}</div>
                       <div className="text-xs text-white/70">бриллианты до {c.max_diamonds}, очки до {c.max_points}</div>
                     </div>
-                    <div className="rounded-full px-3 py-1 text-base font-black" style={{ background: "rgba(0,0,0,0.3)", boxShadow: `inset 0 0 0 2px ${c.color}` }}>×{n}</div>
                   </div>
                   {n > 0 && (() => {
                     const mult = Math.min(mode[c.key] ?? 1, n >= 10 ? 10 : n >= 5 ? 5 : 1);
