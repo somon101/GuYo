@@ -19,10 +19,10 @@ const PRIZES: Record<PrizeId, { name: string; img: string; cap: (c: ChestType) =
 };
 const PRIZE_IDS = Object.keys(PRIZES) as PrizeId[];
 const FALLBACK: ChestType[] = [
-  { key: "wood", name: "Деревянный сундук", color: "#a0693b", max_diamonds: 10, max_freezes: 1, max_merges: 1, max_points: 20 },
-  { key: "silver", name: "Серебряный сундук", color: "#5aa9e6", max_diamonds: 30, max_freezes: 2, max_merges: 2, max_points: 60 },
-  { key: "purple", name: "Фиолетовый сундук", color: "#9b5de5", max_diamonds: 100, max_freezes: 3, max_merges: 3, max_points: 150 },
-  { key: "gold", name: "Золотой сундук", color: "#f5b700", max_diamonds: 300, max_freezes: 5, max_merges: 5, max_points: 400 },
+  { key: "wood", name: "Деревянный сундук", color: "#a0693b", max_diamonds: 10, max_freezes: 1, max_merges: 1, max_points: 20, booster_minutes: 0 },
+  { key: "silver", name: "Серебряный сундук", color: "#5aa9e6", max_diamonds: 30, max_freezes: 2, max_merges: 2, max_points: 60, booster_minutes: 0 },
+  { key: "purple", name: "Фиолетовый сундук", color: "#9b5de5", max_diamonds: 100, max_freezes: 3, max_merges: 3, max_points: 150, booster_minutes: 0 },
+  { key: "gold", name: "Золотой сундук", color: "#f5b700", max_diamonds: 300, max_freezes: 5, max_merges: 5, max_points: 400, booster_minutes: 0 },
 ];
 const CHEST_BASE = `${import.meta.env.BASE_URL}chests/`;
 

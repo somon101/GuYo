@@ -37,6 +37,7 @@ const REWARD_LABELS: Record<string, string> = {
   streak_freeze: "Заморозка серии",
   diamonds: "Бриллианты (подарок)",
   chest: "Сундук",
+  booster: "Удвоитель ×2",
   badge: "Значок",
   title: "Титул",
   frame: "Рамка аватара",
@@ -212,6 +213,7 @@ function RewardEditor({ value, onChange }: { value: PassReward | null; onChange:
             if (type === "frame") return onChange({ type, amount: 1, key: "gold", text: "" });
             if (type === "title") return onChange({ type, amount: 1, text: "" });
             if (type === "chest") return onChange({ type, amount: 1, key: "wood" });
+            if (type === "booster") return onChange({ type, amount: 30 });
             onChange({ type, amount: value && !isCosmetic ? value.amount : 1 });
           }}
         >
@@ -222,7 +224,14 @@ function RewardEditor({ value, onChange }: { value: PassReward | null; onChange:
             </option>
           ))}
         </select>
-        {value && !isCosmetic && value.type !== "chest" && (
+        {value?.type === "booster" && (
+          <select className={`${inputClass} w-28`} value={value.amount} onChange={(e) => onChange({ ...value, amount: Number(e.target.value) })}>
+            <option value={30}>30 минут</option>
+            <option value={60}>1 час</option>
+            <option value={1440}>24 часа</option>
+          </select>
+        )}
+        {value && !isCosmetic && value.type !== "chest" && value.type !== "booster" && (
           <input
             type="number"
             min={1}

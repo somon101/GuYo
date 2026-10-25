@@ -2666,7 +2666,7 @@ export async function updateLearningSettings(input: Partial<LearningSettings>): 
 // --- Пропуск сезона (/admin/season-pass) -------------------------------------
 
 export interface PassReward {
-  type: "rating_points" | "premium_days" | "streak_freeze" | "diamonds" | "badge" | "title" | "frame" | "chest";
+  type: "rating_points" | "premium_days" | "streak_freeze" | "diamonds" | "badge" | "title" | "frame" | "chest" | "booster";
   amount: number;
   /** badge / frame: the look (one of the fixed set). */
   key?: string;
@@ -2915,6 +2915,7 @@ export interface ChestType {
   max_freezes: number;
   max_merges: number;
   max_points: number;
+  booster_minutes: number;
 }
 
 export interface ChestSettings {
@@ -2942,7 +2943,7 @@ export interface ChestOverview {
 
 /** One reward of an event: XP, a chest, diamonds or rating points. */
 export interface EventReward {
-  type: "xp" | "chest" | "diamonds" | "rating_points";
+  type: "xp" | "chest" | "diamonds" | "rating_points" | "booster";
   amount: number;
   key?: string;
 }
@@ -2987,5 +2988,10 @@ export async function getRewardRules(): Promise<RewardRules> {
 
 export async function saveRewardRules(rules: Partial<RewardRules>): Promise<RewardRules> {
   const { data } = await api.put("/admin/chests/rewards", rules);
+  return data;
+}
+
+export async function sendBooster(user: string, minutes: number, count: number): Promise<{ login: string }> {
+  const { data } = await api.post("/admin/chests/send-booster", { user, minutes, count });
   return data;
 }

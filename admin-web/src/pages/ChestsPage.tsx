@@ -6,6 +6,7 @@ import {
   saveChestSettings,
   saveChestType,
   saveRewardRules,
+  sendBooster,
   sendChest,
   type ChestOverview,
   type ChestSettings,
@@ -23,6 +24,7 @@ const SOURCES: Record<string, string> = {
   streak: "Серия дней", comeback: "Возвращение", admin: "Отправлено вручную",
 };
 const PRIZES: Record<string, string> = { diamonds: "Бриллианты", freeze: "Заморозки", merge: "Объединители", points: "Очки рейтинга" };
+const BOOSTER_OPTIONS: [number, string][] = [[30, "30 минут"], [60, "1 час"], [1440, "24 часа"]];
 const EVENTS: [string, string][] = [
   ["duel_win", "Дуэль: победа"], ["duel_draw", "Дуэль: ничья"], ["duel_lose", "Дуэль: поражение"],
   ["streak_7", "Серия 7 дней"], ["streak_30", "Серия 30 дней"], ["streak_100", "Серия 100 дней"],
@@ -91,6 +93,12 @@ function TypesSection({ types, onError, onSaved }: { types: ChestType[]; onError
               <label>Заморозки до<input className={`${field} w-full`} type="number" min={0} value={c.max_freezes} onChange={(e) => set(i, { max_freezes: num(e.target.value) })} /></label>
               <label>Объединители до<input className={`${field} w-full`} type="number" min={0} value={c.max_merges} onChange={(e) => set(i, { max_merges: num(e.target.value) })} /></label>
               <label>Очки рейтинга до<input className={`${field} w-full`} type="number" min={0} value={c.max_points} onChange={(e) => set(i, { max_points: num(e.target.value) })} /></label>
+              <label className="col-span-2">Билет «x2» может выпасть (0 — не выпадает)
+                <select className={`${field} w-full`} value={c.booster_minutes} onChange={(e) => set(i, { booster_minutes: Number(e.target.value) })}>
+                  <option value={0}>Не выпадает</option>
+                  {BOOSTER_OPTIONS.map(([m, l]) => <option key={m} value={m}>{l}</option>)}
+                </select>
+              </label>
             </div>
             <button className={`${primary} mt-3`} onClick={() => void save(c)}>Сохранить</button>
           </div>
@@ -169,6 +177,18 @@ function SendSection({ types }: { types: ChestType[] }) {
         <button className={primary} onClick={() => void send()}>Отправить</button>
       </div>
       <ChestPicker types={types} value={key} onChange={setKey} />
+      <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 text-sm">
+        <span className="text-slate-500">Билет «x2»:</span>
+        {BOOSTER_OPTIONS.map(([m, l]) => (
+          <button key={m} className="rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-50" onClick={async () => {
+            if (!user.trim()) return;
+            setMsg(""); setErr("");
+            try { const r = await sendBooster(user.trim(), m, count); setMsg(`${r.login}: отправлено билетов «x2» (${l}): ${count}`); } catch (e) { setErr(errorMessage(e)); }
+          }}>
+            <img src={`${import.meta.env.BASE_URL}preview/booster.png`} alt="" style={{ display: "inline", width: 20, height: 20, objectFit: "contain", marginRight: 4 }} />{l}
+          </button>
+        ))}
+      </div>
       {msg && <div className="text-sm text-emerald-700">{msg}</div>}
       {err && <div className="text-sm text-red-700">{err}</div>}
     </section>
@@ -183,12 +203,13 @@ export function RewardListEditor({ types, value, onChange }: { types: ChestType[
         <div key={i} className="flex flex-wrap items-center gap-1">
           <select className={`${field} w-40`} value={r.type} onChange={(e) => {
             const type = e.target.value as EventReward["type"];
-            set(i, type === "chest" ? { type, amount: 1, key: "wood" } : { type, amount: Math.max(1, r.amount), key: undefined });
+            set(i, type === "chest" ? { type, amount: 1, key: "wood" } : type === "booster" ? { type, amount: 30, key: undefined } : { type, amount: Math.max(1, r.amount), key: undefined });
           }}>
             <option value="xp">XP пропуска</option>
             <option value="chest">Сундук</option>
             <option value="diamonds">Бриллианты</option>
             <option value="rating_points">Очки рейтинга</option>
+            <option value="booster">Удвоитель ×2</option>
           </select>
           {r.type === "chest" && (
             <>
@@ -198,7 +219,16 @@ export function RewardListEditor({ types, value, onChange }: { types: ChestType[
               </select>
             </>
           )}
-          <input className={`${field} w-20`} type="number" min={1} value={r.amount} onChange={(e) => set(i, { amount: Math.max(1, Number(e.target.value) || 1) })} title={r.type === "chest" ? "Сколько сундуков" : "Количество"} />
+          {r.type === "booster" ? (
+            <>
+              <img src={`${import.meta.env.BASE_URL}preview/booster.png`} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
+              <select className={`${field} w-32`} value={r.amount} onChange={(e) => set(i, { amount: Number(e.target.value) })}>
+                {BOOSTER_OPTIONS.map(([m, l]) => <option key={m} value={m}>{l}</option>)}
+              </select>
+            </>
+          ) : (
+            <input className={`${field} w-20`} type="number" min={1} value={r.amount} onChange={(e) => set(i, { amount: Math.max(1, Number(e.target.value) || 1) })} title={r.type === "chest" ? "Сколько сундуков" : "Количество"} />
+          )}
           <button className="rounded-lg bg-slate-100 px-2 py-1 text-sm text-slate-600 hover:bg-slate-200" onClick={() => onChange(value.filter((_, n) => n !== i))}>×</button>
         </div>
       ))}
