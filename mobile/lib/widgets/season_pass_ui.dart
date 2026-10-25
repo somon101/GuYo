@@ -63,6 +63,13 @@ RewardStyle rewardStyle(PassReward r) {
         tr('Сундук'),
         asset: 'chest:${r.key ?? 'wood'}',
       );
+    case 'booster':
+      return RewardStyle(
+        const [Color(0xFFB07CFF), Color(0xFF5B2EE0)],
+        Icons.confirmation_number_rounded,
+        tr('Удвоитель'),
+        asset: 'booster',
+      );
     case 'frame':
       return RewardStyle(
         frameColors(r.key ?? 'gold').take(2).toList(),
@@ -88,6 +95,7 @@ RewardStyle rewardStyle(PassReward r) {
 /// "+20" for counted rewards; a badge or title shows its own name instead.
 String rewardAmountText(PassReward r) {
   if (r.type == 'badge' || r.type == 'title' || r.type == 'frame' || r.type == 'chest') return '';
+  if (r.type == 'booster') return r.amount >= 60 && r.amount % 60 == 0 ? '${r.amount ~/ 60}ч' : '${r.amount}м';
   return r.type == 'diamonds' ? '+${compactNumber(r.amount)}' : '+${r.amount}';
 }
 

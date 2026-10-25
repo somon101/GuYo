@@ -896,4 +896,5 @@ const Map<String, String> enStrings = {
   'Награда получена. Новую цель выберете завтра': 'Reward taken. Pick a new goal tomorrow',
   'Выполненную цель до завтра сменить нельзя': 'A finished goal cannot be changed until tomorrow',
   'Нажмите, чтобы пропустить': 'Tap to skip',
+  'Удвоитель': 'Doubler',
 };

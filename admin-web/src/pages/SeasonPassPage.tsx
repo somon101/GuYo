@@ -91,6 +91,7 @@ export function SeasonPassPage() {
         Каждую неделю есть задания на бонусную энергию. Сезоны идут по календарным месяцам и создаются сами; у каждого
         своя копия шаблона, поэтому правка шаблона не меняет идущий сезон.
       </p>
+      <PassStripSection />
       <EconomySection />
       <SettingsSection />
       <TemplatesSection />
@@ -847,6 +848,133 @@ function SeasonsSection() {
             <button onClick={() => setEditing(null)} className="text-sm text-slate-500">
               Отмена
             </button>
+          </div>
+        </div>
+      )}
+    </Section>
+  );
+}
+
+
+// --- The running pass, drawn as in the app ---------------------------------------------------
+
+const BADGE_COLORS: Record<string, [string, string]> = {
+  crown: ["#FFD54F", "#FF8F00"], champion: ["#FFD54F", "#FF8F00"], medal: ["#90CAF9", "#3F7CFF"], flame: ["#FFA06B", "#E5391F"],
+  star: ["#FFE066", "#FFA000"], diamond: ["#7FDBFF", "#7C4DFF"], rocket: ["#FF8AB8", "#8E3CFF"], shield: ["#6EE7B7", "#0E9F6E"], bolt: ["#FFF176", "#FFA000"],
+};
+const FRAME_COLORS: Record<string, [string, string]> = {
+  gold: ["#FFD54F", "#FF9800"], aurora: ["#6EE7B7", "#60A5FA"], fire: ["#FF7043", "#FFB74D"], ocean: ["#38BDF8", "#2563EB"],
+  emerald: ["#34D399", "#059669"], royal: ["#8B5CF6", "#FFD54F"], rose: ["#F472B6", "#FB7185"], ice: ["#BAE6FD", "#7DD3FC"],
+};
+const IMG = `${import.meta.env.BASE_URL}`;
+
+/** How one reward looks in the app: gradient, picture, amount and name (the same as the app's RewardCard). */
+function passLook(r: PassReward): { colors: [string, string]; img: string | null; glyph: string; amount: string; label: string } {
+  switch (r.type) {
+    case "premium_days": return { colors: ["#FFD54F", "#FF9800"], img: null, glyph: "👑", amount: `+${r.amount}`, label: "Дни Premium" };
+    case "streak_freeze": return { colors: ["#7FDBFF", "#3A7BFF"], img: `${IMG}preview/freeze.png`, glyph: "", amount: `+${r.amount}`, label: "Заморозка серии" };
+    case "diamonds": return { colors: ["#87EFFF", "#3A7BFF"], img: `${IMG}preview/gem.png`, glyph: "", amount: `+${r.amount}`, label: "Бриллианты" };
+    case "chest": return { colors: ["#FFB86B", "#B4541F"], img: `${IMG}chests/${r.key ?? "wood"}_closed.png`, glyph: "", amount: "", label: "Сундук" };
+    case "booster": return { colors: ["#B07CFF", "#5B2EE0"], img: `${IMG}preview/booster.png`, glyph: "", amount: r.amount >= 60 && r.amount % 60 === 0 ? `${r.amount / 60}ч` : `${r.amount}м`, label: "Удвоитель" };
+    case "badge": return { colors: BADGE_COLORS[r.key ?? "crown"] ?? ["#FFD54F", "#FF8F00"], img: null, glyph: "🏅", amount: "", label: r.text || "Значок" };
+    case "frame": return { colors: FRAME_COLORS[r.key ?? "gold"] ?? ["#FFD54F", "#FF9800"], img: null, glyph: "◎", amount: "", label: r.text || "Рамка" };
+    case "title": return { colors: ["#6EE7B7", "#0E9F6E"], img: null, glyph: "🎖", amount: "", label: r.text || "Титул" };
+    default: return { colors: ["#A48BFF", "#5862DD"], img: `${IMG}preview/points.png`, glyph: "", amount: `+${r.amount}`, label: "Звёзды рейтинга" };
+  }
+}
+
+function PassCard({ reward, premium, onClick }: { reward: PassReward | null; premium: boolean; onClick: () => void }) {
+  if (!reward) {
+    return (
+      <button onClick={onClick} className="flex w-full items-center justify-center rounded-[18px] border-2 border-dashed border-slate-300 text-xs text-slate-400 hover:border-indigo-400 hover:text-indigo-500" style={{ minHeight: 112 }}>
+        + награда
+      </button>
+    );
+  }
+  const l = passLook(reward);
+  return (
+    <button
+      onClick={onClick}
+      title="Нажмите, чтобы изменить награду"
+      className="relative block w-full overflow-hidden text-center transition hover:brightness-110"
+      style={{ minHeight: 112, padding: "10px 8px", borderRadius: 18, background: `linear-gradient(135deg, ${l.colors[0]}, ${l.colors[1]})`, boxShadow: "0 3px 8px rgba(0,0,0,0.12)", outline: premium ? "2px solid rgba(255,213,79,0.8)" : undefined }}
+    >
+      <div className="flex flex-col items-center justify-center">
+        {l.img ? (
+          <img src={l.img} alt="" draggable={false} style={{ width: 46, height: 46, objectFit: "contain", maxWidth: "none" }} />
+        ) : (
+          <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full text-xl text-white" style={{ background: "rgba(255,255,255,0.25)" }}>{l.glyph}</span>
+        )}
+        {l.amount && <div style={{ fontSize: 21, lineHeight: 1.1, fontWeight: 900, color: "#fff", marginTop: 4 }}>{l.amount}</div>}
+        <div style={{ fontSize: 11.5, fontWeight: 600, color: "rgba(255,255,255,0.95)", marginTop: l.amount ? 0 : 4 }}>{l.label}</div>
+      </div>
+    </button>
+  );
+}
+
+function PassStripSection() {
+  const [season, setSeason] = useState<{ id: number; name: string } | null>(null);
+  const [def, setDef] = useState<PassDefinition | null>(null);
+  const [edit, setEdit] = useState<{ level: number; track: "free" | "premium" } | null>(null);
+  const [draft, setDraft] = useState<PassReward | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function load() {
+    try {
+      const running = (await listSeasons()).find((s) => s.status === "active");
+      if (!running) { setSeason(null); setDef(null); return; }
+      setSeason({ id: running.id, name: running.name });
+      setDef((await getSeasonPassDef(running.id)).definition);
+    } catch {
+      setMessage("Не удалось загрузить пропуск сезона");
+    }
+  }
+  useEffect(() => { void load(); }, []);
+
+  async function save() {
+    if (!season || !def || !edit) return;
+    const next: PassDefinition = { ...def, levels: def.levels.map((l) => (l.level === edit.level ? { ...l, [edit.track]: draft } : l)) };
+    try {
+      const saved = await updateSeasonPassDef(season.id, next);
+      setDef(saved.definition);
+      setEdit(null);
+      setMessage("Награда сохранена, игроки увидят её при следующей загрузке пропуска");
+    } catch (e) {
+      setMessage(errorText(e, "Не удалось сохранить"));
+    }
+  }
+
+  if (!season || !def) {
+    return <Section title="Текущий пропуск">{message ? <p className="text-sm text-red-600">{message}</p> : <p className="text-sm text-slate-500">Сейчас нет идущего сезона.</p>}</Section>;
+  }
+  return (
+    <Section title={`Пропуск сезона «${season.name}» как в приложении`}>
+      {message && <p className="mb-2 text-sm text-slate-500">{message}</p>}
+      <p className="mb-2 text-xs text-slate-500">Листайте вбок. Сверху бесплатная награда, снизу Premium. Нажмите на награду, чтобы изменить её (сохраняется в этот сезон).</p>
+      <div className="overflow-x-auto rounded-2xl p-3" style={{ background: "linear-gradient(135deg,#6A4CFF22,#2F7CF622)" }}>
+        <div className="flex gap-2" style={{ minWidth: "max-content" }}>
+          {def.levels.map((l) => (
+            <div key={l.level} style={{ width: 118 }}>
+              <div className="mb-1 text-center text-[10px] font-bold uppercase text-slate-500">Бесплатно</div>
+              <PassCard reward={l.free} premium={false} onClick={() => { setEdit({ level: l.level, track: "free" }); setDraft(l.free); }} />
+              <div className="relative my-2 flex items-center justify-center" style={{ height: 36 }}>
+                <div className="absolute left-0 right-0 top-1/2" style={{ height: 5, borderRadius: 3, background: "#7C6BFF", transform: "translateY(-50%)" }} />
+                <div className="relative flex items-center justify-center text-sm font-black text-white" style={{ width: 36, height: 36, borderRadius: 99, background: "linear-gradient(135deg,#9B8CFF,#5862DD)", boxShadow: "0 0 10px rgba(124,107,255,0.45)", border: "2px solid #fff" }}>{l.level}</div>
+              </div>
+              <PassCard reward={l.premium} premium onClick={() => { setEdit({ level: l.level, track: "premium" }); setDraft(l.premium); }} />
+              <div className="mt-1 text-center text-[10px] font-bold uppercase" style={{ color: "#c98a00" }}>Premium</div>
+              <div className="text-center text-[10px] text-slate-400">{l.xp} XP</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {edit && (
+        <div className="card mt-3 flex flex-col gap-3 p-4">
+          <div className="text-sm font-medium text-slate-700">Уровень {edit.level}, {edit.track === "free" ? "бесплатная награда" : "награда Premium"}</div>
+          <RewardEditor value={draft} onChange={setDraft} />
+          <div className="flex gap-3">
+            <button onClick={save} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Сохранить награду</button>
+            <button onClick={() => setEdit(null)} className="text-sm text-slate-500">Отмена</button>
           </div>
         </div>
       )}
