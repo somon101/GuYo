@@ -8,6 +8,9 @@ import '../models/user_profile.dart';
 import 'user_avatar.dart';
 import '../services/streak_state.dart';
 import '../theme/app_colors.dart';
+import '../models/reward_spec.dart';
+import '../services/disk_cache.dart';
+import 'counted_chest.dart' show GreenButton;
 import 'reward_chips.dart';
 
 /// «Дуэль недели» on Главная: challenge a friend, answer a challenge, or watch
@@ -23,6 +26,7 @@ class _DuelCardState extends State<DuelCard> {
   DuelState? _state = ApiClient.instance.cachedDuels();
   UserProfile? _me;
   bool _busy = false;
+  int _seen = int.tryParse(DiskCache.get('duel-result-seen') ?? '') ?? 0;
 
   @override
   void initState() {
@@ -66,6 +70,23 @@ class _DuelCardState extends State<DuelCard> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// The latest finished duel, until its result is closed or a new duel starts.
+  Duel? get _result {
+    final s = _state;
+    if (s == null || s.current != null) return null;
+    for (final d in s.recent) {
+      if (d.status == 'finished') return d.id > _seen ? d : null;
+    }
+    return null;
+  }
+
+  void _closeResult() {
+    final r = _result;
+    if (r == null) return;
+    DiskCache.put('duel-result-seen', '${r.id}');
+    setState(() => _seen = r.id);
   }
 
   Future<void> _pickFriend() async {
@@ -129,6 +150,12 @@ class _DuelCardState extends State<DuelCard> {
         busy: _busy,
         me: _me,
         onChallenge: _pickFriend,
+        result: _result,
+        onNewDuel: () {
+          _closeResult();
+          _pickFriend();
+        },
+        onCloseResult: _closeResult,
         onAccept: (d) =>
             _act(() => ApiClient.instance.answerDuel(d.id, accept: true)),
         onDecline: (d) =>
@@ -145,6 +172,11 @@ class DuelCardView extends StatelessWidget {
   final VoidCallback onChallenge;
   final void Function(Duel) onAccept;
   final void Function(Duel) onDecline;
+
+  /// A finished duel whose result the person has not closed yet (shown instead of the card).
+  final Duel? result;
+  final VoidCallback? onNewDuel;
+  final VoidCallback? onCloseResult;
   const DuelCardView({
     super.key,
     required this.state,
@@ -153,11 +185,18 @@ class DuelCardView extends StatelessWidget {
     required this.onChallenge,
     required this.onAccept,
     required this.onDecline,
+    this.result,
+    this.onNewDuel,
+    this.onCloseResult,
   });
 
   @override
   Widget build(BuildContext context) {
     final d = state.current;
+    final done = result;
+    if (d == null && done != null) {
+      return _ResultPanel(duel: done, rewards: state.rewards, me: me, onNew: onNewDuel, onClose: onCloseResult);
+    }
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -182,21 +221,6 @@ class DuelCardView extends StatelessWidget {
               ),
             ],
           ),
-          if (state.rewards.values.any((r) => r.isNotEmpty)) ...[
-            const SizedBox(height: 8),
-            for (final e in const [('win', 'Победа'), ('draw', 'Ничья'), ('lose', 'Поражение')])
-              if ((state.rewards[e.$1] ?? const []).isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(children: [
-                    SizedBox(
-                      width: 84,
-                      child: Text(tr(e.$2), style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
-                    ),
-                    Expanded(child: RewardChips(rewards: state.rewards[e.$1]!, color: AppColors.primaryDark, size: 18)),
-                  ]),
-                ),
-          ],
           const SizedBox(height: 10),
           if (d == null) ...[
             Text(
@@ -205,7 +229,9 @@ class DuelCardView extends StatelessWidget {
               ),
               style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 4),
+            _PrizeStrip(rewards: state.rewards),
+            const SizedBox(height: 6),
             FilledButton(
               key: const ValueKey('duel-challenge'),
               onPressed: busy ? null : onChallenge,
@@ -246,8 +272,11 @@ class DuelCardView extends StatelessWidget {
               onPressed: busy ? null : () => onDecline(d),
               child: Text(tr('Отозвать вызов')),
             ),
-          ] else
+          ] else ...[
             _Score(duel: d, me: me),
+            const SizedBox(height: 4),
+            _PrizeStrip(rewards: state.rewards),
+          ],
         ],
       ),
     );
@@ -364,4 +393,113 @@ class _DuelPlayer extends StatelessWidget {
       ),
     ],
   );
+}
+
+
+/// What the winner and a draw get, in one line (scrolls sideways if it does not fit).
+class _PrizeStrip extends StatelessWidget {
+  final Map<String, List<RewardSpec>> rewards;
+  const _PrizeStrip({required this.rewards});
+
+  @override
+  Widget build(BuildContext context) {
+    final win = rewards['win'] ?? const <RewardSpec>[];
+    final draw = rewards['draw'] ?? const <RewardSpec>[];
+    if (win.isEmpty && draw.isEmpty) return const SizedBox.shrink();
+    return SingleChildScrollView(
+      key: const ValueKey('duel-prizes'),
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.only(top: 6, bottom: 6, right: 8),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        if (win.isNotEmpty) ...[
+          const Text('🏆', style: TextStyle(fontSize: 24)),
+          const SizedBox(width: 8),
+          for (final r in win) Padding(padding: const EdgeInsets.only(right: 8), child: RewardSlot(reward: r, side: 44)),
+        ],
+        if (win.isNotEmpty && draw.isNotEmpty) Container(width: 1, height: 28, margin: const EdgeInsets.only(right: 10, left: 2), color: AppColors.violetSurface),
+        if (draw.isNotEmpty) ...[
+          const Text('🤝', style: TextStyle(fontSize: 24)),
+          const SizedBox(width: 8),
+          for (final r in draw) Padding(padding: const EdgeInsets.only(right: 8), child: RewardSlot(reward: r, side: 44, silver: true)),
+        ],
+      ]),
+    );
+  }
+}
+
+/// The end of a duel: who won, the score, what was won, and a button for a new duel.
+class _ResultPanel extends StatelessWidget {
+  final Duel duel;
+  final Map<String, List<RewardSpec>> rewards;
+  final UserProfile? me;
+  final VoidCallback? onNew;
+  final VoidCallback? onClose;
+  const _ResultPanel({required this.duel, required this.rewards, required this.me, this.onNew, this.onClose});
+
+  @override
+  Widget build(BuildContext context) {
+    final won = duel.won;
+    final key = won == true ? 'win' : won == false ? 'lose' : 'draw';
+    final prizes = rewards[key] ?? const <RewardSpec>[];
+    final title = won == true ? '🏆 ${tr('Победа!')}' : won == false ? tr('Дуэль окончена') : '🤝 ${tr('Ничья')}';
+    return Container(
+      key: const ValueKey('duel-result'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: const LinearGradient(colors: [Color(0xFF3D2B8F), Color(0xFF1E1560)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Text(title, textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: won == true ? const Color(0xFFFFD54F) : Colors.white)),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(child: _ResultSide(login: me?.login ?? tr('Вы'), avatarUrl: me?.avatarUrl, dim: won == false ? false : false)),
+          Text('${duel.myXp} : ${duel.theirXp}', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white)),
+          Expanded(child: _ResultSide(login: duel.opponentLogin, avatarUrl: duel.opponentAvatarUrl, dim: won == true)),
+        ]),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(14)),
+          child: Row(children: [
+            Text(won == true ? '🏆' : won == false ? '🎯' : '🤝', style: const TextStyle(fontSize: 24)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: prizes.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Text(tr('В этот раз без награды'), style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                    )
+                  : RewardChips(rewards: prizes, size: 22, silver: won != true),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 10),
+        GreenButton(key: const ValueKey('duel-new'), label: tr('Новая дуэль'), onTap: onNew, padding: const EdgeInsets.symmetric(vertical: 12)),
+        TextButton(
+          key: const ValueKey('duel-result-close'),
+          onPressed: onClose,
+          child: Text(tr('Закрыть'), style: const TextStyle(color: Colors.white70)),
+        ),
+      ]),
+    );
+  }
+}
+
+class _ResultSide extends StatelessWidget {
+  final String login;
+  final String? avatarUrl;
+  final bool dim;
+  const _ResultSide({required this.login, required this.avatarUrl, required this.dim});
+
+  @override
+  Widget build(BuildContext context) => Opacity(
+        opacity: dim ? 0.55 : 1,
+        child: Column(children: [
+          UserAvatar(avatarUrl: avatarUrl, login: login, size: 40),
+          const SizedBox(height: 3),
+          Text(login, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+        ]),
+      );
 }

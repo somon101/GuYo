@@ -879,4 +879,8 @@ const Map<String, String> enStrings = {
   'Всего': 'Total',
   'Пока сундуков нет': 'No chests yet',
   'Выполнена! Новую цель выберете завтра': 'Done! Pick a new goal tomorrow',
+  'Победа!': 'Victory!',
+  'Дуэль окончена': 'Duel over',
+  'В этот раз без награды': 'No reward this time',
+  'Новая дуэль': 'New duel',
 };

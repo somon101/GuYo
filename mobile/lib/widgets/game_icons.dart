@@ -21,6 +21,24 @@ class PointsIcon extends StatelessWidget {
   Widget build(BuildContext context) => _GameIcon('assets/icons/points.png', size);
 }
 
+/// The "x2" ticket: doubles the prizes of opened chests while it runs.
+class BoosterIcon extends StatelessWidget {
+  final double size;
+  const BoosterIcon({super.key, this.size = 20});
+
+  @override
+  Widget build(BuildContext context) => _GameIcon('assets/icons/booster.png', size);
+}
+
+/// A gift box: a reward is waiting.
+class GiftIcon extends StatelessWidget {
+  final double size;
+  const GiftIcon({super.key, this.size = 20});
+
+  @override
+  Widget build(BuildContext context) => _GameIcon('assets/icons/gift.png', size);
+}
+
 class FreezeIcon extends StatelessWidget {
   final double size;
   const FreezeIcon({super.key, this.size = 20});
@@ -47,6 +65,8 @@ Widget gameAsset(String name, double size) {
       return MergeIcon(size: size);
     case 'points':
       return PointsIcon(size: size);
+    case 'booster':
+      return BoosterIcon(size: size);
     default:
       return DiamondIcon(size: size);
   }

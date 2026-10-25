@@ -17,7 +17,6 @@ class ChestSound {
   /// tap (or the close) comes in sees it is stale and never starts.
   static int _seq = 0;
 
-  static bool? _canVibrate;
   static String _tapAsset = 'sounds/chest-tap.mp3';
   static bool _tapReady = false;
   static bool _openReady = false;
@@ -35,9 +34,6 @@ class ChestSound {
       _tapReady = false;
     }
     try {
-      _canVibrate ??= await Vibration.hasVibrator();
-    } catch (_) {}
-    try {
       if (!_tapReady) {
         await _get().setSource(AssetSource(_tapAsset));
         _tapReady = true;
@@ -50,37 +46,33 @@ class ChestSound {
     } catch (_) {}
   }
 
-  /// A real vibration of [duration] ms (or a pattern); falls back to the
-  /// system haptic tick where the motor cannot be driven directly. Never throws.
-  static Future<void> _vibrate({int duration = 30, List<int>? pattern, int amplitude = 200}) async {
+  /// A real vibration: the motor is driven directly (a pattern for the long rumble) and the
+  /// system haptic is fired too, so one of the two is felt on any phone. The motor is tried
+  /// even when the phone does not report one: some report wrongly. Never throws.
+  static Future<void> _vibrate({int duration = 30, List<int>? pattern}) async {
     try {
-      _canVibrate ??= await Vibration.hasVibrator();
-      if (_canVibrate != true) {
-        await HapticFeedback.mediumImpact();
-        return;
-      }
+      // ignore: unawaited_futures
+      HapticFeedback.heavyImpact();
+    } catch (_) {}
+    try {
       if (pattern != null) {
-        await Vibration.vibrate(pattern: pattern, intensities: [for (var i = 0; i < pattern.length; i++) i.isOdd ? amplitude : 0]);
+        await Vibration.vibrate(pattern: pattern);
       } else {
-        await Vibration.vibrate(duration: duration, amplitude: amplitude);
+        await Vibration.vibrate(duration: duration);
       }
-    } catch (_) {
-      try {
-        await HapticFeedback.mediumImpact();
-      } catch (_) {}
-    }
+    } catch (_) {}
   }
 
   /// A short buzz for one tap.
   static void buzzTap() {
     // ignore: unawaited_futures
-    _vibrate(duration: 70, amplitude: 255);
+    _vibrate(duration: 90);
   }
 
   /// A longer rumble for the moment the chest bursts open.
   static void buzzOpen() {
     // ignore: unawaited_futures
-    _vibrate(pattern: const [0, 180, 70, 180, 70, 420], amplitude: 255);
+    _vibrate(pattern: const [0, 200, 80, 200, 80, 450]);
   }
 
   /// Plays the click from the start, cutting any click still sounding.
