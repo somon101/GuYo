@@ -47,30 +47,43 @@ class UserNameText extends StatelessWidget {
     this.badge,
   });
 
+  /// The amethyst gradient of a Premium name (lighter on a dark theme, deeper on a light one).
+  static List<Color> premiumGradient(Brightness b) => b == Brightness.dark
+      ? const [Color(0xFFB79BFF), Color(0xFFF0E4FF), Color(0xFF8B93FF)]
+      : const [Color(0xFF5B3FD0), Color(0xFF8B6BF0), Color(0xFF3F4FD8)];
+
   @override
   Widget build(BuildContext context) {
-    final text = Text(
+    Widget text = Text(
       name,
-      style: style,
+      style: isPremium ? style.copyWith(color: Colors.white) : style,
       textAlign: textAlign,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );
+    if (isPremium) {
+      // A Premium person is seen by the name itself: amethyst gradient.
+      final colors = premiumGradient(Theme.of(context).brightness);
+      text = ShaderMask(
+        key: const ValueKey('premium-name'),
+        blendMode: BlendMode.srcIn,
+        shaderCallback: (rect) => LinearGradient(colors: colors).createShader(rect),
+        child: text,
+      );
+    }
     if (!isPremium && badge == null) return text;
     final fontSize = style.fontSize ?? 14;
+    // One icon only: the badge the person chose; a Premium person with none gets the Premium «G».
     return Row(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: textAlign == TextAlign.center ? MainAxisAlignment.center : MainAxisAlignment.start,
       children: [
         Flexible(child: text),
-        if (badge != null) ...[
-          SizedBox(width: fontSize * 0.25),
-          BadgeGlyph(badgeKey: badge!, size: fontSize * 1.15),
-        ],
-        if (isPremium) ...[
-          SizedBox(width: fontSize * 0.25),
+        SizedBox(width: fontSize * 0.25),
+        if (badge != null)
+          BadgeGlyph(badgeKey: badge!, size: fontSize * 1.15)
+        else
           PremiumCheck(size: fontSize * 1.05),
-        ],
       ],
     );
   }
