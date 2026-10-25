@@ -24,7 +24,7 @@ function CountedChest({ chestKey, color, count, size }: { chestKey: string; colo
       <span
         className="absolute font-black leading-none text-white"
         style={{
-          right: -6, bottom: -4, minWidth: 22, padding: "3px 6px", borderRadius: 999, textAlign: "center",
+          left: "80%", top: "73%", transform: "translate(-50%,-50%)", minWidth: 22, padding: "3px 6px", borderRadius: 999, textAlign: "center",
           fontSize: size >= 56 ? 13 : 11, background: "#1b1247", boxShadow: `0 0 0 2px ${color}, 0 2px 4px rgba(0,0,0,0.5)`,
         }}
       >
