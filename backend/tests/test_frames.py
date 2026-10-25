@@ -29,7 +29,7 @@ def test_frame_reward_is_validated_granted_and_worn(client, db, make_user, auth,
 
 def test_catalog_upload_art_and_title_key(client, db, make_user, auth, admin_headers, active_season):
     png = b"\x89PNG\r\n\x1a\n" + b"0" * 32
-    r = client.post("/admin/cosmetics", headers=admin_headers, data={"kind": "title", "name": "Хранитель"}, files={"image": ("t.png", png, "image/png")})
+    r = client.post("/admin/cosmetics", headers=admin_headers, data={"kind": "title", "name": "Хранитель", "names": '{"en": "Keeper", "tg": "Нигаҳбон"}'}, files={"image": ("t.png", png, "image/png")})
     assert r.status_code == 201
     item = r.json()
     assert client.get(f"/cosmetics/art/{item['id']}").status_code == 200  # public artwork
@@ -40,4 +40,8 @@ def test_catalog_upload_art_and_title_key(client, db, make_user, auth, admin_hea
     db.commit()
     me = client.get("/users/me/profile", headers=auth(user)).json()
     assert me["title"] == "Хранитель" and me["title_key"] == str(item["id"])
+    assert item["names"]["en"] == "Keeper"
+    user.ui_language = "en"
+    db.commit()
+    assert client.get("/users/me/profile", headers=auth(user)).json()["title"] == "Keeper"
     assert client.delete(f"/admin/cosmetics/{item['id']}", headers=admin_headers).status_code == 409  # already earned

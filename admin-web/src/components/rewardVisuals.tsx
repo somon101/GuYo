@@ -1,10 +1,19 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { createContext, useEffect, useState, type ReactNode } from "react";
 import { API_URL, api } from "../api/client";
 
 // How season-pass cosmetics look. Frames, badges and titles are pictures the admin
 // uploaded (the catalog); the title picture is an empty ribbon, its name is written on it.
 
-export type CosmeticDef = { id: number; kind: "frame" | "badge" | "title"; name: string; name_tg: string | null; name_uz: string | null };
+export type CosmeticDef = { id: number; kind: "frame" | "badge" | "title"; name: string; names: Record<string, string> };
+
+/** Catalog ids the pass being edited already hands out: the picker does not offer them again. */
+export const UsedCosmetics = createContext<Set<string>>(new Set());
+
+export function usedCosmetics(def: { levels: { free?: { key?: string | null; type?: string } | null; premium?: { key?: string | null; type?: string } | null }[] } | null | undefined): Set<string> {
+  const out = new Set<string>();
+  for (const l of def?.levels ?? []) for (const r of [l.free, l.premium]) if (r && (r.type === "frame" || r.type === "badge" || r.type === "title") && r.key) out.add(String(r.key));
+  return out;
+}
 
 export const artUrl = (id: string | number) => `${API_URL}/cosmetics/art/${id}`;
 

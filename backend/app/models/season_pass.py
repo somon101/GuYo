@@ -146,6 +146,8 @@ class CosmeticDef(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     name_tg: Mapped[str | None] = mapped_column(String(120), nullable=True)
     name_uz: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # The name in every interface language that has one: {"en": "...", "tg": "..."}; `name` is Russian
+    names: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # "builtin/<file>" (shipped in app/assets/cosmetics) or a MEDIA_ROOT storage key
     image_key: Mapped[str] = mapped_column(String(500), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

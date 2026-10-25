@@ -19,8 +19,24 @@ router = APIRouter(tags=["cosmetics"])
 admin_router = APIRouter(prefix="/admin/cosmetics", tags=["admin-cosmetics"])
 
 
+def _names(raw: str) -> dict:
+    """The per-language names sent by the admin form as JSON: {"en": "..."} (empty ones dropped)."""
+    import json
+
+    try:
+        data = json.loads(raw or "{}")
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Неверные переводы")
+    return {str(k)[:8]: str(v).strip()[:120] for k, v in data.items() if isinstance(data, dict) and str(v).strip()}
+
+
 def _out(d: CosmeticDef) -> dict:
-    return {"id": d.id, "kind": d.kind, "name": d.name, "name_tg": d.name_tg, "name_uz": d.name_uz}
+    names = dict(d.names or {})
+    if d.name_tg and "tg" not in names:
+        names["tg"] = d.name_tg
+    if d.name_uz and "uz" not in names:
+        names["uz"] = d.name_uz
+    return {"id": d.id, "kind": d.kind, "name": d.name, "names": names}
 
 
 @router.get("/cosmetics/art/{def_id}")
@@ -44,8 +60,7 @@ def list_defs(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
 def create_def(
     kind: str = Form(...),
     name: str = Form(..., min_length=1, max_length=120),
-    name_tg: str = Form(""),
-    name_uz: str = Form(""),
+    names: str = Form("{}"),
     image: UploadFile = File(...),
     db: Session = Depends(get_db),
     _admin=Depends(get_current_admin),
@@ -55,7 +70,8 @@ def create_def(
     if not (image.content_type or "").startswith("image/png"):
         raise HTTPException(status_code=422, detail="Нужна картинка PNG с прозрачным фоном")
     key = save_upload(image, subdir="cosmetics")
-    d = CosmeticDef(kind=kind, name=name.strip(), name_tg=name_tg.strip() or None, name_uz=name_uz.strip() or None, image_key=key)
+    tr = _names(names)
+    d = CosmeticDef(kind=kind, name=name.strip(), names=tr, name_tg=tr.get("tg"), name_uz=tr.get("uz"), image_key=key)
     db.add(d)
     db.commit()
     return _out(d)
@@ -65,8 +81,7 @@ def create_def(
 def update_def(
     def_id: int,
     name: str = Form(..., min_length=1, max_length=120),
-    name_tg: str = Form(""),
-    name_uz: str = Form(""),
+    names: str = Form("{}"),
     image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     _admin=Depends(get_current_admin),
@@ -74,7 +89,8 @@ def update_def(
     d = db.get(CosmeticDef, def_id)
     if d is None:
         raise HTTPException(status_code=404, detail="Нет такого элемента")
-    d.name, d.name_tg, d.name_uz = name.strip(), name_tg.strip() or None, name_uz.strip() or None
+    tr = _names(names)
+    d.name, d.names, d.name_tg, d.name_uz = name.strip(), tr, tr.get("tg"), tr.get("uz")
     if image is not None and image.filename:
         if not (image.content_type or "").startswith("image/png"):
             raise HTTPException(status_code=422, detail="Нужна картинка PNG с прозрачным фоном")

@@ -23,15 +23,22 @@ def label_for(item, lang: str | None) -> str:
 
 
 def def_label(db: Session, key: str, lang: str | None) -> str | None:
-    """The catalog name of a frame/badge/title in the person's language."""
+    """The catalog name of a frame/badge/title in the person's language (Russian as the fallback)."""
     row = db.get(CosmeticDef, int(key)) if str(key).isdigit() else None
     if row is None:
         return None
-    if lang == "tg" and row.name_tg:
-        return row.name_tg
-    if lang == "uz" and row.name_uz:
-        return row.name_uz
-    return row.name
+    names = row.names or {}
+    return names.get(lang or "") or (row.name_tg if lang == "tg" else None) or (row.name_uz if lang == "uz" else None) or row.name
+
+
+def shown_label(db: Session, item: UserCosmetic, lang: str | None) -> str:
+    """What a person sees for an item they own: the catalog name in their language, unless the
+    admin gave the reward a name of its own."""
+    if item.key.isdigit():
+        row = db.get(CosmeticDef, int(item.key))
+        if row is not None and item.label == row.name:
+            return def_label(db, item.key, lang) or item.label
+    return label_for(item, lang)
 
 
 def grant(db: Session, user: User, reward: dict, season) -> UserCosmetic | None:
@@ -86,7 +93,7 @@ def collection(db: Session, user: User) -> dict:
             "id": c.id,
             "kind": c.kind,
             "key": c.key,
-            "label": label_for(c, user.ui_language),
+            "label": shown_label(db, c, user.ui_language),
             "season_name": c.season_name,
         }
 
@@ -134,7 +141,7 @@ def worn(db: Session, user: User) -> tuple[str | None, str | None]:
     """(badge key, title text in the person's language) the person wears."""
     badge = db.get(UserCosmetic, user.equipped_badge_id) if user.equipped_badge_id else None
     title = db.get(UserCosmetic, user.equipped_title_id) if user.equipped_title_id else None
-    return (badge.key if badge else None, label_for(title, user.ui_language) if title else None)
+    return (badge.key if badge else None, shown_label(db, title, user.ui_language) if title else None)
 
 
 def badge_keys(db: Session, user_ids: list[int]) -> dict[int, str]:

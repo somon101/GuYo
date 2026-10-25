@@ -1,5 +1,5 @@
 import axios from "axios";
-import { useEffect, useState, type ReactNode } from "react";
+import { useContext, useEffect, useState, type ReactNode } from "react";
 import {
   applyPassTemplate,
   copyPassTemplate,
@@ -28,7 +28,8 @@ import {
   type PassTemplate,
 } from "../api/endpoints";
 import type { Season } from "../types";
-import { BadgeMark, catalogName, FrameAvatar, ProfileMock, Tile, TitleRibbon, useCatalog, type CosmeticDef } from "../components/rewardVisuals";
+import { BadgeMark, catalogName, FrameAvatar, ProfileMock, Tile, TitleRibbon, UsedCosmetics, usedCosmetics, useCatalog, type CosmeticDef } from "../components/rewardVisuals";
+import { CosmeticCreateForm } from "../components/CosmeticCreateForm";
 
 const inputClass = "field px-2 py-1.5 text-sm";
 
@@ -204,7 +205,9 @@ function defaultReward(type: PassReward["type"], defs: CosmeticDef[] = []): Pass
 /** The picker window: every kind of reward and every variant drawn as it looks in the app. */
 function RewardPicker({ value, onChange, onClose }: { value: PassReward | null; onChange: (v: PassReward | null) => void; onClose: () => void }) {
   const t = value?.type;
-  const { defs } = useCatalog();
+  const { defs, reload } = useCatalog();
+  const used = useContext(UsedCosmetics);
+  const [creating, setCreating] = useState(false);
   const section = (title: string, body: ReactNode) => (
     <div><div className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">{title}</div><div className="flex flex-wrap gap-2 rounded-2xl p-2" style={{ background: "#0d0f1c" }}>{body}</div></div>
   );
@@ -231,12 +234,20 @@ function RewardPicker({ value, onChange, onClose }: { value: PassReward | null; 
         {value && (value.type === "frame" || value.type === "badge" || value.type === "title") && (
           <>
             {section(value.type === "frame" ? "Какая рамка (из каталога)" : value.type === "badge" ? "Какой значок (из каталога)" : "Какой титул (из каталога)",
-              defs.filter((d) => d.kind === value.type).map((d) => (
+              defs.filter((d) => d.kind === value.type && (!used.has(String(d.id)) || value.key === String(d.id))).map((d) => (
                 <Tile key={d.id} selected={value.key === String(d.id)} onClick={() => onChange({ ...value, key: String(d.id) })} label={d.name}>
                   {d.kind === "frame" ? <FrameAvatar frameKey={String(d.id)} size={72} /> : d.kind === "badge" ? <BadgeMark badgeKey={String(d.id)} size={56} /> : <TitleRibbon titleKey={String(d.id)} text={d.name} width={150} />}
                 </Tile>
               )))}
-            {defs.every((d) => d.kind !== value.type) && <p className="text-sm text-slate-500">В каталоге пока пусто: добавьте картинку в «Каталог наград».</p>}
+            {defs.filter((d) => d.kind === value.type && (!used.has(String(d.id)) || value.key === String(d.id))).length === 0 && <p className="text-sm text-slate-500">Свободных нет: все уже в этом пропуске. Создайте новую.</p>}
+            <div>
+              <button type="button" onClick={() => setCreating(!creating)} className="rounded-lg border border-indigo-400 px-3 py-1.5 text-sm text-indigo-600 hover:bg-indigo-50">{creating ? "Скрыть форму" : "+ Создать новую"}</button>
+              {creating && (
+                <div className="mt-2 rounded-2xl border border-slate-200 p-3">
+                  <CosmeticCreateForm kind={value.type as CosmeticDef["kind"]} onCreated={async (d) => { await reload(); setCreating(false); onChange({ ...value, key: String(d.id) }); }} />
+                </div>
+              )}
+            </div>
             <div className="space-y-1">
               <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Своё название (необязательно, иначе берётся из каталога)</div>
               <input className={`${inputClass} w-full`} placeholder="По-русски" value={value.text ?? ""} onChange={(e) => onChange({ ...value, text: e.target.value })} />
@@ -290,6 +301,7 @@ function DefinitionEditor({
     onChange({ ...value, tasks: value.tasks.map((t, j) => (j === i ? { ...t, ...patch } : t)) });
 
   return (
+    <UsedCosmetics.Provider value={usedCosmetics(value)}>
     <div className="flex flex-col gap-5">
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Уровни</p>
@@ -440,6 +452,7 @@ function DefinitionEditor({
         )}
       </div>
     </div>
+    </UsedCosmetics.Provider>
   );
 }
 
@@ -923,6 +936,7 @@ function PassStripSection() {
     return <Section title="Текущий пропуск">{message ? <p className="text-sm text-red-600">{message}</p> : <p className="text-sm text-slate-500">Сейчас нет идущего сезона.</p>}</Section>;
   }
   return (
+    <UsedCosmetics.Provider value={usedCosmetics(def)}>
     <Section title={`Пропуск сезона «${season.name}» как в приложении`}>
       {message && <p className="mb-2 text-sm text-slate-500">{message}</p>}
       <p className="mb-2 text-xs text-slate-500">Листайте вбок. Сверху бесплатная награда, снизу Premium. Нажмите на награду, чтобы изменить её (сохраняется в этот сезон).</p>
@@ -954,5 +968,6 @@ function PassStripSection() {
         </div>
       )}
     </Section>
+    </UsedCosmetics.Provider>
   );
 }
