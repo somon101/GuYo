@@ -42,7 +42,7 @@ void main() {
     const diamonds = PassReward(type: 'diamonds', amount: 10, claimed: false, claimable: true, lockedByPremium: false);
     const points = PassReward(type: 'rating_points', amount: 20, claimed: false, claimable: true, lockedByPremium: false);
     expect(rewardStyle(diamonds).asset, 'diamond');
-    expect(rewardStyle(points).asset, isNull);
+    expect(rewardStyle(points).asset, 'points');
   });
 }
 

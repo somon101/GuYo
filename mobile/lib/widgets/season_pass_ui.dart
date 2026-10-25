@@ -80,6 +80,7 @@ RewardStyle rewardStyle(PassReward r) {
         const [Color(0xFFA48BFF), Color(0xFF5862DD)],
         Icons.star_rounded,
         tr('Звёзды рейтинга'),
+        asset: 'points',
       );
   }
 }

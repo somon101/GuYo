@@ -34,7 +34,7 @@ class RewardChips extends StatelessWidget {
         ]);
       case 'rating_points':
         return Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.star_rounded, size: size, color: const Color(0xFFFFB300)),
+          PointsIcon(size: size),
           const SizedBox(width: 2),
           Text('${r.amount}', style: style),
         ]);

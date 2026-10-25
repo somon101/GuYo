@@ -1,3 +1,4 @@
+import '../widgets/game_icons.dart';
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
@@ -55,7 +56,7 @@ class _PointsTodaySheetState extends State<_PointsTodaySheet> {
                         color: AppColors.gold.withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(Icons.star_rounded, color: AppColors.gold, size: 26),
+                      child: const PointsIcon(size: 28),
                     ),
                     const SizedBox(width: 12),
                     Expanded(

@@ -1,3 +1,4 @@
+import '../widgets/game_icons.dart';
 import '../l10n/l10n.dart';
 import 'add_friend_sheet.dart';
 import '../widgets/guyo_ui.dart';
@@ -807,7 +808,7 @@ class LeaderboardRow extends StatelessWidget {
               RankIcon(rank: rowRank, color: rowColor, size: 22),
               const SizedBox(width: 8),
             ],
-            const Icon(Icons.star_rounded, size: 17, color: AppColors.gold),
+            const PointsIcon(size: 19),
             const SizedBox(width: 2),
             Text(
               '${entry.totalPoints}',

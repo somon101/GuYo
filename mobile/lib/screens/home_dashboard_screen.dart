@@ -1,3 +1,4 @@
+import '../widgets/game_icons.dart';
 import 'streak_sheet.dart';
 import '../widgets/animated_fire.dart';
 import '../services/streak_state.dart';
@@ -509,6 +510,7 @@ class _StatsCard extends StatelessWidget {
                   () => showPointsToday(context, total: overview.pointsToday),
                   StatColumn(
                     icon: Icons.star_rounded,
+                    leading: const PointsIcon(size: 36),
                     value: '+${overview.pointsToday}',
                     label: tr('очков сегодня'),
                     iconColor: AppColors.gold,

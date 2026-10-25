@@ -12,6 +12,15 @@ class DiamondIcon extends StatelessWidget {
   Widget build(BuildContext context) => _GameIcon('assets/icons/diamond.png', size);
 }
 
+/// Rating points: the golden star.
+class PointsIcon extends StatelessWidget {
+  final double size;
+  const PointsIcon({super.key, this.size = 20});
+
+  @override
+  Widget build(BuildContext context) => _GameIcon('assets/icons/points.png', size);
+}
+
 class FreezeIcon extends StatelessWidget {
   final double size;
   const FreezeIcon({super.key, this.size = 20});
@@ -36,6 +45,8 @@ Widget gameAsset(String name, double size) {
       return FreezeIcon(size: size);
     case 'merge':
       return MergeIcon(size: size);
+    case 'points':
+      return PointsIcon(size: size);
     default:
       return DiamondIcon(size: size);
   }

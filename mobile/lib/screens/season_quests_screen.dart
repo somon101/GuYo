@@ -1,3 +1,4 @@
+import '../widgets/game_icons.dart';
 import '../l10n/l10n.dart';
 
 import 'package:flutter/material.dart';
@@ -319,6 +320,7 @@ class _StatsRow extends StatelessWidget {
             Expanded(
               child: StatColumn(
                 icon: Icons.star_rounded,
+                leading: const PointsIcon(size: 36),
                 value: '+${overview.pointsToday}',
                 label: tr('Очков сегодня'),
                 iconColor: AppColors.gold,

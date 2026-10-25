@@ -238,7 +238,7 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
         label = tr('Объединители серии');
         break;
       case 'points':
-        icon = const Icon(Icons.star_rounded, size: 150, color: Color(0xFFFFC53D));
+        icon = const PointsIcon(size: 150);
         label = tr('Очки рейтинга');
         break;
       default:

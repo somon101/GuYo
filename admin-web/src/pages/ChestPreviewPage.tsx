@@ -11,11 +11,11 @@ type PrizeId = "diamond" | "freeze" | "merge" | "points";
 type Pick = PrizeId | "random";
 
 // What can fall out of a chest. Exactly ONE of these per opening; the ceiling of each comes from the chest's real settings.
-const PRIZES: Record<PrizeId, { name: string; img: string | null; cap: (c: ChestType) => number }> = {
+const PRIZES: Record<PrizeId, { name: string; img: string; cap: (c: ChestType) => number }> = {
   diamond: { name: "Бриллианты", img: "gem.png", cap: (c) => c.max_diamonds },
   freeze: { name: "Заморозки серии", img: "freeze.png", cap: (c) => c.max_freezes },
   merge: { name: "Объединители серии", img: "merge.png", cap: (c) => c.max_merges },
-  points: { name: "Очки рейтинга", img: null, cap: (c) => c.max_points },
+  points: { name: "Очки рейтинга", img: "points.png", cap: (c) => c.max_points },
 };
 const PRIZE_IDS = Object.keys(PRIZES) as PrizeId[];
 const FALLBACK: ChestType[] = [

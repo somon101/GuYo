@@ -1,3 +1,4 @@
+import '../game_icons.dart';
 import '../../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
@@ -26,7 +27,7 @@ class ExerciseProgressHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          const Icon(Icons.star_rounded, size: 18, color: AppColors.gold),
+          const PointsIcon(size: 20),
           const SizedBox(width: 6),
           Text('$points', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
           const SizedBox(width: 14),

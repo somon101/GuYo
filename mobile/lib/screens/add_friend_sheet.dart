@@ -1,3 +1,4 @@
+import '../widgets/game_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -323,7 +324,7 @@ class _FriendConfirmCardState extends State<_FriendConfirmCard> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.star_rounded, size: 16, color: Color(0xFFF5B400)),
+                  const PointsIcon(size: 18),
                   const SizedBox(width: 4),
                   Text(
                     tr('{0} очков', [u.totalPoints]),

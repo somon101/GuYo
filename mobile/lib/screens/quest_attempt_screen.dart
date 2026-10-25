@@ -1,3 +1,4 @@
+import '../widgets/game_icons.dart';
 import '../services/answer_signals.dart';
 import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
@@ -204,7 +205,7 @@ class _QuestResultView extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.star_rounded, size: 16, color: AppColors.rewardText),
+                  const PointsIcon(size: 18),
                   const SizedBox(width: 4),
                   Text(
                     tr('+{0} рейтинговых очков', [result.rewardGranted]),

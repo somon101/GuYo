@@ -1,3 +1,4 @@
+import 'game_icons.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
@@ -152,7 +153,7 @@ class RewardBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.star_rounded, size: 14, color: AppColors.gold),
+          const PointsIcon(size: 16),
           const SizedBox(width: 3),
           Text(
             '+$points',
@@ -223,6 +224,9 @@ class StatColumn extends StatelessWidget {
   final String label;
   final Color? _iconColor;
 
+  /// Drawn instead of the round icon chip (e.g. the points star).
+  final Widget? leading;
+
   /// The icon's colour; the primary colour unless given.
   Color get iconColor => _iconColor ?? AppColors.primary;
 
@@ -232,6 +236,7 @@ class StatColumn extends StatelessWidget {
     required this.value,
     required this.label,
     Color? iconColor,
+    this.leading,
   }) : _iconColor = iconColor;
 
   @override
@@ -239,7 +244,7 @@ class StatColumn extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        RoundIconChip(icon: icon, size: 40, iconColor: iconColor),
+        leading != null ? SizedBox(width: 40, height: 40, child: Center(child: leading)) : RoundIconChip(icon: icon, size: 40, iconColor: iconColor),
         const SizedBox(height: 8),
         Text(
           value,

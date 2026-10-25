@@ -1,3 +1,4 @@
+import '../widgets/game_icons.dart';
 import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
@@ -355,7 +356,7 @@ class _SeasonHistoryRow extends StatelessWidget {
             Text(rank.name, style: TextStyle(fontSize: 13, color: color, fontWeight: FontWeight.w700)),
             const SizedBox(width: 10),
           ],
-          const Icon(Icons.star_rounded, size: 16, color: AppColors.gold),
+          const PointsIcon(size: 18),
           const SizedBox(width: 2),
           Text(
             '${entry.points}',
