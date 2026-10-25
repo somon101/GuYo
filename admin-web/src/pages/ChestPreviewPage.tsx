@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ChestBankMock } from "./ChestBankMock";
 import { getChestOverview, type ChestType } from "../api/endpoints";
 
 // A preview only: nothing here talks to the server or the app. It shows how a
@@ -85,7 +86,7 @@ export function ChestPreviewPage() {
   const timer = useRef<number | null>(null);
 
   useEffect(() => {
-    getChestOverview().then((o) => setTypes(o.types)).catch(() => undefined);
+    getChestOverview().then((o) => { if (o.types?.length) setTypes(o.types); }).catch(() => undefined);
   }, []);
   const chest = types.find((c) => c.key === chestKey) ?? types[0];
 
@@ -335,6 +336,7 @@ export function ChestPreviewPage() {
           Из сундука всегда выпадает один приз. При «Случайном» каждый раз другой, не повторяется два раза подряд. Количество выпадает случайно от 1 до потолка выбранного сундука.
         </p>
       </section>
+      <ChestBankMock types={types} onOpenOne={(k) => { reset(); setChestKey(k); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
     </main>
   );
 }
