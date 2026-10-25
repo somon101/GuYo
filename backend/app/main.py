@@ -42,6 +42,7 @@ from app.routers import (
     chests,
     teams,
     admin_season_pass,
+    cosmetics as cosmetics_routes,
     notifications,
     phrase_categories,
     phrases,
@@ -167,6 +168,8 @@ app.include_router(economy_routes.shop_router)
 app.include_router(economy_routes.admin_router)
 app.include_router(teams.router)
 app.include_router(admin_season_pass.router)
+app.include_router(cosmetics_routes.router)
+app.include_router(cosmetics_routes.admin_router)
 app.include_router(practice.router)
 app.include_router(admin_analytics.router)
 app.include_router(admin_priority.router)

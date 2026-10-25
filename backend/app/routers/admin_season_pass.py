@@ -361,7 +361,7 @@ def showcase(user: str, db: Session = Depends(get_db), _admin=Depends(get_curren
     from app.models.achievement import Achievement, UserAchievement
     from app.models.season_pass import UserCosmetic
     from app.models.user import User
-    from app.seasonpass.cosmetics import collection, label_for
+    from app.seasonpass.cosmetics import collection, label_for, title_key
 
     key = user.strip()
     query = db.query(User).filter(User.deleted_at.is_(None))
@@ -403,6 +403,7 @@ def showcase(user: str, db: Session = Depends(get_db), _admin=Depends(get_curren
             "frame": key_of(found.equipped_frame_id),
             "badge": key_of(found.equipped_badge_id),
             "title": title_of(found.equipped_title_id),
+            "title_key": title_key(db, found),
         },
         "collection": coll,
         "achievements": achievements,

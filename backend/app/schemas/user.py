@@ -278,3 +278,5 @@ class UserProfileOut(BaseModel):
     # The avatar frame the person wears (season pass).
     frame: str | None = None
     title: str | None = None
+    # The ribbon picture (catalog id) of that title, if it has one.
+    title_key: str | None = None

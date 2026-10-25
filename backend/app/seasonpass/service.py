@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.dates import DUSHANBE_TZ, utc_now
 from app.models.rating import SEASON_ACTIVE, SEASON_COMPLETED, SEASON_SCHEDULED, Season
-from app.models.season_pass import PassClaim, PassSettings, PassTemplate, PassXpEvent, SeasonPass
+from app.models.season_pass import CosmeticDef, PassClaim, PassSettings, PassTemplate, PassXpEvent, SeasonPass
 from app.models.user import User
 
 # What a weekly task counts: the `source` of the XP events.
@@ -39,7 +39,7 @@ def get_pass_settings(db: Session) -> PassSettings:
     return settings
 
 
-def default_definition() -> dict:
+def default_definition(cosmetics: dict[str, int] | None = None) -> dict:
     """30 levels at 80 XP. Free: rating points, a Premium day every 5th level;
     Premium: more points, a few days of Premium on the 5th levels. Every third level
     (1, 4, 7, 13, ...) is a diamonds gift: 10 free, 25 Premium. A title at
@@ -66,13 +66,13 @@ def default_definition() -> dict:
         if n in chest_levels:
             free = {"type": "chest", "amount": 1, "key": chest_levels[n][0]}
             premium = {"type": "chest", "amount": 1, "key": chest_levels[n][1]}
-        if n == 10:
-            free = {"type": "title", "amount": 1, "text": "Знаток слов", "text_tg": "Донишманди калимаҳо", "text_uz": "So‘z bilimdoni"}
-        if n == 20:
-            premium = {"type": "badge", "amount": 1, "key": "diamond", "text": "Бриллиант сезона", "text_tg": "Алмоси мавсим", "text_uz": "Mavsum brilliant"}
-        if n == 30:
-            free = {"type": "badge", "amount": 1, "key": "crown", "text": "Чемпион сезона", "text_tg": "Қаҳрамони мавсим", "text_uz": "Mavsum chempioni"}
-            premium = {"type": "title", "amount": 1, "text": "Мастер слов", "text_tg": "Устоди калимаҳо", "text_uz": "So‘z ustasi"}
+        c = cosmetics or {}
+        if n == 10 and "title" in c:
+            free = {"type": "title", "amount": 1, "key": str(c["title"]), "text": ""}
+        if n == 20 and "frame" in c:
+            premium = {"type": "frame", "amount": 1, "key": str(c["frame"]), "text": ""}
+        if n == 30 and "badge" in c:
+            free = {"type": "badge", "amount": 1, "key": str(c["badge"]), "text": ""}
         levels.append({"level": n, "xp": 80, "free": free, "premium": premium})
     tasks = [
         {"id": "words", "metric": "word", "target": 5, "xp": 50},
@@ -90,14 +90,7 @@ def default_definition() -> dict:
         "metric": "word",
         "target_per_member": 40,
         "xp": 300,
-        "reward": {
-            "type": "badge",
-            "amount": 1,
-            "key": "shield",
-            "text": "Командный чемпион",
-            "text_tg": "Қаҳрамони даста",
-            "text_uz": "Jamoa chempioni",
-        },
+        "reward": {"type": "badge", "amount": 1, "key": str(cosmetics["badge"]), "text": ""} if cosmetics and "badge" in cosmetics else None,
     }
     return {"levels": levels, "tasks": tasks, "team_goals": team_goals, "team_season_goal": team_season_goal}
 
@@ -165,23 +158,14 @@ def _reward(value: dict | None, level) -> dict | None:
     if value["type"] not in REWARD_TYPES:
         raise PassError(f"Награда {level}: неизвестная награда" if isinstance(level, str) else f"Уровень {level}: неизвестная награда")
     if value["type"] in ("badge", "title", "frame"):
-        from app.seasonpass.cosmetics import BADGE_KEYS, FRAME_KEYS
-
-        text = str(value.get("text") or "").strip()
-        if not text:
-            raise PassError(f"Награда {level}: у значка или титула нужно название" if isinstance(level, str) else f"Уровень {level}: у значка или титула нужно название")
-        out = {"type": value["type"], "amount": 1, "text": text[:120]}
+        where = f"Награда {level}" if isinstance(level, str) else f"Уровень {level}"
+        key = str(value.get("key") or "")
+        if not key.isdigit():
+            raise PassError(f"{where}: выберите рамку, значок или титул из каталога")
+        out = {"type": value["type"], "amount": 1, "key": key, "text": str(value.get("text") or "").strip()[:120]}
         for lang in ("text_tg", "text_uz"):
             if str(value.get(lang) or "").strip():
                 out[lang] = str(value[lang]).strip()[:120]
-        if value["type"] == "frame":
-            if value.get("key") not in FRAME_KEYS:
-                raise PassError(f"Награда {level}: выберите вид рамки" if isinstance(level, str) else f"Уровень {level}: выберите вид рамки")
-            out["key"] = value["key"]
-        if value["type"] == "badge":
-            if value.get("key") not in BADGE_KEYS:
-                raise PassError(f"Награда {level}: выберите вид значка" if isinstance(level, str) else f"Уровень {level}: выберите вид значка")
-            out["key"] = value["key"]
         return out
     if value["type"] == "booster":
         minutes = int(value.get("amount", 0))
@@ -219,7 +203,12 @@ def default_template(db: Session) -> PassTemplate:
     if template is None:
         template = db.query(PassTemplate).order_by(PassTemplate.id).first()
     if template is None:
-        template = PassTemplate(name="Стандартный", is_default=True, definition=default_definition())
+        first = {}
+        for kind in ("frame", "badge", "title"):
+            row = db.query(CosmeticDef).filter(CosmeticDef.kind == kind).order_by(CosmeticDef.id).first()
+            if row:
+                first[kind] = row.id
+        template = PassTemplate(name="Стандартный", is_default=True, definition=default_definition(first))
         db.add(template)
         db.flush()
     elif "team_goals" not in template.definition:
@@ -399,11 +388,14 @@ def user_state(db: Session, user: User) -> dict | None:
         taken = (kind, str(lv["level"])) in claimed
         unlocked = lv["level"] <= reached
         allowed = kind == "free" or has_premium
-        from app.seasonpass.cosmetics import label_for
+        from app.seasonpass.cosmetics import def_label, label_for
 
+        text = label_for(reward, user.ui_language) if reward.get("text") else None
+        if not text and str(reward.get("key") or "").isdigit():
+            text = def_label(db, reward["key"], user.ui_language)
         return {
             **reward,
-            "text": label_for(reward, user.ui_language) if reward.get("text") else None,
+            "text": text,
             "claimed": taken,
             "claimable": unlocked and allowed and not taken,
             "locked_by_premium": kind == "premium" and not has_premium,

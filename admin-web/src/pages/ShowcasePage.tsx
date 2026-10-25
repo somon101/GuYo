@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "../api/client";
-import { BADGE_LOOKS, BadgeMark, FRAME_LOOKS, FrameAvatar, ProfileMock, Tile } from "../components/rewardVisuals";
+import { BadgeMark, FrameAvatar, ProfileMock, Tile, TitleRibbon, useCatalog } from "../components/rewardVisuals";
 
 // Read-only showcase: every frame and badge, and what one chosen player wears and owns.
 // Nothing is changed and the player is not told.
@@ -8,7 +8,7 @@ import { BADGE_LOOKS, BadgeMark, FRAME_LOOKS, FrameAvatar, ProfileMock, Tile } f
 type Item = { id: number; kind: string; key: string; label: string; season_name: string | null };
 type Showcase = {
   login: string; public_id: number; avatar_url: string | null;
-  worn: { frame: string | null; badge: string | null; title: string | null };
+  worn: { frame: string | null; badge: string | null; title: string | null; title_key: string | null };
   collection: { badges: Item[]; titles: Item[]; frames: Item[] };
   achievements: { id: number; title: string; description: string; color: string; icon_url: string | null; earned_at: string | null }[];
 };
@@ -20,12 +20,14 @@ export function ShowcasePage() {
   const [frame, setFrame] = useState<string | null>(null);
   const [badge, setBadge] = useState<string | null>(null);
   const [title, setTitle] = useState<string | null>(null);
+  const [titleKey, setTitleKey] = useState<string | null>(null);
+  const { defs } = useCatalog();
 
   const find = async () => {
     setError("");
     try {
       const { data: d } = await api.get<Showcase>("/admin/season-pass/showcase", { params: { user: query.trim() } });
-      setData(d); setFrame(d.worn.frame); setBadge(d.worn.badge); setTitle(d.worn.title);
+      setData(d); setFrame(d.worn.frame); setBadge(d.worn.badge); setTitle(d.worn.title); setTitleKey(d.worn.title_key);
     } catch { setData(null); setError("Игрок не найден"); }
   };
   const h = (t: string) => <h2 className="mb-2 text-lg font-semibold">{t}</h2>;
@@ -48,28 +50,28 @@ export function ShowcasePage() {
           <div className="space-y-4">
             <div className="rounded-2xl p-4" style={{ background: "#0d0f1c" }}>
               <div className="mb-2 text-xs font-bold uppercase tracking-wide text-white/50">Профиль так, как его видят в приложении</div>
-              <ProfileMock frame={frame} badge={badge} title={title ?? undefined} src={data.avatar_url} login={data.login} />
+              <ProfileMock frame={frame} badge={badge} title={title} titleKey={titleKey} src={data.avatar_url} login={data.login} />
               <div className="mt-2 text-xs text-white/50">Нажмите на любую награду ниже, чтобы примерить её на этот профиль (это только показ).</div>
             </div>
             <div>
               <div className="mb-1 text-xs font-bold uppercase text-slate-500">Рамки игрока</div>
               <div className="flex flex-wrap gap-2 rounded-2xl p-2" style={{ background: "#0d0f1c" }}>
                 {data.collection.frames.length === 0 && <span className="p-2 text-sm text-white/50">Нет рамок</span>}
-                {data.collection.frames.map((f) => <Tile key={f.id} selected={frame === f.key} onClick={() => setFrame(frame === f.key ? null : f.key)} label={f.label || FRAME_LOOKS[f.key]?.name || f.key}><FrameAvatar frameKey={f.key} size={60} src={data.avatar_url} /></Tile>)}
+                {data.collection.frames.map((f) => <Tile key={f.id} selected={frame === f.key} onClick={() => setFrame(frame === f.key ? null : f.key)} label={f.label || f.key}><FrameAvatar frameKey={f.key} size={60} src={data.avatar_url} /></Tile>)}
               </div>
             </div>
             <div>
               <div className="mb-1 text-xs font-bold uppercase text-slate-500">Значки игрока</div>
               <div className="flex flex-wrap gap-2 rounded-2xl p-2" style={{ background: "#0d0f1c" }}>
                 {data.collection.badges.length === 0 && <span className="p-2 text-sm text-white/50">Нет значков</span>}
-                {data.collection.badges.map((b) => <Tile key={b.id} selected={badge === b.key} onClick={() => setBadge(badge === b.key ? null : b.key)} label={b.label || BADGE_LOOKS[b.key]?.name || b.key}><BadgeMark badgeKey={b.key} size={48} /></Tile>)}
+                {data.collection.badges.map((b) => <Tile key={b.id} selected={badge === b.key} onClick={() => setBadge(badge === b.key ? null : b.key)} label={b.label || b.key}><BadgeMark badgeKey={b.key} size={48} /></Tile>)}
               </div>
             </div>
             <div>
               <div className="mb-1 text-xs font-bold uppercase text-slate-500">Звания игрока</div>
               <div className="flex flex-wrap gap-2 rounded-2xl p-2" style={{ background: "#0d0f1c" }}>
                 {data.collection.titles.length === 0 && <span className="p-2 text-sm text-white/50">Нет званий</span>}
-                {data.collection.titles.map((t) => <Tile key={t.id} selected={title === t.label} onClick={() => setTitle(title === t.label ? null : t.label)} label={t.season_name ?? ""}><span className="rounded-full px-2 py-0.5 text-xs font-bold" style={{ background: "linear-gradient(135deg,#6EE7B7,#0E9F6E)", color: "#0b3d2c" }}>{t.label}</span></Tile>)}
+                {data.collection.titles.map((t) => <Tile key={t.id} selected={title === t.label} onClick={() => { const on = title === t.label; setTitle(on ? null : t.label); setTitleKey(on ? null : t.key || null); }} label={t.season_name ?? ""}><TitleRibbon titleKey={t.key || null} text={t.label} width={150} /></Tile>)}
               </div>
             </div>
             <div>
@@ -88,13 +90,17 @@ export function ShowcasePage() {
       </section>
 
       <section className="card space-y-3 p-4">
-        {h("Все рамки аватара")}
+        {h("Все рамки аватара (каталог)")}
         <div className="flex flex-wrap gap-2 rounded-2xl p-2" style={{ background: "#0d0f1c" }}>
-          {Object.entries(FRAME_LOOKS).map(([k, v]) => <Tile key={k} selected={false} onClick={() => undefined} label={v.name}><FrameAvatar frameKey={k} size={72} /></Tile>)}
+          {defs.filter((d) => d.kind === "frame").map((d) => <Tile key={d.id} selected={false} onClick={() => undefined} label={d.name}><FrameAvatar frameKey={String(d.id)} size={96} /></Tile>)}
         </div>
-        {h("Все значки")}
+        {h("Все значки (каталог)")}
         <div className="flex flex-wrap gap-2 rounded-2xl p-2" style={{ background: "#0d0f1c" }}>
-          {Object.entries(BADGE_LOOKS).map(([k, v]) => <Tile key={k} selected={false} onClick={() => undefined} label={v.name}><BadgeMark badgeKey={k} size={56} /></Tile>)}
+          {defs.filter((d) => d.kind === "badge").map((d) => <Tile key={d.id} selected={false} onClick={() => undefined} label={d.name}><BadgeMark badgeKey={String(d.id)} size={72} /></Tile>)}
+        </div>
+        {h("Все титулы (каталог)")}
+        <div className="flex flex-wrap gap-2 rounded-2xl p-2" style={{ background: "#0d0f1c" }}>
+          {defs.filter((d) => d.kind === "title").map((d) => <Tile key={d.id} selected={false} onClick={() => undefined} label={d.name}><TitleRibbon titleKey={String(d.id)} text={d.name} width={200} /></Tile>)}
         </div>
       </section>
     </main>

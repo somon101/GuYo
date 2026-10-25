@@ -28,7 +28,7 @@ import {
   type PassTemplate,
 } from "../api/endpoints";
 import type { Season } from "../types";
-import { BADGE_LOOKS, BadgeMark, FRAME_LOOKS, FrameAvatar, ProfileMock, Tile, TitleChip } from "../components/rewardVisuals";
+import { BadgeMark, catalogName, FrameAvatar, ProfileMock, Tile, TitleRibbon, useCatalog, type CosmeticDef } from "../components/rewardVisuals";
 
 const inputClass = "field px-2 py-1.5 text-sm";
 
@@ -182,9 +182,9 @@ const NUMERIC_TYPES = ["rating_points", "premium_days", "streak_freeze", "diamon
 /** One small picture for a reward type or choice, so nothing has to be read to be understood. */
 function RewardThumb({ r, size = 40 }: { r: PassReward; size?: number }) {
   switch (r.type) {
-    case "frame": return <FrameAvatar frameKey={r.key ?? "gold"} size={size + 8} />;
-    case "badge": return <BadgeMark badgeKey={r.key ?? "crown"} size={size} />;
-    case "title": return <TitleChip text={r.text || "Титул"} />;
+    case "frame": return <FrameAvatar frameKey={r.key} size={size + 8} />;
+    case "badge": return <BadgeMark badgeKey={r.key} size={size} />;
+    case "title": return <TitleRibbon titleKey={r.key} text={r.text || catalogName(r.key)} width={size * 2.4} />;
     default: {
       const l = passLook(r);
       return l.img
@@ -194,10 +194,8 @@ function RewardThumb({ r, size = 40 }: { r: PassReward; size?: number }) {
   }
 }
 
-function defaultReward(type: PassReward["type"]): PassReward {
-  if (type === "badge") return { type, amount: 1, key: "crown", text: "" };
-  if (type === "frame") return { type, amount: 1, key: "gold", text: "" };
-  if (type === "title") return { type, amount: 1, text: "" };
+function defaultReward(type: PassReward["type"], defs: CosmeticDef[] = []): PassReward {
+  if (type === "badge" || type === "frame" || type === "title") return { type, amount: 1, key: String(defs.find((d) => d.kind === type)?.id ?? ""), text: "" };
   if (type === "chest") return { type, amount: 1, key: "wood" };
   if (type === "booster") return { type, amount: 30 };
   return { type, amount: 1 };
@@ -206,6 +204,7 @@ function defaultReward(type: PassReward["type"]): PassReward {
 /** The picker window: every kind of reward and every variant drawn as it looks in the app. */
 function RewardPicker({ value, onChange, onClose }: { value: PassReward | null; onChange: (v: PassReward | null) => void; onClose: () => void }) {
   const t = value?.type;
+  const { defs } = useCatalog();
   const section = (title: string, body: ReactNode) => (
     <div><div className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">{title}</div><div className="flex flex-wrap gap-2 rounded-2xl p-2" style={{ background: "#0d0f1c" }}>{body}</div></div>
   );
@@ -216,8 +215,8 @@ function RewardPicker({ value, onChange, onClose }: { value: PassReward | null; 
         {section("Тип награды", <>
           <Tile selected={!value} onClick={() => onChange(null)} label="Нет"><span style={{ width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>∅</span></Tile>
           {Object.entries(REWARD_LABELS).map(([k, v]) => {
-            const sample = k === value?.type ? value : defaultReward(k as PassReward["type"]);
-            return <Tile key={k} selected={t === k} onClick={() => t !== k && onChange(defaultReward(k as PassReward["type"]))} label={v}><RewardThumb r={sample} /></Tile>;
+            const sample = k === value?.type ? value : defaultReward(k as PassReward["type"], defs);
+            return <Tile key={k} selected={t === k} onClick={() => t !== k && onChange(defaultReward(k as PassReward["type"], defs))} label={v}><RewardThumb r={sample} /></Tile>;
           })}
         </>)}
         {value && NUMERIC_TYPES.includes(value.type) && (
@@ -229,17 +228,18 @@ function RewardPicker({ value, onChange, onClose }: { value: PassReward | null; 
         {value?.type === "booster" && section("На сколько", [[30, "30 минут"], [60, "1 час"], [1440, "24 часа"]].map(([m, name]) => (
           <Tile key={m} selected={value.amount === m} onClick={() => onChange({ ...value, amount: Number(m) })} label={String(name)}><img src={`${IMG}preview/booster.png`} alt="" style={{ width: 48, height: 48, objectFit: "contain" }} /></Tile>
         )))}
-        {value?.type === "frame" && section("Какая рамка (на аватаре)", Object.entries(FRAME_LOOKS).map(([k, v]) => (
-          <Tile key={k} selected={(value.key ?? "gold") === k} onClick={() => onChange({ ...value, key: k })} label={v.name}><FrameAvatar frameKey={k} size={60} /></Tile>
-        )))}
-        {value?.type === "badge" && section("Какой значок", Object.entries(BADGE_LOOKS).map(([k, v]) => (
-          <Tile key={k} selected={(value.key ?? "crown") === k} onClick={() => onChange({ ...value, key: k })} label={v.name}><BadgeMark badgeKey={k} size={48} /></Tile>
-        )))}
-        {value && (value.type === "badge" || value.type === "frame" || value.type === "title") && (
+        {value && (value.type === "frame" || value.type === "badge" || value.type === "title") && (
           <>
+            {section(value.type === "frame" ? "Какая рамка (из каталога)" : value.type === "badge" ? "Какой значок (из каталога)" : "Какой титул (из каталога)",
+              defs.filter((d) => d.kind === value.type).map((d) => (
+                <Tile key={d.id} selected={value.key === String(d.id)} onClick={() => onChange({ ...value, key: String(d.id) })} label={d.name}>
+                  {d.kind === "frame" ? <FrameAvatar frameKey={String(d.id)} size={72} /> : d.kind === "badge" ? <BadgeMark badgeKey={String(d.id)} size={56} /> : <TitleRibbon titleKey={String(d.id)} text={d.name} width={150} />}
+                </Tile>
+              )))}
+            {defs.every((d) => d.kind !== value.type) && <p className="text-sm text-slate-500">В каталоге пока пусто: добавьте картинку в «Каталог наград».</p>}
             <div className="space-y-1">
-              <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Название</div>
-              <input className={`${inputClass} w-full`} placeholder="Название (по-русски)" value={value.text ?? ""} onChange={(e) => onChange({ ...value, text: e.target.value })} />
+              <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Своё название (необязательно, иначе берётся из каталога)</div>
+              <input className={`${inputClass} w-full`} placeholder="По-русски" value={value.text ?? ""} onChange={(e) => onChange({ ...value, text: e.target.value })} />
               <div className="flex gap-2">
                 <input className={`${inputClass} flex-1`} placeholder="Тоҷикӣ" value={value.text_tg ?? ""} onChange={(e) => onChange({ ...value, text_tg: e.target.value })} />
                 <input className={`${inputClass} flex-1`} placeholder="Oʻzbekcha" value={value.text_uz ?? ""} onChange={(e) => onChange({ ...value, text_uz: e.target.value })} />
@@ -247,7 +247,7 @@ function RewardPicker({ value, onChange, onClose }: { value: PassReward | null; 
             </div>
             <div>
               <div className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">Так будет в профиле игрока</div>
-              <ProfileMock frame={value.type === "frame" ? value.key ?? "gold" : null} badge={value.type === "badge" ? value.key ?? "crown" : null} title={value.type === "title" ? value.text ?? "" : undefined} />
+              <ProfileMock frame={value.type === "frame" ? value.key : null} badge={value.type === "badge" ? value.key : null} title={value.type === "title" ? value.text || catalogName(value.key) : null} titleKey={value.type === "title" ? value.key : null} />
             </div>
           </>
         )}
@@ -258,6 +258,7 @@ function RewardPicker({ value, onChange, onClose }: { value: PassReward | null; 
 }
 
 function RewardEditor({ value, onChange }: { value: PassReward | null; onChange: (v: PassReward | null) => void }) {
+  useCatalog();
   const [open, setOpen] = useState(false);
   const summary = value ? passLook(value).label + (NUMERIC_TYPES.includes(value.type) ? ` ×${value.amount}` : "") : "— нет —";
   return (
@@ -837,10 +838,6 @@ function SeasonsSection() {
 
 // --- The running pass, drawn as in the app ---------------------------------------------------
 
-const FRAME_COLORS: Record<string, [string, string]> = {
-  gold: ["#FFD54F", "#FF9800"], aurora: ["#6EE7B7", "#60A5FA"], fire: ["#FF7043", "#FFB74D"], ocean: ["#38BDF8", "#2563EB"],
-  emerald: ["#34D399", "#059669"], royal: ["#8B5CF6", "#FFD54F"], rose: ["#F472B6", "#FB7185"], ice: ["#BAE6FD", "#7DD3FC"],
-};
 const IMG = `${import.meta.env.BASE_URL}`;
 
 /** How one reward looks in the app: gradient, picture, amount and name (the same as the app's RewardCard). */
@@ -851,9 +848,9 @@ function passLook(r: PassReward): { colors: [string, string]; img: string | null
     case "diamonds": return { colors: ["#87EFFF", "#3A7BFF"], img: `${IMG}preview/gem.png`, glyph: "", amount: `+${r.amount}`, label: "Бриллианты" };
     case "chest": return { colors: ["#FFB86B", "#B4541F"], img: `${IMG}chests/${r.key ?? "wood"}_closed.png`, glyph: "", amount: "", label: "Сундук" };
     case "booster": return { colors: ["#B07CFF", "#5B2EE0"], img: `${IMG}preview/booster.png`, glyph: "", amount: r.amount >= 60 && r.amount % 60 === 0 ? `${r.amount / 60}ч` : `${r.amount}м`, label: "Удвоитель" };
-    case "badge": return { colors: (BADGE_LOOKS[r.key ?? "crown"] ?? BADGE_LOOKS.crown).colors, img: null, glyph: (BADGE_LOOKS[r.key ?? "crown"] ?? BADGE_LOOKS.crown).glyph, amount: "", label: r.text || "Значок" };
-    case "frame": return { colors: FRAME_COLORS[r.key ?? "gold"] ?? ["#FFD54F", "#FF9800"], img: null, glyph: "◎", amount: "", label: r.text || "Рамка" };
-    case "title": return { colors: ["#6EE7B7", "#0E9F6E"], img: null, glyph: "🎖", amount: "", label: r.text || "Титул" };
+    case "badge": return { colors: ["#5B2EE0", "#2A1670"], img: null, glyph: "", amount: "", label: r.text || catalogName(r.key) || "Значок" };
+    case "frame": return { colors: ["#5B2EE0", "#2A1670"], img: null, glyph: "", amount: "", label: r.text || catalogName(r.key) || "Рамка" };
+    case "title": return { colors: ["#5B2EE0", "#2A1670"], img: null, glyph: "", amount: "", label: r.text || catalogName(r.key) || "Титул" };
     default: return { colors: ["#A48BFF", "#5862DD"], img: `${IMG}preview/points.png`, glyph: "", amount: `+${r.amount}`, label: "Звёзды рейтинга" };
   }
 }
@@ -875,8 +872,8 @@ function PassCard({ reward, premium, onClick }: { reward: PassReward | null; pre
       style={{ minHeight: 112, padding: "10px 8px", borderRadius: 18, background: `linear-gradient(135deg, ${l.colors[0]}, ${l.colors[1]})`, boxShadow: "0 3px 8px rgba(0,0,0,0.12)", outline: premium ? "2px solid rgba(255,213,79,0.8)" : undefined }}
     >
       <div className="flex flex-col items-center justify-center">
-        {reward.type === "frame" || reward.type === "badge" ? (
-          <RewardThumb r={reward} size={38} />
+        {reward.type === "frame" || reward.type === "badge" || reward.type === "title" ? (
+          <RewardThumb r={reward} size={reward.type === "title" ? 42 : 46} />
         ) : l.img ? (
           <img src={l.img} alt="" draggable={false} style={{ width: 46, height: 46, objectFit: "contain", maxWidth: "none" }} />
         ) : (
@@ -890,6 +887,7 @@ function PassCard({ reward, premium, onClick }: { reward: PassReward | null; pre
 }
 
 function PassStripSection() {
+  useCatalog();
   const [season, setSeason] = useState<{ id: number; name: string } | null>(null);
   const [def, setDef] = useState<PassDefinition | null>(null);
   const [edit, setEdit] = useState<{ level: number; track: "free" | "premium" } | null>(null);

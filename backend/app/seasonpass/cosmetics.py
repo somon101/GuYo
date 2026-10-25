@@ -4,13 +4,9 @@ app); a title is text. Both are kept for good once earned."""
 
 from sqlalchemy.orm import Session
 
-from app.models.season_pass import UserCosmetic
+from app.models.season_pass import CosmeticDef, UserCosmetic
 from app.models.user import User
 
-# Every badge look the app can draw (mobile/lib/widgets/season_pass_ui.dart).
-# Avatar frames, drawn by the app as coloured rings (no pictures needed).
-FRAME_KEYS = ("gold", "aurora", "fire", "ocean", "emerald", "royal", "rose", "ice")
-BADGE_KEYS = ("crown", "champion", "medal", "flame", "star", "diamond", "rocket", "shield", "bolt", "heart", "leaf")
 
 
 def label_for(item, lang: str | None) -> str:
@@ -26,12 +22,27 @@ def label_for(item, lang: str | None) -> str:
     return ru or ""
 
 
+def def_label(db: Session, key: str, lang: str | None) -> str | None:
+    """The catalog name of a frame/badge/title in the person's language."""
+    row = db.get(CosmeticDef, int(key)) if str(key).isdigit() else None
+    if row is None:
+        return None
+    if lang == "tg" and row.name_tg:
+        return row.name_tg
+    if lang == "uz" and row.name_uz:
+        return row.name_uz
+    return row.name
+
+
 def grant(db: Session, user: User, reward: dict, season) -> UserCosmetic | None:
     """Puts a badge/title reward into the person's collection (once) and wears
     it if they wear nothing of that kind yet. Does not commit."""
     kind = reward["type"]
-    key = reward.get("key") or "" if kind in ("badge", "frame") else ""
+    key = str(reward.get("key") or "")
     label = reward.get("text") or ""
+    if not label and key.isdigit():
+        definition = db.get(CosmeticDef, int(key))
+        label = (definition.name if definition else "") or ""
     existing = (
         db.query(UserCosmetic)
         .filter(
@@ -111,6 +122,12 @@ def equip(db: Session, user: User, badge_id: int | None, title_id: int | None, f
     if frame_id is not ...:
         user.equipped_frame_id = frame_id
     db.flush()
+
+
+def title_key(db: Session, user: User) -> str | None:
+    """The key (picture id) of the title ribbon the person wears, if it has one."""
+    title = db.get(UserCosmetic, user.equipped_title_id) if user.equipped_title_id else None
+    return (title.key or None) if title else None
 
 
 def worn(db: Session, user: User) -> tuple[str | None, str | None]:
