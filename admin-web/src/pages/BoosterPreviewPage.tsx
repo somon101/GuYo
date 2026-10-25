@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { green } from "./DuelPreviewPage";
+import { BoosterLayoutVariants } from "../components/BoosterLayoutVariants";
 
 // A preview only: the "x2" ticket as an item the person keeps and switches on when they want.
 // Nothing is sent anywhere. Real durations and where it is given are set in the admin later.
@@ -81,6 +82,7 @@ export function BoosterPreviewPage() {
         </p>
       </header>
 
+      <BoosterLayoutVariants />
       <section className="card flex flex-wrap items-center gap-2 p-4 text-sm">
         <span className="text-slate-500">Вид:</span>
         {(Object.keys(KINDS) as Kind[]).map((k) => (
