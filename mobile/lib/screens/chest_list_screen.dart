@@ -18,7 +18,10 @@ import 'chest_open_screen.dart';
 /// opened at a time, and fewer than 5 chests are opened one by one.
 class ChestListScreen extends StatefulWidget {
   final ChestBank bank;
-  const ChestListScreen({super.key, required this.bank});
+
+  /// The tickets to start from (tests); otherwise the remembered ones.
+  final BoosterState? initialBoosters;
+  const ChestListScreen({super.key, required this.bank, this.initialBoosters});
 
   @override
   State<ChestListScreen> createState() => _ChestListScreenState();
@@ -28,7 +31,7 @@ class _ChestListScreenState extends State<ChestListScreen> {
   late ChestBank _bank = widget.bank;
   final Map<String, int> _mode = {};
   bool _busy = false;
-  BoosterState? _boosters = ApiClient.instance.cachedBoosters();
+  late BoosterState? _boosters = widget.initialBoosters ?? ApiClient.instance.cachedBoosters();
   Timer? _tick;
   String? _notice;
   Timer? _noticeTimer;
@@ -194,54 +197,78 @@ class _ChestListScreenState extends State<ChestListScreen> {
     'xp': 'Вся энергия пропуска удваивается, пока идёт время.',
   };
 
-  Widget _boostersTile(BoosterState all) => Container(
-        key: const ValueKey('boosters-tile'),
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(18)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(tr('Мои бонусы'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
-          for (final kind in const ['chest', 'rating', 'xp'])
-            if (all.of(kind).total > 0 || all.of(kind).running) _kindSection(kind, all.of(kind)),
-        ]),
-      );
+  String? _boostTab;
 
-  Widget _kindSection(String kind, BoosterState b) => Padding(
-        key: ValueKey('boosters-$kind'),
-        padding: const EdgeInsets.only(top: 10),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Expanded(child: Text(tr(_kindNames[kind]!), style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800))),
-            if (b.running)
-              Container(
-                key: ValueKey('boost-running-$kind'),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(99), border: Border.all(color: const Color(0xFFFFD54F), width: 1.5)),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  BoosterIcon(size: 22, kind: kind),
-                  const SizedBox(width: 4),
-                  Text(_left(b.activeUntil!), style: const TextStyle(color: Color(0xFFFFD54F), fontWeight: FontWeight.w900, fontFeatures: [FontFeature.tabularFigures()])),
-                ]),
-              ),
-          ]),
-          const SizedBox(height: 2),
-          Text(b.running ? tr('Идёт удвоение. Ещё один билет прибавит время.') : tr(_kindHints[kind]!), style: const TextStyle(color: Colors.white70, fontSize: 12)),
-          const SizedBox(height: 8),
-          for (final e in b.items.entries)
-            Opacity(
-              opacity: e.value > 0 ? 1 : 0.45,
+  /// «Мои бонусы»: three tabs (a kind each, with its timer or how many are held); inside, a grid of
+  /// the tickets held, two in a row.
+  Widget _boostersTile(BoosterState all) {
+    final kinds = [for (final k in const ['chest', 'rating', 'xp']) if (all.of(k).total > 0 || all.of(k).running) k];
+    if (kinds.isEmpty) return const SizedBox.shrink();
+    final tab = kinds.contains(_boostTab) ? _boostTab! : kinds.first;
+    final b = all.of(tab);
+    final held = [for (final e in b.items.entries) if (e.value > 0) e];
+    return Container(
+      key: const ValueKey('boosters-tile'),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(18)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          for (final k in kinds)
+            Expanded(
               child: Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(children: [
-                  CountedBoosterIcon(count: e.value, kind: kind),
-                  const SizedBox(width: 12),
-                  Expanded(child: Text(_minutesLabel(e.key), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800))),
-                  GreenButton(key: ValueKey('boost-on-$kind-${e.key}'), label: tr('Включить'), onTap: e.value > 0 ? () => _activate(e.key, kind) : null, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8)),
-                ]),
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: GestureDetector(
+                  key: ValueKey('boost-tab-$k'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => setState(() => _boostTab = k),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    decoration: BoxDecoration(
+                      color: k == tab ? const Color(0x40FFD54F) : Colors.white.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: k == tab ? Border.all(color: const Color(0xFFFFD54F), width: 1.5) : null,
+                    ),
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      BoosterIcon(size: 26, kind: k),
+                      const SizedBox(width: 4),
+                      all.of(k).running
+                          ? Text(_left(all.of(k).activeUntil!), key: ValueKey('boost-running-$k'), style: const TextStyle(color: Color(0xFFFFD54F), fontSize: 12, fontWeight: FontWeight.w900, fontFeatures: [FontFeature.tabularFigures()]))
+                          : Text('${all.of(k).total}', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900)),
+                    ]),
+                  ),
+                ),
               ),
             ),
         ]),
-      );
+        const SizedBox(height: 8),
+        Text(tr(_kindNames[tab]!), style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
+        Text(b.running ? tr('Идёт удвоение. Ещё один билет прибавит время.') : tr(_kindHints[tab]!), style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        const SizedBox(height: 8),
+        if (held.isEmpty)
+          Text(tr('Билетов нет'), style: const TextStyle(color: Colors.white54, fontSize: 12))
+        else
+          LayoutBuilder(builder: (context, c) {
+            final w = (c.maxWidth - 8) / 2;
+            return Wrap(spacing: 8, runSpacing: 8, children: [
+              for (final e in held)
+                Container(
+                  width: w,
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    CountedBoosterIcon(count: e.value, kind: tab),
+                    const SizedBox(height: 4),
+                    Text(_minutesLabel(e.key), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13)),
+                    const SizedBox(height: 6),
+                    GreenButton(key: ValueKey('boost-on-$tab-${e.key}'), label: tr('Включить'), onTap: () => _activate(e.key, tab), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7)),
+                  ]),
+                ),
+            ]);
+          }),
+      ]),
+    );
+  }
 
   String _minutesLabel(int m) => m >= 60 && m % 60 == 0 ? tr('{0} ч', [m ~/ 60]) : tr('{0} мин', [m]);
 

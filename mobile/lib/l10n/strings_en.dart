@@ -439,6 +439,7 @@ const Map<String, String> enStrings = {
   'Подарок получен!': 'Gift received!',
   'Наград пока нет': 'No rewards yet',
   'Подарки и награды, которые ждут, будут здесь': 'Gifts and rewards waiting for you will be here',
+  'Билетов нет': 'No tickets',
   'Ошибка сервера ({0})': 'Server error ({0})',
   'Ошибка сети. Проверьте интернет.': 'Network error. Check your internet.',
   'Ошибки': 'Mistakes',

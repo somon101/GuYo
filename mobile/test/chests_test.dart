@@ -198,6 +198,28 @@ void sealedTests() {
 }
 
 void boosterKindsTests() {
+  testWidgets('my bonuses: one tab per kind, only the tickets held, switching changes the grid', (tester) async {
+    final held = BoosterState.fromJson({
+      'items': [{'minutes': 60, 'qty': 3}],
+      'active_until': null,
+      'kinds': {
+        'rating': {'items': [{'minutes': 120, 'qty': 2}], 'active_until': null},
+        'xp': {'items': [], 'active_until': null},
+      },
+    });
+    await tester.pumpWidget(MaterialApp(home: ChestListScreen(initialBoosters: held, bank: ChestBank.fromJson({'types': [], 'chests': [], 'daily': {'enabled': false, 'chest_key': 'wood', 'claimed': true, 'available': false, 'conditions': ''}, 'double': false, 'inventory_max': 10}))));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('boost-tab-chest')), findsOneWidget);
+    expect(find.byKey(const ValueKey('boost-tab-rating')), findsOneWidget);
+    expect(find.byKey(const ValueKey('boost-tab-xp')), findsNothing); // nothing held, nothing running
+    expect(find.byKey(const ValueKey('boost-on-chest-60')), findsOneWidget);
+    expect(find.byKey(const ValueKey('boost-on-chest-30')), findsNothing); // none held: not shown
+    await tester.tap(find.byKey(const ValueKey('boost-tab-rating')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('boost-on-rating-120')), findsOneWidget);
+    expect(find.byKey(const ValueKey('boost-on-chest-60')), findsNothing);
+  });
+
   test('boosters parse the three kinds; an older server has only the chest one', () {
     final b = BoosterState.fromJson({
       'items': [{'minutes': 30, 'qty': 1}],
