@@ -95,3 +95,12 @@ def test_diamonds_reward_is_validated(db):
     assert service._reward({"type": "diamonds", "amount": 15}, 1) == {"type": "diamonds", "amount": 15}
     with pytest.raises(PassError):
         service._reward({"type": "diamonds", "amount": 0}, 1)
+
+
+def test_admin_grants_pass_xp(client, db, make_user, admin_headers, active_season):
+    user = make_user("xpuser")
+    r = client.post("/admin/season-pass/grant-xp", headers=admin_headers, json={"user": "xpuser", "amount": 5000})
+    assert r.status_code == 200
+    assert r.json()["xp"] == 5000 and r.json()["level"] >= 1
+    r = client.post("/admin/season-pass/grant-xp", headers=admin_headers, json={"user": "nobody", "amount": 5})
+    assert r.status_code == 404

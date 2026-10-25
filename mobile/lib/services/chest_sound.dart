@@ -21,6 +21,10 @@ class ChestSound {
   static bool _tapReady = false;
   static bool _openReady = false;
 
+  /// When the last buzz ends: [stop] cancels the motor only while one is running, so a late
+  /// cancel from a closing screen can never kill the buzz of the next one.
+  static DateTime _buzzUntil = DateTime.fromMillisecondsSinceEpoch(0);
+
   static AudioPlayer _get() =>
       _player ??= AudioPlayer()
         ..setReleaseMode(ReleaseMode.stop)
@@ -49,6 +53,7 @@ class ChestSound {
   /// A real vibration of the motor for [duration] ms at full strength. One plain call, as a plain
   /// call is what every phone obeys; if it fails the system haptic tick is used. Never throws.
   static Future<void> _vibrate(int duration) async {
+    _buzzUntil = DateTime.now().add(Duration(milliseconds: duration));
     try {
       await Vibration.vibrate(duration: duration, amplitude: 255);
     } catch (_) {
@@ -123,10 +128,13 @@ class ChestSound {
   /// Stops the click right now (the screen is closing).
   static void stop() {
     _seq++;
-    try {
-      // ignore: unawaited_futures
-      Vibration.cancel().catchError((_) {});
-    } catch (_) {}
+    if (DateTime.now().isBefore(_buzzUntil)) {
+      _buzzUntil = DateTime.fromMillisecondsSinceEpoch(0);
+      try {
+        // ignore: unawaited_futures
+        Vibration.cancel().catchError((_) {});
+      } catch (_) {}
+    }
     // ignore: unawaited_futures
     _player?.stop().catchError((_) {});
     // ignore: unawaited_futures

@@ -317,3 +317,35 @@ def economy(season_id: int | None = None, db: Session = Depends(get_db), _admin=
         teams=db.query(func.count(Team.id)).scalar() or 0,
         team_members=db.query(func.count(TeamMember.id)).scalar() or 0,
     )
+
+
+class GrantXpIn(BaseModel):
+    user: str = Field(min_length=1, max_length=64)
+    amount: int = Field(ge=1, le=1_000_000)
+
+
+@router.post("/grant-xp")
+def grant_xp(payload: GrantXpIn, db: Session = Depends(get_db), admin=Depends(get_current_admin)):
+    """Gives one person season XP by hand: their pass level rises at once."""
+    import uuid
+
+    from sqlalchemy import func
+
+    from app.models.user import User
+    from app.seasonpass.service import award_xp
+
+    key = payload.user.strip()
+    query = db.query(User).filter(User.deleted_at.is_(None))
+    user = query.filter(User.public_id == int(key)).first() if key.isdigit() else None
+    if user is None:
+        user = query.filter(func.lower(User.login) == key.lower()).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    given = award_xp(db, user, "admin", f"admin:{admin.id}:{uuid.uuid4().hex}", amount=payload.amount)
+    if not given:
+        raise HTTPException(status_code=409, detail="Нет идущего сезона")
+    db.commit()
+    from app.seasonpass.service import user_state
+
+    state = user_state(db, user)
+    return {"user_id": user.id, "login": user.login, "amount": given, "level": state["level"] if state else None, "xp": state["xp"] if state else None}

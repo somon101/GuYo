@@ -2995,3 +2995,8 @@ export async function sendBooster(user: string, minutes: number, count: number):
   const { data } = await api.post("/admin/chests/send-booster", { user, minutes, count });
   return data;
 }
+
+export async function grantPassXp(user: string, amount: number): Promise<{ login: string; amount: number; level: number | null; xp: number | null }> {
+  const { data } = await api.post("/admin/season-pass/grant-xp", { user, amount });
+  return data;
+}
