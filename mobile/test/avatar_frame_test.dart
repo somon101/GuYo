@@ -19,6 +19,17 @@ void main() {
     }
   });
 
+  testWidgets('a title ribbon with a long name fits its width and does not overflow', (tester) async {
+    for (final width in [90.0, 150.0, 220.0]) {
+      await tester.pumpWidget(MaterialApp(home: Center(child: SizedBox(width: 320, child: Row(children: [
+        const Expanded(child: SizedBox()),
+        FittedBox(fit: BoxFit.scaleDown, child: TitleRibbon(artKey: null, text: 'Очень длинное название титула сезона', width: width)),
+      ])))));
+      expect(tester.takeException(), isNull);
+      expect(tester.getSize(find.byType(TitleRibbon)).width, width);
+    }
+  });
+
   test('catalog keys are plain digits', () {
     expect(isCatalogKey('12'), isTrue);
     expect(isCatalogKey('gold'), isFalse);

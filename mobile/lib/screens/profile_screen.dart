@@ -665,20 +665,6 @@ class _ProfileHeader extends StatelessWidget {
                   color: AppColors.primaryDark,
                 ),
               ),
-              if (profile.title != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 3, bottom: 1),
-                  child: isCatalogKey(profile.titleKey)
-                      ? TitleRibbon(artKey: profile.titleKey, text: profile.title!, width: 190)
-                      : Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            gradient: const LinearGradient(colors: [Color(0xFF6EE7B7), Color(0xFF0E9F6E)]),
-                          ),
-                          child: Text(profile.title!, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.white)),
-                        ),
-                ),
               const SizedBox(height: 2),
               // The 9-digit account number -- `id` is internal and never
               // shown.
@@ -774,16 +760,45 @@ class _ProfileHeader extends StatelessWidget {
       ],
     );
     final text = statusText;
-    if (text == null) return header;
-    // My status as an Instagram-style note over the photo; tap to change it.
+    final title = profile.title;
+    if (text == null && title == null) return header;
+    // The top row: my status as an Instagram-style note (tap to change it) on the left, my title
+    // ribbon on the right. Both shrink to fit, so a narrow phone keeps the layout.
+    Widget? titleWidget;
+    if (title != null) {
+      titleWidget = isCatalogKey(profile.titleKey)
+          ? TitleRibbon(artKey: profile.titleKey, text: title, width: 150)
+          : Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                gradient: const LinearGradient(colors: [Color(0xFF6EE7B7), Color(0xFF0E9F6E)]),
+              ),
+              child: Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.white)),
+            );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        StatusNote(
-          text: text,
-          emojiUrl: statusEmojiUrl,
-          maxWidth: 150,
-          onTap: onEditStatus,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (text != null)
+              StatusNote(
+                text: text,
+                emojiUrl: statusEmojiUrl,
+                maxWidth: 150,
+                onTap: onEditStatus,
+              ),
+            if (titleWidget != null)
+              Expanded(
+                key: const ValueKey('profile-title'),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerRight, child: titleWidget),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 2),
         header,
