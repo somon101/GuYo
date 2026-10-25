@@ -39,6 +39,7 @@ class _ChestListScreenState extends State<ChestListScreen> {
     // A system toast left over from another screen must not hang over this one.
     WidgetsBinding.instance.addPostFrameCallback((_) => ScaffoldMessenger.maybeOf(context)?.clearSnackBars());
     _loadBoosters();
+    _refresh();
     ChestQueue.correction.addListener(_onCorrection);
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted && (_boosters?.running ?? false)) setState(() {});
@@ -51,6 +52,13 @@ class _ChestListScreenState extends State<ChestListScreen> {
     _tick?.cancel();
     _noticeTimer?.cancel();
     super.dispose();
+  }
+
+  /// What the server has right now (the list is opened from a remembered copy, which can be old).
+  Future<void> _refresh() async {
+    await ChestQueue.flush();
+    final fresh = await ApiClient.instance.fetchChests();
+    if (fresh != null && mounted) setState(() => _bank = fresh);
   }
 
   Future<void> _loadBoosters() async {
@@ -125,6 +133,8 @@ class _ChestListScreenState extends State<ChestListScreen> {
       if (mounted) setState(() => _bank = bank);
     } on ApiException catch (e) {
       if (mounted) _say(e.message);
+      // e.g. "already taken": the list was out of date, show what the server has
+      await _refresh();
     } catch (_) {
       if (mounted) _say(tr('Не удалось. Проверьте интернет.'));
     }

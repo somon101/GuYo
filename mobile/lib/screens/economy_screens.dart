@@ -41,7 +41,9 @@ class _EconomyScreenState extends State<EconomyScreen> {
       if (mounted) setState(() => _data = data);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(e.toString())));
       }
     }
   }
@@ -52,11 +54,15 @@ class _EconomyScreenState extends State<EconomyScreen> {
     try {
       _data = await ApiClient.instance.buyShopProduct(product['id'] as int);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${tr('Куплено')}: ${product['name']}')));
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text('${tr('Куплено')}: ${product['name']}')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -71,13 +77,17 @@ class _EconomyScreenState extends State<EconomyScreen> {
       _data = await ApiClient.instance.fetchEconomy();
       if (mounted) {
         setState(() {});
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
           SnackBar(content: Text('${tr('Серия объединена')}: ${result['current_streak_days']}')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -200,7 +210,8 @@ class _StreakHistoryScreenState extends State<StreakHistoryScreen> {
     } catch (e) {
       if (mounted)
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.toString())));
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(e.toString())));
     }
   }
 

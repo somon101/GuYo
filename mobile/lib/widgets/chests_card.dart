@@ -79,6 +79,7 @@ class _ChestsCardState extends State<ChestsCard> {
       setState(() => _bank = bank);
     } on ApiException catch (e) {
       if (mounted) _say(e.message);
+      await _load(); // the card was out of date: show what the server has
     } catch (_) {
       if (mounted) _say(tr('Не удалось. Проверьте интернет.'));
     } finally {

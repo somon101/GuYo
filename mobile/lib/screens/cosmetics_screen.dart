@@ -49,9 +49,13 @@ class _CosmeticsScreenState extends State<CosmeticsScreen> {
       final data = await ApiClient.instance.equipCosmetics(badgeId: badgeId, titleId: titleId, frameId: frameId);
       if (mounted) setState(() => _data = data);
     } on ApiException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Не удалось. Проверьте интернет.'))));
+      if (mounted) ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(tr('Не удалось. Проверьте интернет.'))));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

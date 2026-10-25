@@ -102,10 +102,13 @@ class _WeeklyPassTasksState extends State<WeeklyPassTasks>
     } on ApiException catch (e) {
       if (mounted)
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
           SnackBar(content: Text(tr('Не удалось. Проверьте интернет.'))),
         );
     } finally {

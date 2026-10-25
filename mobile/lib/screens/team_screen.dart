@@ -77,7 +77,9 @@ class _TeamScreenState extends State<TeamScreen>
 
   void _snack(String text) {
     if (mounted)
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+      ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(text)));
   }
 
   Future<void> _act(Future<TeamState> Function() action) async {

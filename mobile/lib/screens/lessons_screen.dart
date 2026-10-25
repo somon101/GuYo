@@ -147,7 +147,9 @@ class _LessonsScreenState extends State<LessonsScreen> {
     }
     if (lesson == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
         SnackBar(
           content: Text(tr('Не удалось открыть урок. Проверьте интернет.')),
           action: SnackBarAction(label: tr('Повторить'), onPressed: () => _continueLesson(lessonId)),

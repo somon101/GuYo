@@ -309,7 +309,9 @@ class _HowToPay extends StatelessWidget {
                   onPressed: () async {
                     await Clipboard.setData(ClipboardData(text: id));
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('ID скопирован'))));
+                    ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(tr('ID скопирован'))));
                   },
                   icon: const Icon(Icons.copy_rounded, size: 18),
                   label: Text(tr('Копировать')),

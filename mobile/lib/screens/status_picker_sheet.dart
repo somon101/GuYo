@@ -67,7 +67,9 @@ class _StatusPickerSheetState extends State<_StatusPickerSheet> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Не удалось сохранить статус'))));
+      ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(tr('Не удалось сохранить статус'))));
     }
   }
 

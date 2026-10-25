@@ -70,6 +70,8 @@ class _GuyoAppState extends State<GuyoApp> with WidgetsBindingObserver {
         key: ValueKey('${appLanguage.value}-${AppColors.dark}'),
         title: 'GuYo',
         navigatorKey: appNavigatorKey,
+        scaffoldMessengerKey: appMessengerKey,
+        navigatorObservers: [_ToastCleaner()],
         debugShowCheckedModeBanner: false,
         theme: buildAppTheme(),
         builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(value: _systemBarsStyle(), child: child!),
@@ -129,4 +131,22 @@ class _StartupGateState extends State<_StartupGate> {
       },
     );
   }
+}
+
+
+/// The messenger the whole app shares, so a short message can be cleared from anywhere.
+final GlobalKey<ScaffoldMessengerState> appMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
+/// A short message belongs to the screen that showed it: leaving or opening a screen removes it.
+class _ToastCleaner extends NavigatorObserver {
+  void _clear() => appMessengerKey.currentState?.clearSnackBars();
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) => _clear();
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) => _clear();
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) => _clear();
 }

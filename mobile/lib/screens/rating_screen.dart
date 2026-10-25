@@ -911,7 +911,8 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
   Future<void> _addFriend() async {
     if (await showAddFriendSheet(context) && mounted) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(tr('Друг добавлен'))));
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(tr('Друг добавлен'))));
       _load();
     }
   }
