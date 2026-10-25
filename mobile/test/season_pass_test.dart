@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:guyo_app/widgets/gift_badge.dart';
+import 'package:guyo_app/widgets/season_pass_ui.dart';
 import 'package:guyo_app/widgets/season_pass_card.dart';
 import 'package:guyo_app/models/season_pass.dart';
 
@@ -62,5 +63,17 @@ void main() {
     expect(find.byType(GiftBadge), findsOneWidget);
     expect(find.byIcon(Icons.card_giftcard_rounded), findsNothing);
     expect(find.byIcon(Icons.chevron_right_rounded), findsOneWidget);
+  });
+
+  testWidgets('«Забрать всё»: the summary adds the same kind up, one tile each', (tester) async {
+    PassReward diamonds(int n) => PassReward(type: 'diamonds', amount: n, claimed: true, claimable: false, lockedByPremium: false);
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(builder: (context) => Scaffold(body: Center(child: TextButton(onPressed: () => showClaimAllSummary(context, [diamonds(10), diamonds(10), diamonds(25)], 40), child: const Text('go'))))),
+    ));
+    await tester.tap(find.text('go'));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byWidgetPredicate((w) => w.key is ValueKey && '${(w.key as ValueKey).value}'.startsWith('claim-all-tile')), findsNWidgets(2)); // diamonds (all added up) and energy
+    expect(find.text('+45'), findsOneWidget);
+    expect(find.text('+40'), findsOneWidget);
   });
 }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../l10n/l10n.dart';
 import '../models/season_pass.dart';
 import '../services/chest_sound.dart';
+import 'counted_chest.dart' show GreenButton;
 import 'game_icons.dart';
 import 'cosmetic_art.dart';
 import 'user_avatar.dart' show frameColors;
@@ -464,6 +465,113 @@ Future<void> showRewardDialog(
       child: FadeTransition(opacity: anim, child: child),
     ),
   );
+}
+
+/// «Получено»: everything taken with «Забрать всё», the same kinds added up, one reveal with the
+/// sound and the buzz.
+Future<void> showClaimAllSummary(BuildContext context, List<PassReward> rewards, int xp) {
+  return showGeneralDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: tr('Закрыть'),
+    barrierColor: Colors.black54,
+    transitionDuration: const Duration(milliseconds: 450),
+    pageBuilder: (_, __, ___) => _ClaimAllView(rewards: rewards, xp: xp),
+    transitionBuilder: (context, anim, _, child) => ScaleTransition(
+      scale: CurvedAnimation(parent: anim, curve: Curves.elasticOut),
+      child: FadeTransition(opacity: anim, child: child),
+    ),
+  );
+}
+
+class _ClaimAllView extends StatefulWidget {
+  final List<PassReward> rewards;
+  final int xp;
+  const _ClaimAllView({required this.rewards, required this.xp});
+
+  @override
+  State<_ClaimAllView> createState() => _ClaimAllViewState();
+}
+
+class _ClaimAllViewState extends State<_ClaimAllView> {
+  @override
+  void initState() {
+    super.initState();
+    ChestSound.buzzOpen();
+    // ignore: unawaited_futures
+    ChestSound.open();
+  }
+
+  @override
+  void dispose() {
+    ChestSound.stop();
+    super.dispose();
+  }
+
+  /// The same kind of reward added up: three diamond gifts become one tile.
+  List<(RewardStyle, String)> _tiles() {
+    final merged = <String, PassReward>{};
+    for (final r in widget.rewards) {
+      final k = '${r.type}:${r.key ?? ''}:${r.kind}:${r.type == 'booster' ? r.amount : 0}:${r.type == 'badge' || r.type == 'frame' || r.type == 'title' ? r.text ?? '' : ''}';
+      final old = merged[k];
+      merged[k] = old == null
+          ? r
+          : PassReward(type: r.type, amount: old.amount + r.amount, key: r.key, text: r.text, kind: r.kind, claimed: true, claimable: false, lockedByPremium: false);
+    }
+    final out = [for (final r in merged.values) (rewardStyle(r), rewardAmountText(r))];
+    if (widget.xp > 0) {
+      out.add((RewardStyle(const [Color(0xFFA48BFF), Color(0xFF5862DD)], Icons.bolt_rounded, tr('Энергия'), asset: 'energy'), '+${widget.xp}'));
+    }
+    return out;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tiles = _tiles();
+    return Center(
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          width: 330,
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(26),
+            gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF2E2275), Color(0xFF1A1247)]),
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(tr('Награды получены!'), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 14),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (final (i, (style, amount)) in tiles.indexed)
+                      Container(
+                        key: ValueKey('claim-all-tile-$i'),
+                        width: 92,
+                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), gradient: LinearGradient(colors: style.colors)),
+                        child: Column(mainAxisSize: MainAxisSize.min, children: [
+                          if (style.asset != null) gameAsset(style.asset!, 44) else Icon(style.icon, size: 40, color: Colors.white),
+                          if (amount.isNotEmpty) Text(amount, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+                          Text(style.label, maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                        ]),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            GreenButton(label: tr('Отлично'), onTap: () => Navigator.of(context).pop()),
+          ]),
+        ),
+      ),
+    );
+  }
 }
 
 class RewardDialogView extends StatefulWidget {

@@ -140,3 +140,20 @@ def test_full_freeze_stock_is_blocked_not_waiting(db, make_user, active_season):
     db.commit()
     free = service.user_state(db, user)["levels"][0]["free"]
     assert free["blocked"] is False and free["claimable"] is True
+
+
+def test_claim_all_takes_everything_waiting_at_once(client, db, make_user, auth, active_season):
+    user = make_user("allin")
+    service.award_xp(db, user, "word", "big", 600)
+    db.commit()
+    h = auth(user)
+    before = client.get("/season-pass", headers=h).json()
+    waiting = sum(1 for lv in before["levels"] if lv["free"] and lv["free"]["claimable"])
+    assert waiting >= 2
+    r = client.post("/season-pass/claim-all", headers=h)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert len(body["rewards"]) == waiting
+    assert all(not (lv["free"] and lv["free"]["claimable"]) for lv in body["state"]["levels"])
+    again = client.post("/season-pass/claim-all", headers=h).json()
+    assert again["rewards"] == []  # nothing is taken twice

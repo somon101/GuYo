@@ -171,6 +171,37 @@ def claim(payload: ClaimLevelIn, db: Session = Depends(get_db), user: User = Dep
     return user_state(db, user)
 
 
+@router.post("/claim-all")
+def claim_all(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Takes everything waiting at once: finished weekly tasks first (their energy can open more
+    levels), then every reached level reward the person may take. A reward the server would
+    refuse right now (a full stock of freezes) is skipped and stays waiting."""
+    taken: list[dict] = []
+    xp = 0
+    state = user_state(db, user)
+    if state is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Сейчас нет активного сезона")
+    for t in state["week"]["tasks"]:
+        if t["claimable"]:
+            try:
+                with db.begin_nested():
+                    xp += claim_task(db, user, t["id"])
+            except PassError:
+                continue
+    for lv in user_state(db, user)["levels"]:
+        for track in ("free", "premium"):
+            r = lv[track]
+            if r and r["claimable"]:
+                try:
+                    with db.begin_nested():
+                        claim_level(db, user, lv["level"], track)
+                except PassError:
+                    continue
+                taken.append({k: r[k] for k in ("type", "amount", "key", "kind", "text") if k in r})
+    db.commit()
+    return {"state": user_state(db, user), "rewards": taken, "xp": xp}
+
+
 @router.post("/tasks/claim", response_model=PassOut)
 def claim_weekly_task(payload: ClaimTaskIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     try:

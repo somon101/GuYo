@@ -1491,6 +1491,21 @@ class ApiClient {
     return SeasonPass.fromJson(_remember('season-pass', res) as Map<String, dynamic>);
   }
 
+  /// Takes everything that waits in the pass at once. Returns the refreshed pass, what was taken
+  /// and the energy of finished weekly tasks.
+  Future<(SeasonPass, List<PassReward>, int)> claimAllPass() async {
+    final res = await http.post(_uri('/season-pass/claim-all'), headers: await _authHeaders());
+    await _throwWithDetail(res);
+    final json = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    final state = json['state'] as Map<String, dynamic>;
+    DiskCache.put('season-pass', jsonEncode(state));
+    final rewards = [
+      for (final r in (json['rewards'] as List<dynamic>))
+        PassReward.fromJson({...(r as Map<String, dynamic>), 'claimed': true, 'claimable': false}),
+    ];
+    return (SeasonPass.fromJson(state), rewards, (json['xp'] as int?) ?? 0);
+  }
+
   Future<SeasonPass> claimPassTask(String taskId) async {
     final res = await http.post(
       _uri('/season-pass/tasks/claim'),

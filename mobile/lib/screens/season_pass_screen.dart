@@ -6,6 +6,7 @@ import '../l10n/l10n.dart';
 import '../services/streak_state.dart';
 import '../models/season_pass.dart';
 import '../theme/app_colors.dart';
+import '../widgets/counted_chest.dart' show GreenButton;
 import '../widgets/game_icons.dart';
 import '../widgets/season_pass_ui.dart';
 import '../models/team.dart';
@@ -114,6 +115,25 @@ class _SeasonPassScreenState extends State<SeasonPassScreen>
     } catch (_) {}
   }
 
+  /// «Забрать всё»: everything waiting in one tap, one summary.
+  Future<void> _claimAll() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final (pass, rewards, xp) = await ApiClient.instance.claimAllPass();
+      if (!mounted) return;
+      setState(() => _pass = pass);
+      dailyGoalTick.value++;
+      if (rewards.isNotEmpty || xp > 0) await showClaimAllSummary(context, rewards, xp);
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context)..hideCurrentSnackBar()..showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context)..hideCurrentSnackBar()..showSnackBar(SnackBar(content: Text(tr('Не удалось. Проверьте интернет.'))));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _claim(
     Future<SeasonPass> Function() action, {
     required RewardStyle style,
@@ -194,7 +214,7 @@ class _SeasonPassScreenState extends State<SeasonPassScreen>
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
       children: [
-        _Hero(pass: pass),
+        _Hero(pass: pass, busy: _busy, onClaimAll: _claimAll),
         const SizedBox(height: 14),
         const TeamEntryCard(),
         if (pass.levels.isNotEmpty) _GrandPrize(pass: pass),
@@ -254,7 +274,9 @@ class _SectionTitle extends StatelessWidget {
 
 class _Hero extends StatelessWidget {
   final SeasonPass pass;
-  const _Hero({required this.pass});
+  final bool busy;
+  final VoidCallback? onClaimAll;
+  const _Hero({required this.pass, this.busy = false, this.onClaimAll});
 
   @override
   Widget build(BuildContext context) {
@@ -346,10 +368,16 @@ class _Hero extends StatelessWidget {
                 children: [
                   const GiftIcon(size: 28),
                   const SizedBox(width: 8),
-                  Text(
-                    tr('Наград к получению: {0}', [waiting]),
-                    style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900, color: Colors.white),
+                  Flexible(
+                    child: Text(
+                      tr('Наград к получению: {0}', [waiting]),
+                      style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900, color: Colors.white),
+                    ),
                   ),
+                  if (waiting >= 2 && onClaimAll != null) ...[
+                    const SizedBox(width: 10),
+                    GreenButton(key: const ValueKey('claim-all'), label: tr('Забрать всё'), onTap: busy ? null : onClaimAll, compact: true),
+                  ],
                 ],
               ),
             ),
