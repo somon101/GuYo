@@ -1,3 +1,5 @@
+import 'reward_spec.dart';
+
 /// One message in the user's inbox -- mirrors the backend's
 /// NotificationOut exactly.
 ///
@@ -14,6 +16,10 @@ class AppNotification {
   final DateTime? readAt;
   final DateTime createdAt;
 
+  /// A button on the message, e.g. "claim_goal:12", and the rewards it offers.
+  final String? action;
+  final List<RewardSpec> payload;
+
   AppNotification({
     required this.id,
     required this.title,
@@ -22,6 +28,8 @@ class AppNotification {
     required this.isRead,
     required this.readAt,
     required this.createdAt,
+    this.action,
+    this.payload = const [],
   });
 
   factory AppNotification.fromJson(Map<String, dynamic> json) {
@@ -33,6 +41,8 @@ class AppNotification {
       isRead: json['is_read'] as bool,
       readAt: json['read_at'] == null ? null : DateTime.parse(json['read_at'] as String).toLocal(),
       createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
+      action: json['action'] as String?,
+      payload: RewardSpec.list(json['payload']),
     );
   }
 }

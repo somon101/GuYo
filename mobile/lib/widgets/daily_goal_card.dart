@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
@@ -6,8 +8,9 @@ import '../models/daily_goal.dart';
 import '../services/streak_state.dart';
 import '../theme/app_colors.dart';
 import 'game_icons.dart';
+import 'counted_chest.dart' show GreenButton;
 import 'reward_chips.dart';
-import 'season_pass_ui.dart';
+import 'reward_claim_effect.dart';
 
 /// "Цель дня" on Главная: a ring that fills as the day's words are practised.
 /// Tap it to pick 5, 10 or 20 words. Finishing the goal plays a small
@@ -29,38 +32,53 @@ class _DailyGoalCardState extends State<DailyGoalCard> {
     _load();
   }
 
-  @override
-  void dispose() {
-    dailyGoalTick.removeListener(_load);
-    super.dispose();
-  }
+  void _unlisten() => dailyGoalTick.removeListener(_load);
 
   Future<void> _load() async {
     final goal = await ApiClient.instance.fetchDailyGoal();
     if (!mounted || goal == null) return;
     setState(() => _goal = goal);
-    if (goal.justCompleted) {
-      await showRewardDialog(
-        context,
-        style: const RewardStyle(
-          [Color(0xFFFFD54F), Color(0xFFFF9800)],
-          Icons.local_fire_department_rounded,
-          '',
-        ),
-        title: tr('Цель дня выполнена!'),
-        text: _prizeText(goal),
-      );
+  }
+
+  String? _notice;
+  Timer? _noticeTimer;
+  bool _claiming = false;
+
+  void _say(String message) {
+    _noticeTimer?.cancel();
+    setState(() => _notice = message);
+    _noticeTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _notice = null);
+    });
+  }
+
+  /// «Получить»: takes the earned reward, then plays the opening effect.
+  Future<void> _claim() async {
+    final goal = _goal;
+    final id = goal?.claimId;
+    if (goal == null || id == null || _claiming) return;
+    _claiming = true;
+    try {
+      final updated = await ApiClient.instance.claimDailyGoal(id);
+      if (!mounted) return;
+      setState(() => _goal = updated);
+      ApiClient.instance.fetchEconomy();
+      await showRewardClaimEffect(context, title: tr('Цель дня выполнена!'), rewards: goal.tiers[goal.goal] ?? const []);
+      dailyGoalTick.value++;
+    } on ApiException catch (e) {
+      if (mounted) _say(e.message);
+    } catch (_) {
+      if (mounted) _say(tr('Не удалось. Проверьте интернет.'));
+    } finally {
+      _claiming = false;
     }
   }
 
-  String _prizeText(DailyGoal g) {
-    final parts = [
-      if (g.xp > 0) '+${g.xp} ⚡',
-      if (g.diamonds > 0) '+${compactNumber(g.diamonds)} ${tr('бриллиантов')}',
-      if (g.points > 0) '+${g.points} ${tr('очков рейтинга')}',
-      if (g.chests.isNotEmpty) '${tr('Сундук')} ×${g.chests.length}',
-    ];
-    return parts.isEmpty ? tr('Так держать!') : parts.join('  ');
+  @override
+  void dispose() {
+    _unlisten();
+    _noticeTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _pick() async {
@@ -98,15 +116,21 @@ class _DailyGoalCardState extends State<DailyGoalCard> {
                         child: RewardChips(rewards: goal.tiers[n]!, color: AppColors.primaryDark),
                       ),
                 trailing: n == goal.goal
-                    ? Icon(Icons.check_circle_rounded, color: AppColors.primary)
+                    ? (goal.rewardReady
+                        ? GreenButton(key: const ValueKey('goal-claim-sheet'), label: tr('Получить'), onTap: () => Navigator.of(ctx).pop(-1), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8))
+                        : Icon(Icons.check_circle_rounded, color: AppColors.primary))
                     : null,
-                onTap: () => Navigator.of(ctx).pop(n),
+                onTap: goal.locked ? null : () => Navigator.of(ctx).pop(n),
               ),
           ],
         ),
       ),
     );
-    if (chosen == null || chosen == goal.goal) return;
+    if (chosen == -1) {
+      await _claim();
+      return;
+    }
+    if (chosen == null || chosen == goal.goal || goal.locked) return;
     final updated = await ApiClient.instance.setDailyGoal(chosen);
     if (mounted && updated != null) setState(() => _goal = updated);
   }
@@ -117,7 +141,13 @@ class _DailyGoalCardState extends State<DailyGoalCard> {
     if (goal == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 14),
-      child: DailyGoalCardView(goal: goal, onTap: goal.locked ? null : _pick),
+      child: DailyGoalCardView(
+        goal: goal,
+        // A filled goal is fixed for the day; it still opens the list when a reward waits there.
+        onTap: (!goal.locked || goal.rewardReady) ? _pick : null,
+        onClaim: goal.rewardReady ? _claim : null,
+        notice: _notice,
+      ),
     );
   }
 }
@@ -125,90 +155,112 @@ class _DailyGoalCardState extends State<DailyGoalCard> {
 class DailyGoalCardView extends StatelessWidget {
   final DailyGoal goal;
   final VoidCallback? onTap;
-  const DailyGoalCardView({super.key, required this.goal, required this.onTap});
+  final VoidCallback? onClaim;
+  final String? notice;
+  const DailyGoalCardView({super.key, required this.goal, required this.onTap, this.onClaim, this.notice});
 
   @override
   Widget build(BuildContext context) {
-    final value = goal.goal == 0
-        ? 1.0
-        : (goal.done / goal.goal).clamp(0.0, 1.0);
+    final value = goal.goal == 0 ? 1.0 : (goal.done / goal.goal).clamp(0.0, 1.0);
     final done = goal.completed;
+    final ready = goal.rewardReady;
     final percent = (value * 100).round();
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(22),
-        onTap: onTap,
-        child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: done ? AppColors.success : AppColors.violetSurface,
-              width: 1.5,
+    final rewards = goal.tiers[goal.goal] ?? const [];
+    return Stack(clipBehavior: Clip.none, children: [
+      Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: onTap,
+          child: Ink(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: ready ? const Color(0xFFFFD54F) : done ? AppColors.success : AppColors.violetSurface, width: 1.5),
             ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      tr('Цель дня'),
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.primaryDark,
-                      ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(tr('Цель дня'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.primaryDark)),
+                        const SizedBox(height: 2),
+                        Text(
+                          ready
+                              ? tr('Выполнена! Заберите награду')
+                              : done
+                                  ? tr('Выполнена! Новую цель выберете завтра')
+                                  : tr('{0} из {1} слов', [goal.done, goal.goal]),
+                          style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      done
-                          ? tr('Выполнена! Новую цель выберете завтра')
-                          : tr('{0} из {1} слов', [goal.done, goal.goal]),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.secondaryText,
-                      ),
+                  ),
+                  Text('$percent%', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: done ? AppColors.success : AppColors.primary)),
+                  const SizedBox(width: 12),
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: done ? AppColors.success : AppColors.primary,
+                      boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: .22), blurRadius: 12, offset: const Offset(0, 4))],
                     ),
-                  ],
-                ),
+                    child: Icon(done ? Icons.check_rounded : Icons.chevron_right_rounded, color: Colors.white, size: 25),
+                  ),
+                ],
               ),
-              Text(
-                '$percent%',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  color: done ? AppColors.success : AppColors.primary,
+              if (ready && onClaim != null) ...[
+                const SizedBox(height: 8),
+                Row(children: [
+                  Expanded(child: rewards.isEmpty ? const SizedBox.shrink() : RewardChips(rewards: rewards, size: 22)),
+                  GreenButton(key: const ValueKey('goal-claim'), label: tr('Получить'), onTap: onClaim, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10)),
+                ]),
+              ],
+              if (notice != null)
+                Container(
+                  key: const ValueKey('goal-notice'),
+                  margin: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(color: const Color(0x33FFB020), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0x80FFB020))),
+                  child: Text(notice!, style: const TextStyle(color: Color(0xFFB36A00), fontSize: 12, fontWeight: FontWeight.w700)),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: done ? AppColors.success : AppColors.primary,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: .22),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  done ? Icons.check_rounded : Icons.chevron_right_rounded,
-                  color: Colors.white,
-                  size: 25,
-                ),
-              ),
-            ],
+            ]),
           ),
         ),
       ),
-    );
+      if (ready)
+        const Positioned(top: -14, right: 10, child: IgnorePointer(child: _WobblingGift())),
+    ]);
   }
+}
+
+/// The small gift on the card's corner: a reward is waiting.
+class _WobblingGift extends StatefulWidget {
+  const _WobblingGift();
+
+  @override
+  State<_WobblingGift> createState() => _WobblingGiftState();
+}
+
+class _WobblingGiftState extends State<_WobblingGift> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500))..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: _c,
+        builder: (_, __) => Transform.rotate(
+          angle: (_c.value - 0.5) * 0.24,
+          child: Transform.scale(scale: 1 + 0.14 * _c.value, child: const GiftIcon(size: 40)),
+        ),
+      );
 }

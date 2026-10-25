@@ -1,6 +1,10 @@
 import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
+import '../services/streak_state.dart';
+import '../widgets/counted_chest.dart' show GreenButton;
+import '../widgets/reward_chips.dart';
+import '../widgets/reward_claim_effect.dart';
 import '../models/notification.dart';
 import '../theme/app_colors.dart';
 import '../widgets/guyo_ui.dart';
@@ -67,6 +71,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  /// «Получить» on a message that carries a daily-goal reward.
+  Future<void> _takeReward(AppNotification item) async {
+    final id = int.tryParse((item.action ?? '').split(':').last);
+    if (id == null) return;
+    try {
+      await ApiClient.instance.claimDailyGoal(id);
+      if (!mounted) return;
+      ApiClient.instance.fetchEconomy();
+      await showRewardClaimEffect(context, title: tr('Цель дня выполнена!'), rewards: item.payload);
+      dailyGoalTick.value++;
+    } on ApiException catch (_) {
+      // Already taken somewhere else: the list below simply loses its button.
+    } catch (_) {
+      return;
+    }
+    if (mounted) await _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -123,7 +145,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
         for (final item in _items) ...[
-          _NotificationCard(notification: item, isNew: _newOnThisVisit.contains(item.id)),
+          _NotificationCard(
+            notification: item,
+            isNew: _newOnThisVisit.contains(item.id),
+            onAction: item.action == null ? null : () => _takeReward(item),
+          ),
           const SizedBox(height: 10),
         ],
       ],
@@ -134,11 +160,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 class _NotificationCard extends StatelessWidget {
   final AppNotification notification;
 
+  /// Pressed on a message that carries a reward (e.g. the daily goal's «Получить»).
+  final VoidCallback? onAction;
+
   /// Unread when this screen opened -- not the row's current state, which
   /// is already "read" by the time it renders.
   final bool isNew;
 
-  const _NotificationCard({required this.notification, required this.isNew});
+  const _NotificationCard({required this.notification, required this.isNew, this.onAction});
 
   @override
   Widget build(BuildContext context) {
@@ -171,6 +200,12 @@ class _NotificationCard extends StatelessWidget {
                   notification.body,
                   style: TextStyle(fontSize: 14, color: AppColors.primaryDark, height: 1.35),
                 ),
+                if (notification.payload.isNotEmpty) RewardChips(rewards: notification.payload, size: 22),
+                if (notification.action != null && onAction != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, bottom: 2),
+                    child: GreenButton(key: ValueKey('notification-action-${notification.id}'), label: tr('Получить'), onTap: onAction, padding: const EdgeInsets.symmetric(vertical: 10)),
+                  ),
                 const SizedBox(height: 8),
                 Row(
                   children: [

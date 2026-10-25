@@ -9,6 +9,8 @@ class DailyGoal {
   final int xp;
   final List<int> options;
   final bool locked;
+  final bool rewardReady;
+  final int? claimId;
   final List<String> chests;
   final int diamonds;
   final int points;
@@ -22,6 +24,8 @@ class DailyGoal {
     this.xp = 0,
     this.options = const [5, 10, 20],
     this.locked = false,
+    this.rewardReady = false,
+    this.claimId,
     this.chests = const [],
     this.diamonds = 0,
     this.points = 0,
@@ -42,6 +46,8 @@ class DailyGoal {
             (t as Map<String, dynamic>)['words'] as int: RewardSpec.list(t['rewards']),
         },
         locked: (json['locked'] as bool?) ?? (json['completed'] as bool),
+        rewardReady: (json['reward_ready'] as bool?) ?? false,
+        claimId: json['claim_id'] as int?,
         options: ((json['options'] as List<dynamic>?) ?? const [5, 10, 20]).cast<int>(),
       );
 }

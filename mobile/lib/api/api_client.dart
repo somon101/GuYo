@@ -1090,6 +1090,20 @@ class ApiClient {
     }
   }
 
+  /// «Получить»: takes an earned daily-goal reward. Throws [ApiException] when it cannot.
+  Future<DailyGoal> claimDailyGoal(int claimId) async {
+    final res = await http.post(
+      _uri('/daily-goal/claim'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'claim_id': claimId}),
+    );
+    await _throwWithDetail(res);
+    final json = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    final state = json['state'] as Map<String, dynamic>;
+    DiskCache.put('daily-goal', jsonEncode(state));
+    return DailyGoal.fromJson(state);
+  }
+
   Future<DailyGoal?> setDailyGoal(int goal) async {
     try {
       final res = await http.put(

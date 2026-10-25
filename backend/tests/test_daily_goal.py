@@ -59,6 +59,7 @@ def test_unclaimed_reward_goes_to_notifications_with_a_button(client, db, make_u
     listed = client.get("/notifications", headers=h).json()["items"][0]
     assert listed["action"] == f"claim_goal:{claim_id}"
     assert client.post("/daily-goal/claim", json={"claim_id": claim_id}, headers=h).status_code == 200
+    assert client.get("/notifications", headers=h).json()["items"][0]["action"] is None  # the button is spent
 
 
 def test_goal_is_fixed_once_filled_until_tomorrow(client, db, make_user, auth, make_dictionary, active_season):

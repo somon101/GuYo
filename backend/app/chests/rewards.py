@@ -170,6 +170,10 @@ def claim_goal(db: Session, user: User, claim_id: int) -> dict:
     tier = next((t for t in daily_tiers(db) if t["words"] == claim.words), None)
     rewards_list = tier["rewards"] if tier else []
     claim.claimed_at = datetime.now(timezone.utc)
+    from app.models.notification import Notification
+
+    # the notification's button is spent
+    db.query(Notification).filter(Notification.user_id == user.id, Notification.action == f"claim_goal:{claim.id}").update({Notification.action: None}, synchronize_session=False)
     db.flush()
     return give(db, user, rewards_list, "daily_goal", f"goal:{claim.day.isoformat()}:{claim.words}")
 
