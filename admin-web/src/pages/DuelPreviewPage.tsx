@@ -16,12 +16,12 @@ type Outcome = "win" | "draw" | "lose";
 const CHEST_NAMES: Record<string, string> = { wood: "Деревянный сундук", silver: "Серебряный сундук", purple: "Фиолетовый сундук", gold: "Золотой сундук" };
 
 function Reward({ r, big = false }: { r: EventReward; big?: boolean }) {
-  const s = big ? 54 : 32;
-  const box = "inline-flex flex-col items-center justify-center rounded-2xl px-3 py-2 text-center";
+  const s = big ? 34 : 24;
+  const box = "inline-flex items-center justify-center gap-1 rounded-xl px-2 py-1 text-center";
   const bg = { background: "rgba(255,255,255,0.12)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.2)" };
-  const num = { fontWeight: 900, fontSize: big ? 18 : 13, color: "#fff" } as const;
+  const num = { fontWeight: 900, fontSize: big ? 14 : 12, color: "#fff" } as const;
   if (r.type === "chest")
-    return <span className={box} style={bg}><img src={`${BASE}chests/${r.key ?? "wood"}_closed.png`} alt="" style={{ width: s + 10, height: s + 10, objectFit: "contain" }} /><span style={num}>{r.amount > 1 ? `×${r.amount}` : CHEST_NAMES[r.key ?? "wood"]?.split(" ")[0]}</span></span>;
+    return <span className={box} style={bg}><img src={`${BASE}chests/${r.key ?? "wood"}_closed.png`} alt="" style={{ width: s + 8, height: s + 8, objectFit: "contain" }} /><span style={num}>{r.amount > 1 ? `×${r.amount}` : CHEST_NAMES[r.key ?? "wood"]?.split(" ")[0]}</span></span>;
   if (r.type === "diamonds")
     return <span className={box} style={bg}><img src={`${BASE}preview/gem.png`} alt="" style={{ width: s, height: s, objectFit: "contain" }} /><span style={num}>+{r.amount}</span></span>;
   if (r.type === "rating_points")
@@ -31,11 +31,11 @@ function Reward({ r, big = false }: { r: EventReward; big?: boolean }) {
 
 function Rewards({ list, big }: { list: EventReward[]; big?: boolean }) {
   if (!list.length) return <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 13 }}>без награды</span>;
-  return <span className="flex flex-wrap justify-center gap-2">{list.map((r, i) => <Reward key={i} r={r} big={big} />)}</span>;
+  return <span className="flex flex-wrap justify-center gap-1.5">{list.map((r, i) => <Reward key={i} r={r} big={big} />)}</span>;
 }
 
 function Avatar({ name, color }: { name: string; color: string }) {
-  return <span className="flex items-center justify-center rounded-full text-xl font-black text-white" style={{ width: 56, height: 56, background: color, boxShadow: "0 0 0 3px rgba(255,255,255,0.35)" }}>{name[0].toUpperCase()}</span>;
+  return <span className="flex items-center justify-center rounded-full text-base font-black text-white" style={{ width: 40, height: 40, background: color, boxShadow: "0 0 0 2px rgba(255,255,255,0.35)" }}>{name[0].toUpperCase()}</span>;
 }
 
 const green = {
@@ -59,7 +59,7 @@ export function DuelPreviewPage() {
   const mine = outcome === "win" ? 308 : outcome === "draw" ? 250 : 204;
   const theirs = outcome === "win" ? 204 : outcome === "draw" ? 250 : 308;
   const key = outcome === "win" ? "duel_win" : outcome === "draw" ? "duel_draw" : "duel_lose";
-  const shell = "mx-auto w-full max-w-sm rounded-3xl p-4 text-white";
+  const shell = "mx-auto w-full max-w-xs rounded-2xl p-3 text-white";
   const bg = { background: "linear-gradient(135deg,#3d2b8f,#1e1560)", boxShadow: "0 18px 40px rgba(30,20,90,0.35)" };
   const chip = (s: Stage, label: string) => (
     <button key={s} type="button" onClick={() => setStage(s)} className={`rounded-lg px-3 py-1.5 text-sm ${stage === s ? "bg-indigo-600 text-white" : "border border-slate-300 text-slate-700"}`}>{label}</button>
@@ -94,59 +94,59 @@ export function DuelPreviewPage() {
       <section className="py-2">
         {stage === "none" && (
           <div className={shell} style={bg}>
-            <div className="mb-1 text-lg font-black">⚔️ Дуэль недели</div>
-            <p className="mb-3 text-sm text-white/80">Вызовите друга: кто за неделю наберёт больше энергии, тот победил.</p>
-            <div className="mb-3 space-y-2 rounded-2xl bg-black/20 p-3">
+            <div className="mb-1 text-base font-black">⚔️ Дуэль недели</div>
+            <p className="mb-2 text-xs text-white/80">Вызовите друга: кто за неделю наберёт больше энергии, тот победил.</p>
+            <div className="mb-2 space-y-1 rounded-xl bg-black/20 p-2">
               <div className="text-xs font-bold uppercase tracking-wide text-white/60">Что можно выиграть</div>
               <div className="flex items-center justify-between gap-2"><span className="text-sm font-bold">🏆 Победа</span><Rewards list={rules.duel_win} /></div>
               <div className="flex items-center justify-between gap-2"><span className="text-sm font-bold">🤝 Ничья</span><Rewards list={rules.duel_draw} /></div>
             </div>
-            <button className="w-full rounded-xl px-4 py-3 text-sm font-black uppercase" style={green}>Вызвать друга</button>
+            <button className="w-full rounded-xl px-4 py-2 text-sm font-black uppercase" style={green}>Вызвать друга</button>
           </div>
         )}
 
         {(stage === "pending" || stage === "active") && (
           <div className={shell} style={bg}>
-            <div className="mb-3 flex items-center justify-between">
-              <div className="text-lg font-black">⚔️ Дуэль недели</div>
-              <div className="rounded-full bg-black/25 px-3 py-1 text-xs font-bold">{stage === "pending" ? "Ждём ответа" : "Осталось 3 дня"}</div>
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-base font-black">⚔️ Дуэль недели</div>
+              <div className="rounded-full bg-black/25 px-2 py-0.5 text-[11px] font-bold">{stage === "pending" ? "Ждём ответа" : "Осталось 3 дня"}</div>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex flex-col items-center gap-1"><Avatar name="somon" color="#5862dd" /><span className="text-sm font-bold">somon</span></div>
               <div className="text-center">
-                <div className="text-3xl font-black">{stage === "pending" ? "—" : `${308} : ${204}`}</div>
+                <div className="text-2xl font-black">{stage === "pending" ? "—" : `${308} : ${204}`}</div>
                 <div className="text-xs text-white/70">энергия за неделю</div>
               </div>
               <div className="flex flex-col items-center gap-1"><Avatar name="vaygo" color="#c2185b" /><span className="text-sm font-bold">vaygo</span></div>
             </div>
             {stage === "active" && (
-              <div className="mt-3 h-3 overflow-hidden rounded-full bg-black/30"><div style={{ width: "60%", height: "100%", background: "linear-gradient(90deg,#ffe56b,#ffab1a)" }} /></div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/30"><div style={{ width: "60%", height: "100%", background: "linear-gradient(90deg,#ffe56b,#ffab1a)" }} /></div>
             )}
-            <div className="mt-4 rounded-2xl p-3" style={{ background: "linear-gradient(180deg,rgba(255,213,79,0.22),rgba(255,171,26,0.1))", boxShadow: "inset 0 0 0 1px rgba(255,213,79,0.5)" }}>
-              <div className="mb-2 text-center text-xs font-black uppercase tracking-wide" style={{ color: "#ffd54f" }}>🏆 Победитель получит</div>
+            <div className="mt-3 rounded-xl px-2 py-2" style={{ background: "linear-gradient(180deg,rgba(255,213,79,0.22),rgba(255,171,26,0.1))", boxShadow: "inset 0 0 0 1px rgba(255,213,79,0.5)" }}>
+              <div className="mb-1 text-center text-[11px] font-black uppercase tracking-wide" style={{ color: "#ffd54f" }}>🏆 Победитель получит</div>
               <Rewards list={rules.duel_win} big />
-              {rules.duel_draw.length > 0 && <div className="mt-2 flex items-center justify-center gap-2 text-xs text-white/70">Ничья: <Rewards list={rules.duel_draw} /></div>}
+              {rules.duel_draw.length > 0 && <div className="mt-1 flex items-center justify-center gap-2 text-xs text-white/70">Ничья: <Rewards list={rules.duel_draw} /></div>}
             </div>
           </div>
         )}
 
         {stage === "done" && (
           <div className={shell} style={bg}>
-            <div className="mb-1 text-center text-2xl font-black" style={{ color: outcome === "win" ? "#ffd54f" : "#fff" }}>
+            <div className="mb-1 text-center text-xl font-black" style={{ color: outcome === "win" ? "#ffd54f" : "#fff" }}>
               {outcome === "win" ? "🏆 Победа!" : outcome === "draw" ? "🤝 Ничья" : "Дуэль окончена"}
             </div>
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-2 flex items-center justify-between">
               <div className="flex flex-col items-center gap-1"><span style={{ filter: outcome === "lose" ? "grayscale(0.6)" : undefined }}><Avatar name="somon" color="#5862dd" /></span><span className="text-sm font-bold">somon</span></div>
-              <div className="text-center"><div className="text-3xl font-black">{mine} : {theirs}</div><div className="text-xs text-white/70">итоговая энергия</div></div>
+              <div className="text-center"><div className="text-2xl font-black">{mine} : {theirs}</div><div className="text-xs text-white/70">итоговая энергия</div></div>
               <div className="flex flex-col items-center gap-1"><span style={{ filter: outcome === "win" ? "grayscale(0.6)" : undefined }}><Avatar name="vaygo" color="#c2185b" /></span><span className="text-sm font-bold">vaygo</span></div>
             </div>
-            <div className="rounded-2xl bg-black/20 p-3">
-              <div className="mb-2 text-center text-xs font-black uppercase tracking-wide text-white/70">Ваша награда</div>
+            <div className="rounded-xl bg-black/20 p-2">
+              <div className="mb-1 text-center text-[11px] font-black uppercase tracking-wide text-white/70">Ваша награда</div>
               <Rewards list={rules[key]} big />
               {outcome === "lose" && <p className="mt-2 text-center text-xs text-white/70">В этот раз без награды. Отыграйтесь в следующей дуэли!</p>}
             </div>
-            <button className="mt-4 w-full rounded-xl px-4 py-3 text-sm font-black uppercase" style={green}>Новая дуэль</button>
-            <button className="mt-2 w-full rounded-xl bg-white/10 px-4 py-2 text-sm font-bold text-white/80">Закрыть</button>
+            <button className="mt-3 w-full rounded-xl px-4 py-2 text-sm font-black uppercase" style={green}>Новая дуэль</button>
+            <button className="mt-1.5 w-full rounded-xl bg-white/10 px-4 py-1.5 text-xs font-bold text-white/80">Закрыть</button>
           </div>
         )}
       </section>
