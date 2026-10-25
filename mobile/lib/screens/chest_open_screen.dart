@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
 import '../models/chest.dart';
+import '../services/chest_sound.dart';
 import '../services/streak_state.dart';
 import '../widgets/game_icons.dart';
 
@@ -37,6 +39,7 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
 
   @override
   void dispose() {
+    ChestSound.stop();
     _float.dispose();
     _shake.dispose();
     _reveal.dispose();
@@ -51,6 +54,7 @@ class _ChestOpenScreenState extends State<ChestOpenScreen> with TickerProviderSt
       _error = null;
     });
     _shake.forward(from: 0);
+    if (widget.opener == null) unawaited(ChestSound.tap());
     if (_taps < _tapsNeeded) return;
     _busy = true;
     try {

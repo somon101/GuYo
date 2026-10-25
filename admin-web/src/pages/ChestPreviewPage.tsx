@@ -93,6 +93,15 @@ export function ChestPreviewPage() {
   }, []);
   const chest = types.find((c) => c.key === chestKey) ?? types[0];
 
+  // One click sound: each tap restarts it (never two at once); leaving the page cuts it.
+  const click = useRef<HTMLAudioElement | null>(null);
+  const playClick = () => {
+    if (!click.current) click.current = new Audio(`${BASE}chest-tap.mp3`);
+    click.current.currentTime = 0;
+    void click.current.play().catch(() => undefined);
+  };
+  useEffect(() => () => { click.current?.pause(); }, []);
+
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
 
   const sparks = useMemo(
@@ -118,6 +127,7 @@ export function ChestPreviewPage() {
   // Every press shakes the chest harder; the third one bursts it open.
   const tap = () => {
     if (phase !== "idle") return;
+    playClick();
     const n = taps + 1;
     setTaps(n);
     setTapRun((r) => r + 1);
@@ -137,6 +147,7 @@ export function ChestPreviewPage() {
     }
   };
   const reset = () => {
+    click.current?.pause();
     if (timer.current) window.clearTimeout(timer.current);
     setPhase("idle");
     setTaps(0);
