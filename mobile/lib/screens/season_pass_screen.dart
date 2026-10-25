@@ -520,11 +520,7 @@ class _PremiumBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.workspace_premium_rounded,
-            color: Color(0xFF7A5600),
-            size: 28,
-          ),
+          const PremiumIcon(size: 32),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -550,7 +546,7 @@ class _LaneHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget chip(String text, IconData icon, List<Color> colors) => Container(
+    Widget chip(String text, IconData icon, List<Color> colors, {Widget? leading}) => Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
@@ -559,7 +555,7 @@ class _LaneHeader extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: Colors.white),
+          leading ?? Icon(icon, size: 14, color: Colors.white),
           const SizedBox(width: 5),
           Text(
             text,
@@ -593,7 +589,7 @@ class _LaneHeader extends StatelessWidget {
                 child: chip('Premium', Icons.workspace_premium_rounded, const [
                   Color(0xFFFFB300),
                   Color(0xFFFF7A00),
-                ]),
+                ], leading: const PremiumIcon(size: 18)),
               ),
             ),
         ],

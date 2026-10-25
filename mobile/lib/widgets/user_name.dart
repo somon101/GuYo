@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'game_icons.dart';
 
 import 'season_pass_ui.dart' show BadgeGlyph;
 
@@ -14,7 +15,7 @@ class PremiumCheck extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       label: 'GuYo Premium',
-      child: Icon(Icons.verified_rounded, size: size, color: color),
+      child: PremiumIcon(size: size * 1.15),
     );
   }
 }

@@ -860,7 +860,7 @@ const IMG = `${import.meta.env.BASE_URL}`;
 /** How one reward looks in the app: gradient, picture, amount and name (the same as the app's RewardCard). */
 function passLook(r: PassReward): { colors: [string, string]; img: string | null; glyph: string; amount: string; label: string } {
   switch (r.type) {
-    case "premium_days": return { colors: ["#FFD54F", "#FF9800"], img: null, glyph: "👑", amount: `+${r.amount}`, label: "Дни Premium" };
+    case "premium_days": return { colors: ["#3F4FD8", "#1B245F"], img: `${IMG}preview/premium.png`, glyph: "", amount: `+${r.amount}`, label: "Дни Premium" };
     case "streak_freeze": return { colors: ["#7FDBFF", "#3A7BFF"], img: `${IMG}preview/freeze.png`, glyph: "", amount: `+${r.amount}`, label: "Заморозка серии" };
     case "diamonds": return { colors: ["#87EFFF", "#3A7BFF"], img: `${IMG}preview/gem.png`, glyph: "", amount: `+${r.amount}`, label: "Бриллианты" };
     case "chest": return { colors: ["#FFB86B", "#B4541F"], img: `${IMG}chests/${r.key ?? "wood"}_closed.png`, glyph: "", amount: "", label: "Сундук" };

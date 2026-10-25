@@ -14,6 +14,15 @@ class DiamondIcon extends StatelessWidget {
   Widget build(BuildContext context) => _GameIcon('assets/icons/diamond.png', size);
 }
 
+/// GuYo Premium: the gold «G» in the indigo hexagon (the mark of Premium everywhere).
+class PremiumIcon extends StatelessWidget {
+  final double size;
+  const PremiumIcon({super.key, this.size = 20});
+
+  @override
+  Widget build(BuildContext context) => _GameIcon('assets/icons/premium.png', size);
+}
+
 /// Season-pass energy (XP): the lightning bolt.
 class EnergyIcon extends StatelessWidget {
   final double size;
@@ -126,6 +135,8 @@ Widget gameAsset(String name, double size) {
       return PointsIcon(size: size);
     case 'energy':
       return EnergyIcon(size: size);
+    case 'premium':
+      return PremiumIcon(size: size);
     case 'diamond':
       return DiamondIcon(size: size);
     case 'gift':

@@ -1,6 +1,7 @@
 import '../l10n/l10n.dart';
 
 import 'package:flutter/material.dart';
+import 'game_icons.dart';
 
 import '../api/api_client.dart';
 import '../models/premium.dart';
@@ -39,11 +40,7 @@ class PremiumBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            Icons.workspace_premium_rounded,
-            size: 14,
-            color: AppColors.rewardText,
-          ),
+          const PremiumIcon(size: 16),
           const SizedBox(width: 4),
           Text(
             label,
@@ -128,15 +125,9 @@ class LessonQuotaCardState extends State<LessonQuotaCard> {
                   : AppColors.violetSurface,
               borderRadius: BorderRadius.circular(18),
             ),
-            child: Icon(
-              status.isPremium
-                  ? Icons.workspace_premium_rounded
-                  : Icons.auto_stories_rounded,
-              color: status.isPremium
-                  ? AppColors.rewardText
-                  : AppColors.primary,
-              size: 28,
-            ),
+            child: status.isPremium
+                ? const Padding(padding: EdgeInsets.all(8), child: PremiumIcon(size: 32))
+                : Icon(Icons.auto_stories_rounded, color: AppColors.primary, size: 28),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -320,7 +311,7 @@ Future<void> showLessonLimitDialog(BuildContext context, String message) {
             Navigator.of(dialogContext).pop();
             openPremiumScreen(context);
           },
-          icon: const Icon(Icons.workspace_premium_rounded, size: 18),
+          icon: const PremiumIcon(size: 20),
           label: const Text('GuYo Premium'),
         ),
       ],

@@ -51,6 +51,7 @@ RewardStyle rewardStyle(PassReward r) {
         const [Color(0xFFFFD54F), Color(0xFFFF9800)],
         Icons.workspace_premium_rounded,
         tr('Дни Premium'),
+        asset: 'premium',
       );
     case 'streak_freeze':
       return RewardStyle(

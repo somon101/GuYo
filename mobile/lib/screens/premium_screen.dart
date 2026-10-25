@@ -1,5 +1,6 @@
 import '../l10n/l10n.dart';
 import 'package:flutter/material.dart';
+import '../widgets/game_icons.dart';
 import 'package:flutter/services.dart';
 
 import '../api/api_client.dart';
@@ -141,7 +142,7 @@ class _StatusHeader extends StatelessWidget {
             width: 56,
             height: 56,
             decoration: BoxDecoration(color: AppColors.surface, shape: BoxShape.circle),
-            child: const Icon(Icons.workspace_premium_rounded, size: 34, color: AppColors.rewardText),
+            child: const Padding(padding: EdgeInsets.all(8), child: PremiumIcon(size: 40)),
           ),
           const SizedBox(width: 14),
           Expanded(
