@@ -47,3 +47,13 @@ def test_kinds_keep_their_own_time_and_stock(db, make_user):
     assert state["kinds"]["rating"]["seconds_left"] == 0
     assert {i["minutes"]: i["qty"] for i in state["kinds"]["rating"]["items"]}[30] == 1
     assert state["active_until"] is None  # the chest kind keeps its old shape
+
+
+def test_admin_sends_a_booster_of_each_kind(client, db, make_user, admin_headers):
+    user = make_user("boosty")
+    r = client.post("/admin/chests/send-booster", headers=admin_headers, json={"user": "boosty", "minutes": 60, "count": 2, "kind": "rating"})
+    assert r.status_code == 200
+    state = boosters.state(db, user)
+    assert {i["minutes"]: i["qty"] for i in state["kinds"]["rating"]["items"]}[60] == 2
+    assert {i["minutes"]: i["qty"] for i in state["kinds"]["chest"]["items"]}[60] == 0
+    assert client.post("/admin/chests/send-booster", headers=admin_headers, json={"user": "boosty", "minutes": 60, "kind": "nope"}).status_code == 422

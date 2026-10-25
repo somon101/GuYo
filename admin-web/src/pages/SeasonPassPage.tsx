@@ -232,7 +232,7 @@ function RewardPicker({ value, onChange, onClose }: { value: PassReward | null; 
           <Tile key={k} selected={(value.kind ?? "chest") === k} onClick={() => onChange({ ...value, kind: k === "chest" ? undefined : k })} label={BOOSTER_KINDS[k].label}><img src={`${IMG}${BOOSTER_KINDS[k].icon}`} alt="" style={{ width: 52, height: 52, objectFit: "contain" }} /></Tile>
         )))}
         {value?.type === "booster" && <p className="text-xs text-slate-500">{BOOSTER_KINDS[value.kind ?? "chest"].does}</p>}
-        {value?.type === "booster" && section("На сколько", [[30, "30 минут"], [60, "1 час"], [1440, "24 часа"]].map(([m, name]) => (
+        {value?.type === "booster" && section("На сколько", [[30, "30 минут"], [60, "1 час"], [120, "2 часа"], [180, "3 часа"], [1440, "24 часа"]].map(([m, name]) => (
           <Tile key={m} selected={value.amount === m} onClick={() => onChange({ ...value, amount: Number(m) })} label={String(name)}><img src={`${IMG}${BOOSTER_KINDS[value.kind ?? "chest"].icon}`} alt="" style={{ width: 48, height: 48, objectFit: "contain" }} /></Tile>
         )))}
         {value && (value.type === "frame" || value.type === "badge" || value.type === "title") && (

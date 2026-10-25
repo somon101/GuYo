@@ -2993,8 +2993,8 @@ export async function saveRewardRules(rules: Partial<RewardRules>): Promise<Rewa
   return data;
 }
 
-export async function sendBooster(user: string, minutes: number, count: number): Promise<{ login: string }> {
-  const { data } = await api.post("/admin/chests/send-booster", { user, minutes, count });
+export async function sendBooster(user: string, minutes: number, count: number, kind: "chest" | "rating" | "xp" = "chest"): Promise<{ login: string }> {
+  const { data } = await api.post("/admin/chests/send-booster", { user, minutes, count, kind });
   return data;
 }
 

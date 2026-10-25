@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
+import { BOOSTER_KINDS, type BoosterKind } from "../components/rewardVisuals";
 import {
   getChestOverview,
   getRewardRules,
@@ -24,7 +25,7 @@ const SOURCES: Record<string, string> = {
   streak: "Серия дней", comeback: "Возвращение", admin: "Отправлено вручную",
 };
 const PRIZES: Record<string, string> = { diamonds: "Бриллианты", freeze: "Заморозки", merge: "Объединители", points: "Очки рейтинга" };
-const BOOSTER_OPTIONS: [number, string][] = [[30, "30 минут"], [60, "1 час"], [1440, "24 часа"]];
+const BOOSTER_OPTIONS: [number, string][] = [[30, "30 минут"], [60, "1 час"], [120, "2 часа"], [180, "3 часа"], [1440, "24 часа"]];
 const EVENTS: [string, string][] = [
   ["duel_win", "Дуэль: победа"], ["duel_draw", "Дуэль: ничья"], ["duel_lose", "Дуэль: поражение"],
   ["streak_7", "Серия 7 дней"], ["streak_30", "Серия 30 дней"], ["streak_100", "Серия 100 дней"],
@@ -159,6 +160,7 @@ function DailySection({ types, settings, onError, onSaved }: { types: ChestType[
 function SendSection({ types }: { types: ChestType[] }) {
   const [user, setUser] = useState("");
   const [key, setKey] = useState("wood");
+  const [boosterKind, setBoosterKind] = useState<BoosterKind>("chest");
   const [count, setCount] = useState(1);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
@@ -177,17 +179,28 @@ function SendSection({ types }: { types: ChestType[] }) {
         <button className={primary} onClick={() => void send()}>Отправить</button>
       </div>
       <ChestPicker types={types} value={key} onChange={setKey} />
-      <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 text-sm">
-        <span className="text-slate-500">Билет «x2»:</span>
-        {BOOSTER_OPTIONS.map(([m, l]) => (
-          <button key={m} className="rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-50" onClick={async () => {
-            if (!user.trim()) return;
-            setMsg(""); setErr("");
-            try { const r = await sendBooster(user.trim(), m, count); setMsg(`${r.login}: отправлено билетов «x2» (${l}): ${count}`); } catch (e) { setErr(errorMessage(e)); }
-          }}>
-            <img src={`${import.meta.env.BASE_URL}preview/booster.png`} alt="" style={{ display: "inline", width: 20, height: 20, objectFit: "contain", marginRight: 4 }} />{l}
-          </button>
-        ))}
+      <div className="space-y-2 border-t border-slate-100 pt-3 text-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-slate-500">Удвоитель:</span>
+          {(Object.keys(BOOSTER_KINDS) as BoosterKind[]).map((k) => (
+            <button key={k} type="button" onClick={() => setBoosterKind(k)} className={`flex items-center gap-2 rounded-lg px-3 py-1.5 ${boosterKind === k ? "bg-indigo-600 text-white" : "border border-slate-300 text-slate-700"}`}>
+              <img src={`${import.meta.env.BASE_URL}${BOOSTER_KINDS[k].icon}`} alt="" style={{ width: 24, height: 24, objectFit: "contain" }} />{BOOSTER_KINDS[k].label}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-slate-500">{BOOSTER_KINDS[boosterKind].does}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-slate-500">Отправить на:</span>
+          {BOOSTER_OPTIONS.map(([m, l]) => (
+            <button key={m} className="rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-50" onClick={async () => {
+              if (!user.trim()) return;
+              setMsg(""); setErr("");
+              try { const r = await sendBooster(user.trim(), m, count, boosterKind); setMsg(`${r.login}: отправлено «${BOOSTER_KINDS[boosterKind].label}» (${l}): ${count}`); } catch (e) { setErr(errorMessage(e)); }
+            }}>
+              <img src={`${import.meta.env.BASE_URL}${BOOSTER_KINDS[boosterKind].icon}`} alt="" style={{ display: "inline", width: 20, height: 20, objectFit: "contain", marginRight: 4 }} />{l}
+            </button>
+          ))}
+        </div>
       </div>
       {msg && <div className="text-sm text-emerald-700">{msg}</div>}
       {err && <div className="text-sm text-red-700">{err}</div>}
