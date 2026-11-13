@@ -22,7 +22,7 @@ Future<void> _open(WidgetTester tester, Size logical, {List<RewardSpec>? rewards
   ));
   await tester.tap(find.text('open'));
   await tester.pump(const Duration(milliseconds: 300));
-  await tester.pump(const Duration(milliseconds: 2600));
+  await tester.pump(const Duration(milliseconds: 1500));
 }
 
 void main() {
@@ -56,5 +56,11 @@ void main() {
     await _open(tester, const Size(320, 568), rewards: [for (var i = 0; i < 6; i++) RewardSpec(type: 'xp', amount: i + 1)]);
     expect(find.byType(RewardSlot), findsNWidgets(6));
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the whole show takes about a second and a half: the button is shown and works by then', (tester) async {
+    await _open(tester, const Size(360, 800));
+    final fade = tester.widget<FadeTransition>(find.ancestor(of: find.byKey(const ValueKey('claim-done')), matching: find.byType(FadeTransition)).first);
+    expect(fade.opacity.value, 1.0);
   });
 }
