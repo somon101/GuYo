@@ -73,25 +73,26 @@ class _RewardClaimScreenState extends State<_RewardClaimScreen> with SingleTicke
           final show = Curves.easeOutBack.transform(_span(t, 0.12, 0.32));
           final rewardsIn = Curves.easeOutBack.transform(_span(t, 0.22, 0.45));
           final button = _span(t, 0.7, 0.8);
-          final size = MediaQuery.sizeOf(context);
           return SafeArea(
-            child: Stack(alignment: Alignment.center, children: [
-              // The soft glow behind the rewards.
-              Opacity(
-                opacity: halo.clamp(0.0, 1.0),
-                child: Transform.scale(
-                  scale: 0.6 + 0.4 * halo,
-                  child: Container(
-                    width: 320,
-                    height: 320,
-                    decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [AppColors.violetSurface, AppColors.violetSurface.withValues(alpha: 0)])),
+            child: Stack(fit: StackFit.expand, children: [
+              // The soft glow behind the rewards, in the middle of the screen.
+              Center(
+                child: Opacity(
+                  opacity: halo.clamp(0.0, 1.0),
+                  child: Transform.scale(
+                    scale: 0.6 + 0.4 * halo,
+                    child: Container(
+                      width: 340,
+                      height: 340,
+                      decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [AppColors.violetSurface, AppColors.violetSurface.withValues(alpha: 0)])),
+                    ),
                   ),
                 ),
               ),
+              // Sparkles: placed by fractions of the screen, so they sit the same on any phone.
               for (final (x, y, sz, at, gold) in _stars)
-                Positioned(
-                  left: size.width * x - sz / 2,
-                  top: size.height * y - sz / 2,
+                Align(
+                  alignment: Alignment(x * 2 - 1, y * 2 - 1),
                   child: Builder(builder: (_) {
                     final p = Curves.easeOutBack.transform(_span(t, at, at + 0.14));
                     // After arriving, each star slowly twinkles.
@@ -102,52 +103,59 @@ class _RewardClaimScreenState extends State<_RewardClaimScreen> with SingleTicke
                     );
                   }),
                 ),
-              Positioned(
-                top: 90,
-                left: 16,
-                right: 16,
-                child: Opacity(
-                  opacity: show.clamp(0.0, 1.0),
-                  child: Transform.scale(
-                    scale: 0.8 + 0.2 * show,
-                    child: Column(children: [
-                      Text(widget.title, textAlign: TextAlign.center, style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.w800, fontSize: 24, letterSpacing: -0.5)),
-                      const SizedBox(height: 4),
-                      Text(tr('Вы получили'), style: TextStyle(color: AppColors.secondaryText, fontSize: 14)),
-                    ]),
+              // The content: centred, then the button at the bottom.
+              Column(children: [
+                Expanded(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Opacity(
+                          opacity: show.clamp(0.0, 1.0),
+                          child: Transform.scale(
+                            scale: 0.8 + 0.2 * show,
+                            child: Column(children: [
+                              Text(widget.title, textAlign: TextAlign.center, style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.w800, fontSize: 24, letterSpacing: -0.5)),
+                              const SizedBox(height: 4),
+                              Text(tr('Вы получили'), style: TextStyle(color: AppColors.secondaryText, fontSize: 14)),
+                            ]),
+                          ),
+                        ),
+                        const SizedBox(height: 36),
+                        Opacity(
+                          opacity: rewardsIn.clamp(0.0, 1.0),
+                          child: Transform.scale(
+                            scale: 0.5 + 0.5 * rewardsIn,
+                            child: Wrap(spacing: 14, runSpacing: 18, alignment: WrapAlignment.center, children: [
+                              for (final r in widget.rewards) RewardSlot(reward: r, side: 96, soft: true),
+                            ]),
+                          ),
+                        ),
+                      ]),
+                    ),
                   ),
                 ),
-              ),
-              Opacity(
-                opacity: rewardsIn.clamp(0.0, 1.0),
-                child: Transform.scale(
-                  scale: 0.5 + 0.5 * rewardsIn,
-                  child: Wrap(spacing: 14, runSpacing: 18, alignment: WrapAlignment.center, children: [
-                    for (final r in widget.rewards) RewardSlot(reward: r, side: 96, soft: true),
-                  ]),
-                ),
-              ),
-              Positioned(
-                left: 20,
-                right: 20,
-                bottom: 28,
-                child: Opacity(
-                  opacity: button,
-                  child: IgnorePointer(
-                    ignoring: button < 0.9,
-                    child: GestureDetector(
-                      key: const ValueKey('claim-done'),
-                      onTap: () => Navigator.of(context).pop(),
-                      child: Container(
-                        height: 52,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(99)),
-                        child: Text(tr('Забрать'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                  child: Opacity(
+                    opacity: button,
+                    child: IgnorePointer(
+                      ignoring: button < 0.9,
+                      child: GestureDetector(
+                        key: const ValueKey('claim-done'),
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Container(
+                          height: 52,
+                          width: double.infinity,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(99)),
+                          child: Text(tr('Забрать'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
+              ]),
             ]),
           );
         },
