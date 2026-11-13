@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_colors.dart';
+
 import '../models/reward_spec.dart';
 import 'game_icons.dart';
 
@@ -12,8 +14,11 @@ class RewardChips extends StatelessWidget {
   final double size;
   final bool silver;
 
+  /// The quiet look of the new style: a soft chip, no dark frame (for light screens).
+  final bool soft;
+
   /// [size] is the icon size of the old chips; the slot is a little bigger than it.
-  const RewardChips({super.key, required this.rewards, this.color = Colors.black87, this.size = 20, this.silver = false});
+  const RewardChips({super.key, required this.rewards, this.color = Colors.black87, this.size = 20, this.silver = false, this.soft = false});
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +29,7 @@ class RewardChips extends StatelessWidget {
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.only(right: 8, bottom: 6, top: 2),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        for (final r in rewards) Padding(padding: const EdgeInsets.only(right: 8), child: RewardSlot(reward: r, side: slot, silver: silver)),
+        for (final r in rewards) Padding(padding: const EdgeInsets.only(right: 8), child: RewardSlot(reward: r, side: slot, silver: silver, soft: soft)),
       ]),
     );
   }
@@ -35,7 +40,8 @@ class RewardSlot extends StatelessWidget {
   final RewardSpec reward;
   final double side;
   final bool silver;
-  const RewardSlot({super.key, required this.reward, this.side = 44, this.silver = false});
+  final bool soft;
+  const RewardSlot({super.key, required this.reward, this.side = 44, this.silver = false, this.soft = false});
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +75,9 @@ class RewardSlot extends StatelessWidget {
       height: side,
       child: Stack(clipBehavior: Clip.none, alignment: Alignment.center, children: [
         Container(
-          decoration: BoxDecoration(
+          decoration: soft
+              ? BoxDecoration(borderRadius: BorderRadius.circular(14), color: AppColors.violetSurface)
+              : BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             // Solid dark violet, so the slot looks the same on a light or a dark screen.
             gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF3B2D96), Color(0xFF1A1247)]),
@@ -87,7 +95,9 @@ class RewardSlot extends StatelessWidget {
               constraints: const BoxConstraints(minWidth: 18),
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
               alignment: Alignment.center,
-              decoration: BoxDecoration(
+              decoration: soft
+                  ? BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(99))
+                  : BoxDecoration(
                 color: const Color(0xFF1B1247),
                 borderRadius: BorderRadius.circular(99),
                 boxShadow: [BoxShadow(color: frame.withValues(alpha: 0.85), spreadRadius: 1.5)],

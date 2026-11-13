@@ -328,6 +328,8 @@ const Map<String, (String, String)> uiStrings = {
   'Категория': ('Категория', 'Kategoriya'),
   'Все': ('Ҳама', 'Barchasi'),
   'слов': ('калима', 'soʻz'),
+  'Выбрать цель': ('Интихоби ҳадаф', 'Maqsadni tanlash'),
+  'Чем больше цель, тем больше награда': ('Ҳадаф чӣ қадар калон бошад, мукофот ҳамон қадар зиёд', 'Maqsad qancha katta boʻlsa, mukofot shuncha koʻp'),
   'слово': ('калима', 'soʻz'),
   'слова': ('калима', 'soʻz'),
   'Мои фразы': ('Ибораҳои ман', 'Mening iboralarim'),

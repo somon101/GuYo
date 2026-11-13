@@ -24,6 +24,31 @@ void main() {
 }
 
 void readyTest() {
+  testWidgets('the goal sheet: pick a row, then «Выбрать цель» returns it', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2200); // a phone: the whole sheet fits
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    int? chosen;
+    final goal = DailyGoal.fromJson({'goal': 10, 'done': 3, 'completed': false, 'options': [5, 10, 20]});
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async => chosen = await showModalBottomSheet<int>(context: context, isScrollControlled: true, builder: (_) => DailyGoalSheet(goal: goal)),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('daily-goal-20')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('daily-goal-choose')));
+    await tester.pumpAndSettle();
+    expect(chosen, 20);
+  });
+
   testWidgets('a filled goal shows the gift mark and «Получить»; nothing is paid by itself', (tester) async {
     var claims = 0;
     final goal = DailyGoal.fromJson({

@@ -928,4 +928,6 @@ const Map<String, String> enStrings = {
   '{0} ур.': 'Lv {0}',
   'Энергии: {0}': 'Energy: {0}',
   'Идёт {0}': 'Running {0}',
+  'Выбрать цель': 'Choose goal',
+  'Чем больше цель, тем больше награда': 'The bigger the goal, the bigger the reward',
 };
