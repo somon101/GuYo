@@ -38,7 +38,9 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.guyo.guyo_app"
+        // The demo build sets GUYO_APP_ID, so it installs next to the real app instead of over it.
+        applicationId = System.getenv("GUYO_APP_ID") ?: "com.guyo.guyo_app"
+        manifestPlaceholders["appLabel"] = System.getenv("GUYO_APP_LABEL") ?: "GuYo"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
