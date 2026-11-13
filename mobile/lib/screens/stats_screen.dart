@@ -79,7 +79,9 @@ class UserStats {
 /// exercise, points by day, activity, totals and the words that trip them
 /// up most. Everything plays in on opening.
 class StatsScreen extends StatefulWidget {
-  const StatsScreen({super.key});
+  /// Inside «Мой путь» (a tab): only the content, no own page frame.
+  final bool embedded;
+  const StatsScreen({super.key, this.embedded = false});
 
   @override
   State<StatsScreen> createState() => _StatsScreenState();
@@ -115,6 +117,60 @@ class _StatsScreenState extends State<StatsScreen> {
   @override
   Widget build(BuildContext context) {
     final stats = _stats;
+    final content = _failed
+        ? Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(tr('Не удалось загрузить данные')),
+                const SizedBox(height: 12),
+                FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
+              ],
+            ),
+          )
+        : stats == null
+            ? const Skeleton(
+                child: SingleChildScrollView(
+                  physics: NeverScrollableScrollPhysics(),
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      SkeletonBox(height: 250, radius: 24),
+                      SizedBox(height: 14),
+                      SkeletonBox(height: 220, radius: 24),
+                    ],
+                  ),
+                ),
+              )
+            : RefreshIndicator(
+                onRefresh: _load,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+                  children: [
+                    _StudyTimeCard(stats: stats),
+                    const SizedBox(height: 14),
+                    _AccuracyCard(stats: stats),
+                    const SizedBox(height: 14),
+                    _PointsCard(
+                      stats: stats,
+                      days: _days,
+                      onDays: (d) {
+                        setState(() => _days = d);
+                        _load();
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    _TotalsGrid(stats: stats),
+                    const SizedBox(height: 14),
+                    _ActivityCard(stats: stats),
+                    if (stats.hardWords.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      _HardWordsCard(stats: stats),
+                    ],
+                  ],
+                ),
+              );
+    if (widget.embedded) return content;
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
@@ -126,58 +182,7 @@ class _StatsScreenState extends State<StatsScreen> {
         ),
         iconTheme: IconThemeData(color: AppColors.primaryDark),
       ),
-      body: _failed
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(tr('Не удалось загрузить данные')),
-                  const SizedBox(height: 12),
-                  FilledButton(onPressed: _load, child: Text(tr('Повторить'))),
-                ],
-              ),
-            )
-          : stats == null
-              ? const Skeleton(
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        SkeletonBox(height: 250, radius: 24),
-                        SizedBox(height: 14),
-                        SkeletonBox(height: 220, radius: 24),
-                      ],
-                    ),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
-                    children: [
-                      _StudyTimeCard(stats: stats),
-                      const SizedBox(height: 14),
-                      _AccuracyCard(stats: stats),
-                      const SizedBox(height: 14),
-                      _PointsCard(
-                        stats: stats,
-                        days: _days,
-                        onDays: (d) {
-                          setState(() => _days = d);
-                          _load();
-                        },
-                      ),
-                      const SizedBox(height: 14),
-                      _TotalsGrid(stats: stats),
-                      const SizedBox(height: 14),
-                      _ActivityCard(stats: stats),
-                      if (stats.hardWords.isNotEmpty) ...[
-                        const SizedBox(height: 14),
-                        _HardWordsCard(stats: stats),
-                      ],
-                    ],
-                  ),
-                ),
+      body: content,
     );
   }
 }

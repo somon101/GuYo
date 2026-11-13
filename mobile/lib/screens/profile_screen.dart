@@ -78,6 +78,7 @@ class ProfileScreenState extends State<ProfileScreen> {
   UserProfile? _profile;
   List<UserAchievement> _achievements = [];
   UserRating? _rating;
+  UserStats? _stats; // the little numbers of the «Мой путь» card
   // My leaderboard status, shown as a note above the photo.
   MyStatus? _myStatus;
 
@@ -155,6 +156,7 @@ class ProfileScreenState extends State<ProfileScreen> {
       });
       SessionCache.put(_cacheKey, (_profile!, _achievements, _rating!));
       unawaited(_loadMyStatus());
+      unawaited(_loadStats());
       // Achievements are no longer celebrated from here (or from anywhere
       // else but the end of a lesson, see LessonResultsScreen): showing them
       // wherever the user happened to be is exactly what made the popup feel
@@ -166,6 +168,16 @@ class ProfileScreenState extends State<ProfileScreen> {
         if (_profile == null) _loadError = tr('Не удалось загрузить профиль');
       });
     }
+  }
+
+  Future<void> _loadStats() async {
+    final cached = SessionCache.get<UserStats>('stats-7');
+    if (cached != null && mounted) setState(() => _stats = cached);
+    try {
+      final stats = await ApiClient.instance.fetchMyStats(7);
+      SessionCache.put('stats-7', stats);
+      if (mounted) setState(() => _stats = stats);
+    } catch (_) {}
   }
 
   Future<UserProfile?> _pickAndUploadAvatar() async {
@@ -439,30 +451,7 @@ class ProfileScreenState extends State<ProfileScreen> {
           onTap: _openAchievements,
         ),
         const SizedBox(height: 16),
-        Material(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
-          child: ListTile(
-            key: const ValueKey('profile-my-progress'),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            leading: Icon(Icons.show_chart_rounded, color: AppColors.primary),
-            title: Text(
-              tr('Мой путь'),
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                color: AppColors.primaryDark,
-              ),
-            ),
-            subtitle: Text(
-              tr('Слов по неделям'),
-              style: TextStyle(color: AppColors.secondaryText),
-            ),
-            trailing: Icon(Icons.chevron_right, color: AppColors.muted),
-            onTap: _openMyProgress,
-          ),
-        ),
+        _MyPathCard(profile: profile, stats: _stats, onTap: _openMyProgress),
       ],
     );
   }
@@ -709,31 +698,6 @@ class _ProfileHeader extends StatelessWidget {
             ],
           ),
         ),
-        // Opens "Статистика".
-        Semantics(
-          button: true,
-          label: tr('Статистика'),
-          child: GestureDetector(
-            key: const ValueKey('profile-stats'),
-            onTap: () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const StatsScreen())),
-            child: Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.cardBorder),
-              ),
-              child: Icon(
-                Icons.insights_rounded,
-                color: AppColors.primary,
-                size: 22,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
         // Opens the user's own QR card: their public ID, with the GuYo mark.
         Semantics(
           button: true,
@@ -1383,6 +1347,55 @@ class _PhotoActionSheet extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// «Мой путь» on the profile: three little numbers (words, accuracy, study time); opens the screen
+/// with the two tabs «Слова» and «Статистика».
+class _MyPathCard extends StatelessWidget {
+  final UserProfile profile;
+  final UserStats? stats;
+  final VoidCallback onTap;
+  const _MyPathCard({required this.profile, required this.stats, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final st = stats;
+    final minutes = st?.timeMinutes ?? 0;
+    final time = st == null ? '—' : (minutes >= 60 ? tr('{0} ч', [minutes ~/ 60]) : tr('{0} мин', [minutes]));
+    Widget cell(String value, String label) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(color: AppColors.violetSurface, borderRadius: BorderRadius.circular(16)),
+            child: Column(children: [
+              Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: AppColors.primaryDark)),
+              Text(label, style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+            ]),
+          ),
+        );
+    return GestureDetector(
+      key: const ValueKey('profile-my-progress'),
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(24)),
+        child: Column(children: [
+          Row(children: [
+            Expanded(child: Text(tr('Мой путь'), style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark))),
+            Icon(Icons.chevron_right, color: AppColors.muted),
+          ]),
+          const SizedBox(height: 10),
+          Row(children: [
+            cell('${profile.wordsLearned}', tr('слов')),
+            const SizedBox(width: 8),
+            cell(st == null ? '—' : '${st.accuracy}%', tr('точность')),
+            const SizedBox(width: 8),
+            cell(time, tr('времени')),
+          ]),
+        ]),
       ),
     );
   }

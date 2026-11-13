@@ -31,4 +31,14 @@ void main() {
     expect(find.text('слов на этой неделе, на 4 больше прошлой'), findsOneWidget);
     expect(find.byKey(const ValueKey('progress-chart')), findsOneWidget);
   });
+
+  testWidgets('two tabs: «Слова» first, «Статистика» switches the content', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: MyProgressScreen(initial: _data())));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('progress-tab-0')), findsOneWidget);
+    expect(find.byKey(const ValueKey('progress-chart')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('progress-tab-1')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('progress-chart')), findsNothing);
+  });
 }

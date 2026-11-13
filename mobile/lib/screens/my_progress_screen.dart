@@ -4,12 +4,16 @@ import '../api/api_client.dart';
 import '../l10n/l10n.dart';
 import '../models/my_progress.dart';
 import '../theme/app_colors.dart';
+import 'stats_screen.dart';
 
 /// «Мой путь»: how many words were learned each week, drawn as bars.
 class MyProgressScreen extends StatefulWidget {
   /// Shown at once with no request (used by tests and previews).
   final MyProgress? initial;
-  const MyProgressScreen({super.key, this.initial});
+
+  /// 0 = «Слова», 1 = «Статистика».
+  final int initialTab;
+  const MyProgressScreen({super.key, this.initial, this.initialTab = 0});
 
   @override
   State<MyProgressScreen> createState() => _MyProgressScreenState();
@@ -18,6 +22,7 @@ class MyProgressScreen extends StatefulWidget {
 class _MyProgressScreenState extends State<MyProgressScreen> {
   MyProgress? _data;
   bool _loading = true;
+  late int _tab = widget.initialTab;
 
   @override
   void initState() {
@@ -45,7 +50,16 @@ class _MyProgressScreenState extends State<MyProgressScreen> {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(title: Text(tr('Мой путь')), backgroundColor: Colors.transparent, scrolledUnderElevation: 0),
-      body: _loading
+      body: Column(children: [
+        _Tabs(tab: _tab, onTab: (i) => setState(() => _tab = i)),
+        Expanded(child: _tab == 1 ? const StatsScreen(embedded: true) : _words(data)),
+      ]),
+    );
+  }
+
+  Widget _words(MyProgress? data) {
+    return Builder(builder: (context) {
+      return _loading
           ? const Center(child: CircularProgressIndicator())
           : data == null
               ? Center(child: Text(tr('Не удалось. Проверьте интернет.'), style: TextStyle(color: AppColors.secondaryText)))
@@ -80,8 +94,8 @@ class _MyProgressScreenState extends State<MyProgressScreen> {
                       ),
                     ),
                   ],
-                ),
-    );
+                );
+    });
   }
 
   String _compare(MyProgress d) {
@@ -150,4 +164,34 @@ class WeeklyBarsPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(WeeklyBarsPainter old) => old.values != values || old.bar != bar;
+}
+
+/// «Слова | Статистика»: the two halves of «Мой путь».
+class _Tabs extends StatelessWidget {
+  final int tab;
+  final ValueChanged<int> onTab;
+  const _Tabs({required this.tab, required this.onTab});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget seg(int i, String label) => Expanded(
+          child: GestureDetector(
+            key: ValueKey('progress-tab-$i'),
+            behavior: HitTestBehavior.opaque,
+            onTap: () => onTab(i),
+            child: Container(
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: tab == i ? AppColors.primary : null, borderRadius: BorderRadius.circular(99)),
+              child: Text(label, style: TextStyle(fontWeight: FontWeight.w700, color: tab == i ? Colors.white : AppColors.secondaryText)),
+            ),
+          ),
+        );
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(99)),
+      child: Row(children: [seg(0, tr('Слова')), seg(1, tr('Статистика'))]),
+    );
+  }
 }
