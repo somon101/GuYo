@@ -40,11 +40,62 @@ Object? _get(String path, Map<String, String> q) {
     case '/slogans/today':
       return {'text': 'Каждый день по чуть-чуть', 'slogan': 'Каждый день по чуть-чуть'};
     case '/users/me/achievements':
+      return [
+        for (final a in _achievements)
+          {
+            'id': a.$1, 'title': a.$2, 'description': a.$3, 'icon_url': null, 'color': a.$4,
+            'condition_type': 'words_learned', 'condition_value': a.$5, 'earned': a.$6,
+            'earned_at': a.$6 ? _in(-a.$1) : null, 'current_value': a.$6 ? a.$5 : a.$5 ~/ 2,
+          },
+      ];
+    case '/users/me/achievements/new':
       return <Object>[];
     case '/users/me/rating':
       return {
-        'total_points': 1240, 'season': null, 'rank': null, 'next_rank': null, 'points_to_next_rank': null,
-        'history': <Object>[], 'points_per_learned_word': 5, 'rank_position': 7, 'position_change': 1,
+        'total_points': 1240, 'season': {'id': 1, 'name': 'Осень', 'status': 'active', 'starts_at': _in(-10), 'ends_at': _in(30)},
+        'rank': _rank(2), 'next_rank': _rank(3), 'points_to_next_rank': 260,
+        'history': [
+          {'season_id': 0, 'season_name': 'Лето', 'points': 980, 'rank': _rank(1), 'ended_at': _in(-15)},
+        ],
+        'points_per_learned_word': 5, 'rank_position': 7, 'position_change': 1,
+      };
+    case '/rating/ranks':
+      return [for (var i = 1; i <= 4; i++) _rank(i)];
+    case '/rating/leaderboard':
+    case '/rating/leaderboard/global':
+    case '/rating/leaderboard/friends':
+      return {
+        'rank': path.endsWith('global') ? null : _rank(2),
+        'entries': [
+          for (var i = 0; i < _people.length; i++)
+            {
+              'position': i + 1, 'user_id': i + 1, 'login': _people[i].$1, 'avatar_url': null, 'total_points': _people[i].$2,
+              'rank': path.endsWith('global') || path.endsWith('friends') ? _rank(2) : _rank(2),
+              'is_me': _people[i].$1 == 'Demo', 'is_premium': _people[i].$1 == 'Demo', 'position_change': i % 3 - 1,
+            },
+        ],
+      };
+    case '/word-levels':
+      return [
+        {'id': 1, 'name': 'Новое'}, {'id': 2, 'name': 'Знакомое'}, {'id': 3, 'name': 'Уверенное'}, {'id': 4, 'name': 'Выучено'},
+      ];
+    case '/users/me/stats':
+      return {
+        'accuracy': 87, 'total_answers': 640,
+        'exercises': [
+          {'exercise_key': 'true_or_false', 'correct': 90, 'total': 100},
+          {'exercise_key': 'matching', 'correct': 80, 'total': 100},
+          {'exercise_key': 'build_word', 'correct': 70, 'total': 90},
+        ],
+        'points_chart': [for (var i = 6; i >= 0; i--) {'date': _day(i), 'points': 40 + (i * 13) % 50}],
+        'points_total': 330, 'points_prev_total': 280,
+        'calendar': [for (var i = 29; i >= 0; i--) {'date': _day(i), 'active': i < 13 || i % 3 == 0, 'answers': i < 13 ? 30 : 12}],
+        'current_streak': 13, 'best_streak': 21, 'lessons_completed': 42, 'words_learned': 318, 'words_learned_week': 54,
+        'time_minutes': 960, 'time_week_minutes': 130, 'avg_answer_seconds': 3.4, 'best_weekday': 2,
+        'hard_words': [
+          {'word_id': 1, 'word': 'apple', 'dictionary_id': 1, 'mistakes': 4},
+          {'word_id': 2, 'word': 'bread', 'dictionary_id': 1, 'mistakes': 3},
+        ],
       };
     case '/status/options':
       return {'emojis': <Object>[], 'phrases': <Object>[], 'mine': {}, 'premium': true};
@@ -146,3 +197,21 @@ Object? _get(String path, Map<String, String> q) {
       return null;
   }
 }
+
+Map<String, Object?> _rank(int i) {
+  const names = ['Новичок', 'Ученик', 'Знаток', 'Мастер'];
+  const colors = ['#A9743B', '#9AA4B2', '#E7B73C', '#5BC8F5'];
+  return {'id': i, 'name': names[(i - 1) % 4], 'icon_url': null, 'color': colors[(i - 1) % 4], 'min_points': (i - 1) * 500, 'max_points': i == 4 ? null : i * 500 - 1};
+}
+
+const _people = [
+  ('Aziz', 1840), ('Madina', 1620), ('Rustam', 1500), ('Nilufar', 1410), ('Jasur', 1330), ('Zarina', 1290), ('Demo', 1240), ('Sardor', 1100), ('Malika', 980),
+];
+
+const _achievements = [
+  (1, 'Первые шаги', 'Выучите 10 слов', '#5862DD', 10, true),
+  (2, 'Начитанный', 'Выучите 100 слов', '#8B5CF6', 100, true),
+  (3, 'Знаток слов', 'Выучите 300 слов', '#E7B73C', 300, true),
+  (4, 'Словарный запас', 'Выучите 500 слов', '#16A34A', 500, false),
+  (5, 'Эрудит', 'Выучите 1000 слов', '#F97316', 1000, false),
+];

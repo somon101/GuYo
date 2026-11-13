@@ -29,7 +29,11 @@ void main() {
       expect((await api.fetchReviewDue(1)).$1, 12);
       expect(await api.fetchLanguages(), isNotEmpty);
       expect((await api.fetchMyRating()).totalPoints, 1240);
-      expect(await api.fetchMyAchievements(), isEmpty);
+      expect(await api.fetchMyAchievements(), hasLength(5));
+      expect((await api.fetchMyRankLeaderboard()).entries, isNotEmpty);
+      expect(await api.fetchWordLevels(), hasLength(4));
+      expect((await api.fetchMyStats(7)).accuracy, 87);
+      expect((await api.fetchStatusOptions()).premium, true);
     }, demoClient);
   });
 
