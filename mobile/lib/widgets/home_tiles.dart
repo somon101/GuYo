@@ -114,7 +114,7 @@ class _HomeTilesRowState extends State<HomeTilesRow> {
         big: '$owned',
         sub: dailyWaiting ? tr('Сундук дня ждёт') : bank.doubleRewards ? tr('Есть двойные награды') : tr('Мои сундуки'),
         onTap: _openChests,
-        badge: dailyWaiting ? const GiftBadge(size: 26) : null,
+        badge: dailyWaiting ? const GiftBadge(size: 22) : null,
       ));
     }
     final duels = _duels;
@@ -146,7 +146,7 @@ class _HomeTilesRowState extends State<HomeTilesRow> {
         progress: next == null || next == 0 ? 1.0 : (pass.xpIntoLevel / next).clamp(0.0, 1.0),
         progressColor: AppColors.primary,
         onTap: _openPass,
-        badge: waiting > 0 ? GiftBadge(count: waiting, size: 26) : null,
+        badge: waiting > 0 ? GiftBadge(count: waiting, size: 22) : null,
       ));
     }
     final b = _boosters;
@@ -232,7 +232,7 @@ class HomeTile extends StatelessWidget {
                 child: icon,
               ),
               const SizedBox(width: 8),
-              Expanded(child: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, height: 1.15, fontWeight: FontWeight.w700, color: AppColors.primaryDark))),
+              Expanded(child: Padding(padding: EdgeInsets.only(right: badge != null ? 26 : 0), child: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, height: 1.15, fontWeight: FontWeight.w700, color: AppColors.primaryDark)))),
             ]),
             const Spacer(),
             Text(big, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: AppColors.primaryDark)),
@@ -251,7 +251,8 @@ class HomeTile extends StatelessWidget {
             ),
           ]),
         ),
-        if (badge != null) Positioned(top: -10, right: 4, child: IgnorePointer(child: badge!)),
+        // Inside the tile's corner, so the row never clips it.
+        if (badge != null) Positioned(top: 6, right: 6, child: IgnorePointer(child: badge!)),
       ]),
     );
   }

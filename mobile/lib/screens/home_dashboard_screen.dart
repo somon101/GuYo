@@ -15,7 +15,6 @@ import 'points_today_sheet.dart';
 import '../widgets/review_due_card.dart';
 import '../theme/slogans.dart';
 import '../theme/time_of_day.dart';
-import '../widgets/premium_ui.dart';
 import '../widgets/quest_ui.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/user_name.dart';
@@ -76,7 +75,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   // The admin-curated line for today, or the built-in fallback -- resolved
   // by the source, never decided here.
   String? _slogan;
-  final GlobalKey<LessonQuotaCardState> _quotaKey = GlobalKey<LessonQuotaCardState>();
   final GlobalKey<ReviewDueCardState> _reviewKey = GlobalKey<ReviewDueCardState>();
 
   String get _cacheKey => 'home-${widget.dictionary.id}';
@@ -110,8 +108,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       _isLoading = _overview == null;
       _loadError = null;
     });
-    // The lesson counter loads itself; pull-to-refresh just asks it again.
-    _quotaKey.currentState?.reload();
     _reviewKey.currentState?.reload();
     try {
       final results = await Future.wait([
@@ -177,10 +173,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         const SizedBox(height: 18),
         _SectionTitle(tr('Сегодня')),
         const SizedBox(height: 10),
-        // Today's/this week's lesson counter, or the Premium line -- its
-        // own card, so a failure to load it never blocks the season block.
-        LessonQuotaCard(key: _quotaKey),
-        const SizedBox(height: 14),
         // Words being forgotten right now; hides itself when none are.
         ReviewDueCard(key: _reviewKey, dictionary: widget.dictionary),
         const SizedBox(height: 14),

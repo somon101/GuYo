@@ -28,6 +28,8 @@ void main() {
       expect((await api.fetchMyStreak()).currentStreakDays, 13);
       expect((await api.fetchReviewDue(1)).$1, 12);
       expect(await api.fetchLanguages(), isNotEmpty);
+      expect((await api.fetchMyRating()).totalPoints, 1240);
+      expect(await api.fetchMyAchievements(), isEmpty);
     }, demoClient);
   });
 

@@ -39,6 +39,17 @@ Object? _get(String path, Map<String, String> q) {
       };
     case '/slogans/today':
       return {'text': 'Каждый день по чуть-чуть', 'slogan': 'Каждый день по чуть-чуть'};
+    case '/users/me/achievements':
+      return <Object>[];
+    case '/users/me/rating':
+      return {
+        'total_points': 1240, 'season': null, 'rank': null, 'next_rank': null, 'points_to_next_rank': null,
+        'history': <Object>[], 'points_per_learned_word': 5, 'rank_position': 7, 'position_change': 1,
+      };
+    case '/status/options':
+      return {'emojis': <Object>[], 'phrases': <Object>[], 'mine': {}, 'premium': true};
+    case '/status/me':
+      return {};
     case '/auth/login-available':
       return {'available': true};
     case '/languages':
