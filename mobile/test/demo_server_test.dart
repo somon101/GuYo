@@ -33,6 +33,9 @@ void main() {
       expect((await api.fetchMyRankLeaderboard()).entries, isNotEmpty);
       expect(await api.fetchWordLevels(), hasLength(4));
       expect((await api.fetchMyStats(7)).accuracy, 87);
+      final shop = await api.buyShopProduct(1);
+      expect(shop['diamonds'], 190);
+      expect(shop['streak_freezes'], 2);
       expect((await api.fetchStreakHistory(DateTime.now()))['days'], isNotEmpty);
       expect(await api.fetchWords(1), hasLength(20));
       expect(await api.fetchLearnedWords(1, includeInProgress: true), hasLength(14));

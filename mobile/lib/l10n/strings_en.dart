@@ -934,4 +934,9 @@ const Map<String, String> enStrings = {
   'Слова': 'Words',
   'сейчас': 'now',
   'заморозок': 'freezes',
+  'Объединители': 'Mergers',
+  'Купить «{0}»?': 'Buy “{0}”?',
+  'Спишется {0} бриллиантов, останется {1}': '{0} diamonds will be spent, {1} left',
+  'Не хватает бриллиантов': 'Not enough diamonds',
+  'Купить за {0}': 'Buy for {0}',
 };

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
+import '../theme/app_colors.dart';
 import 'game_icons.dart';
 
 /// Pieces of the «Магазин» screen: the balance header, the bright product
@@ -193,7 +194,7 @@ class ShopCard extends StatelessWidget {
   }
 }
 
-/// The balance card at the top: diamonds, freezes and merges held.
+/// The balance card at the top (new style): diamonds, and the freezes and merges held.
 class ShopHeader extends StatelessWidget {
   final int diamonds;
   final int freezes;
@@ -202,29 +203,27 @@ class ShopHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(28),
-          gradient: const LinearGradient(colors: [Color(0xFF7A5CFF), Color(0xFF3A8DFF)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-          boxShadow: [BoxShadow(color: const Color(0xFF5862DD).withValues(alpha: 0.4), blurRadius: 22, offset: const Offset(0, 10))],
-        ),
-        child: Stack(children: [
-          const Positioned.fill(child: CustomPaint(painter: Sparkles(Colors.white))),
-          Row(children: [
-            const Gem(size: 64, colors: [Color(0xFFB8F4FF), Color(0xFF2FA8FF)], child: DiamondIcon(size: 64)),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(tr('Ваши бриллианты'), style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                Text(compactNumber(diamonds), key: const ValueKey('shop-balance'), style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900, height: 1.05)),
-              ]),
-            ),
-            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              _HeldChip(icon: const FreezeIcon(size: 22), count: freezes),
-              const SizedBox(height: 6),
-              _HeldChip(icon: const MergeIcon(size: 22), count: merges),
+        padding: const EdgeInsets.fromLTRB(18, 14, 16, 14),
+        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(26)),
+        child: Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(tr('Ваши бриллианты'), style: TextStyle(color: AppColors.secondaryText, fontSize: 13, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Row(children: [
+                  const DiamondIcon(size: 30),
+                  const SizedBox(width: 8),
+                  Text(compactNumber(diamonds), key: const ValueKey('shop-balance'), style: TextStyle(color: AppColors.primaryDark, fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -1.2, height: 1.1)),
+                ]),
+              ),
             ]),
-          ]),
+          ),
+          _HeldChip(icon: const FreezeIcon(size: 22), count: freezes),
+          const SizedBox(width: 8),
+          _HeldChip(icon: const MergeIcon(size: 22), count: merges),
         ]),
       );
 }
@@ -236,12 +235,68 @@ class _HeldChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(color: AppColors.violetSurface, borderRadius: BorderRadius.circular(99)),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           icon,
           const SizedBox(width: 5),
-          Text('$count', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+          Text('$count', style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.w800)),
         ]),
       );
+}
+
+/// One pack in a shop row: the picture, «×N» and the price. Dimmed when it can't be afforded.
+class ShopPack extends StatelessWidget {
+  final String itemType;
+  final int quantity;
+  final int price;
+  final bool affordable;
+  final String? tag;
+  final VoidCallback onTap;
+  const ShopPack({super.key, required this.itemType, required this.quantity, required this.price, required this.affordable, required this.onTap, this.tag});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Stack(clipBehavior: Clip.none, alignment: Alignment.topCenter, children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(6, 14, 6, 10),
+          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(22)),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            itemType == 'streak_merge' ? const MergeIcon(size: 48) : const FreezeIcon(size: 48),
+            const SizedBox(height: 6),
+            Text('×$quantity', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: AppColors.primaryDark)),
+            const SizedBox(height: 6),
+            Opacity(
+              opacity: affordable ? 1 : 0.45,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(color: AppColors.violetSurface, borderRadius: BorderRadius.circular(99)),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const DiamondIcon(size: 16),
+                    const SizedBox(width: 5),
+                    Text(compactNumber(price), style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+                  ]),
+                ),
+              ),
+            ),
+          ]),
+        ),
+        if (tag != null)
+          Positioned(
+            top: -8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(99)),
+              child: Text(tag!, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+            ),
+          ),
+      ]),
+    );
+  }
 }

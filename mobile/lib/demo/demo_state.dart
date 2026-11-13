@@ -43,6 +43,9 @@ class DemoState {
   int wordsToday = 12;
   int goal = 20;
   bool goalClaimed = false;
+  int diamonds = 240;
+  int freezes = 1;
+  int merges = 0;
 
   int scoreOf(int wordId) => learned.contains(wordId) ? 100 : (scores[wordId] ?? 0);
 
@@ -64,6 +67,9 @@ class DemoState {
       wordsToday = j['today'] as int;
       goal = j['goal'] as int;
       goalClaimed = j['claimed'] as bool;
+      diamonds = (j['dia'] as int?) ?? diamonds;
+      freezes = (j['frz'] as int?) ?? freezes;
+      merges = (j['mrg'] as int?) ?? merges;
     } catch (_) {}
   }
 
@@ -76,6 +82,9 @@ class DemoState {
       'today': wordsToday,
       'goal': goal,
       'claimed': goalClaimed,
+      'dia': diamonds,
+      'frz': freezes,
+      'mrg': merges,
     });
     _storage.write(key: _key, value: j).catchError((_) {});
   }

@@ -124,8 +124,6 @@ Object? _get(String path, Map<String, String> q) {
         {'id': 1, 'name': 'Еда', 'language': 'en', 'word_count': 20},
         {'id': 2, 'name': 'Путешествия', 'language': 'en', 'word_count': 20},
       ];
-    case '/shop':
-      return {'diamonds': 240, 'products': <Object>[]};
     case '/chests':
       return {
         'types': [

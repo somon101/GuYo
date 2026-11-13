@@ -22,6 +22,22 @@ Object? demoDynamic(String method, String path, Map<String, String> q, Map<Strin
     return {'state': s.goalJson()};
   }
 
+  if (path == '/shop') return _shop();
+  m = RegExp(r'^/shop/(\d+)/buy$').firstMatch(path);
+  if (m != null && method == 'POST') {
+    final p = _products.firstWhere((p) => p['id'] == int.parse(m!.group(1)!));
+    final price = p['price_diamonds'] as int;
+    if (s.diamonds < price) return demoNotFound;
+    s.diamonds -= price;
+    if (p['item_type'] == 'streak_merge') {
+      s.merges += p['quantity'] as int;
+    } else {
+      s.freezes += p['quantity'] as int;
+    }
+    s.save();
+    return _shop();
+  }
+
   m = RegExp(r'^/dictionaries/(\d+)/lessons$').firstMatch(path);
   if (m != null && method == 'GET') {
     final d = int.parse(m.group(1)!);
@@ -183,4 +199,16 @@ Object _round(String key, int dictionaryId, List<int> ids) {
       };
   }
   return {'items': <Object>[], 'words': <Object>[], 'dictionary_id': dictionaryId, 'available_count': 0};
+}
+
+const _products = <Map<String, Object>>[
+  {'id': 1, 'name': 'Заморозка серии', 'description': 'Спасает серию, если пропущено больше одного дня', 'item_type': 'streak_freeze', 'quantity': 1, 'price_diamonds': 50},
+  {'id': 2, 'name': 'Заморозки ×5', 'description': 'Спасает серию, если пропущено больше одного дня', 'item_type': 'streak_freeze', 'quantity': 5, 'price_diamonds': 200},
+  {'id': 3, 'name': 'Заморозки ×10', 'description': 'Спасает серию, если пропущено больше одного дня', 'item_type': 'streak_freeze', 'quantity': 10, 'price_diamonds': 350},
+  {'id': 4, 'name': 'Объединитель серии', 'description': 'Склеивает прерванные серии в одну', 'item_type': 'streak_merge', 'quantity': 1, 'price_diamonds': 300},
+];
+
+Map<String, Object?> _shop() {
+  final s = DemoState.instance;
+  return {'diamonds': s.diamonds, 'streak_freezes': s.freezes, 'streak_merge_items': s.merges, 'products': _products};
 }

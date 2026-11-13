@@ -33,6 +33,18 @@ void main() {
     expect(find.text('Подарки'), findsNothing, reason: 'no gifts tab any more');
   });
 
+  testWidgets('a pack asks before it buys, and says what is left', (tester) async {
+    tester.view.physicalSize = const Size(900, 2600);
+    addTearDown(tester.view.resetPhysicalSize);
+    await tester.pumpWidget(MaterialApp(home: EconomyScreen(initial: _shop())));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('shop-product-1')));
+    await tester.pumpAndSettle();
+    expect(find.text('Купить «1 заморозка серии»?'), findsOneWidget);
+    expect(find.text('Спишется 50 бриллиантов, останется 70'), findsOneWidget);
+    expect(find.byKey(const ValueKey('shop-confirm')), findsOneWidget);
+  });
+
   testWidgets('the gift keeps its size', (tester) async {
     await tester.pumpWidget(const Center(child: GiftArt(size: 80)));
     expect(tester.getSize(find.byType(GiftArt)), const Size(80, 92));

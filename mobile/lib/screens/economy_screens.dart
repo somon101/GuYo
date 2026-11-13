@@ -94,6 +94,89 @@ class _EconomyScreenState extends State<EconomyScreen> {
     }
   }
 
+  /// One section of the shop: a title, the products' own description and their packs in a row.
+  List<Widget> _section(Map<String, dynamic> data, String type, String title) {
+    final all = (data['products'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>();
+    final items = [for (final p in all) if ((p['item_type'] as String? ?? 'streak_freeze') == type) p];
+    if (items.isEmpty) return const [];
+    final balance = data['diamonds'] as int? ?? 0;
+    final description = items.first['description'] as String? ?? '';
+    return [
+      Padding(
+        padding: const EdgeInsets.only(left: 4),
+        child: Text(title, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, letterSpacing: -0.3, color: AppColors.primaryDark)),
+      ),
+      if (description.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 2, 4, 0),
+          child: Text(description, style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText)),
+        ),
+      const SizedBox(height: 12),
+      LayoutBuilder(builder: (context, c) {
+        final w = (c.maxWidth - 16) / 3;
+        return Wrap(spacing: 8, runSpacing: 14, children: [
+          for (final p in items)
+            SizedBox(
+              width: w,
+              child: ShopPack(
+                key: ValueKey('shop-product-${p['id']}'),
+                itemType: type,
+                quantity: p['quantity'] as int? ?? 1,
+                price: p['price_diamonds'] as int? ?? 0,
+                affordable: balance >= (p['price_diamonds'] as int? ?? 0),
+                tag: (p['quantity'] as int? ?? 1) >= 10 ? tr('Выгодно') : null,
+                onTap: () => _confirm(p, balance),
+              ),
+            ),
+        ]);
+      }),
+      const SizedBox(height: 18),
+    ];
+  }
+
+  /// «Купить …?»: what is spent and what is left; the buy button is off when diamonds are short.
+  Future<void> _confirm(Map<String, dynamic> product, int balance) async {
+    final price = product['price_diamonds'] as int? ?? 0;
+    final enough = balance >= price;
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => SafeArea(
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(28)),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(tr('Купить «{0}»?', [product['name']]), textAlign: TextAlign.center, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+            const SizedBox(height: 6),
+            Text(
+              enough ? tr('Спишется {0} бриллиантов, останется {1}', [price, balance - price]) : tr('Не хватает бриллиантов'),
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: AppColors.secondaryText),
+            ),
+            const SizedBox(height: 14),
+            GestureDetector(
+              key: const ValueKey('shop-confirm'),
+              onTap: enough ? () => Navigator.of(ctx).pop(true) : null,
+              child: Opacity(
+                opacity: enough ? 1 : 0.45,
+                child: Container(
+                  height: 50,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(99)),
+                  child: Text(tr('Купить за {0}', [price]), style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(tr('Отмена'))),
+          ]),
+        ),
+      ),
+    );
+    if (ok == true) await _buy(product);
+  }
+
   @override
   Widget build(BuildContext context) {
     final data = _data;
@@ -117,33 +200,9 @@ class _EconomyScreenState extends State<EconomyScreen> {
                     merges: data['streak_merge_items'] as int? ?? 0,
                   ),
                   const SizedBox(height: 18),
-                  GridView(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    // A fixed height, not a ratio: long names and large
-                    // system fonts must never overflow a card.
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                      mainAxisExtent: 268,
-                    ),
-                    children: [
-                      for (final p in (data['products'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>())
-                        ShopCard(
-                          key: ValueKey('shop-product-${p['id']}'),
-                          name: p['name'] as String,
-                          description: p['description'] as String? ?? '',
-                          itemType: p['item_type'] as String? ?? 'streak_freeze',
-                          quantity: p['quantity'] as int? ?? 1,
-                          price: p['price_diamonds'] as int? ?? 0,
-                          affordable: !_busy && (data['diamonds'] as int? ?? 0) >= (p['price_diamonds'] as int? ?? 0),
-                          tag: (p['quantity'] as int? ?? 1) >= 10 ? tr('Выгодно') : null,
-                          onBuy: () => _buy(p),
-                        ),
-                      const _MoreDiamondsCell(),
-                    ],
-                  ),
+                  ..._section(data, 'streak_freeze', tr('Заморозки серии')),
+                  ..._section(data, 'streak_merge', tr('Объединители')),
+                  const _MoreDiamondsCell(),
                   if ((data['streak_merge_items'] as int? ?? 0) > 0) ...[
                     const SizedBox(height: 16),
                     FilledButton.icon(
@@ -159,30 +218,23 @@ class _EconomyScreenState extends State<EconomyScreen> {
   }
 }
 
-/// The last cell: where diamonds come from.
+/// The last card: where diamonds come from.
 class _MoreDiamondsCell extends StatelessWidget {
   const _MoreDiamondsCell();
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(26),
-          border: Border.all(color: AppColors.cardBorder, width: 2),
-          color: AppColors.surface,
-        ),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          const GiftArt(size: 64),
-          const SizedBox(height: 6),
-          Text(tr('Нужно больше?'), style: TextStyle(fontWeight: FontWeight.w900, color: AppColors.primaryDark)),
-          const SizedBox(height: 4),
-          Flexible(
-            child: Text(
-              tr('Бриллианты дают подарки за уровни пропуска сезона'),
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.fade,
-              style: TextStyle(fontSize: 11.5, color: AppColors.secondaryText),
-            ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(24), color: AppColors.surface),
+        child: Row(children: [
+          const GiftArt(size: 40),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(tr('Нужно больше?'), style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+              const SizedBox(height: 2),
+              Text(tr('Бриллианты дают подарки за уровни пропуска сезона'), style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+            ]),
           ),
         ]),
       );
