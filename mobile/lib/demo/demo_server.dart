@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
+import 'demo_words.dart';
+
 /// A fake backend for the demo build: answers the main screens with made-up data, so the
 /// app can be looked at with no server. Nothing here is used by the real app.
 http.Client demoClient() => MockClient((req) async {
@@ -110,8 +112,8 @@ Object? _get(String path, Map<String, String> q) {
       ];
     case '/dictionaries':
       return [
-        {'id': 1, 'name': 'Еда', 'language': 'en', 'word_count': 60},
-        {'id': 2, 'name': 'Путешествия', 'language': 'en', 'word_count': 80},
+        {'id': 1, 'name': 'Еда', 'language': 'en', 'word_count': 20},
+        {'id': 2, 'name': 'Путешествия', 'language': 'en', 'word_count': 20},
       ];
     case '/shop':
       return {'diamonds': 240, 'products': <Object>[]};
@@ -191,7 +193,30 @@ Object? _get(String path, Map<String, String> q) {
       return {'unread_count': 0, 'items': <Object>[], 'notifications': <Object>[]};
     case '/users/me/progress':
       return {'total_words': 318, 'total_active_days': 30, 'weeks': <Object>[]};
+    case '/learned-words':
+      final dict = int.tryParse(q['dictionary_id'] ?? '') ?? 1;
+      final cat = int.tryParse(q['category_id'] ?? '');
+      return [
+        for (final w in learnedOf(dict))
+          if (cat == null || w.categoryId == cat) wordJson(w, progress: q['include_in_progress'] == 'true'),
+      ];
+    case '/learned-words/categories':
+      final dict = int.tryParse(q['dictionary_id'] ?? '') ?? 1;
+      final counts = <int, int>{};
+      for (final w in learnedOf(dict)) {
+        counts[w.categoryId] = (counts[w.categoryId] ?? 0) + 1;
+      }
+      return [
+        for (final e in counts.entries) {'category_id': e.key, 'category_name': demoCategories[e.key], 'learned_count': e.value, 'icon_url': null},
+      ];
     default:
+      final dm = RegExp(r'^/dictionaries/(\d+)/(words|available-phrases)$').firstMatch(path);
+      if (dm != null) {
+        final dict = int.parse(dm.group(1)!);
+        return dm.group(2) == 'words'
+            ? [for (final w in wordsOf(dict)) wordJson(w)]
+            : [for (final p in demoPhrases) if (p.$2 == dict) phraseJson(p)];
+      }
       if (path.endsWith('/practice/review-due')) return {'count': 12, 'word_ids': List.generate(12, (i) => i + 1)};
       if (path.startsWith('/season-pass') || path == '/gifts' || path == '/teams/me') return null;
       return null;

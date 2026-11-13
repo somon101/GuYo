@@ -33,6 +33,10 @@ void main() {
       expect((await api.fetchMyRankLeaderboard()).entries, isNotEmpty);
       expect(await api.fetchWordLevels(), hasLength(4));
       expect((await api.fetchMyStats(7)).accuracy, 87);
+      expect(await api.fetchWords(1), hasLength(20));
+      expect(await api.fetchLearnedWords(1, includeInProgress: true), hasLength(14));
+      expect(await api.fetchLearnedCategories(1), isNotEmpty);
+      expect(await api.fetchAvailablePhrases(2), hasLength(3));
       expect((await api.fetchStatusOptions()).premium, true);
     }, demoClient);
   });
