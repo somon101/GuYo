@@ -7,8 +7,6 @@ import '../l10n/l10n.dart';
 import '../models/daily_goal.dart';
 import '../services/streak_state.dart';
 import '../theme/app_colors.dart';
-import 'gift_badge.dart';
-import 'counted_chest.dart' show GreenButton;
 import 'reward_chips.dart';
 import 'reward_claim_effect.dart';
 
@@ -186,8 +184,8 @@ class DailyGoalCardView extends StatelessWidget {
           if (ready && onClaim != null) ...[
             const SizedBox(height: 12),
             Row(children: [
-              Expanded(child: rewards.isEmpty ? const SizedBox.shrink() : RewardChips(rewards: rewards, size: 22)),
-              GreenButton(key: const ValueKey('goal-claim'), label: tr('Получить'), onTap: onClaim, compact: true),
+              Expanded(child: rewards.isEmpty ? const SizedBox.shrink() : RewardChips(rewards: rewards, size: 22, soft: true)),
+              _ClaimPill(key: const ValueKey('goal-claim'), onTap: onClaim!),
             ]),
           ] else if (!done && onContinue != null) ...[
             const SizedBox(height: 14),
@@ -212,10 +210,26 @@ class DailyGoalCardView extends StatelessWidget {
             ),
         ]),
       ),
-      if (ready)
-        const Positioned(top: -14, right: 10, child: IgnorePointer(child: GiftBadge())),
     ]);
   }
+}
+
+/// «Получить»: the indigo pill (the same colour as «Продолжить»).
+class _ClaimPill extends StatelessWidget {
+  final VoidCallback onTap;
+  const _ClaimPill({super.key, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 46,
+          padding: const EdgeInsets.symmetric(horizontal: 22),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(99)),
+          child: Text(tr('Получить'), style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+        ),
+      );
 }
 
 /// «Сколько слов в день?»: a light sheet in the new style (variant A): three rows with the reward as
@@ -299,7 +313,7 @@ class DailyGoalSheetState extends State<DailyGoalSheet> {
             ),
             Expanded(child: rewards.isEmpty ? const SizedBox.shrink() : RewardChips(rewards: rewards, size: 18, soft: true)),
             if (mine && goal.rewardReady)
-              GreenButton(key: const ValueKey('goal-claim-sheet'), label: tr('Получить'), onTap: () => Navigator.of(context).pop(-1), compact: true)
+              _ClaimPill(key: const ValueKey('goal-claim-sheet'), onTap: () => Navigator.of(context).pop(-1))
             else if (goal.locked && mine)
               Container(
                 width: 24,
