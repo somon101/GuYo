@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 
 import 'demo/demo_server.dart';
+import 'demo/demo_state.dart';
 import 'main.dart' as app;
 
 Future<void> main() async {
@@ -13,6 +14,7 @@ Future<void> main() async {
   // binding made outside it would send requests to the real (maybe dead) server and hang.
   await http.runWithClient(() async {
     WidgetsFlutterBinding.ensureInitialized();
+    await DemoState.instance.load(); // progress kept between launches
     await app.main();
   }, demoClient);
 }

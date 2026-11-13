@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
+import 'demo_lessons.dart';
+import 'demo_state.dart';
 import 'demo_words.dart';
 
 /// A fake backend for the demo build: answers the main screens with made-up data, so the
@@ -10,14 +12,21 @@ import 'demo_words.dart';
 http.Client demoClient() => MockClient((req) async {
       final path = req.url.path;
       Object? body;
-      if (req.method == 'GET') {
-        body = _get(path, req.url.queryParameters);
-      } else if (path.startsWith('/auth/')) {
-        body = {'access_token': 'demo', 'token_type': 'bearer'}; // any login and password gets in
-      } else {
-        body = {'ok': true};
+      Map<String, dynamic> sent = {};
+      try {
+        if (req.body.isNotEmpty) sent = jsonDecode(req.body) as Map<String, dynamic>;
+      } catch (_) {}
+      body = demoDynamic(req.method, path, req.url.queryParameters, sent);
+      if (body == null) {
+        if (req.method == 'GET') {
+          body = _get(path, req.url.queryParameters);
+        } else if (path.startsWith('/auth/')) {
+          body = {'access_token': 'demo', 'token_type': 'bearer'}; // any login and password gets in
+        } else {
+          body = {'ok': true};
+        }
       }
-      if (body == null) return http.Response('{"detail":"demo"}', 404, headers: _h);
+      if (body == null || identical(body, demoNotFound)) return http.Response('{"detail":"demo"}', 404, headers: _h);
       return http.Response(jsonEncode(body), 200, headers: _h);
     });
 
@@ -117,14 +126,6 @@ Object? _get(String path, Map<String, String> q) {
       ];
     case '/shop':
       return {'diamonds': 240, 'products': <Object>[]};
-    case '/daily-goal':
-      return {
-        'goal': 20, 'done': 12, 'completed': false, 'just_completed': false, 'xp': 0, 'locked': false,
-        'reward_ready': false, 'options': [5, 10, 20],
-        'tiers': [
-          {'words': 20, 'rewards': [{'type': 'xp', 'amount': 20}, {'type': 'chest', 'key': 'wood', 'amount': 1}], 'claimed': false},
-        ],
-      };
     case '/chests':
       return {
         'types': [
@@ -197,13 +198,13 @@ Object? _get(String path, Map<String, String> q) {
       final dict = int.tryParse(q['dictionary_id'] ?? '') ?? 1;
       final cat = int.tryParse(q['category_id'] ?? '');
       return [
-        for (final w in learnedOf(dict))
+        for (final w in DemoState.instance.learnedWords(dict))
           if (cat == null || w.categoryId == cat) wordJson(w, progress: q['include_in_progress'] == 'true'),
       ];
     case '/learned-words/categories':
       final dict = int.tryParse(q['dictionary_id'] ?? '') ?? 1;
       final counts = <int, int>{};
-      for (final w in learnedOf(dict)) {
+      for (final w in DemoState.instance.learnedWords(dict)) {
         counts[w.categoryId] = (counts[w.categoryId] ?? 0) + 1;
       }
       return [
@@ -217,7 +218,6 @@ Object? _get(String path, Map<String, String> q) {
             ? [for (final w in wordsOf(dict)) wordJson(w)]
             : [for (final p in demoPhrases) if (p.$2 == dict) phraseJson(p)];
       }
-      if (path.endsWith('/practice/review-due')) return {'count': 12, 'word_ids': List.generate(12, (i) => i + 1)};
       if (path.startsWith('/season-pass') || path == '/gifts' || path == '/teams/me') return null;
       return null;
   }

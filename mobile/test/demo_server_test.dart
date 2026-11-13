@@ -41,6 +41,32 @@ void main() {
     }, demoClient);
   });
 
+  test('a lesson can be made, played and finished', () async {
+    await http.runWithClient(() async {
+      final api = ApiClient.instance;
+      expect(await api.fetchLessons(1), hasLength(2));
+      final cand = await api.fetchLessonCandidateWords(1);
+      expect(cand.words, isNotEmpty);
+      final lesson = await api.createLesson(dictionaryId: 1, wordIds: cand.words.take(3).map((w) => w.id).toList());
+      expect(lesson.words, hasLength(3));
+      await api.startLessonPass(lesson.id);
+      expect((await api.fetchLessonTrueOrFalseRound(lesson.id)).items, hasLength(3));
+      expect(await api.fetchLessonMatchingWords(lesson.id), hasLength(3));
+      expect((await api.fetchLessonBuildWordRound(lesson.id)).items, hasLength(3));
+      expect((await api.fetchLessonSpeakingWordRound(lesson.id)).items, hasLength(3));
+      expect((await api.fetchLessonListenWordRound(lesson.id)).items, hasLength(3));
+      for (var i = 0; i < 3; i++) {
+        final r = await api.submitLessonAnswer(lesson.id, 'true_or_false', wordId: lesson.words.first.wordId, isCorrect: true);
+        if (i == 2) expect(r.isLearned, true);
+      }
+      final (done, stats) = await api.finishLessonPass(lesson.id);
+      expect(done.isCompleted, true);
+      expect(stats?.totalAnswers, 3);
+      expect((await api.fetchDailyGoal())?.done, 13);
+      expect((await api.fetchActiveLesson(1)), isNull);
+    }, demoClient);
+  });
+
   test('a call made later from a timer still gets the demo answer', () async {
     await http.runWithClient(() async {
       // Work scheduled inside the zone keeps the fake client (as taps and timers do in the demo app).
