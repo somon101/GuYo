@@ -939,4 +939,8 @@ const Map<String, String> enStrings = {
   'Спишется {0} бриллиантов, останется {1}': '{0} diamonds will be spent, {1} left',
   'Не хватает бриллиантов': 'Not enough diamonds',
   'Купить за {0}': 'Buy for {0}',
+  'Вы получили': 'You received',
+  'Награда получена': 'Reward taken',
+  'Новую цель выберете завтра': 'Pick a new goal tomorrow',
+  'Новая цель появится завтра': 'A new goal appears tomorrow',
 };

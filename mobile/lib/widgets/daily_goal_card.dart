@@ -134,7 +134,7 @@ class DailyGoalCardView extends StatelessWidget {
     final big = ready
         ? tr('Выполнена! Заберите награду')
         : done
-            ? tr('Награда получена. Новую цель выберете завтра')
+            ? tr('Награда получена')
             : tr('{0} из {1} слов', [goal.done, goal.goal]);
     return Stack(clipBehavior: Clip.none, children: [
       Container(
@@ -165,6 +165,10 @@ class DailyGoalCardView extends StatelessWidget {
           Text(done || ready ? tr('Сегодня') : tr('Выучено слов сегодня'), style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
           const SizedBox(height: 2),
           Text(big, style: TextStyle(fontSize: done || ready ? 20 : 34, height: 1.1, fontWeight: FontWeight.w800, letterSpacing: done || ready ? -0.3 : -1.2, color: AppColors.primaryDark)),
+          if (done && !ready) ...[
+            const SizedBox(height: 2),
+            Text(tr('Новую цель выберете завтра'), style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
+          ],
           const SizedBox(height: 12),
           ClipRRect(
             borderRadius: BorderRadius.circular(99),
@@ -200,6 +204,13 @@ class DailyGoalCardView extends StatelessWidget {
               ),
             ),
           ],
+          if (done && !ready)
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(color: AppColors.violetSurface, borderRadius: BorderRadius.circular(99)),
+              child: Text(tr('Новая цель появится завтра'), style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.secondaryText)),
+            ),
           if (notice != null)
             Container(
               key: const ValueKey('goal-notice'),

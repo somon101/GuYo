@@ -23,7 +23,15 @@ void main() {
     ));
     expect(find.text('4 ур.'), findsOneWidget);
     expect(find.text('Энергии: 120'), findsOneWidget);
+    expect(find.byKey(const ValueKey('tile-plus')), findsNothing);
     await tester.tap(find.text('Пропуск'));
     expect(taps, 1);
+  });
+
+  testWidgets('a new chest shows «+1» next to the number', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: HomeTile(icon: const Icon(Icons.star), title: 'Сундуки', big: '7', plus: '+1', sub: 'Мои сундуки', onTap: () {})),
+    ));
+    expect(find.text('+1'), findsOneWidget);
   });
 }

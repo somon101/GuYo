@@ -6,12 +6,12 @@ import 'package:flutter/material.dart';
 import '../l10n/l10n.dart';
 import '../models/reward_spec.dart';
 import '../services/chest_sound.dart';
-import 'counted_chest.dart';
+import '../theme/app_colors.dart';
 import 'game_icons.dart';
 import 'reward_chips.dart';
 
-/// The moment a reward is taken: the gift pops and bursts in a flash of light, and the
-/// rewards appear in slots. Sound and rumble start with it and stop when it closes.
+/// The moment a reward is taken (light screen): the gift pops and bursts in a soft flash, and the
+/// rewards appear in soft slots. Sound and rumble start with it and stop when it closes.
 Future<void> showRewardClaimEffect(BuildContext context, {required String title, required List<RewardSpec> rewards}) {
   return Navigator.of(context).push<void>(
     PageRouteBuilder<void>(
@@ -55,7 +55,7 @@ class _RewardClaimScreenState extends State<_RewardClaimScreen> with SingleTicke
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0824),
+      backgroundColor: AppColors.canvas,
       body: AnimatedBuilder(
         animation: _c,
         builder: (context, _) {
@@ -68,9 +68,17 @@ class _RewardClaimScreenState extends State<_RewardClaimScreen> with SingleTicke
           final button = _span(t, 0.8, 0.9);
           return SafeArea(
             child: Stack(alignment: Alignment.center, children: [
-              Opacity(
-                opacity: _span(t, 0.3, 0.5),
-                child: Transform.rotate(angle: t * 6, child: CustomPaint(size: const Size(420, 420), painter: _Rays())),
+              // A soft glow behind the gift (the light screen's only decoration).
+              Positioned(
+                top: 90,
+                child: Opacity(
+                  opacity: (_span(t, 0.0, 0.3) * 0.9).clamp(0.0, 1.0),
+                  child: Container(
+                    width: 280,
+                    height: 280,
+                    decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [AppColors.violetSurface, AppColors.violetSurface.withValues(alpha: 0)])),
+                  ),
+                ),
               ),
               if (goneGift < 1)
                 Opacity(
@@ -88,7 +96,7 @@ class _RewardClaimScreenState extends State<_RewardClaimScreen> with SingleTicke
                   child: Container(
                     width: 460,
                     height: 460,
-                    decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [Colors.white.withValues(alpha: 0.9 * flash), Colors.white.withValues(alpha: 0)])),
+                    decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [AppColors.primary.withValues(alpha: 0.28 * flash), AppColors.primary.withValues(alpha: 0)])),
                   ),
                 ),
               Positioned(
@@ -98,8 +106,12 @@ class _RewardClaimScreenState extends State<_RewardClaimScreen> with SingleTicke
                 child: Opacity(
                   opacity: show.clamp(0.0, 1.0),
                   child: Transform.scale(
-                    scale: 0.6 + 0.4 * show,
-                    child: Text(widget.title.toUpperCase(), textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFFFD54F), fontWeight: FontWeight.w900, fontSize: 20, letterSpacing: 1.5)),
+                    scale: 0.7 + 0.3 * show,
+                    child: Column(children: [
+                      Text(widget.title, textAlign: TextAlign.center, style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.w800, fontSize: 24, letterSpacing: -0.5)),
+                      const SizedBox(height: 4),
+                      Text(tr('Вы получили'), style: TextStyle(color: AppColors.secondaryText, fontSize: 14)),
+                    ]),
                   ),
                 ),
               ),
@@ -108,17 +120,28 @@ class _RewardClaimScreenState extends State<_RewardClaimScreen> with SingleTicke
                 child: Transform.scale(
                   scale: 0.5 + 0.5 * rewardsIn,
                   child: Wrap(spacing: 14, runSpacing: 14, alignment: WrapAlignment.center, children: [
-                    for (final r in widget.rewards) RewardSlot(reward: r, side: 78),
+                    for (final r in widget.rewards) RewardSlot(reward: r, side: 78, soft: true),
                   ]),
                 ),
               ),
               Positioned(
-                bottom: 48,
+                left: 20,
+                right: 20,
+                bottom: 28,
                 child: Opacity(
                   opacity: button,
                   child: IgnorePointer(
                     ignoring: button < 0.9,
-                    child: GreenButton(key: const ValueKey('claim-done'), label: tr('Забрать'), onTap: () => Navigator.of(context).pop(), padding: const EdgeInsets.symmetric(horizontal: 56, vertical: 14)),
+                    child: GestureDetector(
+                      key: const ValueKey('claim-done'),
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        height: 52,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(99)),
+                        child: Text(tr('Забрать'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -128,26 +151,4 @@ class _RewardClaimScreenState extends State<_RewardClaimScreen> with SingleTicke
       ),
     );
   }
-}
-
-class _Rays extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final c = size.center(Offset.zero);
-    final paint = Paint()..shader = RadialGradient(colors: [const Color(0x99FFE28C), const Color(0x00FFE28C)]).createShader(Rect.fromCircle(center: c, radius: size.width / 2));
-    for (var i = 0; i < 12; i++) {
-      final a = i * math.pi / 6;
-      canvas.drawPath(
-        Path()
-          ..moveTo(c.dx, c.dy)
-          ..lineTo(c.dx + math.cos(a - 0.08) * size.width / 2, c.dy + math.sin(a - 0.08) * size.width / 2)
-          ..lineTo(c.dx + math.cos(a + 0.08) * size.width / 2, c.dy + math.sin(a + 0.08) * size.width / 2)
-          ..close(),
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_Rays old) => false;
 }

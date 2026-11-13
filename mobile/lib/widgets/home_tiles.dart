@@ -31,6 +31,8 @@ class _HomeTilesRowState extends State<HomeTilesRow> {
   SeasonPass? _pass = ApiClient.instance.cachedSeasonPass();
   BoosterState? _boosters = ApiClient.instance.cachedBoosters();
   Timer? _tick;
+  int _gain = 0; // chests that just arrived (shown as «+N» for a few seconds)
+  Timer? _gainTimer;
 
   @override
   void initState() {
@@ -46,6 +48,7 @@ class _HomeTilesRowState extends State<HomeTilesRow> {
   void dispose() {
     dailyGoalTick.removeListener(_load);
     _tick?.cancel();
+    _gainTimer?.cancel();
     super.dispose();
   }
 
@@ -57,7 +60,19 @@ class _HomeTilesRowState extends State<HomeTilesRow> {
     final pass = ApiClient.instance.fetchSeasonPass();
     final boosters = ApiClient.instance.fetchBoosters();
     final b = await bank;
-    if (mounted && b != null) setState(() => _bank = b);
+    if (mounted && b != null) {
+      final before = _bank?.chests.length;
+      setState(() {
+        _bank = b;
+        if (before != null && b.chests.length > before) _gain = b.chests.length - before;
+      });
+      if (_gain > 0) {
+        _gainTimer?.cancel();
+        _gainTimer = Timer(const Duration(seconds: 6), () {
+          if (mounted) setState(() => _gain = 0);
+        });
+      }
+    }
     final d = await duels;
     if (mounted && d != null) setState(() => _duels = d);
     final p = await pass;
@@ -112,6 +127,7 @@ class _HomeTilesRowState extends State<HomeTilesRow> {
         icon: ChestImage(best, size: 34),
         title: tr('Сундуки'),
         big: '$owned',
+        plus: _gain > 0 ? '+$_gain' : null,
         sub: dailyWaiting ? tr('Сундук дня ждёт') : bank.doubleRewards ? tr('Есть двойные награды') : tr('Мои сундуки'),
         onTap: _openChests,
         badge: dailyWaiting ? const GiftBadge(size: 22) : null,
@@ -195,6 +211,7 @@ class HomeTile extends StatelessWidget {
   final Widget icon;
   final String title;
   final String big;
+  final String? plus;
   final String sub;
   final double? progress;
   final Color? progressColor;
@@ -205,6 +222,7 @@ class HomeTile extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.big,
+    this.plus,
     required this.sub,
     required this.onTap,
     this.progress,
@@ -235,7 +253,13 @@ class HomeTile extends StatelessWidget {
               Expanded(child: Padding(padding: EdgeInsets.only(right: badge != null ? 26 : 0), child: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, height: 1.15, fontWeight: FontWeight.w700, color: AppColors.primaryDark)))),
             ]),
             const Spacer(),
-            Text(big, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: AppColors.primaryDark)),
+            Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+              Flexible(child: Text(big, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: AppColors.primaryDark))),
+              if (plus != null) ...[
+                const SizedBox(width: 6),
+                Text(plus!, key: const ValueKey('tile-plus'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.success)),
+              ],
+            ]),
             Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: AppColors.secondaryText)),
             const SizedBox(height: 8),
             ClipRRect(
