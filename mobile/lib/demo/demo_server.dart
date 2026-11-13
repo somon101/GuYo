@@ -188,6 +188,38 @@ Object? _get(String path, Map<String, String> q) {
         'current_streak_days': 13, 'today': _day(0), 'active_dates': [for (var i = 0; i < 13; i++) _day(i)],
         'frozen_dates': <String>[], 'freezes': 1, 'merged_days': 0, 'streak_merge_items': 0,
       };
+    case '/users/me/streak/history':
+      final parts = (q['month'] ?? '').split('-');
+      final y = parts.length == 2 ? int.parse(parts[0]) : DateTime.now().year;
+      final mo = parts.length == 2 ? int.parse(parts[1]) : DateTime.now().month;
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final count = DateTime(y, mo + 1, 0).day;
+      var activeDays = 0, missed = 0;
+      final days = <Object>[];
+      for (var d = 1; d <= count; d++) {
+        final date = DateTime(y, mo, d);
+        final ago = today.difference(date).inDays;
+        final String st;
+        if (ago < 0) {
+          st = 'future';
+        } else if (ago == 0) {
+          st = 'today';
+        } else if (ago < 13) {
+          st = 'active';
+        } else if (ago == 13) {
+          st = 'frozen';
+        } else {
+          st = ago % 5 == 0 ? 'missed' : 'active';
+        }
+        if (st == 'active') activeDays++;
+        if (st == 'missed') missed++;
+        days.add({
+          'date': '$y-${mo.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}', 'state': st,
+          'words_learned': st == 'active' ? 6 : 0, 'lessons_completed': st == 'active' ? 1 : 0,
+        });
+      }
+      return {'days': days, 'current_streak_days': 13, 'active_days': activeDays, 'missed_days': missed, 'merged_days': 0};
     case '/notifications/unread-count':
       return {'count': 2, 'unread_count': 2};
     case '/notifications':

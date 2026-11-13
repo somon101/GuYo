@@ -225,113 +225,128 @@ class _StreakHistoryScreenState extends State<StreakHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final days = (_data?['days'] as List<dynamic>? ?? const [])
-        .cast<Map<String, dynamic>>();
+    final days = (_data?['days'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>();
     final firstOffset = DateTime(_month.year, _month.month, 1).weekday - 1;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    const fire = Color(0xFFFF8A3D);
+    const ice = Color(0xFF4FB8EA);
+    final missBg = dark ? const Color(0xFF4A2A2D) : const Color(0xFFF3C9CB);
+    final missInk = dark ? const Color(0xFFFF8D93) : const Color(0xFFC23B43);
+    final letters = [tr('Пн'), tr('Вт'), tr('Ср'), tr('Чт'), tr('Пт'), tr('Сб'), tr('Вс')];
+
+    Widget stat(String value, String label) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20)),
+            child: Column(children: [
+              Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: AppColors.primaryDark)),
+              Text(label, style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+            ]),
+          ),
+        );
+    Widget legend(Color c, String t) => Row(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 10, height: 10, decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(4))),
+          const SizedBox(width: 5),
+          Text(t, style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+        ]);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F5FB),
-      appBar: AppBar(title: Text(tr('История серии'))),
-      body: Column(
+      backgroundColor: AppColors.canvas,
+      appBar: AppBar(
+        title: Text(tr('История серии')),
+        backgroundColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  onPressed: () => _shift(-1),
-                  icon: const Icon(Icons.chevron_left),
-                ),
-                Text(
-                  '${_month.month.toString().padLeft(2, '0')}.${_month.year}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 18,
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => _shift(1),
-                  icon: const Icon(Icons.chevron_right),
-                ),
-              ],
-            ),
-          ),
-          if (_data != null)
-            Text(
-              '${tr('Серия')}: ${_data!['current_streak_days']}   •   ${tr('Занятий')}: ${_data!['active_days']}   •   ${tr('Пропусков')}: ${_data!['missed_days']}',
-            ),
-          const SizedBox(height: 10),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: GridView.builder(
-              shrinkWrap: true,
-              itemCount: firstOffset + days.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 7,
-                mainAxisSpacing: 5,
-                crossAxisSpacing: 5,
-              ),
-              itemBuilder: (_, i) {
-                if (i < firstOffset) return const SizedBox.shrink();
-                final d = days[i - firstOffset];
-                final state = d['state'];
-                final Color color = switch (state) {
-                  'active' => const Color(0xFFFF8A3D),
-                  'frozen' => Colors.lightBlue,
-                  'missed' => Colors.redAccent.withValues(alpha: .3),
-                  _ => Colors.white,
-                };
-                return InkWell(
-                  onTap: () => showDialog<void>(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: Text('${d['date']}'),
-                      content: Text(
-                        '${tr('Выучено слов')}: ${d['words_learned']}\n${tr('Завершено уроков')}: ${d['lessons_completed']}\n${tr('День')}: ${tr(state == 'active'
-                            ? 'Занимался'
-                            : state == 'frozen'
-                            ? 'Заморожен'
-                            : state == 'missed'
-                            ? 'Пропущен'
-                            : state == 'future'
-                            ? 'Будущий'
-                            : 'Сегодня')}',
-                      ),
-                    ),
-                  ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: color,
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            IconButton(onPressed: () => _shift(-1), icon: Icon(Icons.chevron_left, color: AppColors.secondaryText)),
+            Text('${_month.month.toString().padLeft(2, '0')}.${_month.year}',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: AppColors.primaryDark)),
+            IconButton(onPressed: () => _shift(1), icon: Icon(Icons.chevron_right, color: AppColors.secondaryText)),
+          ]),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(24)),
+            child: Column(children: [
+              Row(children: [
+                for (final l in letters)
+                  Expanded(child: Center(child: Text(l, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.secondaryText)))),
+              ]),
+              const SizedBox(height: 6),
+              if (_data == null)
+                const Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator())
+              else
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: firstOffset + days.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, mainAxisSpacing: 5, crossAxisSpacing: 5),
+                  itemBuilder: (_, i) {
+                    if (i < firstOffset) return const SizedBox.shrink();
+                    final d = days[i - firstOffset];
+                    final state = d['state'];
+                    final Color bg = switch (state) {
+                      'active' => fire,
+                      'frozen' => ice,
+                      'missed' => missBg,
+                      _ => AppColors.violetSurface,
+                    };
+                    final Color ink = switch (state) {
+                      'active' || 'frozen' => Colors.white,
+                      'missed' => missInk,
+                      _ => AppColors.secondaryText,
+                    };
+                    return InkWell(
                       borderRadius: BorderRadius.circular(12),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '${i - firstOffset + 1}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color:
-                            state == 'missed' ||
-                                state == 'active' ||
-                                state == 'frozen'
-                            ? Colors.white
-                            : Colors.black87,
+                      onTap: () => showDialog<void>(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          title: Text('${d['date']}'),
+                          content: Text(
+                            '${tr('Выучено слов')}: ${d['words_learned']}\n${tr('Завершено уроков')}: ${d['lessons_completed']}\n${tr('День')}: ${tr(state == 'active'
+                                ? 'Занимался'
+                                : state == 'frozen'
+                                    ? 'Заморожен'
+                                    : state == 'missed'
+                                        ? 'Пропущен'
+                                        : state == 'future'
+                                            ? 'Будущий'
+                                            : 'Сегодня')}',
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                );
-              },
-            ),
+                      child: Container(
+                        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
+                        alignment: Alignment.center,
+                        child: Text('${i - firstOffset + 1}', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: ink)),
+                      ),
+                    );
+                  },
+                ),
+              const SizedBox(height: 12),
+              Wrap(alignment: WrapAlignment.center, spacing: 12, runSpacing: 6, children: [
+                legend(fire, tr('Занимался')),
+                legend(ice, tr('Заморожен')),
+                legend(missInk.withValues(alpha: 0.6), tr('Пропущен')),
+              ]),
+            ]),
           ),
-          const SizedBox(height: 8),
-          Text(
-            '${tr('Объединённых дней')}: ${_data?['merged_days'] ?? 0}',
-            style: const TextStyle(
-              color: Colors.deepPurple,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 10),
-          if (_data == null) const CircularProgressIndicator(),
+          if (_data != null) ...[
+            const SizedBox(height: 10),
+            Row(children: [
+              stat('${_data!['current_streak_days']}', tr('Серия')),
+              const SizedBox(width: 8),
+              stat('${_data!['active_days']}', tr('Занятий')),
+              const SizedBox(width: 8),
+              stat('${_data!['missed_days']}', tr('Пропусков')),
+            ]),
+            if ((_data!['merged_days'] ?? 0) != 0) ...[
+              const SizedBox(height: 10),
+              Center(child: Text('${tr('Объединённых дней')}: ${_data!['merged_days']}', style: TextStyle(color: AppColors.secondaryText, fontWeight: FontWeight.w700))),
+            ],
+          ],
         ],
       ),
     );

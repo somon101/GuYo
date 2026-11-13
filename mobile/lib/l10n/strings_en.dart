@@ -932,4 +932,6 @@ const Map<String, String> enStrings = {
   'Чем больше цель, тем больше награда': 'The bigger the goal, the bigger the reward',
   'времени': 'time',
   'Слова': 'Words',
+  'сейчас': 'now',
+  'заморозок': 'freezes',
 };
