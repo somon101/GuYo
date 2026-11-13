@@ -30,4 +30,14 @@ void main() {
       expect(await api.fetchLanguages(), isNotEmpty);
     }, demoClient);
   });
+
+  test('a call made later from a timer still gets the demo answer', () async {
+    await http.runWithClient(() async {
+      // Work scheduled inside the zone keeps the fake client (as taps and timers do in the demo app).
+      final done = Future<void>.delayed(const Duration(milliseconds: 10), () async {
+        expect((await ApiClient.instance.fetchMyProfile()).login, 'Demo');
+      });
+      await done;
+    }, demoClient);
+  });
 }

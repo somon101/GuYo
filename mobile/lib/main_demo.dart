@@ -8,7 +8,11 @@ import 'demo/demo_server.dart';
 import 'main.dart' as app;
 
 Future<void> main() async {
-  // Must come first: nothing may talk to the phone before Flutter is bound to it.
-  WidgetsFlutterBinding.ensureInitialized();
-  await http.runWithClient(app.main, demoClient);
+  // Everything -- including binding Flutter to the phone -- runs inside ONE zone that carries
+  // the fake client. Taps and timers come back through the zone the binding was made in, so a
+  // binding made outside it would send requests to the real (maybe dead) server and hang.
+  await http.runWithClient(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    await app.main();
+  }, demoClient);
 }
