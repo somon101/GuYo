@@ -14,6 +14,8 @@ void main() {
   test('every main-screen answer parses', () async {
     await http.runWithClient(() async {
       final api = ApiClient.instance;
+      await api.login('demo', 'demo'); // any login gets in
+      expect(await api.token, 'demo');
       expect((await api.fetchMyProfile()).login, 'Demo');
       expect(await api.fetchDictionaries(), isNotEmpty);
       expect((await api.fetchDailyGoal())?.goal, 20);

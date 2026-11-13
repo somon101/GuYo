@@ -8,8 +8,13 @@ import 'package:http/testing.dart';
 http.Client demoClient() => MockClient((req) async {
       final path = req.url.path;
       Object? body;
-      if (req.method == 'GET') body = _get(path, req.url.queryParameters);
-      body ??= req.method == 'GET' ? null : {'ok': true};
+      if (req.method == 'GET') {
+        body = _get(path, req.url.queryParameters);
+      } else if (path.startsWith('/auth/')) {
+        body = {'access_token': 'demo', 'token_type': 'bearer'}; // any login and password gets in
+      } else {
+        body = {'ok': true};
+      }
       if (body == null) return http.Response('{"detail":"demo"}', 404, headers: _h);
       return http.Response(jsonEncode(body), 200, headers: _h);
     });
@@ -34,6 +39,8 @@ Object? _get(String path, Map<String, String> q) {
       };
     case '/slogans/today':
       return {'text': 'Каждый день по чуть-чуть', 'slogan': 'Каждый день по чуть-чуть'};
+    case '/auth/login-available':
+      return {'available': true};
     case '/languages':
       return [
         {'code': 'en', 'name': 'English', 'native_name': 'English'},
