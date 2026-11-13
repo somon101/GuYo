@@ -20,10 +20,8 @@ import '../widgets/quest_ui.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/user_name.dart';
 import 'season_quests_screen.dart';
-import '../widgets/chests_card.dart';
 import '../widgets/daily_goal_card.dart';
-import '../widgets/duel_card.dart';
-import '../widgets/season_pass_card.dart';
+import '../widgets/home_tiles.dart';
 import '../widgets/skeleton.dart';
 import 'text_check_screen.dart';
 
@@ -170,7 +168,15 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
           slogan: _slogan,
           onOpenProfile: widget.onOpenProfile,
         ),
-        const SizedBox(height: 14),
+        // The main card: today's word goal with «Продолжить».
+        DailyGoalCard(onContinue: widget.onOpenLessons),
+        const SizedBox(height: 18),
+        _SectionTitle(tr('Мои награды')),
+        const SizedBox(height: 10),
+        const HomeTilesRow(),
+        const SizedBox(height: 18),
+        _SectionTitle(tr('Сегодня')),
+        const SizedBox(height: 10),
         // Today's/this week's lesson counter, or the Premium line -- its
         // own card, so a failure to load it never blocks the season block.
         LessonQuotaCard(key: _quotaKey),
@@ -216,11 +222,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             onOpenLessons: widget.onOpenLessons,
             onOpenRating: widget.onOpenRating,
           ),
-        // The day's word goal, then the season pass: level, XP and rewards waiting.
-        const ChestsCard(),
-        const DailyGoalCard(),
-        const DuelCard(),
-        const SeasonPassCard(),
       ],
     );
   }
@@ -244,22 +245,9 @@ class _Greeting extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final login = profile?.login ?? '';
-    // The greeting is the hero tile of the page: one raised card holding
-    // the avatar, the name with today's line, and the streak.
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppShapes.bannerRadius),
-        border: Border.all(color: AppColors.cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.08),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
+    // Flat header (App Starter style): photo, name and slogan, the streak at the right.
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
       children: [
         // The photo is the way into Профиль -- the same screen the bottom
@@ -270,7 +258,7 @@ class _Greeting extends StatelessWidget {
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: onOpenProfile,
-            child: UserAvatar(avatarUrl: profile?.avatarUrl, login: login, size: 56, frame: profile?.frame),
+            child: UserAvatar(avatarUrl: profile?.avatarUrl, login: login, size: 48, frame: profile?.frame),
           ),
         ),
         const SizedBox(width: 14),
@@ -740,4 +728,13 @@ class TextCheckCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A section title on Главная: short, bold, no decoration.
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  const _SectionTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) => Text(text, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.3, color: AppColors.primaryDark));
 }
