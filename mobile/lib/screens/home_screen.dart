@@ -458,8 +458,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           key: ValueKey('lessons-${selected.id}'),
           dictionary: selected,
         ),
-        // «Проверка текста» (AI): this tab has its own top bar (the wordmark and its three switches).
-        const TextCheckScreen(),
+        // «Проверка текста» is not a tab: its button opens a full screen over the app (see the nav bar).
+        const SizedBox.shrink(),
         // Neither tab below is dictionary-scoped at all (identity/
         // achievements/rating are per-user, not per-language) -- kept in
         // the same IndexedStack purely for consistency with the other
@@ -503,12 +503,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // gear instead (which opens ProfileScreen's own sheet, logout
     // included), matching that screen's design.
     final isProfileTab = _selectedTabIndex == 4;
-    final isTextCheckTab = _selectedTabIndex == 2;
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      appBar: isTextCheckTab
-          ? null
-          : AppBar(
+      appBar: AppBar(
         backgroundColor: AppColors.canvas,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -543,7 +540,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       body: _buildBody(),
       bottomNavigationBar: FloatingNavBar(
         selectedIndex: _selectedTabIndex,
-        onSelected: (index) => setState(() => _selectedTabIndex = index),
+        onSelected: (index) {
+          // «Проверка текста» opens as a full screen: the bottom bar goes away, the tab stays where it was.
+          if (index == 2) {
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TextCheckScreen()));
+            return;
+          }
+          setState(() => _selectedTabIndex = index);
+        },
         items: [
           NavItemData(Icons.grid_view_rounded, tr('Главная')),
           NavItemData(Icons.menu_book_rounded, tr('Уроки')),
