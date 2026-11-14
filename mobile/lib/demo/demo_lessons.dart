@@ -42,6 +42,23 @@ Object? demoDynamic(String method, String path, Map<String, String> q, Map<Strin
     s.save();
     return {'state': _pass(), 'rewards': taken, 'xp': 0};
   }
+  if (path == '/text-check/info') {
+    return {'enabled': true, 'max_chars': 500, 'remaining': null, 'daily_limit': null, 'unlimited': true, 'confirmation_style': 'banner'};
+  }
+  if (path == '/text-check' && method == 'POST') {
+    final text = (body['text'] as String?) ?? '';
+    // A made-up checker: it flags the word «чтобы» written apart as an example of a mistake.
+    final hasMistake = text.contains('что бы');
+    return hasMistake
+        ? {
+            'ok': false, 'summary': 'Одна ошибка', 'cached': false, 'remaining': null, 'daily_limit': null, 'unlimited': true,
+            'errors': [
+              {'group': 'orthography', 'fragment': 'что бы', 'correct': 'чтобы', 'explanation': 'Союз «чтобы» пишется слитно.'},
+            ],
+            'corrected_text': text.replaceAll('что бы', 'чтобы'),
+          }
+        : {'ok': true, 'summary': 'Всё хорошо, ошибок нет.', 'cached': false, 'remaining': null, 'daily_limit': null, 'unlimited': true, 'errors': <Object>[], 'corrected_text': text};
+  }
   if (path == '/shop') return _shop();
   m = RegExp(r'^/shop/(\d+)/buy$').firstMatch(path);
   if (m != null && method == 'POST') {

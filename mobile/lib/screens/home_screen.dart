@@ -15,7 +15,7 @@ import 'home_dashboard_screen.dart';
 import 'lessons_screen.dart';
 import 'login_screen.dart';
 import 'notifications_screen.dart';
-import 'practice_screen.dart';
+import 'text_check_screen.dart';
 import 'profile_screen.dart';
 import 'rating_screen.dart';
 import 'economy_screens.dart';
@@ -458,10 +458,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           key: ValueKey('lessons-${selected.id}'),
           dictionary: selected,
         ),
-        PracticeScreen(
-          key: ValueKey('practice-${selected.id}'),
-          dictionary: selected,
-        ),
+        // «Проверка текста» (AI): this tab has its own top bar (the wordmark and its three switches).
+        const TextCheckScreen(),
         // Neither tab below is dictionary-scoped at all (identity/
         // achievements/rating are per-user, not per-language) -- kept in
         // the same IndexedStack purely for consistency with the other
@@ -505,9 +503,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // gear instead (which opens ProfileScreen's own sheet, logout
     // included), matching that screen's design.
     final isProfileTab = _selectedTabIndex == 4;
+    final isTextCheckTab = _selectedTabIndex == 2;
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      appBar: AppBar(
+      appBar: isTextCheckTab
+          ? null
+          : AppBar(
         backgroundColor: AppColors.canvas,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -546,7 +547,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         items: [
           NavItemData(Icons.grid_view_rounded, tr('Главная')),
           NavItemData(Icons.menu_book_rounded, tr('Уроки')),
-          NavItemData(Icons.bolt_rounded, tr('Практика')),
+          NavItemData(Icons.auto_awesome_rounded, tr('Проверка текста')),
           NavItemData(Icons.bar_chart_rounded, tr('Рейтинг')),
           NavItemData(Icons.person_rounded, tr('Профиль')),
         ],

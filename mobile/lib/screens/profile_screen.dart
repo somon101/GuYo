@@ -342,7 +342,7 @@ class ProfileScreenState extends State<ProfileScreen> {
     Navigator.of(context)
         .push(
           MaterialPageRoute(
-            builder: (_) => ProfileSettingsScreen(profile: profile),
+            builder: (_) => ProfileSettingsScreen(profile: profile, dictionary: widget.dictionary),
           ),
         )
         // Whatever was saved came back from the backend already; reloading

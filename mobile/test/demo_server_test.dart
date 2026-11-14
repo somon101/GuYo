@@ -39,6 +39,10 @@ void main() {
       expect((await api.fetchMyRankLeaderboard()).entries, isNotEmpty);
       expect(await api.fetchWordLevels(), hasLength(4));
       expect((await api.fetchMyStats(7)).accuracy, 87);
+      expect((await api.fetchTextCheckInfo()).enabled, true);
+      final checked = await api.checkText(text: 'Я пришёл что бы помочь', userGender: 'm', addresseeGender: 'm', checkPunctuation: true, explanationLanguage: 'ru');
+      expect(checked.hasErrors, true);
+      expect(checked.correctedText, 'Я пришёл чтобы помочь');
       final shop = await api.buyShopProduct(1);
       expect(shop['diamonds'], 190);
       expect(shop['streak_freezes'], 2);

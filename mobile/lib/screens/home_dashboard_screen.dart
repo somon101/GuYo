@@ -22,7 +22,6 @@ import '../widgets/daily_goal_card.dart';
 import '../widgets/season_card.dart';
 import '../widgets/home_tiles.dart';
 import '../widgets/skeleton.dart';
-import 'text_check_screen.dart';
 
 /// The app's own slogan fetch, as a plain function so the default
 /// [BackendSloganSource] can be a const value.
@@ -209,9 +208,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         const SizedBox(height: 10),
         // Words being forgotten right now; hides itself when none are.
         ReviewDueCard(key: _reviewKey, dictionary: widget.dictionary),
-        const SizedBox(height: 14),
-        // The AI text checker: a tool the user opens on purpose. It depends on none of the season's data.
-        const TextCheckCard(),
       ],
     );
   }
@@ -422,118 +418,6 @@ class DailyQuestCard extends StatelessWidget {
   }
 }
 
-/// The way into «Проверка текста» from Главная.
-///
-/// A FILLED card, deliberately unlike the season block below it: the season
-/// block is pale violet -- something to read -- while this one carries the
-/// brand's own saturated indigo-to-violet with white text, the way the Premium
-/// banner is filled. Two pale cards next to each other read as one block; a
-/// filled card next to a pale one reads as an action. That is the whole point:
-/// "the app has an AI that checks my Russian" must be obvious at a glance, and
-/// must not look like part of the season card.
-class TextCheckCard extends StatelessWidget {
-  const TextCheckCard({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(AppShapes.cardRadius),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppShapes.cardRadius),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const TextCheckScreen()),
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppShapes.cardRadius),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: AppColors.brandGradient,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.32),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              // A frosted chip rather than a coloured one: on a filled card the
-              // icon needs to sit ON the gradient, not compete with it.
-              Container(
-                width: 52,
-                height: 52,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.18),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
-                ),
-                child: const Icon(Icons.auto_awesome_rounded, size: 26, color: Colors.white),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            tr('Проверка текста'),
-                            style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(AppShapes.pillRadius),
-                          ),
-                          child: Text(
-                            'AI',
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.5,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      tr('Проверьте грамматику и стиль сообщения'),
-                      style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.88)),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.chevron_right_rounded, color: Colors.white.withValues(alpha: 0.9)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 /// A section title on Главная: short, bold, no decoration.
 class _SectionTitle extends StatelessWidget {

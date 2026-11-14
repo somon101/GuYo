@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../models/dictionary.dart';
+import 'practice_screen.dart';
 
 import '../theme/app_theme.dart';
 import '../api/api_client.dart';
@@ -25,7 +27,10 @@ import 'topics_screen.dart';
 class ProfileSettingsScreen extends StatefulWidget {
   final UserProfile profile;
 
-  const ProfileSettingsScreen({super.key, required this.profile});
+  /// The language being studied: «Практика» (drills outside lessons) opens over its words.
+  final GuyoDictionary? dictionary;
+
+  const ProfileSettingsScreen({super.key, required this.profile, this.dictionary});
 
   @override
   State<ProfileSettingsScreen> createState() => _ProfileSettingsScreenState();
@@ -484,6 +489,22 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 ),
                 // Язык изучения здесь ОТСУТСТВУЕТ намеренно: он выбирается
                 // переключателем на главном экране, рядом со словарём.
+                if (widget.dictionary != null)
+                  _Row(
+                    key: const ValueKey('settings-practice'),
+                    icon: Icons.bolt_rounded,
+                    label: tr('Практика'),
+                    value: tr('Упражнения вне уроков'),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => Scaffold(
+                          backgroundColor: AppColors.canvas,
+                          appBar: AppBar(title: Text(tr('Практика')), backgroundColor: Colors.transparent, scrolledUnderElevation: 0),
+                          body: PracticeScreen(dictionary: widget.dictionary!),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 16),
