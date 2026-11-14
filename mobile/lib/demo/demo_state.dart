@@ -46,6 +46,8 @@ class DemoState {
   int diamonds = 240;
   int freezes = 1;
   int merges = 0;
+  // Season pass rewards already taken ('level:track').
+  final Set<String> passClaimed = {for (var l = 1; l <= 3; l++) ...['$l:free', '$l:premium']};
 
   int scoreOf(int wordId) => learned.contains(wordId) ? 100 : (scores[wordId] ?? 0);
 
@@ -70,6 +72,11 @@ class DemoState {
       diamonds = (j['dia'] as int?) ?? diamonds;
       freezes = (j['frz'] as int?) ?? freezes;
       merges = (j['mrg'] as int?) ?? merges;
+      if (j['pass'] != null) {
+        passClaimed
+          ..clear()
+          ..addAll((j['pass'] as List).cast<String>());
+      }
     } catch (_) {}
   }
 
@@ -85,6 +92,7 @@ class DemoState {
       'dia': diamonds,
       'frz': freezes,
       'mrg': merges,
+      'pass': passClaimed.toList(),
     });
     _storage.write(key: _key, value: j).catchError((_) {});
   }

@@ -7,6 +7,7 @@ import 'package:guyo_app/widgets/gift_badge.dart';
 import 'package:guyo_app/widgets/season_pass_ui.dart';
 import 'package:guyo_app/widgets/season_pass_card.dart';
 import 'package:guyo_app/models/season_pass.dart';
+import 'package:guyo_app/screens/season_pass_screen.dart';
 
 Map<String, dynamic> _json() => {
       'season_id': 1,
@@ -41,6 +42,7 @@ Map<String, dynamic> _json() => {
     };
 
 void main() {
+  passScreenTests();
   test('parses the pass and counts what is waiting to be claimed', () {
     final pass = SeasonPass.fromJson(_json());
     expect(pass.level, 1);
@@ -75,5 +77,41 @@ void main() {
     expect(find.byWidgetPredicate((w) => w.key is ValueKey && '${(w.key as ValueKey).value}'.startsWith('claim-all-tile')), findsNWidgets(2)); // diamonds (all added up) and energy
     expect(find.text('+45'), findsOneWidget);
     expect(find.text('+40'), findsOneWidget);
+  });
+}
+
+void passScreenTests() {
+  testWidgets('the pass screen (variant B): hero, two link buttons, the main prize and a strip of rewards', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final json = _json()
+      ..['level'] = 1
+      ..['levels'] = [
+        {
+          'level': 1,
+          'xp': 80,
+          'free': {'type': 'rating_points', 'amount': 20, 'claimed': false, 'claimable': true, 'locked_by_premium': false},
+          'premium': {'type': 'chest', 'amount': 1, 'key': 'silver', 'claimed': false, 'claimable': true, 'locked_by_premium': false},
+        },
+        {
+          'level': 2,
+          'xp': 160,
+          'free': {'type': 'chest', 'amount': 1, 'key': 'gold', 'claimed': false, 'claimable': false, 'locked_by_premium': false},
+          'premium': {'type': 'diamonds', 'amount': 5, 'claimed': false, 'claimable': false, 'locked_by_premium': true},
+        },
+      ];
+    await tester.pumpWidget(MaterialApp(home: SeasonPassScreen(initialPass: SeasonPass.fromJson(json))));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Уровень 1'), findsWidgets);
+    expect(find.byKey(const ValueKey('pass-summary')), findsOneWidget);
+    expect(find.byKey(const ValueKey('pass-cosmetics')), findsOneWidget);
+    expect(find.text('Главная награда сезона · Уровень 2'), findsOneWidget);
+    expect(find.byKey(const ValueKey('pass-strip')), findsOneWidget);
+    expect(find.byType(PassTile), findsNWidgets(4));
+    // Two level rewards and one finished weekly task wait: «Забрать всё» is offered.
+    expect(find.byKey(const ValueKey('claim-all')), findsOneWidget);
+    expect(find.byIcon(Icons.insights_rounded), findsOneWidget); // the link button, no longer in the top bar
+    expect(tester.takeException(), isNull);
   });
 }

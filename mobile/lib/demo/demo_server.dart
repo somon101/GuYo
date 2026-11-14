@@ -154,21 +154,6 @@ Object? _get(String path, Map<String, String> q) {
           'opponent_login': 'Aziz', 'opponent_avatar_url': null, 'my_xp': 328, 'their_xp': 290, 'won': null,
         },
       };
-    case '/season-pass':
-    case '/season-pass/summary':
-      return {
-        'season_name': 'Осень', 'ends_at': _in(30), 'xp': 140, 'level': 4, 'xp_into_level': 40, 'xp_for_next': 100,
-        'is_premium': true, 'premium_enabled': true,
-        'levels': [
-          for (var l = 1; l <= 10; l++)
-            {
-              'level': l, 'xp': l * 100,
-              'free': {'type': 'xp', 'amount': 10, 'kind': 'chest', 'claimed': l < 4, 'claimable': l == 4},
-              'premium': {'type': 'diamonds', 'amount': 5, 'kind': 'chest', 'claimed': l < 4, 'claimable': l == 4},
-            },
-        ],
-        'week': {'ends_at': _in(3), 'tasks': <Object>[]},
-      };
     case '/quests/overview':
       return {
         'season': {'id': 1, 'name': 'Осень', 'icon_url': null, 'starts_at': _in(-10), 'ends_at': _in(30)},

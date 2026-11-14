@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
+import '../theme/app_colors.dart';
 import '../models/season_pass.dart';
 import '../services/chest_sound.dart';
 import 'counted_chest.dart' show GreenButton;
@@ -401,6 +402,103 @@ class RewardCard extends StatelessWidget {
       },
     );
   }
+}
+
+/// The picture of a reward: the game's own art, a badge, or an icon on a soft disc.
+class RewardArt extends StatelessWidget {
+  final PassReward reward;
+  final double size;
+  const RewardArt({super.key, required this.reward, this.size = 44});
+
+  @override
+  Widget build(BuildContext context) {
+    final style = rewardStyle(reward);
+    if (style.asset != null) return gameAsset(style.asset!, size);
+    if (reward.type == 'badge') {
+      return Container(
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.violetSurface),
+        child: BadgeGlyph(badgeKey: reward.key ?? 'crown', size: size * 0.8),
+      );
+    }
+    return Container(
+      width: size * 0.9,
+      height: size * 0.9,
+      decoration: BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: style.colors)),
+      child: Icon(style.icon, size: size * 0.5, color: Colors.white),
+    );
+  }
+}
+
+/// One reward of the pass in the new light style (variant B): a soft tile with the picture, the
+/// amount or name and a mark: ✓ taken, «!» can be taken now (tap it), a lock while it waits.
+class PassTile extends StatelessWidget {
+  final PassReward reward;
+  final bool reached;
+  final bool busy;
+  final VoidCallback onClaim;
+  const PassTile({super.key, required this.reward, required this.reached, required this.busy, required this.onClaim});
+
+  @override
+  Widget build(BuildContext context) {
+    final style = rewardStyle(reward);
+    final claimable = reward.claimable;
+    final taken = reward.claimed;
+    final waiting = !claimable && !taken;
+    final amount = rewardAmountText(reward);
+    Widget? mark;
+    if (taken) {
+      mark = _mark(AppColors.success, const Icon(Icons.check_rounded, size: 13, color: Colors.white));
+    } else if (claimable) {
+      mark = _mark(AppColors.primary, const Text('!', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900, height: 1)));
+    } else if (reward.lockedByPremium || !reached) {
+      mark = _mark(AppColors.progressTrack, Icon(Icons.lock_rounded, size: 11, color: AppColors.secondaryText));
+    }
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: claimable && !busy ? onClaim : null,
+      child: Container(
+        height: 104,
+        width: 92,
+        padding: const EdgeInsets.fromLTRB(6, 10, 6, 8),
+        decoration: BoxDecoration(
+          color: claimable ? AppColors.violetSurface : AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: claimable ? Border.all(color: AppColors.primary, width: 2) : null,
+        ),
+        child: Stack(clipBehavior: Clip.none, children: [
+          Positioned.fill(
+            child: Opacity(
+              opacity: taken ? 0.6 : (waiting ? 0.75 : 1),
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                RewardArt(reward: reward, size: 42),
+                const SizedBox(height: 4),
+                Text(
+                  amount.isNotEmpty ? amount : style.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: amount.isNotEmpty ? 15 : 12, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                ),
+                if (amount.isNotEmpty)
+                  Text(style.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10.5, color: AppColors.secondaryText)),
+                if (reward.blocked)
+                  Text(tr('Запас заморозок полон'), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 9.5, color: AppColors.secondaryText)),
+              ]),
+            ),
+          ),
+          if (mark != null) Positioned(top: -4, right: -2, child: mark),
+        ]),
+      ),
+    );
+  }
+
+  Widget _mark(Color color, Widget child) => Container(
+        width: 20,
+        height: 20,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+        child: child,
+      );
 }
 
 /// A burst of sparkles around the middle, driven by a 0..1 animation.

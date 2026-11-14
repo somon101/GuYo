@@ -22,7 +22,13 @@ void main() {
       expect((await api.fetchChests())?.chests.length, 6);
       expect(await api.fetchBoosters(), isNotNull);
       expect((await api.fetchDuels())?.current, isNotNull);
-      expect((await api.fetchSeasonPass())?.level, 4);
+      final pass = await api.fetchSeasonPass();
+      expect(pass?.level, 4);
+      expect(pass?.levels, hasLength(10));
+      expect(pass?.claimableCount, 2);
+      final (after, taken, _) = await api.claimAllPass();
+      expect(taken, hasLength(2));
+      expect(after.claimableCount, 0);
       expect((await api.fetchSeasonQuestOverview(1)).questsTotal, 5);
       expect((await api.fetchPremiumStatus()).isPremium, true);
       expect((await api.fetchMyStreak()).currentStreakDays, 13);

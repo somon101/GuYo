@@ -22,6 +22,26 @@ Object? demoDynamic(String method, String path, Map<String, String> q, Map<Strin
     return {'state': s.goalJson()};
   }
 
+  if (path == '/season-pass' || path == '/season-pass/summary') return _pass();
+  if (path == '/season-pass/claim' && method == 'POST') {
+    s.passClaimed.add('${body['level']}:${body['track']}');
+    s.save();
+    return _pass();
+  }
+  if (path == '/season-pass/claim-all' && method == 'POST') {
+    final taken = <Map<String, Object?>>[];
+    for (final l in _passLevels) {
+      for (final t in ['free', 'premium']) {
+        final r = l[t] as Map<String, Object?>?;
+        if (r != null && (l['level'] as int) <= _passLevel && !s.passClaimed.contains('${l['level']}:$t')) {
+          s.passClaimed.add('${l['level']}:$t');
+          taken.add({...r});
+        }
+      }
+    }
+    s.save();
+    return {'state': _pass(), 'rewards': taken, 'xp': 0};
+  }
   if (path == '/shop') return _shop();
   m = RegExp(r'^/shop/(\d+)/buy$').firstMatch(path);
   if (m != null && method == 'POST') {
@@ -211,4 +231,56 @@ const _products = <Map<String, Object>>[
 Map<String, Object?> _shop() {
   final s = DemoState.instance;
   return {'diamonds': s.diamonds, 'streak_freezes': s.freezes, 'streak_merge_items': s.merges, 'products': _products};
+}
+
+const _passLevel = 4;
+
+// (level, free, premium): each reward is {type, amount, key?, kind?, text?}.
+final _passLevels = <Map<String, Object?>>[
+  for (final e in <(int, Map<String, Object>, Map<String, Object>)>[
+    (1, {'type': 'rating_points', 'amount': 10}, {'type': 'diamonds', 'amount': 5}),
+    (2, {'type': 'chest', 'amount': 1, 'key': 'wood'}, {'type': 'booster', 'amount': 30, 'kind': 'rating'}),
+    (3, {'type': 'booster', 'amount': 30, 'kind': 'xp'}, {'type': 'streak_freeze', 'amount': 1}),
+    (4, {'type': 'rating_points', 'amount': 15}, {'type': 'chest', 'amount': 1, 'key': 'silver'}),
+    (5, {'type': 'chest', 'amount': 1, 'key': 'silver'}, {'type': 'booster', 'amount': 60, 'kind': 'chest'}),
+    (6, {'type': 'streak_freeze', 'amount': 1}, {'type': 'diamonds', 'amount': 10}),
+    (7, {'type': 'rating_points', 'amount': 20}, {'type': 'chest', 'amount': 1, 'key': 'gold'}),
+    (8, {'type': 'chest', 'amount': 1, 'key': 'silver'}, {'type': 'frame', 'amount': 1, 'key': 'gold', 'text': 'Золотая рамка'}),
+    (9, {'type': 'diamonds', 'amount': 5}, {'type': 'title', 'amount': 1, 'key': 'scholar', 'text': 'Знаток'}),
+    (10, {'type': 'chest', 'amount': 1, 'key': 'gold'}, {'type': 'premium_days', 'amount': 3}),
+  ])
+    {'level': e.$1, 'xp': e.$1 * 100, 'free': e.$2, 'premium': e.$3},
+];
+
+Map<String, Object?> _passReward(Map<String, Object?> r, int level, String track) {
+  final s = DemoState.instance;
+  final taken = s.passClaimed.contains('$level:$track');
+  return {
+    ...r,
+    'claimed': taken,
+    'claimable': !taken && level <= _passLevel,
+    'locked_by_premium': false,
+  };
+}
+
+Map<String, Object?> _pass() {
+  return {
+    'season_name': 'Осень', 'ends_at': DateTime.now().add(const Duration(days: 29)).toUtc().toIso8601String(),
+    'xp': 140, 'level': _passLevel, 'xp_into_level': 40, 'xp_for_next': 100, 'is_premium': true, 'premium_enabled': true,
+    'levels': [
+      for (final l in _passLevels)
+        {
+          'level': l['level'], 'xp': l['xp'],
+          'free': _passReward(l['free'] as Map<String, Object?>, l['level'] as int, 'free'),
+          'premium': _passReward(l['premium'] as Map<String, Object?>, l['level'] as int, 'premium'),
+        },
+    ],
+    'week': {
+      'ends_at': DateTime.now().add(const Duration(days: 3)).toUtc().toIso8601String(),
+      'tasks': [
+        {'id': 'w1', 'metric': 'word', 'target': 30, 'xp': 20, 'progress': 18, 'claimed': false, 'claimable': false},
+        {'id': 'w2', 'metric': 'lesson', 'target': 3, 'xp': 15, 'progress': 2, 'claimed': false, 'claimable': false},
+      ],
+    },
+  };
 }

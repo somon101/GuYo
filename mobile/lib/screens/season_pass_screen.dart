@@ -6,7 +6,6 @@ import '../l10n/l10n.dart';
 import '../services/streak_state.dart';
 import '../models/season_pass.dart';
 import '../theme/app_colors.dart';
-import '../widgets/counted_chest.dart' show GreenButton;
 import '../widgets/game_icons.dart';
 import '../widgets/season_pass_ui.dart';
 import '../models/team.dart';
@@ -177,22 +176,6 @@ class _SeasonPassScreenState extends State<SeasonPassScreen>
         title: Text(tr('Пропуск сезона')),
         backgroundColor: Colors.transparent,
         scrolledUnderElevation: 0,
-        actions: [
-          IconButton(
-            tooltip: tr('Итоги сезона'),
-            icon: const Icon(Icons.insights_rounded),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SeasonSummaryScreen()),
-            ),
-          ),
-          IconButton(
-            tooltip: tr('Мои награды'),
-            icon: const Icon(Icons.military_tech_rounded),
-            onPressed: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const CosmeticsScreen())),
-          ),
-        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -215,35 +198,69 @@ class _SeasonPassScreenState extends State<SeasonPassScreen>
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
       children: [
         _Hero(pass: pass, busy: _busy, onClaimAll: _claimAll),
+        const SizedBox(height: 10),
+        // The two ways out that used to be small icons in the top bar.
+        Row(children: [
+          Expanded(
+            child: _LinkButton(
+              key: const ValueKey('pass-summary'),
+              icon: Icons.insights_rounded,
+              label: tr('Итоги сезона'),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SeasonSummaryScreen())),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _LinkButton(
+              key: const ValueKey('pass-cosmetics'),
+              icon: Icons.military_tech_rounded,
+              label: tr('Мои награды'),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CosmeticsScreen())),
+            ),
+          ),
+        ]),
         const SizedBox(height: 14),
         const TeamEntryCard(),
         if (pass.levels.isNotEmpty) _GrandPrize(pass: pass),
         if (pass.premiumEnabled && !pass.isPremium) const _PremiumBanner(),
         const SizedBox(height: 6),
         _SectionTitle(tr('Награды')),
-        _LaneHeader(showPremium: pass.premiumEnabled),
-        for (var i = 0; i < pass.levels.length; i++)
-          _LevelRow(
-            level: pass.levels[i],
-            reached: pass.levels[i].level <= pass.level,
-            current: pass.levels[i].level == pass.level + 1,
-            first: i == 0,
-            last: i == pass.levels.length - 1,
-            showPremium: pass.premiumEnabled,
-            pulse: _pulse,
-            busy: _busy,
-            onClaim: (track, reward) => _claim(
-              () => ApiClient.instance.claimPassLevel(
-                pass.levels[i].level,
-                track,
-              ),
-              style: rewardStyle(reward),
-              text: rewardSentence(reward),
-            ),
+        _RewardsStrip(
+          pass: pass,
+          pulse: _pulse,
+          busy: _busy,
+          onClaim: (level, track, reward) => _claim(
+            () => ApiClient.instance.claimPassLevel(level, track),
+            style: rewardStyle(reward),
+            text: rewardSentence(reward),
           ),
+        ),
       ],
     );
   }
+}
+
+/// A light pill button under the hero.
+class _LinkButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _LinkButton({super.key, required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 42,
+          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(99)),
+          alignment: Alignment.center,
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 18, color: AppColors.primary),
+            const SizedBox(width: 6),
+            Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary))),
+          ]),
+        ),
+      );
 }
 
 class _SectionTitle extends StatelessWidget {
@@ -281,143 +298,96 @@ class _Hero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final next = pass.xpForNext;
-    final value = next == null || next == 0 ? 1.0 : pass.xpIntoLevel / next;
+    final value = next == null || next == 0 ? 1.0 : (pass.xpIntoLevel / next).clamp(0.0, 1.0);
     final left = pass.endsAt?.difference(DateTime.now()).inDays;
     final waiting = pass.claimableCount;
+    final seasonLine = left != null && left >= 0 ? '${passSeasonName(pass)} · ${tr('До конца сезона дней: {0}', [left])}' : passSeasonName(pass);
     return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: passHeroGradient(AppColors.dark),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(26), gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: AppColors.brandGradient)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(child: Text(seasonLine, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.85)))),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(99)),
+            child: Text(tr('Уровень {0}', [pass.level]), style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800)),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        Row(children: [
+          const EnergyIcon(size: 28),
+          const SizedBox(width: 8),
+          Text('${pass.xp}', style: const TextStyle(fontSize: 30, height: 1.1, fontWeight: FontWeight.w800, letterSpacing: -1, color: Colors.white)),
+          const SizedBox(width: 8),
+          Text(tr('энергии'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.85))),
+        ]),
+        const SizedBox(height: 12),
+        _LevelBar(levels: pass.levels.length, level: pass.level, progress: value),
+        const SizedBox(height: 6),
+        Text(
+          next == null ? tr('Все уровни пройдены') : tr('{0} из {1} энергии до следующего уровня', [pass.xpIntoLevel, next]),
+          style: TextStyle(fontSize: 12.5, color: Colors.white.withValues(alpha: 0.85)),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF5862DD).withValues(alpha: 0.35),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              LevelRing(size: 112, progress: value, level: pass.level),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      passSeasonName(pass),
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white.withValues(alpha: 0.85),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    IconText(
-                      '⚡ ${pass.xp} ${tr('энергии')}',
-                      style: const TextStyle(
-                        fontSize: 30,
-                        height: 1.1,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      next == null
-                          ? tr('Все уровни пройдены')
-                          : tr('{0} из {1} энергии до следующего уровня', [
-                              pass.xpIntoLevel,
-                              next,
-                            ]),
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: Colors.white.withValues(alpha: 0.85),
-                      ),
-                    ),
-                    if (left != null && left >= 0) ...[
-                      const SizedBox(height: 8),
-                      _Pill(
-                        icon: Icons.timer_outlined,
-                        text: tr('До конца сезона дней: {0}', [left]),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-          if (waiting > 0) ...[
-            const SizedBox(height: 14),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: Colors.white.withValues(alpha: 0.16),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const GiftIcon(size: 28),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      tr('Наград к получению: {0}', [waiting]),
-                      style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900, color: Colors.white),
+        if (waiting > 0) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), color: Colors.white.withValues(alpha: 0.16)),
+            child: Row(children: [
+              Expanded(child: Text(tr('Наград к получению: {0}', [waiting]), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white))),
+              if (waiting >= 2 && onClaimAll != null)
+                GestureDetector(
+                  key: const ValueKey('claim-all'),
+                  onTap: busy ? null : onClaimAll,
+                  child: Opacity(
+                    opacity: busy ? 0.6 : 1,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(99)),
+                      child: Text(tr('Забрать всё'), style: TextStyle(color: AppColors.primary, fontSize: 14, fontWeight: FontWeight.w800)),
                     ),
                   ),
-                  if (waiting >= 2 && onClaimAll != null) ...[
-                    const SizedBox(width: 10),
-                    GreenButton(key: const ValueKey('claim-all'), label: tr('Забрать всё'), onTap: busy ? null : onClaimAll, compact: true),
-                  ],
-                ],
-              ),
-            ),
-          ],
+                ),
+            ]),
+          ),
         ],
-      ),
+      ]),
     );
   }
 }
 
-class _Pill extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  const _Pill({required this.icon, required this.text});
+/// The levels as a row of divisions: passed ones filled, the next one filled as far as the energy
+/// goes. With many levels it is one continuous bar.
+class _LevelBar extends StatelessWidget {
+  final int levels;
+  final int level;
+  final double progress;
+  const _LevelBar({required this.levels, required this.level, required this.progress});
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-    decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.2),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: Colors.white),
-        const SizedBox(width: 5),
-        Flexible(
-          child: Text(
-            text,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
+  Widget build(BuildContext context) {
+    Widget seg(double fill) => Expanded(
+          child: Container(
+            height: 8,
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.22), borderRadius: BorderRadius.circular(99)),
+            child: FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: fill.clamp(0.0, 1.0),
+              child: DecoratedBox(decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(99))),
             ),
           ),
-        ),
-      ],
-    ),
-  );
+        );
+    if (levels > 0 && levels <= 12) {
+      return Row(children: [
+        for (var i = 0; i < levels; i++) seg(i < level ? 1 : (i == level ? progress : 0)),
+      ]);
+    }
+    final total = levels <= 0 ? 1 : levels;
+    return Row(children: [seg((level + progress) / total)]);
+  }
 }
 
 /// The last level's rewards, shown up front: what the whole season is for.
@@ -432,102 +402,38 @@ class _GrandPrize extends StatelessWidget {
       if (last.free != null) last.free!,
       if (pass.premiumEnabled && last.premium != null) last.premium!,
     ];
+    if (rewards.isEmpty) return const SizedBox.shrink();
+    final dark = AppColors.dark;
+    final bg = dark ? const Color(0xFF33290F) : const Color(0xFFFFF6E0);
+    final ink = dark ? const Color(0xFFFFD98A) : const Color(0xFF7A5200);
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF3A2A00), Color(0xFF6B4B00)],
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(24), color: bg),
+      child: Row(children: [
+        Container(
+          width: 76,
+          height: 76,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), color: const Color(0xFFF2B33D).withValues(alpha: 0.18)),
+          child: RewardArt(reward: rewards.first, size: 60),
         ),
-        border: Border.all(color: const Color(0xFFFFD54F), width: 1.6),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFFB300).withValues(alpha: 0.28),
-            blurRadius: 18,
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [Color(0xFFFFE066), Color(0xFFFF9800)],
-              ),
-            ),
-            child: const Icon(
-              Icons.emoji_events_rounded,
-              color: Color(0xFF5A3B00),
-              size: 30,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tr('Главная награда сезона'),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFFFFE066),
-                  ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            Text('${tr('Главная награда сезона')} · ${tr('Уровень {0}', [last.level])}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: ink)),
+            const SizedBox(height: 4),
+            Wrap(spacing: 6, runSpacing: 4, children: [
+              for (final r in rewards)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(color: AppColors.surface.withValues(alpha: dark ? 0.5 : 0.8), borderRadius: BorderRadius.circular(14)),
+                  child: Text(rewardSentence(r), style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  tr('Уровень {0}', [last.level]),
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: Colors.white.withValues(alpha: 0.75),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: [
-                    for (final r in rewards)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 9,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              rewardStyle(r).icon,
-                              size: 14,
-                              color: const Color(0xFFFFE066),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              rewardSentence(r),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+            ]),
+          ]),
+        ),
+      ]),
     );
   }
 }
@@ -568,213 +474,105 @@ class _PremiumBanner extends StatelessWidget {
   }
 }
 
-class _LaneHeader extends StatelessWidget {
-  final bool showPremium;
-  const _LaneHeader({required this.showPremium});
-
-  @override
-  Widget build(BuildContext context) {
-    Widget chip(String text, IconData icon, List<Color> colors, {Widget? leading}) => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        gradient: LinearGradient(colors: colors),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          leading ?? Icon(icon, size: 14, color: Colors.white),
-          const SizedBox(width: 5),
-          Text(
-            text,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: chip(tr('Бесплатно'), Icons.card_giftcard_rounded, const [
-                Color(0xFF7C84F0),
-                Color(0xFF5862DD),
-              ]),
-            ),
-          ),
-          const SizedBox(width: 52),
-          if (showPremium)
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: chip('Premium', Icons.workspace_premium_rounded, const [
-                  Color(0xFFFFB300),
-                  Color(0xFFFF7A00),
-                ], leading: const PremiumIcon(size: 18)),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LevelRow extends StatelessWidget {
-  final PassLevel level;
-  final bool reached;
-  final bool current;
-  final bool first;
-  final bool last;
-  final bool showPremium;
+/// The rewards as a strip that scrolls sideways: a column per level (the level number, the free
+/// reward, the Premium one); the row names stay on the left. Opens at the level being worked on.
+class _RewardsStrip extends StatefulWidget {
+  final SeasonPass pass;
   final Animation<double> pulse;
   final bool busy;
-  final void Function(String track, PassReward reward) onClaim;
-
-  const _LevelRow({
-    required this.level,
-    required this.reached,
-    required this.current,
-    required this.first,
-    required this.last,
-    required this.showPremium,
-    required this.pulse,
-    required this.busy,
-    required this.onClaim,
-  });
-
-  Widget _slot(PassReward? reward, String track) => reward == null
-      ? const SizedBox.shrink()
-      : Padding(
-          padding: const EdgeInsets.symmetric(vertical: 5),
-          child: RewardCard(
-            reward: reward,
-            reached: reached,
-            pulse: pulse,
-            busy: busy,
-            onClaim: () => onClaim(track, reward),
-          ),
-        );
+  final void Function(int level, String track, PassReward reward) onClaim;
+  const _RewardsStrip({required this.pass, required this.pulse, required this.busy, required this.onClaim});
 
   @override
-  Widget build(BuildContext context) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(child: _slot(level.free, 'free')),
-          SizedBox(
-            width: 52,
-            child: _Node(
-              level: level.level,
-              reached: reached,
-              current: current,
-              first: first,
-              last: last,
-              pulse: pulse,
-            ),
-          ),
-          Expanded(
-            child: showPremium
-                ? _slot(level.premium, 'premium')
-                : const SizedBox.shrink(),
-          ),
-        ],
-      ),
-    );
-  }
+  State<_RewardsStrip> createState() => _RewardsStripState();
 }
 
-/// The level marker on the vertical track: a lit disc once reached, a ringed
-/// one for the level being worked on, a quiet one for the rest.
-class _Node extends StatelessWidget {
-  final int level;
-  final bool reached;
-  final bool current;
-  final bool first;
-  final bool last;
-  final Animation<double> pulse;
+class _RewardsStripState extends State<_RewardsStrip> {
+  final ScrollController _scroll = ScrollController();
 
-  const _Node({
-    required this.level,
-    required this.reached,
-    required this.current,
-    required this.first,
-    required this.last,
-    required this.pulse,
-  });
+  @override
+  void initState() {
+    super.initState();
+    // Open near the level being worked on, the passed ones are to the left.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scroll.hasClients) return;
+      final target = ((widget.pass.level - 1) * 100.0).clamp(0.0, _scroll.position.maxScrollExtent);
+      _scroll.jumpTo(target);
+    });
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  Widget _node(PassLevel l) {
+    final reached = l.level <= widget.pass.level;
+    final current = l.level == widget.pass.level + 1;
+    return Container(
+      width: 30,
+      height: 30,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: reached ? AppColors.primary : (current ? AppColors.surface : AppColors.violetSurface),
+        border: current ? Border.all(color: AppColors.primary, width: 2) : null,
+      ),
+      child: Text('${l.level}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: reached ? Colors.white : (current ? AppColors.primary : AppColors.secondaryText))),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final lit = reached ? const Color(0xFF7C6BFF) : AppColors.progressTrack;
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        Positioned(
-          top: first ? 24 : 0,
-          bottom: last ? 24 : 0,
-          child: Container(
-            width: 5,
-            decoration: BoxDecoration(
-              color: lit,
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
-        ),
-        AnimatedBuilder(
-          animation: pulse,
-          builder: (_, __) => Container(
-            width: 36,
-            height: 36,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: reached
-                  ? const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF9B8CFF), Color(0xFF5862DD)],
-                    )
-                  : null,
-              color: reached ? null : AppColors.surface,
-              border: Border.all(
-                color: current
-                    ? const Color(0xFFFFB300)
-                    : (reached ? Colors.white : AppColors.progressTrack),
-                width: current ? 3 : 2,
+    final pass = widget.pass;
+    final premium = pass.premiumEnabled;
+    Widget label(Widget child) => SizedBox(height: 104, child: Align(alignment: Alignment.centerLeft, child: child));
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      SizedBox(
+        width: 64,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const SizedBox(height: 38),
+          label(Text(tr('Бесплатно'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.secondaryText))),
+          if (premium) ...[
+            const SizedBox(height: 8),
+            label(Row(children: [
+              const PremiumIcon(size: 16),
+              const SizedBox(width: 3),
+              Flexible(child: Text('Premium', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Color(0xFFE09A12)))),
+            ])),
+          ],
+        ]),
+      ),
+      Expanded(
+        child: SingleChildScrollView(
+          key: const ValueKey('pass-strip'),
+          controller: _scroll,
+          scrollDirection: Axis.horizontal,
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            for (final l in pass.levels)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Column(children: [
+                  _node(l),
+                  const SizedBox(height: 8),
+                  if (l.free != null)
+                    PassTile(reward: l.free!, reached: l.level <= pass.level, busy: widget.busy, onClaim: () => widget.onClaim(l.level, 'free', l.free!))
+                  else
+                    const SizedBox(width: 92, height: 104),
+                  if (premium) ...[
+                    const SizedBox(height: 8),
+                    if (l.premium != null)
+                      PassTile(reward: l.premium!, reached: l.level <= pass.level, busy: widget.busy, onClaim: () => widget.onClaim(l.level, 'premium', l.premium!))
+                    else
+                      const SizedBox(width: 92, height: 104),
+                  ],
+                ]),
               ),
-              boxShadow: [
-                if (reached)
-                  BoxShadow(
-                    color: const Color(0xFF7C6BFF).withValues(alpha: 0.45),
-                    blurRadius: 10,
-                  ),
-                if (current)
-                  BoxShadow(
-                    color: const Color(0xFFFFB300)
-                        .withValues(alpha: 0.25 + 0.4 * pulse.value),
-                    blurRadius: 8 + 8 * pulse.value,
-                  ),
-              ],
-            ),
-            child: Text(
-              '$level',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-                color: reached ? Colors.white : AppColors.secondaryText,
-              ),
-            ),
-          ),
+          ]),
         ),
-      ],
-    );
+      ),
+    ]);
   }
 }
 
