@@ -25,6 +25,25 @@ void main() {
 }
 
 void readyTest() {
+  testWidgets('the card stays while the reward waits and leaves once it is taken', (tester) async {
+    Future<void> show(DailyGoal g) async {
+      await tester.pumpWidget(MaterialApp(home: Scaffold(body: SingleChildScrollView(child: DailyGoalCard(key: UniqueKey(), initialGoal: g)))));
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    // In progress: the card is there.
+    await show(const DailyGoal(goal: 10, done: 4, completed: false));
+    expect(find.byKey(const ValueKey('goal-card')), findsOneWidget);
+    // Finished, reward waiting: still there, with «Получить».
+    await show(DailyGoal.fromJson({'goal': 10, 'done': 10, 'completed': true, 'locked': true, 'reward_ready': true, 'claim_id': 5, 'options': [5, 10], 'tiers': <Object>[]}));
+    expect(find.byKey(const ValueKey('goal-card')), findsOneWidget);
+    expect(find.byKey(const ValueKey('goal-claim')), findsOneWidget);
+    // Finished and taken: nothing is drawn.
+    await show(const DailyGoal(goal: 10, done: 12, completed: true));
+    expect(find.byKey(const ValueKey('goal-card')), findsNothing);
+    expect(find.text('Награда получена'), findsNothing);
+  });
+
   testWidgets('the goal sheet: pick a row, then «Выбрать цель» returns it', (tester) async {
     tester.view.physicalSize = const Size(1080, 2200); // a phone: the whole sheet fits
     tester.view.devicePixelRatio = 3;

@@ -16,14 +16,17 @@ import 'reward_claim_effect.dart';
 class DailyGoalCard extends StatefulWidget {
   /// «Продолжить»: takes the person to the lessons.
   final VoidCallback? onContinue;
-  const DailyGoalCard({super.key, this.onContinue});
+
+  /// The goal to start from (tests); otherwise the remembered one.
+  final DailyGoal? initialGoal;
+  const DailyGoalCard({super.key, this.onContinue, this.initialGoal});
 
   @override
   State<DailyGoalCard> createState() => _DailyGoalCardState();
 }
 
 class _DailyGoalCardState extends State<DailyGoalCard> {
-  DailyGoal? _goal = ApiClient.instance.cachedDailyGoal();
+  late DailyGoal? _goal = widget.initialGoal ?? ApiClient.instance.cachedDailyGoal();
 
   @override
   void initState() {
@@ -102,17 +105,28 @@ class _DailyGoalCardState extends State<DailyGoalCard> {
   @override
   Widget build(BuildContext context) {
     final goal = _goal;
-    if (goal == null) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 14),
-      child: DailyGoalCardView(
-        goal: goal,
-        // A filled goal is fixed for the day; it still opens the list when a reward waits there.
-        onTap: (!goal.locked || goal.rewardReady) ? _pick : null,
-        onClaim: goal.rewardReady ? _claim : null,
-        onContinue: widget.onContinue,
-        notice: _notice,
-      ),
+    // A finished goal whose reward is taken leaves Главная altogether: the blocks below rise into its
+    // place (smoothly), and a new goal comes with the next day. While the reward still waits, the
+    // card stays -- it is where it is taken.
+    final gone = goal == null || (goal.completed && !goal.rewardReady);
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.topCenter,
+      child: gone
+          ? const SizedBox(width: double.infinity)
+          : Padding(
+              key: const ValueKey('goal-card'),
+              padding: const EdgeInsets.only(top: 14),
+              child: DailyGoalCardView(
+                goal: goal,
+                // A filled goal is fixed for the day; it still opens the list when a reward waits there.
+                onTap: (!goal.locked || goal.rewardReady) ? _pick : null,
+                onClaim: goal.rewardReady ? _claim : null,
+                onContinue: widget.onContinue,
+                notice: _notice,
+              ),
+            ),
     );
   }
 }
