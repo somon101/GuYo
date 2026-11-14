@@ -1,4 +1,3 @@
-import '../widgets/game_icons.dart';
 import 'streak_sheet.dart';
 import '../widgets/animated_fire.dart';
 import '../services/streak_state.dart';
@@ -20,6 +19,7 @@ import '../widgets/user_avatar.dart';
 import '../widgets/user_name.dart';
 import 'season_quests_screen.dart';
 import '../widgets/daily_goal_card.dart';
+import '../widgets/season_card.dart';
 import '../widgets/home_tiles.dart';
 import '../widgets/skeleton.dart';
 import 'text_check_screen.dart';
@@ -166,25 +166,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         ),
         // The main card: today's word goal with «Продолжить».
         DailyGoalCard(onContinue: widget.onOpenLessons),
-        const SizedBox(height: 18),
-        _SectionTitle(tr('Мои награды')),
-        const SizedBox(height: 10),
-        const HomeTilesRow(),
-        const SizedBox(height: 18),
-        _SectionTitle(tr('Сегодня')),
-        const SizedBox(height: 10),
-        // Words being forgotten right now; hides itself when none are.
-        ReviewDueCard(key: _reviewKey, dictionary: widget.dictionary),
         const SizedBox(height: 14),
-        // The AI text checker, deliberately ABOVE the season block: it is a
-        // tool the user opens on purpose, while the season block is something
-        // to read. It depends on none of the season's own data, so it sits
-        // outside the loading/error branches below -- and stays reachable even
-        // when that block failed to load.
-        const TextCheckCard(),
-        // The gap belongs HERE, after the card: without it the two blocks sit
-        // flush against each other and read as one shape.
-        const SizedBox(height: 14),
+        // The season (variant B): one card right after the goal.
         if (_isLoading)
           const Skeleton(
             child: Column(
@@ -208,12 +191,27 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             ),
           )
         else if (overview != null)
-          _SeasonBlock(
+          SeasonCard(
             overview: overview,
-            onOpen: _openSeasonQuests,
-            onOpenLessons: widget.onOpenLessons,
+            onOpenHeader: _openSeasonQuests,
+            onOpenPoints: () => showPointsToday(context, total: overview.pointsToday),
             onOpenRating: widget.onOpenRating,
+            onOpenQuests: _openSeasonQuests,
+            // The quest of the day opens the quests section itself.
+            onQuestOfDay: _openSeasonQuests,
           ),
+        const SizedBox(height: 18),
+        _SectionTitle(tr('Мои награды')),
+        const SizedBox(height: 10),
+        const HomeTilesRow(),
+        const SizedBox(height: 18),
+        _SectionTitle(tr('Сегодня')),
+        const SizedBox(height: 10),
+        // Words being forgotten right now; hides itself when none are.
+        ReviewDueCard(key: _reviewKey, dictionary: widget.dictionary),
+        const SizedBox(height: 14),
+        // The AI text checker: a tool the user opens on purpose. It depends on none of the season's data.
+        const TextCheckCard(),
       ],
     );
   }
@@ -349,191 +347,6 @@ class _StreakPill extends StatelessWidget {
 
 /// The one big block on Главная: the season header with its own icon, the
 /// three live stats, and the featured "Квест дня".
-class _SeasonBlock extends StatelessWidget {
-  final SeasonQuestOverview overview;
-  final VoidCallback onOpen;
-  final VoidCallback onOpenLessons;
-  final VoidCallback? onOpenRating;
-
-  const _SeasonBlock({required this.overview, required this.onOpen, required this.onOpenLessons, this.onOpenRating});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: AppColors.seasonCardGradient,
-        ),
-        borderRadius: BorderRadius.circular(AppShapes.bannerRadius),
-      ),
-      child: Column(
-        children: [
-          _SeasonHeaderRow(overview: overview, onOpen: onOpen),
-          const SizedBox(height: 12),
-          // The season's own stretch of time, on its own surface -- kept
-          // apart from the quest numbers below, which measure something
-          // else entirely.
-          if (overview.season != null)
-            SeasonTimeline(
-              startsAt: overview.season!.startsAt,
-              endsAt: overview.season!.endsAt,
-              daysLeft: overview.daysLeft,
-              daysTotal: overview.daysTotal,
-              compact: true,
-            ),
-          const SizedBox(height: 12),
-          _StatsCard(overview: overview, onOpenQuests: onOpen, onOpenRating: onOpenRating),
-          const SizedBox(height: 12),
-          DailyQuestCard(
-            pointsPerLearnedWord: overview.pointsPerLearnedWord,
-            wordsLearnedToday: overview.wordsLearnedToday,
-            // The quest card opens the quests section itself.
-            onTap: onOpen,
-            compact: true,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SeasonHeaderRow extends StatelessWidget {
-  final SeasonQuestOverview overview;
-  final VoidCallback onOpen;
-
-  const _SeasonHeaderRow({required this.overview, required this.onOpen});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-      onTap: onOpen,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        child: Row(
-          children: [
-            SeasonIconPlate(
-              iconUrl: overview.season?.iconUrl,
-              iconSize: 46,
-              padding: const EdgeInsets.all(7),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    tr('Квесты сезона'),
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    seasonSubtitle(overview),
-                    style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right, color: AppColors.primary),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The line under "Квесты сезона" -- the season's own name, or an honest
-/// note when none is running. The remaining time is NOT repeated here: it
-/// has its own panel directly below, and saying it twice was part of what
-/// made the block read as a jumble.
-String seasonSubtitle(SeasonQuestOverview overview) {
-  final season = overview.season;
-  if (season == null) return tr('Сейчас нет активного сезона');
-  return season.name;
-}
-
-class _StatsCard extends StatelessWidget {
-  final SeasonQuestOverview overview;
-  final VoidCallback onOpenQuests;
-  final VoidCallback? onOpenRating;
-  const _StatsCard({required this.overview, required this.onOpenQuests, this.onOpenRating});
-
-  /// Each stat is its own tap target: points -> today's history,
-  /// place -> the rating, quests -> the season's quests.
-  Widget _tap(String key, VoidCallback? onTap, Widget child) => Expanded(
-        child: InkWell(
-          key: ValueKey(key),
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: child),
-        ),
-      );
-
-  @override
-  Widget build(BuildContext context) {
-    return GuyoCard(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      radius: AppShapes.rowRadius,
-      child: Column(
-        children: [
-          IntrinsicHeight(
-            child: Row(
-              children: [
-                _tap(
-                  'stat-points-today',
-                  () => showPointsToday(context, total: overview.pointsToday),
-                  StatColumn(
-                    icon: Icons.star_rounded,
-                    leading: const PointsIcon(size: 36),
-                    value: '+${overview.pointsToday}',
-                    label: tr('очков сегодня'),
-                    iconColor: AppColors.gold,
-                  ),
-                ),
-                const StatDivider(),
-                _tap(
-                  'stat-rank',
-                  onOpenRating,
-                  StatColumn(
-                    icon: Icons.emoji_events_rounded,
-                    value: overview.rankPosition == null ? '—' : '#${overview.rankPosition}',
-                    label: tr('место в рейтинге'),
-                  ),
-                ),
-                const StatDivider(),
-                _tap(
-                  'stat-quests',
-                  onOpenQuests,
-                  StatColumn(
-                    icon: Icons.check_box_rounded,
-                    value: '${overview.questsDoneToday}/${overview.questsTotal}',
-                    label: tr('заданий выполнено'),
-                    iconColor: AppColors.success,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          QuestProgressBar(
-            value: overview.questsDoneToday,
-            target: overview.questsTotal,
-            label: overview.questsTotal == 0
-                ? '0%'
-                : '${(overview.questsDoneToday / overview.questsTotal * 100).round()}%',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// "Квест дня": the permanent "изучение новых слов" quest.
 ///
 /// NOT a new mechanic -- it is the existing system quest, whose reward

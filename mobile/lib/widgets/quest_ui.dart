@@ -69,6 +69,9 @@ class SeasonTimeline extends StatelessWidget {
   /// The tighter variant used inside the season block on Главная.
   final bool compact;
 
+  /// No surface of its own: it lies inside a card that already has one.
+  final bool plain;
+
   const SeasonTimeline({
     super.key,
     required this.startsAt,
@@ -76,6 +79,7 @@ class SeasonTimeline extends StatelessWidget {
     required this.daysLeft,
     required this.daysTotal,
     this.compact = false,
+    this.plain = false,
   });
 
   @override
@@ -89,11 +93,13 @@ class SeasonTimeline extends StatelessWidget {
     final elapsed = (total - left).clamp(0, total);
 
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 14, vertical: compact ? 10 : 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-      ),
+      padding: plain ? EdgeInsets.zero : EdgeInsets.symmetric(horizontal: compact ? 12 : 14, vertical: compact ? 10 : 12),
+      decoration: plain
+          ? null
+          : BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppShapes.rowRadius),
+            ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,

@@ -1,4 +1,3 @@
-import '../widgets/game_icons.dart';
 import '../l10n/l10n.dart';
 
 import 'package:flutter/material.dart';
@@ -9,7 +8,8 @@ import '../models/dictionary.dart';
 import '../models/quest.dart';
 import '../theme/app_colors.dart';
 import '../widgets/quest_ui.dart';
-import 'home_dashboard_screen.dart';
+import '../widgets/season_card.dart';
+import 'points_today_sheet.dart';
 import 'quest_attempt_screen.dart';
 import '../widgets/skeleton.dart';
 import '../widgets/weekly_pass_tasks.dart';
@@ -161,14 +161,11 @@ class _SeasonQuestsScreenState extends State<SeasonQuestsScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
       children: [
-        _SeasonBanner(overview: overview),
-        const SizedBox(height: 14),
-        _StatsRow(overview: overview),
-        const SizedBox(height: 14),
-        DailyQuestCard(
-          pointsPerLearnedWord: overview.pointsPerLearnedWord,
-          wordsLearnedToday: overview.wordsLearnedToday,
-          onTap: _openLessons,
+        SeasonCard(
+          overview: overview,
+          large: true,
+          onOpenPoints: () => showPointsToday(context, total: overview.pointsToday),
+          onQuestOfDay: _openLessons,
         ),
         const SizedBox(height: 22),
         const WeeklyPassTasks(),
@@ -199,164 +196,6 @@ class _SeasonQuestsScreenState extends State<SeasonQuestsScreen> {
   }
 }
 
-/// The big season banner.
-///
-/// Three clearly separate layers rather than one soft pile: the gradient
-/// is atmosphere, the artwork sits on its own white plate, and the
-/// season's dates and remaining time live in their own panel. The quest
-/// counter deliberately does NOT appear here -- it is a different measure
-/// from "how much of the season is left", and the two sharing a bar was
-/// exactly what made this block hard to read.
-class _SeasonBanner extends StatelessWidget {
-  final SeasonQuestOverview overview;
-  const _SeasonBanner({required this.overview});
-
-  @override
-  Widget build(BuildContext context) {
-    final season = overview.season;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: AppColors.bannerGradient,
-        ),
-        borderRadius: BorderRadius.circular(AppShapes.bannerRadius),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SeasonIconPlate(iconUrl: season?.iconUrl, iconSize: 78),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (season != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(
-                            AppShapes.pillRadius,
-                          ),
-                        ),
-                        child: Text(
-                          season.name,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primaryDark,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    const SizedBox(height: 8),
-                    Text(
-                      tr('Квесты сезона'),
-                      style: TextStyle(
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primaryDark,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      tr('Выполняй задания, получай очки и повышай свой ранг.'),
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: AppColors.secondaryText,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          if (season == null)
-            Text(
-              tr('Сейчас нет активного сезона'),
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.secondaryText,
-              ),
-            )
-          else
-            SeasonTimeline(
-              startsAt: season.startsAt,
-              endsAt: season.endsAt,
-              daysLeft: overview.daysLeft,
-              daysTotal: overview.daysTotal,
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatsRow extends StatelessWidget {
-  final SeasonQuestOverview overview;
-  const _StatsRow({required this.overview});
-
-  @override
-  Widget build(BuildContext context) {
-    return GuyoCard(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-      child: IntrinsicHeight(
-        child: Row(
-          children: [
-            Expanded(
-              child: StatColumn(
-                icon: Icons.star_rounded,
-                leading: const PointsIcon(size: 36),
-                value: '+${overview.pointsToday}',
-                label: tr('Очков сегодня'),
-                iconColor: AppColors.gold,
-              ),
-            ),
-            const StatDivider(),
-            Expanded(
-              child: StatColumn(
-                icon: Icons.emoji_events_rounded,
-                value: overview.rankPosition == null
-                    ? '—'
-                    : '#${overview.rankPosition}',
-                label: tr('Место в рейтинге'),
-              ),
-            ),
-            const StatDivider(),
-            Expanded(
-              child: StatColumn(
-                icon: Icons.track_changes_rounded,
-                value: '${overview.questsDoneToday} / ${overview.questsTotal}',
-                label: tr('Квестов выполнено'),
-                iconColor: AppColors.success,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// One daily quest: what it targets, how far along today, what it pays.
-///
-/// Tappable only while the backend says it's attemptable -- a quest with
-/// no eligible word left today says so instead of opening a round that
-/// would immediately fail.
 class _QuestRow extends StatelessWidget {
   final AvailableQuest quest;
   final VoidCallback onTap;
@@ -373,10 +212,14 @@ class _QuestRow extends StatelessWidget {
         ? '${_exerciseLabels[quest.exerciseKey] ?? quest.exerciseKey} · ${quest.wordLevelName}'
         : tr('Нет подходящих слов');
 
-    return GuyoCard(
-      radius: AppShapes.rowRadius,
-      padding: const EdgeInsets.all(12),
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+      borderRadius: BorderRadius.circular(20),
       onTap: canAttempt ? onTap : null,
+      child: Padding(
+      padding: const EdgeInsets.all(12),
       child: Row(
         children: [
           RoundIconChip(
@@ -444,6 +287,8 @@ class _QuestRow extends StatelessWidget {
             ],
           ),
         ],
+      ),
+      ),
       ),
     );
   }
