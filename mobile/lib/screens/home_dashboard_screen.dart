@@ -10,7 +10,6 @@ import '../models/dictionary.dart';
 import '../models/quest.dart';
 import '../models/user_profile.dart';
 import '../theme/app_colors.dart';
-import 'points_today_sheet.dart';
 import '../widgets/review_due_card.dart';
 import '../theme/slogans.dart';
 import '../theme/time_of_day.dart';
@@ -20,6 +19,7 @@ import '../widgets/user_name.dart';
 import 'season_quests_screen.dart';
 import '../widgets/daily_goal_card.dart';
 import '../widgets/season_card.dart';
+import '../widgets/weekly_pass_tasks.dart';
 import '../widgets/home_tiles.dart';
 import '../widgets/skeleton.dart';
 
@@ -193,12 +193,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
           SeasonCard(
             overview: overview,
             onOpenHeader: _openSeasonQuests,
-            onOpenPoints: () => showPointsToday(context, total: overview.pointsToday),
-            onOpenRating: widget.onOpenRating,
-            onOpenQuests: _openSeasonQuests,
-            // The quest of the day opens the quests section itself.
-            onQuestOfDay: _openSeasonQuests,
           ),
+        if (overview != null) HomeSeasonTasks(onOpen: _openSeasonQuests),
         const SizedBox(height: 18),
         _SectionTitle(tr('Мои награды')),
         const SizedBox(height: 10),

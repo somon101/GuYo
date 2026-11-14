@@ -6,8 +6,9 @@ import '../theme/app_colors.dart';
 import 'game_icons.dart';
 import 'quest_ui.dart';
 
-/// The season in ONE light card (Главная and the «Квесты» screen): the season's shield and name,
-/// the days left, the three numbers (points today, place, tasks done) and the quest of the day.
+/// The season in ONE light card: the season's shield and name and the days left. On the «Квесты»
+/// screen ([large]) also the three numbers (points today, place, tasks done) and the quest of the day;
+/// on Главная the two weekly tasks being worked on stand under it (see HomeSeasonTasks).
 /// Nothing lies inside another card; the parts are separated by thin lines.
 class SeasonCard extends StatelessWidget {
   final SeasonQuestOverview overview;
@@ -20,12 +21,12 @@ class SeasonCard extends StatelessWidget {
   final VoidCallback? onOpenPoints;
   final VoidCallback? onOpenRating;
   final VoidCallback? onOpenQuests;
-  final VoidCallback onQuestOfDay;
+  final VoidCallback? onQuestOfDay;
 
   const SeasonCard({
     super.key,
     required this.overview,
-    required this.onQuestOfDay,
+    this.onQuestOfDay,
     this.large = false,
     this.onOpenHeader,
     this.onOpenPoints,
@@ -76,6 +77,7 @@ class SeasonCard extends StatelessWidget {
         const SizedBox(height: 12),
         if (season != null)
           SeasonTimeline(startsAt: season.startsAt, endsAt: season.endsAt, daysLeft: overview.daysLeft, daysTotal: overview.daysTotal, compact: true, plain: true),
+        if (large) ...[
         _line,
         IntrinsicHeight(
           child: Row(children: [
@@ -97,7 +99,8 @@ class SeasonCard extends StatelessWidget {
           ]),
         ),
         _line,
-        _QuestOfDayRow(pointsPerLearnedWord: overview.pointsPerLearnedWord, wordsLearnedToday: overview.wordsLearnedToday, onTap: onQuestOfDay),
+        _QuestOfDayRow(pointsPerLearnedWord: overview.pointsPerLearnedWord, wordsLearnedToday: overview.wordsLearnedToday, onTap: onQuestOfDay ?? () {}),
+        ],
       ]),
     );
   }

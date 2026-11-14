@@ -4,6 +4,7 @@ import 'game_icons.dart';
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
 import '../models/season_pass.dart';
+import '../services/streak_state.dart';
 import '../theme/app_colors.dart';
 import 'season_pass_ui.dart';
 
@@ -85,37 +86,12 @@ class _WeeklyPassTasksState extends State<WeeklyPassTasks>
   Future<void> _claim(PassTask task) async {
     if (_busy) return;
     setState(() => _busy = true);
-    try {
-      final pass = await ApiClient.instance.claimPassTask(task.id);
-      if (!mounted) return;
-      setState(() => _pass = pass);
-      await showRewardDialog(
-        context,
-        style: RewardStyle(
-          _metricStyles[task.metric]?.colors ??
-              const [Color(0xFFA48BFF), Color(0xFF5862DD)],
-          _metricStyles[task.metric]?.icon ?? Icons.bolt_rounded,
-          tr('Энергия'),
-          asset: 'energy',
-        ),
-        title: tr('Награда получена!'),
-        text: '+${task.xp} ${tr('энергии')}',
-      );
-    } on ApiException catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(e.message)));
-    } catch (_) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-          SnackBar(content: Text(tr('Не удалось. Проверьте интернет.'))),
-        );
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+    final pass = await claimPassTaskFlow(context, task);
+    if (!mounted) return;
+    setState(() {
+      if (pass != null) _pass = pass;
+      _busy = false;
+    });
   }
 
   @override
@@ -191,7 +167,7 @@ class _WeeklyPassTasksState extends State<WeeklyPassTasks>
           )
         else
           for (final task in pass.tasks)
-            _TaskCard(
+            PassTaskCard(
               task: task,
               pulse: _animation,
               busy: _busy,
@@ -202,12 +178,14 @@ class _WeeklyPassTasksState extends State<WeeklyPassTasks>
   }
 }
 
-class _TaskCard extends StatelessWidget {
+/// One weekly task: the coloured tile, the name, the progress and the reward (or «Забрать»).
+class PassTaskCard extends StatelessWidget {
   final PassTask task;
   final Animation<double> pulse;
   final bool busy;
   final VoidCallback onClaim;
-  const _TaskCard({
+  const PassTaskCard({
+    super.key,
     required this.task,
     required this.pulse,
     required this.busy,
@@ -357,6 +335,113 @@ class _TaskCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Takes the energy of a finished weekly task: the request, then the reward window; a failure is
+/// said in a notice. Returns the refreshed pass, or null when nothing was taken.
+Future<SeasonPass?> claimPassTaskFlow(BuildContext context, PassTask task) async {
+  try {
+    final pass = await ApiClient.instance.claimPassTask(task.id);
+    if (!context.mounted) return pass;
+    await showRewardDialog(
+      context,
+      style: RewardStyle(
+        _metricStyles[task.metric]?.colors ?? const [Color(0xFFA48BFF), Color(0xFF5862DD)],
+        _metricStyles[task.metric]?.icon ?? Icons.bolt_rounded,
+        tr('Энергия'),
+        asset: 'energy',
+      ),
+      title: tr('Награда получена!'),
+      text: '+${task.xp} ${tr('энергии')}',
+    );
+    return pass;
+  } on ApiException catch (e) {
+    if (context.mounted) ScaffoldMessenger.of(context)..hideCurrentSnackBar()..showSnackBar(SnackBar(content: Text(e.message)));
+  } catch (_) {
+    if (context.mounted) ScaffoldMessenger.of(context)..hideCurrentSnackBar()..showSnackBar(SnackBar(content: Text(tr('Не удалось. Проверьте интернет.'))));
+  }
+  return null;
+}
+
+/// The tasks to show on Главная: those ready to be taken first, then the ones closest to done;
+/// finished and taken ones are left out. At most [limit].
+List<PassTask> currentPassTasks(List<PassTask> tasks, {int limit = 2}) {
+  final open = [for (final t in tasks) if (!t.claimed) t];
+  double done(PassTask t) => t.target == 0 ? 1.0 : t.progress / t.target;
+  open.sort((a, b) {
+    if (a.claimable != b.claimable) return a.claimable ? -1 : 1;
+    return done(b).compareTo(done(a));
+  });
+  return open.take(limit).toList();
+}
+
+/// Under the season card on Главная: up to two weekly tasks being worked on right now.
+class HomeSeasonTasks extends StatefulWidget {
+  /// Opens the quests screen (a tap on a task).
+  final VoidCallback onOpen;
+
+  /// The pass to start from (tests); otherwise the remembered one.
+  final SeasonPass? initialPass;
+  const HomeSeasonTasks({super.key, required this.onOpen, this.initialPass});
+
+  @override
+  State<HomeSeasonTasks> createState() => _HomeSeasonTasksState();
+}
+
+class _HomeSeasonTasksState extends State<HomeSeasonTasks> with SingleTickerProviderStateMixin {
+  late SeasonPass? _pass = widget.initialPass ?? ApiClient.instance.cachedSeasonPass();
+  bool _busy = false;
+  late final AnimationController _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 1300))..repeat(reverse: true);
+  late final Animation<double> _animation = CurvedAnimation(parent: _pulse, curve: Curves.easeInOut);
+
+  @override
+  void initState() {
+    super.initState();
+    dailyGoalTick.addListener(_load);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    dailyGoalTick.removeListener(_load);
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    final pass = await ApiClient.instance.fetchSeasonPass();
+    if (mounted && pass != null) setState(() => _pass = pass);
+  }
+
+  Future<void> _claim(PassTask task) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final pass = await claimPassTaskFlow(context, task);
+    if (!mounted) return;
+    setState(() {
+      if (pass != null) _pass = pass;
+      _busy = false;
+    });
+    dailyGoalTick.value++;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tasks = currentPassTasks(_pass?.tasks ?? const []);
+    if (tasks.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Column(children: [
+        for (final t in tasks)
+          GestureDetector(
+            key: ValueKey('home-task-${t.id}'),
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onOpen,
+            child: PassTaskCard(task: t, pulse: _animation, busy: _busy, onClaim: () => _claim(t)),
+          ),
+      ]),
     );
   }
 }
