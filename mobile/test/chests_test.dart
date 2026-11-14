@@ -53,7 +53,7 @@ void main() {
     await tester.ensureVisible(find.byKey(const ValueKey('mode-wood-5')));
     await tester.tap(find.byKey(const ValueKey('mode-wood-5')));
     await tester.pump();
-    expect(find.text('ОТКРЫТЬ ×5'), findsOneWidget);
+    expect(find.text('Открыть ×5'), findsOneWidget);
   });
 
   testWidgets('three taps open a batch and every prize flies out', (tester) async {

@@ -1,14 +1,13 @@
 import 'dart:async';
-import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
+import '../theme/app_colors.dart';
 import '../models/chest.dart';
 import '../services/chest_queue.dart';
 import '../models/reward_spec.dart';
-import '../widgets/counted_chest.dart';
 import '../widgets/reward_claim_effect.dart';
 import '../widgets/game_icons.dart';
 import 'chest_open_screen.dart';
@@ -149,15 +148,15 @@ class _ChestListScreenState extends State<ChestListScreen> {
   Widget build(BuildContext context) {
     final daily = _bank.daily;
     final total = _bank.chests.length;
+    final hasBoosters = _boosters != null && ['chest', 'rating', 'xp'].any((k) => _boosters!.of(k).total > 0 || _boosters!.of(k).running);
     return Scaffold(
-      backgroundColor: const Color(0xFF1E1560),
+      backgroundColor: AppColors.canvas,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        leading: BackButton(key: const ValueKey('chest-list-back'), onPressed: () => Navigator.of(context).pop(_bank)),
-        title: Text('${tr('Мои сундуки')} · $total', style: const TextStyle(fontWeight: FontWeight.w900)),
-        centerTitle: true,
+        scrolledUnderElevation: 0,
+        leading: BackButton(key: const ValueKey('chest-list-back'), color: AppColors.primaryDark, onPressed: () => Navigator.of(context).pop(_bank)),
+        title: Text('${tr('Мои сундуки')} · $total', style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+        centerTitle: false,
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
@@ -167,21 +166,42 @@ class _ChestListScreenState extends State<ChestListScreen> {
               key: const ValueKey('chest-notice'),
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(color: const Color(0x33FFB020), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0x80FFB020))),
-              child: Text(_notice!, style: const TextStyle(color: Color(0xFFFFD27A), fontSize: 13, fontWeight: FontWeight.w700)),
+              decoration: BoxDecoration(color: AppColors.violetSurface, borderRadius: BorderRadius.circular(12)),
+              child: Text(_notice!, style: TextStyle(color: AppColors.primaryDark, fontSize: 13, fontWeight: FontWeight.w600)),
             ),
-          if (_boosters != null && ['chest', 'rating', 'xp'].any((k) => _boosters!.of(k).total > 0 || _boosters!.of(k).running)) _boostersTile(_boosters!),
           if (daily.enabled && !daily.claimed) _dailyTile(daily),
-          for (final t in _bank.types) _row(t),
+          _groupTitle(tr('Сундуки')),
+          Container(
+            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
+            clipBehavior: Clip.antiAlias,
+            child: Column(children: [
+              for (var i = 0; i < _bank.types.length; i++) ...[
+                if (i > 0) _hairline(),
+                _row(_bank.types[i]),
+              ],
+            ]),
+          ),
           if (total == 0)
             Padding(
               padding: const EdgeInsets.only(top: 12),
-              child: Text(tr('Пока сундуков нет'), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70)),
+              child: Text(tr('Пока сундуков нет'), textAlign: TextAlign.center, style: TextStyle(color: AppColors.secondaryText)),
             ),
+          if (hasBoosters) ...[
+            const SizedBox(height: 18),
+            _groupTitle(tr('Бонусы')),
+            _boostersTile(_boosters!),
+          ],
         ],
       ),
     );
   }
+
+  Widget _groupTitle(String text) => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
+        child: Text(text.toUpperCase(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.6, color: AppColors.secondaryText)),
+      );
+
+  Widget _hairline() => Divider(height: 1, thickness: 1, indent: 14, endIndent: 0, color: AppColors.cardBorder);
 
   String _left(DateTime until) {
     final s = until.difference(DateTime.now()).inSeconds.clamp(0, 1 << 30);
@@ -199,8 +219,31 @@ class _ChestListScreenState extends State<ChestListScreen> {
 
   String? _boostTab;
 
-  /// «Мои бонусы»: three tabs (a kind each, with its timer or how many are held); inside, a grid of
-  /// the tickets held, two in a row.
+  /// A segmented switch: [labels] in a quiet track, the chosen one lifted onto the surface.
+  Widget _segment<T>({required List<T> values, required T selected, required Widget Function(T) label, required void Function(T) onTap, required Key Function(T) keyOf, bool expand = false}) {
+    final items = [
+      for (final v in values)
+        GestureDetector(
+          key: keyOf(v),
+          behavior: HitTestBehavior.opaque,
+          onTap: () => onTap(v),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: v == selected ? AppColors.surface : null, borderRadius: BorderRadius.circular(8)),
+            child: label(v),
+          ),
+        ),
+    ];
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(color: AppColors.violetSurface, borderRadius: BorderRadius.circular(10)),
+      child: Row(mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min, children: [for (final i in items) expand ? Expanded(child: i) : i]),
+    );
+  }
+
+  /// «Бонусы»: a switch between the three kinds (each shows its timer or how many are held), a line
+  /// on what it does and the tickets held, one per row.
   Widget _boostersTile(BoosterState all) {
     final kinds = [for (final k in const ['chest', 'rating', 'xp']) if (all.of(k).total > 0 || all.of(k).running) k];
     if (kinds.isEmpty) return const SizedBox.shrink();
@@ -209,132 +252,128 @@ class _ChestListScreenState extends State<ChestListScreen> {
     final held = [for (final e in b.items.entries) if (e.value > 0) e];
     return Container(
       key: const ValueKey('boosters-tile'),
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(18)),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          for (final k in kinds)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: GestureDetector(
-                  key: ValueKey('boost-tab-$k'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => setState(() => _boostTab = k),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    decoration: BoxDecoration(
-                      color: k == tab ? const Color(0x40FFD54F) : Colors.white.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: k == tab ? Border.all(color: const Color(0xFFFFD54F), width: 1.5) : null,
-                    ),
-                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      BoosterIcon(size: 26, kind: k),
-                      const SizedBox(width: 4),
-                      all.of(k).running
-                          ? Text(_left(all.of(k).activeUntil!), key: ValueKey('boost-running-$k'), style: const TextStyle(color: Color(0xFFFFD54F), fontSize: 12, fontWeight: FontWeight.w900, fontFeatures: [FontFeature.tabularFigures()]))
-                          : Text('${all.of(k).total}', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900)),
-                    ]),
-                  ),
-                ),
-              ),
-            ),
-        ]),
-        const SizedBox(height: 8),
-        Text(tr(_kindNames[tab]!), style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
-        Text(b.running ? tr('Идёт удвоение. Ещё один билет прибавит время.') : tr(_kindHints[tab]!), style: const TextStyle(color: Colors.white70, fontSize: 12)),
-        const SizedBox(height: 8),
+        _segment<String>(
+          values: kinds,
+          selected: tab,
+          expand: true,
+          keyOf: (k) => ValueKey('boost-tab-$k'),
+          onTap: (k) => setState(() => _boostTab = k),
+          label: (k) => Row(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
+            BoosterIcon(size: 22, kind: k),
+            const SizedBox(width: 5),
+            all.of(k).running
+                ? Text(_left(all.of(k).activeUntil!), key: ValueKey('boost-running-$k'), style: TextStyle(color: AppColors.primary, fontSize: 12.5, fontWeight: FontWeight.w800, fontFeatures: const [FontFeature.tabularFigures()]))
+                : Text('${all.of(k).total}', style: TextStyle(color: AppColors.primaryDark, fontSize: 13, fontWeight: FontWeight.w700)),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        Text(tr(_kindNames[tab]!), style: TextStyle(color: AppColors.primaryDark, fontSize: 15, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 2),
+        Text(b.running ? tr('Идёт удвоение. Ещё один билет прибавит время.') : tr(_kindHints[tab]!), style: TextStyle(color: AppColors.secondaryText, fontSize: 12.5)),
+        const SizedBox(height: 6),
         if (held.isEmpty)
-          Text(tr('Билетов нет'), style: const TextStyle(color: Colors.white54, fontSize: 12))
+          Padding(padding: const EdgeInsets.only(top: 6), child: Text(tr('Билетов нет'), style: TextStyle(color: AppColors.secondaryText, fontSize: 13)))
         else
-          LayoutBuilder(builder: (context, c) {
-            final w = (c.maxWidth - 8) / 2;
-            return Wrap(spacing: 8, runSpacing: 8, children: [
-              for (final e in held)
-                Container(
-                  width: w,
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    CountedBoosterIcon(count: e.value, kind: tab),
-                    const SizedBox(height: 4),
-                    Text(_minutesLabel(e.key), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13)),
-                    const SizedBox(height: 6),
-                    GreenButton(key: ValueKey('boost-on-$tab-${e.key}'), label: tr('Включить'), onTap: () => _activate(e.key, tab), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7)),
-                  ]),
+          for (final e in held) ...[
+            Divider(height: 1, thickness: 1, color: AppColors.cardBorder),
+            SizedBox(
+              height: 52,
+              child: Row(children: [
+                Text(_minutesLabel(e.key), style: TextStyle(color: AppColors.primaryDark, fontSize: 15, fontWeight: FontWeight.w600)),
+                const SizedBox(width: 10),
+                Text('×${e.value}', style: TextStyle(color: AppColors.secondaryText, fontSize: 14, fontFeatures: const [FontFeature.tabularFigures()])),
+                const Spacer(),
+                GestureDetector(
+                  key: ValueKey('boost-on-$tab-${e.key}'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _activate(e.key, tab),
+                  child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12), child: Text(tr('Включить'), style: TextStyle(color: AppColors.primary, fontSize: 15, fontWeight: FontWeight.w700))),
                 ),
-            ]);
-          }),
+              ]),
+            ),
+          ],
       ]),
     );
   }
 
   String _minutesLabel(int m) => m >= 60 && m % 60 == 0 ? tr('{0} ч', [m ~/ 60]) : tr('{0} мин', [m]);
 
+  /// «Сундук дня»: one plain line, the name on the left and «Забрать» as a text link on the right.
   Widget _dailyTile(DailyChest daily) => Container(
         key: const ValueKey('daily-tile'),
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(18)),
+        margin: const EdgeInsets.only(bottom: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
         child: Row(children: [
-          Opacity(opacity: daily.available ? 1 : 0.5, child: ChestImage(daily.chestKey, size: 54)),
+          Opacity(opacity: daily.available ? 1 : 0.5, child: ChestImage(daily.chestKey, size: 34)),
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(tr('Сундук дня'), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 2),
-              Text(daily.available ? tr('Нажмите, чтобы забрать') : daily.conditions, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              Text(tr('Сундук дня'), style: TextStyle(color: AppColors.primaryDark, fontSize: 16, fontWeight: FontWeight.w700)),
+              if (!daily.available) Text(daily.conditions, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: AppColors.secondaryText, fontSize: 12.5)),
             ]),
           ),
-          if (daily.available) GreenButton(label: tr('Забрать'), onTap: _claim),
+          if (daily.available)
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _claim,
+              child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10), child: Text(tr('Забрать'), style: TextStyle(color: AppColors.primary, fontSize: 16, fontWeight: FontWeight.w700))),
+            ),
         ]),
       );
 
+  /// One chest kind: its picture, name and number; when some are held, «Открыть» (and ×5 / ×10 once
+  /// there are enough).
   Widget _row(ChestType t) {
     final n = _count(t.key);
     final m = _multiplier(t.key);
     final options = [1, 5, 10].where((x) => x == 1 || n >= x).toList();
+    final openLabel = m > 1 ? '${tr('Открыть')} ×$m' : tr('Открыть');
     return Opacity(
-      opacity: n == 0 ? 0.5 : 1,
-      child: Container(
+      opacity: n == 0 ? 0.45 : 1,
+      child: Padding(
         key: ValueKey('chest-row-${t.key}'),
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(18)),
+        padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
         child: Column(children: [
-          Row(children: [
-            CountedChest(chestKey: t.key, color: Color(t.color), count: n, size: 60),
-            const SizedBox(width: 14),
-            Expanded(child: Text(t.name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900), maxLines: 1, overflow: TextOverflow.ellipsis)),
-          ]),
-          if (n > 0) ...[
-            const SizedBox(height: 10),
-            Row(children: [
-              if (options.length > 1)
-                for (final x in options)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: GestureDetector(
-                      key: ValueKey('mode-${t.key}-$x'),
-                      onTap: () => setState(() => _mode[t.key] = x),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          gradient: m == x ? const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFFFFE56B), Color(0xFFFFAB1A)]) : null,
-                          color: m == x ? null : Colors.white.withValues(alpha: 0.14),
-                          boxShadow: m == x ? const [BoxShadow(color: Color(0xFFB36A00), offset: Offset(0, 2))] : null,
-                        ),
-                        child: Text('×$x', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: m == x ? const Color(0xFF4A2A00) : Colors.white70)),
-                      ),
-                    ),
-                  ),
-              Expanded(
-                child: GreenButton(key: ValueKey('open-${t.key}'), label: m > 1 ? '${tr('Открыть')} ×$m' : tr('Открыть'), onTap: _busy ? null : () => _open(t.key)),
-              ),
+          SizedBox(
+            height: 60,
+            child: Row(children: [
+              ChestImage(t.key, size: 40),
+              const SizedBox(width: 12),
+              Expanded(child: Text(t.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: AppColors.primaryDark, fontSize: 15.5, fontWeight: FontWeight.w600))),
+              Text('$n', style: TextStyle(color: AppColors.primaryDark, fontSize: 16, fontWeight: FontWeight.w700, fontFeatures: const [FontFeature.tabularFigures()])),
+              if (n > 0 && options.length == 1) ...[
+                const SizedBox(width: 14),
+                GestureDetector(
+                  key: ValueKey('open-${t.key}'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _busy ? null : () => _open(t.key),
+                  child: Padding(padding: const EdgeInsets.symmetric(vertical: 14), child: Text(openLabel, style: TextStyle(color: AppColors.primary, fontSize: 15, fontWeight: FontWeight.w700))),
+                ),
+              ],
             ]),
-          ],
+          ),
+          if (n > 0 && options.length > 1)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(children: [
+                _segment<int>(values: options, selected: m, keyOf: (x) => ValueKey('mode-${t.key}-$x'), onTap: (x) => setState(() => _mode[t.key] = x), label: (x) => Text('×$x', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: m == x ? AppColors.primaryDark : AppColors.secondaryText))),
+                const Spacer(),
+                GestureDetector(
+                  key: ValueKey('open-${t.key}'),
+                  onTap: _busy ? null : () => _open(t.key),
+                  child: Container(
+                    height: 36,
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(99)),
+                    child: Text(openLabel, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ]),
+            ),
         ]),
       ),
     );
