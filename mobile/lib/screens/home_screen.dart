@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../l10n/l10n.dart';
+import '../widgets/active_boosters_button.dart';
 import '../widgets/pass_header_button.dart';
 import '../widgets/game_icons.dart';
 import '../widgets/guyo_ui.dart';
@@ -15,7 +16,6 @@ import '../theme/app_colors.dart';
 import 'home_dashboard_screen.dart';
 import 'lessons_screen.dart';
 import 'login_screen.dart';
-import 'notifications_screen.dart';
 import 'text_check_screen.dart';
 import 'profile_screen.dart';
 import 'rating_screen.dart';
@@ -488,7 +488,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       orElse: () => options.first,
     );
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 112),
+      constraints: const BoxConstraints(maxWidth: 76),
       child: _LanguageSwitcher(
         current: current,
         options: options,
@@ -515,14 +515,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         titleSpacing: 16,
         title: Row(
           children: [
-            // On Главная the season pass stands where the wordmark is; the other tabs keep the wordmark.
-            if (_selectedTabIndex == 0) const PassHeaderButton(fallback: GuyoWordmark()) else const GuyoWordmark(),
-            const SizedBox(width: 5),
-            // The language switcher lives only in «Уроки» (the tab that is about one language).
-            if (_selectedTabIndex == 1)
-              Expanded(child: Center(child: _buildLanguageSwitcher()))
-            else
-              const Spacer(),
+            // Left: on Главная the season pass, in «Уроки» the (compact) language switcher.
+            if (_selectedTabIndex == 0)
+              const PassHeaderButton(fallback: SizedBox.shrink())
+            else if (_selectedTabIndex == 1)
+              _buildLanguageSwitcher(),
+            const Spacer(),
             if (isProfileTab)
               IconButton(
                 tooltip: tr('Настройки'),
@@ -530,13 +528,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 onPressed: () => _profileKey.currentState?.openSettings(),
               )
             else ...[
-              const SizedBox(width: 6),
+              const ActiveBoostersButton(),
               _EconomyHeaderButton(
                 onOpen: () async {
                   await openEconomy(context);
                 },
               ),
-              const _NotificationsButton(),
             ],
           ],
         ),
@@ -764,126 +761,6 @@ class _EconomyHeaderButtonState extends State<_EconomyHeaderButton> {
   );
 }
 
-/// The notifications bell in the top bar.
-///
-/// Purely the design's own element for now: GuYo has no notification
-/// system, no API and no unread state behind it, so it deliberately shows
-/// no badge -- a permanent red dot would claim something the app cannot
-/// actually tell the user. Tapping it says so plainly rather than doing
-/// nothing at all.
-/// The bell in the top bar: opens the inbox, and carries a dot while
-/// anything in it is unread.
-///
-/// The count comes from its own cheap endpoint rather than the whole
-/// inbox, and is re-read whenever the app comes back to the foreground or
-/// the user returns from the notifications screen -- a message sent while
-/// the app was open should not need a restart to show up.
-class _NotificationsButton extends StatefulWidget {
-  const _NotificationsButton();
-
-  @override
-  State<_NotificationsButton> createState() => _NotificationsButtonState();
-}
-
-class _NotificationsButtonState extends State<_NotificationsButton>
-    with WidgetsBindingObserver {
-  int _unread = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    PushService.instance.foregroundMessages.addListener(_refresh);
-    _refresh();
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    PushService.instance.foregroundMessages.removeListener(_refresh);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _refresh();
-  }
-
-  Future<void> _refresh() async {
-    try {
-      final count = await ApiClient.instance.fetchUnreadNotificationCount();
-      if (!mounted) return;
-      setState(() => _unread = count);
-    } catch (_) {
-      // A failed count must never break the app bar -- the dot simply
-      // stays as it was until the next refresh.
-    }
-  }
-
-  Future<void> _open() async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
-    // Opening the inbox marks everything read, so the dot is re-checked
-    // rather than assumed cleared.
-    await _refresh();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 8),
-      child: Semantics(
-        button: true,
-        label: tr('Уведомления'),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: _open,
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.cardBorder),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              clipBehavior: Clip.none,
-              children: [
-                Icon(
-                  Icons.notifications_none_rounded,
-                  size: 22,
-                  color: AppColors.primaryDark,
-                ),
-                if (_unread > 0)
-                  Positioned(
-                    right: 9,
-                    top: 9,
-                    child: Container(
-                      // Keyed so a test can assert the indicator itself
-                      // rather than a coloured box -- same convention the
-                      // exercise screens use for their own hooks.
-                      key: const ValueKey('notifications-unread-dot'),
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEF4056),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.surface,
-                          width: 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 /// The learning-language switcher in the app bar: a soft pill with the
 /// language's short code in a tinted badge, its name and a small chevron;
@@ -927,7 +804,7 @@ class _LanguageSwitcher extends StatelessWidget {
     final canSwitch = options.length > 1;
     final pill = Container(
       height: 36,
-      padding: EdgeInsets.fromLTRB(6, 0, canSwitch ? 6 : 12, 0),
+      padding: EdgeInsets.fromLTRB(6, 0, canSwitch ? 4 : 6, 0),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(18),
@@ -936,16 +813,8 @@ class _LanguageSwitcher extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Only the language's code: the bar has to share its width with the doublers and the wallet.
           _badge(current),
-          const SizedBox(width: 8),
-          Text(
-            current.label,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: AppColors.primaryDark,
-            ),
-          ),
           if (canSwitch) ...[
             const SizedBox(width: 2),
             Icon(

@@ -14,6 +14,7 @@ import '../theme/app_colors.dart';
 import '../widgets/in_app_banner.dart';
 import '../widgets/study_times_editor.dart';
 import 'login_screen.dart';
+import 'notifications_screen.dart';
 import 'study_times_screen.dart';
 import 'topics_screen.dart';
 
@@ -62,10 +63,36 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   /// A just-picked translation language, shown while it is being saved.
   String? _translationShown;
 
+  /// Unread notifications (the bell is no longer in the top bar; the inbox opens from here).
+  int _unread = 0;
+
+  @override
+  void dispose() {
+    PushService.instance.foregroundMessages.removeListener(_refreshUnread);
+    super.dispose();
+  }
+
+  Future<void> _refreshUnread() async {
+    try {
+      final count = await ApiClient.instance.fetchUnreadNotificationCount();
+      if (mounted) setState(() => _unread = count);
+    } catch (_) {
+      // The row simply shows no count until the next refresh.
+    }
+  }
+
+  Future<void> _openNotifications() async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+    // Opening the inbox marks everything read, so the count is re-read rather than assumed cleared.
+    await _refreshUnread();
+  }
+
   @override
   void initState() {
     super.initState();
     _profile = widget.profile;
+    _refreshUnread();
+    PushService.instance.foregroundMessages.addListener(_refreshUnread);
     // The translation languages the server offers (published ones only).
     ApiClient.instance.fetchLanguages().then((list) {
       final offered = [for (final l in list) if (l.nativeOk) (code: l.code, label: l.label)];
@@ -489,6 +516,13 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 ),
                 // Язык изучения здесь ОТСУТСТВУЕТ намеренно: он выбирается
                 // переключателем на главном экране, рядом со словарём.
+                _Row(
+                  key: const ValueKey('settings-notifications'),
+                  icon: Icons.notifications_none_rounded,
+                  label: tr('Уведомления'),
+                  value: _unread > 0 ? tr('Новых: {0}', [_unread]) : tr('Нет новых'),
+                  onTap: _openNotifications,
+                ),
                 if (widget.dictionary != null)
                   _Row(
                     key: const ValueKey('settings-practice'),

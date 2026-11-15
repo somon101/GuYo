@@ -980,4 +980,9 @@ const Map<String, String> enStrings = {
   'Вызвать': 'Challenge',
   'Ответить': 'Reply',
   'Результат': 'Result',
+  'Идут сейчас': 'Running now',
+  'В запасе': 'In stock',
+  'Все бонусы': 'All boosters',
+  'Новых: {0}': 'New: {0}',
+  'Нет новых': 'Nothing new',
 };
