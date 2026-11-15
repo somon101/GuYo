@@ -138,16 +138,6 @@ Object? _get(String path, Map<String, String> q) {
         'daily': {'enabled': true, 'available': true, 'claimed': false, 'chest_key': 'wood', 'conditions': ''},
         'double': false, 'inventory_max': 10, 'booster_qty': 2,
       };
-    case '/boosters':
-      // Two doublers run from the moment the demo was opened (to show the rings and the alarm):
-      // chests for 47 minutes, the pass for 5 and a half (it turns red after the first half minute).
-      return {
-        'items': [{'minutes': 30, 'qty': 2}], 'active_until': _demoStart.add(const Duration(minutes: 47)).toUtc().toIso8601String(),
-        'kinds': {
-          'rating': {'items': [{'minutes': 30, 'qty': 1}], 'active_until': null},
-          'xp': {'items': <Object>[], 'active_until': _demoStart.add(const Duration(minutes: 5, seconds: 30)).toUtc().toIso8601String()},
-        },
-      };
     case '/duels':
       return {
         'enabled': true, 'rewards': <String, Object>{}, 'recent': <Object>[],
@@ -245,9 +235,6 @@ Map<String, Object?> _rank(int i) {
   const colors = ['#A9743B', '#9AA4B2', '#E7B73C', '#5BC8F5'];
   return {'id': i, 'name': names[(i - 1) % 4], 'icon_url': null, 'color': colors[(i - 1) % 4], 'min_points': (i - 1) * 500, 'max_points': i == 4 ? null : i * 500 - 1};
 }
-
-/// When the demo was opened: its doublers count down from here.
-final DateTime _demoStart = DateTime.now();
 
 const _people = [
   ('Aziz', 1840), ('Madina', 1620), ('Rustam', 1500), ('Nilufar', 1410), ('Jasur', 1330), ('Zarina', 1290), ('Demo', 1240), ('Sardor', 1100), ('Malika', 980),

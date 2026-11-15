@@ -7,8 +7,6 @@ import '../l10n/l10n.dart';
 import '../theme/app_colors.dart';
 import '../models/chest.dart';
 import '../services/chest_queue.dart';
-import '../models/reward_spec.dart';
-import '../widgets/reward_claim_effect.dart';
 import '../widgets/game_icons.dart';
 import 'chest_open_screen.dart';
 
@@ -18,9 +16,7 @@ import 'chest_open_screen.dart';
 class ChestListScreen extends StatefulWidget {
   final ChestBank bank;
 
-  /// The tickets to start from (tests); otherwise the remembered ones.
-  final BoosterState? initialBoosters;
-  const ChestListScreen({super.key, required this.bank, this.initialBoosters});
+  const ChestListScreen({super.key, required this.bank});
 
   @override
   State<ChestListScreen> createState() => _ChestListScreenState();
@@ -30,8 +26,6 @@ class _ChestListScreenState extends State<ChestListScreen> {
   late ChestBank _bank = widget.bank;
   final Map<String, int> _mode = {};
   bool _busy = false;
-  late BoosterState? _boosters = widget.initialBoosters ?? ApiClient.instance.cachedBoosters();
-  Timer? _tick;
   String? _notice;
   Timer? _noticeTimer;
 
@@ -40,18 +34,13 @@ class _ChestListScreenState extends State<ChestListScreen> {
     super.initState();
     // A system toast left over from another screen must not hang over this one.
     WidgetsBinding.instance.addPostFrameCallback((_) => ScaffoldMessenger.maybeOf(context)?.clearSnackBars());
-    _loadBoosters();
     _refresh();
     ChestQueue.correction.addListener(_onCorrection);
-    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted && ['chest', 'rating', 'xp'].any((k) => _boosters?.of(k).running ?? false)) setState(() {});
-    });
   }
 
   @override
   void dispose() {
     ChestQueue.correction.removeListener(_onCorrection);
-    _tick?.cancel();
     _noticeTimer?.cancel();
     super.dispose();
   }
@@ -61,28 +50,6 @@ class _ChestListScreenState extends State<ChestListScreen> {
     await ChestQueue.flush();
     final fresh = await ApiClient.instance.fetchChests();
     if (fresh != null && mounted) setState(() => _bank = fresh);
-  }
-
-  Future<void> _loadBoosters() async {
-    final b = await ApiClient.instance.fetchBoosters();
-    if (mounted && b != null) setState(() => _boosters = b);
-  }
-
-  /// «Включить»: switches a ticket on, with the effect, then refreshes the bank (the prizes of
-  /// the chests opened from now on are doubled).
-  Future<void> _activate(int minutes, [String kind = 'chest']) async {
-    try {
-      final b = await ApiClient.instance.activateBooster(minutes, kind: kind);
-      if (!mounted) return;
-      setState(() => _boosters = b);
-      await showRewardClaimEffect(context, title: kind == 'rating' ? tr('Очки рейтинга ×2') : kind == 'xp' ? tr('Энергия пропуска ×2') : tr('Награды ×2'), rewards: [RewardSpec(type: 'booster', amount: minutes, kind: kind)]);
-      final fresh = await ApiClient.instance.fetchChests();
-      if (fresh != null && mounted) setState(() => _bank = fresh);
-    } on ApiException catch (e) {
-      if (mounted) _say(e.message);
-    } catch (_) {
-      if (mounted) _say(tr('Не удалось. Проверьте интернет.'));
-    }
   }
 
   void _onCorrection() {
@@ -148,7 +115,6 @@ class _ChestListScreenState extends State<ChestListScreen> {
   Widget build(BuildContext context) {
     final daily = _bank.daily;
     final total = _bank.chests.length;
-    final hasBoosters = _boosters != null && ['chest', 'rating', 'xp'].any((k) => _boosters!.of(k).total > 0 || _boosters!.of(k).running);
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
@@ -186,11 +152,6 @@ class _ChestListScreenState extends State<ChestListScreen> {
               padding: const EdgeInsets.only(top: 12),
               child: Text(tr('Пока сундуков нет'), textAlign: TextAlign.center, style: TextStyle(color: AppColors.secondaryText)),
             ),
-          if (hasBoosters) ...[
-            const SizedBox(height: 18),
-            _groupTitle(tr('Бонусы')),
-            _boostersTile(_boosters!),
-          ],
         ],
       ),
     );
@@ -202,22 +163,6 @@ class _ChestListScreenState extends State<ChestListScreen> {
       );
 
   Widget _hairline() => Divider(height: 1, thickness: 1, indent: 14, endIndent: 0, color: AppColors.cardBorder);
-
-  String _left(DateTime until) {
-    final s = until.difference(DateTime.now()).inSeconds.clamp(0, 1 << 30);
-    final h = s ~/ 3600, m = (s % 3600) ~/ 60, sec = s % 60;
-    String two(int n) => n.toString().padLeft(2, '0');
-    return h > 0 ? '$h:${two(m)}:${two(sec)}' : '${two(m)}:${two(sec)}';
-  }
-
-  static const _kindNames = {'chest': 'Удвоитель сундуков', 'rating': 'Удвоитель рейтинга', 'xp': 'Удвоитель пропуска'};
-  static const _kindHints = {
-    'chest': 'Призы из сундуков удваиваются, пока идёт время.',
-    'rating': 'Все очки рейтинга удваиваются, пока идёт время.',
-    'xp': 'Вся энергия пропуска удваивается, пока идёт время.',
-  };
-
-  String? _boostTab;
 
   /// A segmented switch: [labels] in a quiet track, the chosen one lifted onto the surface.
   Widget _segment<T>({required List<T> values, required T selected, required Widget Function(T) label, required void Function(T) onTap, required Key Function(T) keyOf, bool expand = false}) {
@@ -241,65 +186,6 @@ class _ChestListScreenState extends State<ChestListScreen> {
       child: Row(mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min, children: [for (final i in items) expand ? Expanded(child: i) : i]),
     );
   }
-
-  /// «Бонусы»: a switch between the three kinds (each shows its timer or how many are held), a line
-  /// on what it does and the tickets held, one per row.
-  Widget _boostersTile(BoosterState all) {
-    final kinds = [for (final k in const ['chest', 'rating', 'xp']) if (all.of(k).total > 0 || all.of(k).running) k];
-    if (kinds.isEmpty) return const SizedBox.shrink();
-    final tab = kinds.contains(_boostTab) ? _boostTab! : kinds.first;
-    final b = all.of(tab);
-    final held = [for (final e in b.items.entries) if (e.value > 0) e];
-    return Container(
-      key: const ValueKey('boosters-tile'),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _segment<String>(
-          values: kinds,
-          selected: tab,
-          expand: true,
-          keyOf: (k) => ValueKey('boost-tab-$k'),
-          onTap: (k) => setState(() => _boostTab = k),
-          label: (k) => Row(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
-            BoosterIcon(size: 22, kind: k),
-            const SizedBox(width: 5),
-            all.of(k).running
-                ? Text(_left(all.of(k).activeUntil!), key: ValueKey('boost-running-$k'), style: TextStyle(color: AppColors.primary, fontSize: 12.5, fontWeight: FontWeight.w800, fontFeatures: const [FontFeature.tabularFigures()]))
-                : Text('${all.of(k).total}', style: TextStyle(color: AppColors.primaryDark, fontSize: 13, fontWeight: FontWeight.w700)),
-          ]),
-        ),
-        const SizedBox(height: 12),
-        Text(tr(_kindNames[tab]!), style: TextStyle(color: AppColors.primaryDark, fontSize: 15, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 2),
-        Text(b.running ? tr('Идёт удвоение. Ещё один билет прибавит время.') : tr(_kindHints[tab]!), style: TextStyle(color: AppColors.secondaryText, fontSize: 12.5)),
-        const SizedBox(height: 6),
-        if (held.isEmpty)
-          Padding(padding: const EdgeInsets.only(top: 6), child: Text(tr('Билетов нет'), style: TextStyle(color: AppColors.secondaryText, fontSize: 13)))
-        else
-          for (final e in held) ...[
-            Divider(height: 1, thickness: 1, color: AppColors.cardBorder),
-            SizedBox(
-              height: 52,
-              child: Row(children: [
-                Text(_minutesLabel(e.key), style: TextStyle(color: AppColors.primaryDark, fontSize: 15, fontWeight: FontWeight.w600)),
-                const SizedBox(width: 10),
-                Text('×${e.value}', style: TextStyle(color: AppColors.secondaryText, fontSize: 14, fontFeatures: const [FontFeature.tabularFigures()])),
-                const Spacer(),
-                GestureDetector(
-                  key: ValueKey('boost-on-$tab-${e.key}'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => _activate(e.key, tab),
-                  child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12), child: Text(tr('Включить'), style: TextStyle(color: AppColors.primary, fontSize: 15, fontWeight: FontWeight.w700))),
-                ),
-              ]),
-            ),
-          ],
-      ]),
-    );
-  }
-
-  String _minutesLabel(int m) => m >= 60 && m % 60 == 0 ? tr('{0} ч', [m ~/ 60]) : tr('{0} мин', [m]);
 
   /// «Сундук дня»: one plain line, the name on the left and «Забрать» as a text link on the right.
   Widget _dailyTile(DailyChest daily) => Container(

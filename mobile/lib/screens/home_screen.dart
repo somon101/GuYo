@@ -499,15 +499,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    // Профиль is the one tab that isn't dictionary-scoped at all, so the
-    // language switcher is meaningless there -- it shows its own settings
-    // gear instead (which opens ProfileScreen's own sheet, logout
-    // included), matching that screen's design.
-    final isProfileTab = _selectedTabIndex == 4;
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      // «Рейтинг» has no app bar: its page scrolls as one piece, status bar included.
-      appBar: _selectedTabIndex == 3 ? null : AppBar(
+      // «Рейтинг» and «Профиль» have no app bar: the page scrolls as one piece (the gear is in the profile's own header).
+      appBar: _selectedTabIndex == 3 || _selectedTabIndex == 4 ? null : AppBar(
         backgroundColor: AppColors.canvas,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -521,24 +516,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             else if (_selectedTabIndex == 1)
               _buildLanguageSwitcher(),
             const Spacer(),
-            if (isProfileTab)
-              IconButton(
-                tooltip: tr('Настройки'),
-                icon: Icon(Icons.settings_outlined, color: AppColors.primary),
-                onPressed: () => _profileKey.currentState?.openSettings(),
-              )
-            else ...[
-              const ActiveBoostersButton(),
-              _EconomyHeaderButton(
-                onOpen: () async {
-                  await openEconomy(context);
-                },
-              ),
-            ],
+            // The doublers live in «Уроки» only: always there, with the tickets held and a switch-on.
+            if (_selectedTabIndex == 1) const BoostersBar(),
+            _EconomyHeaderButton(
+              onOpen: () async {
+                await openEconomy(context);
+              },
+            ),
           ],
         ),
       ),
-      body: _selectedTabIndex == 3 ? SafeArea(bottom: false, child: _buildBody()) : _buildBody(),
+      body: _selectedTabIndex == 3 || _selectedTabIndex == 4 ? SafeArea(bottom: false, child: _buildBody()) : _buildBody(),
       bottomNavigationBar: FloatingNavBar(
         selectedIndex: _selectedTabIndex,
         onSelected: (index) {

@@ -1711,4 +1711,5 @@ const Map<String, (String, String)> uiStrings = {
   'Все бонусы': ('Ҳамаи бонусҳо', 'Barcha bonuslar'),
   'Новых: {0}': ('Нав: {0}', 'Yangi: {0}'),
   'Нет новых': ('Нав нест', 'Yangi yoʻq'),
+  'Билетов нет. Их можно получить в сундуках и наградах.': ('Чипта нест. Онҳоро аз сандуқҳо ва мукофотҳо гирифтан мумкин.', 'Chiptalar yoʻq. Ularni sandiqlar va mukofotlardan olish mumkin.'),
 };

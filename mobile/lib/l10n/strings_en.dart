@@ -985,4 +985,5 @@ const Map<String, String> enStrings = {
   'Все бонусы': 'All boosters',
   'Новых: {0}': 'New: {0}',
   'Нет новых': 'Nothing new',
+  'Билетов нет. Их можно получить в сундуках и наградах.': 'No tickets. You can get them from chests and rewards.',
 };

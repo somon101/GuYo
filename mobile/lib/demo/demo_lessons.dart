@@ -22,6 +22,20 @@ Object? demoDynamic(String method, String path, Map<String, String> q, Map<Strin
     return {'state': s.goalJson()};
   }
 
+  if (path == '/boosters') return _boosterJson();
+  if (path == '/boosters/activate' && method == 'POST') {
+    final kind = (body['kind'] as String?) ?? 'chest';
+    final minutes = (body['minutes'] as int?) ?? 30;
+    final held = _tickets[kind];
+    if (held != null && (held[minutes] ?? 0) > 0) {
+      held[minutes] = held[minutes]! - 1;
+      final now = DateTime.now();
+      final from = (_until[kind] != null && _until[kind]!.isAfter(now)) ? _until[kind]! : now; // a second ticket adds to the running one
+      _until[kind] = from.add(Duration(minutes: minutes));
+    }
+    return _boosterJson();
+  }
+
   if (path == '/season-pass' || path == '/season-pass/summary') return _pass();
   if (path == '/season-pass/claim' && method == 'POST') {
     s.passClaimed.add('${body['level']}:${body['track']}');
@@ -301,3 +315,28 @@ Map<String, Object?> _pass() {
     },
   };
 }
+
+// The doublers of the demo, from the moment it was opened: chests run 47 minutes (and two 30-minute
+// tickets are held), the pass runs 5 and a half (it turns red after the first half minute, no
+// tickets), rating has one ticket. Switching one on works for as long as the app stays open.
+final DateTime _boosterStart = DateTime.now();
+final Map<String, Map<int, int>> _tickets = {
+  'chest': {30: 2},
+  'rating': {30: 1},
+  'xp': {},
+};
+final Map<String, DateTime?> _until = {
+  'chest': _boosterStart.add(const Duration(minutes: 47)),
+  'rating': null,
+  'xp': _boosterStart.add(const Duration(minutes: 5, seconds: 30)),
+};
+
+Map<String, Object?> _kindJson(String kind) => {
+      'items': [for (final e in _tickets[kind]!.entries) if (e.value > 0) {'minutes': e.key, 'qty': e.value}],
+      'active_until': _until[kind]?.toUtc().toIso8601String(),
+    };
+
+Map<String, Object?> _boosterJson() => {
+      ..._kindJson('chest'),
+      'kinds': {'rating': _kindJson('rating'), 'xp': _kindJson('xp')},
+    };

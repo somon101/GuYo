@@ -6,25 +6,27 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../l10n/l10n.dart';
 import '../models/chest.dart';
-import '../screens/chest_list_screen.dart';
+import '../models/reward_spec.dart';
 import '../services/streak_state.dart';
 import '../theme/app_colors.dart';
 import 'game_icons.dart';
+import 'reward_claim_effect.dart';
 
-/// The doublers running right now, in the top bar: each one is its icon inside a ring that empties
-/// with the time, the time left small under it. Doublers of different kinds run side by side, each
-/// with its own ring. With under [alarmBelow] left, the ring and the time turn red and blink.
-/// Nothing is drawn while no doubler runs. A tap opens the sheet «Идут сейчас».
-class ActiveBoostersButton extends StatefulWidget {
+/// The doublers in the top bar of «Уроки»: all three kinds are always there. A kind with tickets
+/// shows its icon and how many; a running one is its icon in a ring that empties with the time,
+/// the time left small under it (under [alarmBelow] ring and time turn red and blink); a kind with
+/// nothing is a pale icon. A tap opens the sheet where a ticket is switched on.
+/// Doublers of different kinds run side by side; one more ticket of the same kind adds its time.
+class BoostersBar extends StatefulWidget {
   /// The state to start from (tests); otherwise the remembered one.
   final BoosterState? initial;
-  const ActiveBoostersButton({super.key, this.initial});
+  const BoostersBar({super.key, this.initial});
 
   static const Duration alarmBelow = Duration(minutes: 5);
   static const List<String> kinds = ['chest', 'rating', 'xp'];
 
   @override
-  State<ActiveBoostersButton> createState() => _ActiveBoostersButtonState();
+  State<BoostersBar> createState() => _BoostersBarState();
 }
 
 String boosterTimeLeft(Duration left) {
@@ -46,7 +48,15 @@ String boosterNote(String kind) => switch (kind) {
       _ => tr('Призы из сундуков удваиваются, пока идёт время.'),
     };
 
-class _ActiveBoostersButtonState extends State<ActiveBoostersButton> with SingleTickerProviderStateMixin {
+String boosterEffectTitle(String kind) => switch (kind) {
+      'rating' => tr('Очки рейтинга ×2'),
+      'xp' => tr('Энергия пропуска ×2'),
+      _ => tr('Награды ×2'),
+    };
+
+String ticketMinutes(int m) => m >= 60 && m % 60 == 0 ? tr('{0} ч', [m ~/ 60]) : tr('{0} мин', [m]);
+
+class _BoostersBarState extends State<BoostersBar> with SingleTickerProviderStateMixin {
   late BoosterState? _state = widget.initial ?? ApiClient.instance.cachedBoosters();
   Timer? _tick;
   late final AnimationController _blink = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
@@ -78,7 +88,8 @@ class _ActiveBoostersButtonState extends State<ActiveBoostersButton> with Single
     }
   }
 
-  List<String> get _running => [for (final k in ActiveBoostersButton.kinds) if (_state?.of(k).running ?? false) k];
+  bool _isRunning(String kind) => _state?.of(kind).running ?? false;
+  int _held(String kind) => _state?.of(kind).total ?? 0;
 
   Duration _left(String kind) {
     final until = _state?.of(kind).activeUntil;
@@ -87,14 +98,14 @@ class _ActiveBoostersButtonState extends State<ActiveBoostersButton> with Single
 
   /// Ticks once a second while something runs; blinks while something is about to end.
   void _sync() {
-    final running = _running;
-    if (running.isEmpty) {
+    final anyRunning = BoostersBar.kinds.any(_isRunning);
+    if (!anyRunning) {
       _tick?.cancel();
       _tick = null;
     } else {
       _tick ??= Timer.periodic(const Duration(seconds: 1), (_) {
         if (!mounted) return;
-        if (_running.isEmpty) _sync();
+        if (!BoostersBar.kinds.any(_isRunning)) _sync();
         setState(() {});
         _syncBlink();
       });
@@ -103,7 +114,7 @@ class _ActiveBoostersButtonState extends State<ActiveBoostersButton> with Single
   }
 
   void _syncBlink() {
-    final alarm = _running.any((k) => _left(k) < ActiveBoostersButton.alarmBelow);
+    final alarm = BoostersBar.kinds.any((k) => _isRunning(k) && _left(k) < BoostersBar.alarmBelow);
     if (alarm && !_blink.isAnimating) {
       _blink.repeat(reverse: true);
     } else if (!alarm && _blink.isAnimating) {
@@ -121,91 +132,142 @@ class _ActiveBoostersButtonState extends State<ActiveBoostersButton> with Single
     if (known == null || known.until.isBefore(until) && left > known.seconds) {
       _span[kind] = (until: until, seconds: math.max(left, 1));
     }
-    final span = _span[kind]!.seconds;
-    return (left / span).clamp(0.0, 1.0);
+    return (left / _span[kind]!.seconds).clamp(0.0, 1.0);
   }
 
-  Future<void> _open() async {
+  /// Switches a ticket on, with the effect; a failure is said in a notice.
+  Future<void> _activate(String kind, int minutes) async {
+    try {
+      final b = await ApiClient.instance.activateBooster(minutes, kind: kind);
+      if (!mounted) return;
+      setState(() => _state = b);
+      _sync();
+      dailyGoalTick.value++;
+      await showRewardClaimEffect(context, title: boosterEffectTitle(kind), rewards: [RewardSpec(type: 'booster', amount: minutes, kind: kind)]);
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context)..hideCurrentSnackBar()..showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context)..hideCurrentSnackBar()..showSnackBar(SnackBar(content: Text(tr('Не удалось. Проверьте интернет.'))));
+    }
+  }
+
+  Future<void> _open(String kind) async {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.canvas,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-      builder: (_) => _BoostersSheet(state: _state, left: _left, fraction: _fraction),
+      builder: (sheet) => _BoosterSheet(
+        kind: kind,
+        stateOf: () => _state?.of(kind),
+        left: () => _left(kind),
+        fraction: () => _fraction(kind),
+        onActivate: (minutes) {
+          Navigator.of(sheet).pop();
+          _activate(kind, minutes);
+        },
+      ),
     );
     if (mounted) _load();
   }
 
   @override
   Widget build(BuildContext context) {
-    final running = _running;
-    if (running.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: Semantics(
-        button: true,
-        label: tr('Идут сейчас'),
-        child: GestureDetector(
-          key: const ValueKey('boosters-button'),
-          behavior: HitTestBehavior.opaque,
-          onTap: _open,
-          child: SizedBox(
-            height: 58,
-            child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              for (var i = 0; i < running.length; i++) ...[
-                if (i > 0) const SizedBox(width: 6),
-                _Ring(kind: running[i], left: _left(running[i]), fraction: _fraction(running[i]), blink: _blink),
-              ],
-            ]),
-          ),
-        ),
+      child: SizedBox(
+        height: 58,
+        child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          for (var i = 0; i < BoostersBar.kinds.length; i++) ...[
+            if (i > 0) const SizedBox(width: 4),
+            _Slot(
+              kind: BoostersBar.kinds[i],
+              running: _isRunning(BoostersBar.kinds[i]),
+              held: _held(BoostersBar.kinds[i]),
+              left: _left(BoostersBar.kinds[i]),
+              fraction: _fraction(BoostersBar.kinds[i]),
+              blink: _blink,
+              onTap: () => _open(BoostersBar.kinds[i]),
+            ),
+          ],
+        ]),
       ),
     );
   }
 }
 
-class _Ring extends StatelessWidget {
+class _Slot extends StatelessWidget {
   final String kind;
+  final bool running;
+  final int held;
   final Duration left;
   final double fraction;
   final Animation<double> blink;
-  const _Ring({required this.kind, required this.left, required this.fraction, required this.blink});
+  final VoidCallback onTap;
+  const _Slot({required this.kind, required this.running, required this.held, required this.left, required this.fraction, required this.blink, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final alarm = left < ActiveBoostersButton.alarmBelow;
-    return AnimatedBuilder(
-      animation: blink,
-      builder: (_, __) {
-        final fade = alarm ? 1 - 0.75 * blink.value : 1.0;
-        final color = alarm ? AppColors.danger : AppColors.primary;
-        return SizedBox(
-          width: 46,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            SizedBox(
+    final alarm = running && left < BoostersBar.alarmBelow;
+    final none = !running && held == 0;
+    return Semantics(
+      button: true,
+      label: boosterName(kind),
+      child: GestureDetector(
+        key: ValueKey('booster-$kind'),
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: AnimatedBuilder(
+          animation: blink,
+          builder: (_, _) {
+            final fade = alarm ? 1 - 0.75 * blink.value : 1.0;
+            return SizedBox(
               width: 42,
-              height: 42,
-              child: CustomPaint(
-                painter: _RingPainter(fraction: fraction, color: color.withValues(alpha: fade), track: AppColors.progressTrack),
-                child: Center(child: BoosterIcon(size: 24, kind: kind)),
-              ),
-            ),
-            const SizedBox(height: 1),
-            Text(
-              boosterTimeLeft(left),
-              key: ValueKey('booster-time-$kind'),
-              maxLines: 1,
-              style: TextStyle(
-                fontSize: 10,
-                height: 1.2,
-                fontWeight: FontWeight.w800,
-                fontFeatures: const [FontFeature.tabularFigures()],
-                color: alarm ? AppColors.danger.withValues(alpha: fade) : AppColors.primaryDark,
-              ),
-            ),
-          ]),
-        );
-      },
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Stack(clipBehavior: Clip.none, alignment: Alignment.center, children: [
+                    if (running)
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: _RingPainter(fraction: fraction, color: (alarm ? AppColors.danger : AppColors.primary).withValues(alpha: fade), track: AppColors.progressTrack),
+                        ),
+                      ),
+                    Opacity(opacity: none ? 0.3 : 1, child: BoosterIcon(size: running ? 24 : 30, kind: kind)),
+                    if (!running && held > 0)
+                      Positioned(
+                        right: -2,
+                        bottom: -2,
+                        child: Container(
+                          key: ValueKey('booster-count-$kind'),
+                          constraints: const BoxConstraints(minWidth: 17, minHeight: 17),
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(99), border: Border.all(color: AppColors.canvas, width: 2)),
+                          child: Text('$held', style: const TextStyle(fontSize: 10, height: 1.1, fontWeight: FontWeight.w800, color: Colors.white)),
+                        ),
+                      ),
+                  ]),
+                ),
+                if (running)
+                  Text(
+                    boosterTimeLeft(left),
+                    key: ValueKey('booster-time-$kind'),
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: 10,
+                      height: 1.2,
+                      fontWeight: FontWeight.w800,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                      color: alarm ? AppColors.danger.withValues(alpha: fade) : AppColors.primaryDark,
+                    ),
+                  ),
+              ]),
+            );
+          },
+        ),
+      ),
     );
   }
 }
@@ -218,8 +280,7 @@ class _RingPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    final r = rect.deflate(2);
+    final r = (Offset.zero & size).deflate(2);
     final base = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
@@ -232,19 +293,21 @@ class _RingPainter extends CustomPainter {
   bool shouldRepaint(_RingPainter old) => old.fraction != fraction || old.color != color || old.track != track;
 }
 
-/// «Идут сейчас»: every running doubler with its own bar and time left; below, what is in stock
-/// and the way into the chests screen, where tickets are switched on.
-class _BoostersSheet extends StatefulWidget {
-  final BoosterState? state;
-  final Duration Function(String) left;
-  final double Function(String) fraction;
-  const _BoostersSheet({required this.state, required this.left, required this.fraction});
+/// One kind's sheet: the icon, the name and what it does; if it runs, the time left; then the
+/// tickets held, one per row with «Включить». With none held: a plain «Билетов нет» and where they come from.
+class _BoosterSheet extends StatefulWidget {
+  final String kind;
+  final BoosterState? Function() stateOf;
+  final Duration Function() left;
+  final double Function() fraction;
+  final void Function(int minutes) onActivate;
+  const _BoosterSheet({required this.kind, required this.stateOf, required this.left, required this.fraction, required this.onActivate});
 
   @override
-  State<_BoostersSheet> createState() => _BoostersSheetState();
+  State<_BoosterSheet> createState() => _BoosterSheetState();
 }
 
-class _BoostersSheetState extends State<_BoostersSheet> {
+class _BoosterSheetState extends State<_BoosterSheet> {
   Timer? _tick;
 
   @override
@@ -261,93 +324,90 @@ class _BoostersSheetState extends State<_BoostersSheet> {
     super.dispose();
   }
 
-  Future<void> _openChests() async {
-    final bank = ApiClient.instance.cachedChests();
-    final nav = Navigator.of(context);
-    nav.pop();
-    if (bank != null) await nav.push(MaterialPageRoute(builder: (_) => ChestListScreen(bank: bank)));
-  }
-
   @override
   Widget build(BuildContext context) {
-    final state = widget.state;
-    final running = [for (final k in ActiveBoostersButton.kinds) if (state?.of(k).running ?? false) k];
-    final stock = [for (final k in ActiveBoostersButton.kinds) state?.of(k).total ?? 0].fold<int>(0, (a, b) => a + b);
+    final state = widget.stateOf();
+    final running = state?.running ?? false;
+    final left = widget.left();
+    final alarm = running && left < BoostersBar.alarmBelow;
+    final held = [for (final e in (state?.items.entries ?? const <MapEntry<int, int>>[])) if (e.value > 0) e]..sort((a, b) => a.key.compareTo(b.key));
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.progressTrack, borderRadius: BorderRadius.circular(99)))),
           const SizedBox(height: 14),
-          Text(tr('Идут сейчас'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.3, color: AppColors.primaryDark)),
-          const SizedBox(height: 10),
-          for (final k in running) ...[
-            _BoosterRow(kind: k, left: widget.left(k), fraction: widget.fraction(k)),
-            const SizedBox(height: 8),
-          ],
-          InkWell(
-            key: const ValueKey('boosters-stock'),
-            borderRadius: BorderRadius.circular(18),
-            onTap: _openChests,
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(18), border: Border.all(color: AppColors.cardBorder)),
-              child: Row(children: [
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(tr('В запасе'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
-                    Text('$stock', style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText)),
-                  ]),
-                ),
-                Text(tr('Все бонусы'), style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.primary)),
+          Row(children: [
+            BoosterIcon(size: 44, kind: widget.kind),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(boosterName(widget.kind), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.3, color: AppColors.primaryDark)),
+                Text(boosterNote(widget.kind), style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText)),
               ]),
             ),
-          ),
-        ]),
-      ),
-    );
-  }
-}
-
-class _BoosterRow extends StatelessWidget {
-  final String kind;
-  final Duration left;
-  final double fraction;
-  const _BoosterRow({required this.kind, required this.left, required this.fraction});
-
-  @override
-  Widget build(BuildContext context) {
-    final alarm = left < ActiveBoostersButton.alarmBelow;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(18), border: Border.all(color: AppColors.cardBorder)),
-      child: Row(children: [
-        BoosterIcon(size: 40, kind: kind),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(boosterName(kind), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
-            Text(boosterNote(kind), maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText)),
-            const SizedBox(height: 7),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(99),
-              child: SizedBox(
-                height: 4,
-                child: Stack(children: [
-                  Positioned.fill(child: ColoredBox(color: AppColors.progressTrack)),
-                  FractionallySizedBox(widthFactor: fraction, child: ColoredBox(color: alarm ? AppColors.danger : AppColors.primary)),
+          ]),
+          if (running) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.cardBorder)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Expanded(child: Text(tr('Идёт удвоение. Ещё один билет прибавит время.'), style: TextStyle(fontSize: 13, color: AppColors.secondaryText))),
+                  const SizedBox(width: 10),
+                  Text(
+                    boosterTimeLeft(left),
+                    key: const ValueKey('sheet-time'),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, fontFeatures: const [FontFeature.tabularFigures()], color: alarm ? AppColors.danger : AppColors.primaryDark),
+                  ),
+                ]),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(99),
+                  child: SizedBox(
+                    height: 4,
+                    child: Stack(children: [
+                      Positioned.fill(child: ColoredBox(color: AppColors.progressTrack)),
+                      FractionallySizedBox(widthFactor: widget.fraction(), child: ColoredBox(color: alarm ? AppColors.danger : AppColors.primary)),
+                    ]),
+                  ),
+                ),
+              ]),
+            ),
+          ],
+          const SizedBox(height: 12),
+          if (held.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(tr('Билетов нет. Их можно получить в сундуках и наградах.'), key: const ValueKey('booster-none'), style: TextStyle(fontSize: 13.5, height: 1.4, color: AppColors.secondaryText)),
+            )
+          else
+            for (final e in held) ...[
+              Container(
+                padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.cardBorder)),
+                child: Row(children: [
+                  Text(ticketMinutes(e.key), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
+                  const SizedBox(width: 8),
+                  Text('×${e.value}', style: TextStyle(fontSize: 13.5, color: AppColors.secondaryText)),
+                  const Spacer(),
+                  GestureDetector(
+                    key: ValueKey('boost-on-${widget.kind}-${e.key}'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => widget.onActivate(e.key),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(99)),
+                      child: Text(tr('Включить'), style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: Colors.white)),
+                    ),
+                  ),
                 ]),
               ),
-            ),
-          ]),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          boosterTimeLeft(left),
-          key: ValueKey('sheet-time-$kind'),
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, fontFeatures: const [FontFeature.tabularFigures()], color: alarm ? AppColors.danger : AppColors.primaryDark),
-        ),
-      ]),
+            ],
+        ]),
+      ),
     );
   }
 }

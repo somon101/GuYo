@@ -390,6 +390,7 @@ class ProfileScreenState extends State<ProfileScreen> {
           statusText: _myStatus?.text,
           statusEmojiUrl: _myStatus?.emojiUrl,
           onEditStatus: _editMyStatus,
+          onOpenSettings: openSettings,
         ),
         const SizedBox(height: 20),
         Row(
@@ -485,6 +486,9 @@ class _ProfileHeader extends StatelessWidget {
   final String? statusEmojiUrl;
   final VoidCallback onEditStatus;
 
+  /// The settings gear, beside the name (the profile has no app bar of its own).
+  final VoidCallback onOpenSettings;
+
   const _ProfileHeader({
     required this.profile,
     required this.pendingAvatarBytes,
@@ -494,6 +498,7 @@ class _ProfileHeader extends StatelessWidget {
     required this.statusText,
     required this.statusEmojiUrl,
     required this.onEditStatus,
+    required this.onOpenSettings,
   });
 
   Future<void> _openPhotoMenu(BuildContext context) async {
@@ -643,74 +648,74 @@ class _ProfileHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              UserNameText(
-                profile.login,
-                isPremium: profile.isPremium,
-                badge: profile.badge,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primaryDark,
-                ),
-              ),
-              const SizedBox(height: 2),
-              // The 9-digit account number -- `id` is internal and never
-              // shown.
-              // Tap to copy -- it is what a friend types to add you.
-              GestureDetector(
-                key: const ValueKey('profile-copy-id'),
-                behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  Clipboard.setData(ClipboardData(text: '${profile.publicId}'));
-                  HapticFeedback.selectionClick();
-                  InAppBanner.show(body: tr('ID скопирован'));
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'ID: ${profile.publicId}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.secondaryText,
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Icon(
-                        Icons.copy_rounded,
-                        size: 14,
-                        color: AppColors.secondaryText,
-                      ),
-                    ],
+              Row(children: [
+                Expanded(
+                  child: UserNameText(
+                    profile.login,
+                    isPremium: profile.isPremium,
+                    badge: profile.badge,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primaryDark,
+                    ),
                   ),
                 ),
-              ),
+                // Settings: a plain gear in the name's row (the profile has no bar of its own).
+                Semantics(
+                  button: true,
+                  label: tr('Настройки'),
+                  child: GestureDetector(
+                    key: const ValueKey('profile-settings'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onOpenSettings,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 4, 0, 4),
+                      child: Icon(Icons.settings_outlined, color: AppColors.primary, size: 26),
+                    ),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 2),
+              // The 9-digit account number -- `id` is internal and never shown. A tap on the number
+              // copies it (it is what a friend types to add you); the small code beside it opens
+              // the QR card.
+              Row(children: [
+                Flexible(
+                  child: GestureDetector(
+                    key: const ValueKey('profile-copy-id'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: '${profile.publicId}'));
+                      HapticFeedback.selectionClick();
+                      InAppBanner.show(body: tr('ID скопирован'));
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Text(
+                        'ID: ${profile.publicId}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 14, color: AppColors.secondaryText),
+                      ),
+                    ),
+                  ),
+                ),
+                Semantics(
+                  button: true,
+                  label: tr('Мой QR-код'),
+                  child: GestureDetector(
+                    key: const ValueKey('profile-qr'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => showProfileQr(context, profile),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 4, 4, 4),
+                      child: Icon(Icons.qr_code_rounded, color: AppColors.primary, size: 20),
+                    ),
+                  ),
+                ),
+              ]),
             ],
-          ),
-        ),
-        // Opens the user's own QR card: their public ID, with the GuYo mark.
-        Semantics(
-          button: true,
-          label: tr('Мой QR-код'),
-          child: GestureDetector(
-            key: const ValueKey('profile-qr'),
-            onTap: () => showProfileQr(context, profile),
-            child: Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.cardBorder),
-              ),
-              child: Icon(
-                Icons.qr_code_rounded,
-                color: AppColors.primary,
-                size: 22,
-              ),
-            ),
           ),
         ),
       ],
