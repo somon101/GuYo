@@ -104,13 +104,6 @@ class _SeasonQuestsScreenState extends State<SeasonQuestsScreen> {
     _load();
   }
 
-  void _openLessons() {
-    // The daily-words quest is carried out in "Уроки", which is a tab of
-    // the app shell below this route -- so pop back to it and switch.
-    Navigator.of(context).pop();
-    widget.onOpenLessons();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -164,9 +157,9 @@ class _SeasonQuestsScreenState extends State<SeasonQuestsScreen> {
         SeasonCard(
           overview: overview,
           large: true,
-          onOpenPoints: () => showPointsToday(context, total: overview.pointsToday),
-          onQuestOfDay: _openLessons,
         ),
+        const SizedBox(height: 10),
+        SeasonFigures(overview: overview, onOpenPoints: () => showPointsToday(context, total: overview.pointsToday)),
         const SizedBox(height: 22),
         const WeeklyPassTasks(),
         const SizedBox(height: 22),

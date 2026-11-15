@@ -3,13 +3,10 @@ import 'package:flutter/material.dart';
 import '../l10n/l10n.dart';
 import '../models/quest.dart';
 import '../theme/app_colors.dart';
-import 'game_icons.dart';
 import 'quest_ui.dart';
 
-/// The season in ONE light card: the season's shield and name and the days left. On the «Квесты»
-/// screen ([large]) also the three numbers (points today, place, tasks done) and the quest of the day;
-/// on Главная the two weekly tasks being worked on stand under it (see HomeSeasonTasks).
-/// Nothing lies inside another card; the parts are separated by thin lines.
+/// The season in ONE light card: the season's shield and name and the days left. The numbers of
+/// the day are SeasonFigures under it («Квесты» screen); on Главная the two weekly tasks stand under it.
 class SeasonCard extends StatelessWidget {
   final SeasonQuestOverview overview;
 
@@ -18,32 +15,13 @@ class SeasonCard extends StatelessWidget {
 
   /// Header tap (on Главная it opens the quests); null when the card is already the quests screen.
   final VoidCallback? onOpenHeader;
-  final VoidCallback? onOpenPoints;
-  final VoidCallback? onOpenRating;
-  final VoidCallback? onOpenQuests;
-  final VoidCallback? onQuestOfDay;
 
   const SeasonCard({
     super.key,
     required this.overview,
-    this.onQuestOfDay,
     this.large = false,
     this.onOpenHeader,
-    this.onOpenPoints,
-    this.onOpenRating,
-    this.onOpenQuests,
   });
-
-  Widget _stat(String key, VoidCallback? onTap, Widget child) => Expanded(
-        child: InkWell(
-          key: ValueKey(key),
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: child),
-        ),
-      );
-
-  Widget get _line => Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1, color: AppColors.cardBorder));
 
   @override
   Widget build(BuildContext context) {
@@ -77,30 +55,6 @@ class SeasonCard extends StatelessWidget {
         const SizedBox(height: 12),
         if (season != null)
           SeasonTimeline(startsAt: season.startsAt, endsAt: season.endsAt, daysLeft: overview.daysLeft, daysTotal: overview.daysTotal, compact: true, plain: true),
-        if (large) ...[
-        _line,
-        IntrinsicHeight(
-          child: Row(children: [
-            _stat(
-              'stat-points-today',
-              onOpenPoints,
-              StatColumn(icon: Icons.star_rounded, leading: const PointsIcon(size: 36), value: '+${overview.pointsToday}', label: tr('очков сегодня'), iconColor: AppColors.gold),
-            ),
-            _stat(
-              'stat-rank',
-              onOpenRating,
-              StatColumn(icon: Icons.emoji_events_rounded, value: overview.rankPosition == null ? '—' : '#${overview.rankPosition}', label: tr('место в рейтинге')),
-            ),
-            _stat(
-              'stat-quests',
-              onOpenQuests,
-              StatColumn(icon: Icons.check_box_rounded, value: '${overview.questsDoneToday}/${overview.questsTotal}', label: tr('заданий выполнено'), iconColor: AppColors.success),
-            ),
-          ]),
-        ),
-        _line,
-        _QuestOfDayRow(pointsPerLearnedWord: overview.pointsPerLearnedWord, wordsLearnedToday: overview.wordsLearnedToday, onTap: onQuestOfDay ?? () {}),
-        ],
       ]),
     );
   }
@@ -113,36 +67,59 @@ String seasonLine(SeasonQuestOverview overview) {
   return season.name;
 }
 
-/// «Квест дня» as a plain row inside the season card.
-class _QuestOfDayRow extends StatelessWidget {
-  final int pointsPerLearnedWord;
-  final int wordsLearnedToday;
-  final VoidCallback onTap;
-  const _QuestOfDayRow({required this.pointsPerLearnedWord, required this.wordsLearnedToday, required this.onTap});
+/// The day's figures on the «Квесты» screen: the points of today as the one big number, the place
+/// in the rating and the tasks done beside it, small and quiet.
+class SeasonFigures extends StatelessWidget {
+  final SeasonQuestOverview overview;
+  final VoidCallback? onOpenPoints;
+  const SeasonFigures({super.key, required this.overview, this.onOpenPoints});
+
+  Widget _small(String key, String label, String value) => Expanded(
+        child: Container(
+          key: ValueKey(key),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
+          child: Row(children: [
+            Expanded(child: Text(label, style: TextStyle(fontSize: 12, color: AppColors.secondaryText), maxLines: 1, overflow: TextOverflow.ellipsis)),
+            Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+          ]),
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      key: const ValueKey('quest-of-day'),
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
+    return SizedBox(
+      height: 96,
       child: Row(children: [
-        RoundIconChip(icon: Icons.local_fire_department_rounded, size: 44, gradient: AppColors.dailyQuestGradient),
-        const SizedBox(width: 12),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-            Text(tr('Квест дня'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
-            const SizedBox(height: 2),
-            Text(tr('Изучай новые слова'), style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText), maxLines: 1, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 4),
-            Text(
-              wordsLearnedToday == 0 ? tr('Сегодня пока ни одного') : tr('Сегодня изучено: {0}', [wordsLearnedToday]),
-              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.primary),
+          flex: 13,
+          child: Material(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(20),
+            child: InkWell(
+              key: const ValueKey('stat-points-today'),
+              borderRadius: BorderRadius.circular(20),
+              onTap: onOpenPoints,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Text(tr('очков сегодня'), style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+                  const SizedBox(height: 2),
+                  Text('+${overview.pointsToday}', style: TextStyle(fontSize: 34, height: 1.1, fontWeight: FontWeight.w800, letterSpacing: -1, color: AppColors.primary)),
+                ]),
+              ),
             ),
-          ]),
+          ),
         ),
         const SizedBox(width: 8),
-        RewardBadge(points: pointsPerLearnedWord),
+        Expanded(
+          flex: 10,
+          child: Column(children: [
+            _small('stat-rank', tr('место'), overview.rankPosition == null ? '—' : '#${overview.rankPosition}'),
+            const SizedBox(height: 8),
+            _small('stat-quests', tr('заданий'), '${overview.questsDoneToday}/${overview.questsTotal}'),
+          ]),
+        ),
       ]),
     );
   }

@@ -48,31 +48,17 @@ void main() {
     expect(header, 1);
   });
 
-  testWidgets('large card: the numbers and the quest of the day, each tappable', (tester) async {
-    var points = 0, rating = 0, quests = 0, day = 0;
+  testWidgets('figures: the big number of today, the place and the tasks beside it; the number is tappable', (tester) async {
+    var points = 0;
     await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: SingleChildScrollView(
-          child: SeasonCard(
-            overview: _overview(),
-            large: true,
-            onOpenPoints: () => points++,
-            onOpenRating: () => rating++,
-            onOpenQuests: () => quests++,
-            onQuestOfDay: () => day++,
-          ),
-        ),
-      ),
+      home: Scaffold(body: SingleChildScrollView(child: SeasonFigures(overview: _overview(), onOpenPoints: () => points++))),
     ));
     expect(find.text('+60'), findsOneWidget);
     expect(find.text('#7'), findsOneWidget);
     expect(find.text('3/5'), findsOneWidget);
-    expect(find.text('Сегодня изучено: 12'), findsOneWidget);
+    expect(find.text('Квест дня'), findsNothing);
     await tester.tap(find.byKey(const ValueKey('stat-points-today')));
-    await tester.tap(find.byKey(const ValueKey('stat-rank')));
-    await tester.tap(find.byKey(const ValueKey('stat-quests')));
-    await tester.tap(find.byKey(const ValueKey('quest-of-day')));
-    expect([points, rating, quests, day], [1, 1, 1, 1]);
+    expect(points, 1);
   });
 
   test('home tasks: ready first, then the closest to done; taken ones are left out; at most two', () {
@@ -81,11 +67,10 @@ void main() {
     expect(currentPassTasks([_task('d', 5, 5, claimed: true)]), isEmpty);
   });
 
-  testWidgets('with no season it says so and still shows the numbers', (tester) async {
+  testWidgets('with no season it says so', (tester) async {
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(body: SingleChildScrollView(child: SeasonCard(overview: _overview(season: false), large: true))),
     ));
     expect(find.text('Сейчас нет активного сезона'), findsOneWidget);
-    expect(find.text('+60'), findsOneWidget);
   });
 }
