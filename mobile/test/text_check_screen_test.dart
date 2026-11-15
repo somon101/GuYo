@@ -23,6 +23,15 @@ void main() {
       expect(find.byKey(const ValueKey('text-check-send')), findsOneWidget);
       expect(find.text('Кому: любому'), findsOneWidget);
       expect(find.text('0 / 500'), findsOneWidget);
+      expect(find.text('Что проверим?'), findsOneWidget);
+
+      // Who it is for: a sheet with three rows.
+      await tester.tap(find.byKey(const ValueKey('text-check-addressee')));
+      await tester.pumpAndSettle();
+      expect(find.text('Кому вы пишете'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('addressee-female')));
+      await tester.pumpAndSettle();
+      expect(find.text('Кому: женщине'), findsOneWidget);
 
       await tester.enterText(find.byKey(const ValueKey('text-check-input')), 'Я пришёл что бы помочь');
       await tester.pump();
@@ -31,6 +40,8 @@ void main() {
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
       await tester.pump(const Duration(milliseconds: 200));
 
+      // The sent text stands as a bubble, the answer as a card under it.
+      expect(find.byKey(const ValueKey('text-check-question')), findsOneWidget);
       // The answer: the text with the mistake marked, its explanation and the main button.
       expect(find.byKey(const ValueKey('text-check-original')), findsOneWidget);
       expect(find.byKey(const ValueKey('text-check-mistake')), findsOneWidget);

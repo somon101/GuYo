@@ -1695,4 +1695,10 @@ const Map<String, (String, String)> uiStrings = {
   'уроков': ('дарс', 'dars'),
   'Фразы': ('Ибораҳо', 'Iboralar'),
   'Скрытые': ('Пинҳон', 'Yashirin'),
+  'Что проверим?': ('Чиро тафтиш мекунем?', 'Nimani tekshiramiz?'),
+  'Напишите текст, и я найду ошибки и объясню их.': ('Матнро нависед, ман хатогиҳоро меёбам ва шарҳ медиҳам.', 'Matn yozing, men xatolarni topib, tushuntirib beraman.'),
+  'Кому вы пишете': ('Ба кӣ менависед', 'Kimga yozyapsiz'),
+  'Нейтральное обращение': ('Муроҷиати бетараф', 'Neytral murojaat'),
+  'Формы для обращения к мужчине': ('Шаклҳо барои муроҷиат ба мард', 'Erkakka murojaat shakllari'),
+  'Формы для обращения к женщине': ('Шаклҳо барои муроҷиат ба зан', 'Ayolga murojaat shakllari'),
 };

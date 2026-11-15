@@ -969,4 +969,10 @@ const Map<String, String> enStrings = {
   'уроков': 'lessons',
   'Фразы': 'Phrases',
   'Скрытые': 'Hidden',
+  'Что проверим?': 'What shall we check?',
+  'Напишите текст, и я найду ошибки и объясню их.': 'Write a text and I will find the mistakes and explain them.',
+  'Кому вы пишете': 'Who are you writing to',
+  'Нейтральное обращение': 'Neutral address',
+  'Формы для обращения к мужчине': 'Forms for addressing a man',
+  'Формы для обращения к женщине': 'Forms for addressing a woman',
 };

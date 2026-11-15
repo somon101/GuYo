@@ -278,7 +278,11 @@ class _TextCheckScreenState extends State<TextCheckScreen> {
           ),
         ],
       ),
-      body: SafeArea(child: _checkerDisabled ? _unavailable() : (_showingAnswer ? _answer() : _editor())),
+      body: SafeArea(
+        child: _checkerDisabled
+            ? _unavailable()
+            : Column(children: [Expanded(child: _thread()), _composer()]),
+      ),
     );
   }
 
@@ -293,77 +297,116 @@ class _TextCheckScreenState extends State<TextCheckScreen> {
         ),
       );
 
-  // The writing view: the field, who it is for, the counter and one button.
-  Widget _editor() {
-    final text = _controller.text.trim();
-    final canSend = text.isNotEmpty && !_limitUsedUp;
-    return Column(children: [
-      Expanded(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
-          child: TextField(
-            key: const ValueKey('text-check-input'),
-            controller: _controller,
-            maxLines: null,
-            expands: true,
-            textAlignVertical: TextAlignVertical.top,
-            maxLength: _maxChars,
-            buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
-            keyboardType: TextInputType.multiline,
-            textCapitalization: TextCapitalization.sentences,
-            style: TextStyle(fontSize: 18, height: 1.5, color: AppColors.primaryDark),
-            cursorColor: AppColors.primary,
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              hintText: tr('Введите текст...'),
-              hintStyle: TextStyle(color: AppColors.secondaryText),
-              contentPadding: EdgeInsets.zero,
-            ),
-          ),
-        ),
-      ),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-        child: Column(children: [
-          Row(children: [
-            PopupMenuButton<String?>(
-              key: const ValueKey('text-check-addressee'),
-              onSelected: (v) => setState(() => _addressee = v),
-              itemBuilder: (_) => [
-                PopupMenuItem<String?>(value: null, child: Text(tr('Любому'))),
-                PopupMenuItem<String?>(value: 'male', child: Text(tr('Мужчине'))),
-                PopupMenuItem<String?>(value: 'female', child: Text(tr('Женщине'))),
-              ],
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text(tr('Кому: {0}', [_addresseeLabel()]), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.secondaryText)),
-                  Icon(Icons.expand_more_rounded, size: 18, color: AppColors.secondaryText),
-                ]),
+  // ------------------------------------------------------------------ thread
+
+  /// The upper part: a greeting while nothing was sent, then the sent text as a bubble and the
+  /// answer under it as a card. Only the last check is kept (no history).
+  Widget _thread() {
+    if (!_showingAnswer) return _hero();
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      children: [
+        Align(
+          alignment: Alignment.centerRight,
+          child: Container(
+            key: const ValueKey('text-check-question'),
+            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+                bottomLeft: Radius.circular(20),
+                bottomRight: Radius.circular(6),
               ),
             ),
-            const Spacer(),
-            Text('${text.length} / $_maxChars', style: TextStyle(fontSize: 13, color: AppColors.secondaryText, fontFeatures: const [FontFeature.tabularFigures()])),
-          ]),
-          if (_limitUsedUp)
-            Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(tr('Проверки на сегодня закончились'), style: TextStyle(fontSize: 13, color: AppColors.danger))),
-          _Button(key: const ValueKey('text-check-send'), label: tr('Проверить'), onTap: canSend && !_busy ? _send : null),
-        ]),
-      ),
-    ]);
+            child: Text(_question, style: const TextStyle(fontSize: 15.5, height: 1.45, color: Colors.white)),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _answerCard(),
+      ],
+    );
   }
 
-  // The answer view.
-  Widget _answer() {
+  Widget _hero() => Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 52,
+              height: 52,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(16)),
+              child: const Text('G', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white)),
+            ),
+            const SizedBox(height: 14),
+            Text(tr('Что проверим?'), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: AppColors.primaryDark)),
+            const SizedBox(height: 6),
+            Text(
+              tr('Напишите текст, и я найду ошибки и объясню их.'),
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14.5, height: 1.4, color: AppColors.secondaryText),
+            ),
+          ]),
+        ),
+      );
+
+  Widget _aiHeader() => Row(children: [
+        Container(
+          width: 22,
+          height: 22,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+          child: const Text('G', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white)),
+        ),
+        const SizedBox(width: 8),
+        Text(tr('Проверка'), style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.secondaryText)),
+      ]);
+
+  /// The answer as one card: loading, the failure, or the checked text with its mistakes.
+  Widget _answerCard() {
     final result = _result;
     final errors = result?.errors ?? const <TextCheckError>[];
     final hasErrors = result?.hasErrors ?? false;
     final corrected = result?.correctedText ?? '';
-    return Column(children: [
-      if (hasErrors)
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 10),
-          child: _Segment<int>(
+    final body = <Widget>[_aiHeader()];
+    if (_busy) {
+      body.addAll([
+        const SizedBox(height: 12),
+        Row(children: [
+          SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+          const SizedBox(width: 10),
+          Text(tr('Проверяю…'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.secondaryText)),
+        ]),
+      ]);
+    } else if (_errorMessage != null) {
+      body.addAll([
+        const SizedBox(height: 10),
+        Text(_errorMessage!, style: TextStyle(fontSize: 15, height: 1.5, color: AppColors.danger)),
+        const SizedBox(height: 8),
+        _editButton(),
+      ]);
+    } else if (result != null) {
+      body.add(const SizedBox(height: 10));
+      if (!hasErrors) {
+        body.addAll([
+          Row(children: [
+            Icon(Icons.check_circle_rounded, size: 18, color: AppColors.success),
+            const SizedBox(width: 8),
+            Expanded(child: Text(result.summary.isEmpty ? tr('Ошибок нет') : result.summary, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.success))),
+          ]),
+        ]);
+      } else {
+        if (result.summary.isNotEmpty) {
+          body.addAll([
+            Text(result.summary, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.success)),
+            const SizedBox(height: 10),
+          ]);
+        }
+        body.addAll([
+          _Segment<int>(
             values: const [0, 1],
             selected: _tab,
             expand: true,
@@ -371,63 +414,180 @@ class _TextCheckScreenState extends State<TextCheckScreen> {
             keyOf: (v) => ValueKey('tc-tab-$v'),
             onTap: (v) => setState(() => _tab = v),
           ),
+          const SizedBox(height: 12),
+          _tab == 1
+              ? Text(corrected, key: const ValueKey('text-check-corrected'), style: TextStyle(fontSize: 16.5, height: 1.6, color: AppColors.primaryDark))
+              : Text.rich(_markedText(_question, errors), key: const ValueKey('text-check-original'), style: TextStyle(fontSize: 16.5, height: 1.6, color: AppColors.primaryDark)),
+        ]);
+        if (_tab == 0) {
+          body.addAll([const SizedBox(height: 12), _mistakeCard(errors)]);
+        }
+        body.add(const SizedBox(height: 12));
+        body.add(Row(children: [
+          if (corrected.isNotEmpty) Expanded(child: _Button(key: const ValueKey('text-check-copy'), label: tr('Копировать'), icon: Icons.copy_rounded, onTap: () => _copyCorrected(corrected))),
+          if (corrected.isNotEmpty) const SizedBox(width: 8),
+          Expanded(child: _editButton()),
+        ]));
+      }
+      if (!hasErrors) {
+        body.addAll([const SizedBox(height: 8), _editButton()]);
+      }
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+          bottomLeft: Radius.circular(6),
+          bottomRight: Radius.circular(20),
         ),
-      Expanded(
-        child: ListView(padding: const EdgeInsets.fromLTRB(20, 4, 20, 12), children: [
-          if (_busy) ...[
-            Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: Row(children: [
-                SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
-                const SizedBox(width: 10),
-                Text(tr('Проверяю…'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.secondaryText)),
-              ]),
-            ),
-            _textCard(Text(_question, style: TextStyle(fontSize: 18, height: 1.7, color: AppColors.secondaryText))),
-          ] else if (_errorMessage != null) ...[
-            _textCard(Text(_errorMessage!, style: TextStyle(fontSize: 16, height: 1.5, color: AppColors.danger))),
-          ] else if (result != null) ...[
-            if (!hasErrors)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(children: [
-                  Icon(Icons.check_circle_rounded, size: 18, color: AppColors.success),
-                  const SizedBox(width: 8),
-                  Text(result.summary.isEmpty ? tr('Ошибок нет') : result.summary, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.success)),
-                ]),
-              ),
-            _textCard(
-              hasErrors && _tab == 1
-                  ? Text(corrected, key: const ValueKey('text-check-corrected'), style: TextStyle(fontSize: 18, height: 1.7, color: AppColors.primaryDark))
-                  : Text.rich(_markedText(_question, errors), key: const ValueKey('text-check-original'), style: TextStyle(fontSize: 18, height: 1.7, color: AppColors.primaryDark)),
-            ),
-            if (hasErrors && _tab == 0) ...[
-              const SizedBox(height: 12),
-              _mistakeCard(errors),
-            ],
-          ],
-        ]),
+        border: Border.all(color: AppColors.cardBorder),
       ),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-        child: Column(children: [
-          if (hasErrors && corrected.isNotEmpty) _Button(key: const ValueKey('text-check-copy'), label: tr('Копировать исправленный'), icon: Icons.copy_rounded, onTap: () => _copyCorrected(corrected)),
-          TextButton(
-            key: const ValueKey('text-check-edit'),
-            onPressed: _busy ? null : _edit,
-            child: Text(tr('Править'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primary)),
-          ),
-        ]),
-      ),
-    ]);
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: body),
+    );
   }
 
-  Widget _textCard(Widget child) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
-        child: child,
+  Widget _editButton() => GestureDetector(
+        key: const ValueKey('text-check-edit'),
+        behavior: HitTestBehavior.opaque,
+        onTap: _busy ? null : _edit,
+        child: Container(
+          height: 50,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: AppColors.violetSurface, borderRadius: BorderRadius.circular(99)),
+          child: Text(tr('Править'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
+        ),
       );
+
+  // ---------------------------------------------------------------- composer
+
+  /// The field at the bottom: the text, who it is for, the counter and the round send button.
+  Widget _composer() {
+    final text = _controller.text.trim();
+    final canSend = text.isNotEmpty && !_limitUsedUp && !_busy;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        if (_limitUsedUp)
+          Padding(padding: const EdgeInsets.only(bottom: 6), child: Text(tr('Проверки на сегодня закончились'), style: TextStyle(fontSize: 13, color: AppColors.danger))),
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 10, 10, 10),
+          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(26), border: Border.all(color: AppColors.cardBorder)),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(
+              key: const ValueKey('text-check-input'),
+              controller: _controller,
+              minLines: 2,
+              maxLines: 6,
+              maxLength: _maxChars,
+              buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
+              keyboardType: TextInputType.multiline,
+              textCapitalization: TextCapitalization.sentences,
+              style: TextStyle(fontSize: 16.5, height: 1.45, color: AppColors.primaryDark),
+              cursorColor: AppColors.primary,
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                hintText: tr('Введите текст...'),
+                hintStyle: TextStyle(color: AppColors.secondaryText),
+                contentPadding: EdgeInsets.zero,
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(children: [
+              Flexible(
+                child: GestureDetector(
+                key: const ValueKey('text-check-addressee'),
+                behavior: HitTestBehavior.opaque,
+                onTap: _pickAddressee,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(color: AppColors.violetSurface, borderRadius: BorderRadius.circular(99)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.person_outline_rounded, size: 16, color: AppColors.primary),
+                    const SizedBox(width: 6),
+                    Flexible(child: Text(tr('Кому: {0}', [_addresseeLabel()]), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark))),
+                    Icon(Icons.expand_more_rounded, size: 18, color: AppColors.secondaryText),
+                  ]),
+                ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Spacer(),
+              Text('${text.length} / $_maxChars', style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText, fontFeatures: const [FontFeature.tabularFigures()])),
+              const SizedBox(width: 10),
+              GestureDetector(
+                key: const ValueKey('text-check-send'),
+                onTap: canSend ? _send : null,
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(color: canSend ? AppColors.primary : AppColors.progressTrack, shape: BoxShape.circle),
+                  child: Icon(Icons.arrow_upward_rounded, size: 20, color: canSend ? Colors.white : AppColors.secondaryText),
+                ),
+              ),
+            ]),
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  /// «Кому вы пишете»: three rows in a sheet; the chosen one is filled and ticked.
+  Future<void> _pickAddressee() async {
+    final options = <(String?, String, String, IconData)>[
+      (null, tr('Любому'), tr('Нейтральное обращение'), Icons.groups_2_outlined),
+      ('male', tr('Мужчине'), tr('Формы для обращения к мужчине'), Icons.male_rounded),
+      ('female', tr('Женщине'), tr('Формы для обращения к женщине'), Icons.female_rounded),
+    ];
+    final picked = await showModalBottomSheet<(String?,)>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+              child: Text(tr('Кому вы пишете'), style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+            ),
+            for (final o in options)
+              InkWell(
+                key: ValueKey('addressee-${o.$1 ?? 'any'}'),
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => Navigator.of(ctx).pop((o.$1,)),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                  decoration: BoxDecoration(color: o.$1 == _addressee ? AppColors.violetSurface : null, borderRadius: BorderRadius.circular(16)),
+                  child: Row(children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(color: AppColors.violetSurface, shape: BoxShape.circle),
+                      child: Icon(o.$4, size: 22, color: AppColors.primary),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(o.$2, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
+                        Text(o.$3, style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText)),
+                      ]),
+                    ),
+                    if (o.$1 == _addressee) Icon(Icons.check_circle_rounded, color: AppColors.primary),
+                  ]),
+                ),
+              ),
+          ]),
+        ),
+      ),
+    );
+    if (picked != null && mounted) setState(() => _addressee = picked.$1);
+  }
 
   /// The writer's text with each mistake's fragment marked in place (found one after another).
   TextSpan _markedText(String text, List<TextCheckError> errors) {
