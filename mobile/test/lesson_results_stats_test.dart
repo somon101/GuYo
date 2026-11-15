@@ -49,31 +49,76 @@ Future<void> _open(WidgetTester tester, LessonPassStats? stats) async {
   await tester.pumpAndSettle();
 }
 
+final _passedLesson = Lesson.fromJson({
+  'id': 7,
+  'dictionary_id': 1,
+  'number': 2,
+  'is_completed': true,
+  'exercise_keys': ['true_or_false', 'build_word'],
+  'words': [
+    {'word_id': 1, 'word': 'cat', 'translation': 'кот', 'score': 100, 'is_learned': true},
+    {'word_id': 2, 'word': 'dog', 'translation': 'собака', 'score': 100, 'is_learned': true},
+  ],
+});
+
 void main() {
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
 
-  testWidgets('shows accuracy, right/wrong/time, per exercise and per word gain', (tester) async {
+  testWidgets('words still short: no «failure», the words left, a locked next lesson and the repeat button', (tester) async {
     await http.runWithClient(() async {
       await _open(tester, _stats);
-      expect(find.byKey(const ValueKey('lesson-pass-stats')), findsOneWidget);
-      expect(find.text('75'), findsOneWidget);
-      expect(find.textContaining('6 / 8', findRichText: true), findsOneWidget);
-      expect(find.textContaining('2 / 8', findRichText: true), findsOneWidget);
-      expect(find.text('1 мин 35 с', findRichText: true), findsOneWidget);
-      expect(find.text('Правда или ложь'), findsOneWidget);
-      expect(find.textContaining('2 / 4', findRichText: true), findsOneWidget);
-      expect(find.text('Выучено новых'), findsOneWidget);
-      expect(find.textContaining('1 / 2', findRichText: true), findsOneWidget);
-      expect(find.text('Повторить урок'), findsOneWidget);
+      expect(find.text('Осталось слов: 1'), findsOneWidget);
+      expect(find.text('Слова: 1 из 2'), findsOneWidget);
+      expect(find.text('75% точность'), findsOneWidget);
+      expect(find.text('1:35'), findsOneWidget);
+      expect(find.byKey(const ValueKey('road-current-part')), findsOneWidget);
+      expect(find.byKey(const ValueKey('road-next-locked')), findsOneWidget);
+      expect(find.byKey(const ValueKey('lesson-results-repeat')), findsOneWidget);
+      expect(find.byKey(const ValueKey('lesson-results-next')), findsNothing);
+      // No list of words on this screen any more.
+      expect(find.text('cat'), findsNothing);
     }, () => _client);
   });
 
-  testWidgets('without statistics the results still show', (tester) async {
+  testWidgets('lesson passed: its node is lit, the next one is open and the main button starts it', (tester) async {
+    await http.runWithClient(() async {
+      tester.view.physicalSize = const Size(1080, 2200);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      bool? popped;
+      await tester.pumpWidget(MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () async => popped = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => LessonResultsScreen(lesson: _passedLesson, stats: _stats))),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(find.text('Урок 2 пройден'), findsOneWidget);
+      expect(find.byKey(const ValueKey('road-current-done')), findsOneWidget);
+      expect(find.byKey(const ValueKey('road-next-open')), findsOneWidget);
+      expect(find.text('Урок 3 открыт'), findsOneWidget);
+      expect(find.byKey(const ValueKey('lesson-results-repeat')), findsNothing);
+      expect(takeNextLessonRequest(), isFalse);
+      await tester.tap(find.byKey(const ValueKey('lesson-results-next')));
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+      expect(popped, isFalse);
+      expect(takeNextLessonRequest(), isTrue); // asked once...
+      expect(takeNextLessonRequest(), isFalse); // ...and only once
+    }, () => _client);
+  });
+
+  testWidgets('without statistics the result still shows, just without accuracy and time', (tester) async {
     await http.runWithClient(() async {
       await _open(tester, null);
-      expect(find.byKey(const ValueKey('lesson-pass-stats')), findsNothing);
-      expect(find.text('cat'), findsOneWidget);
-      expect(find.text('Повторить урок'), findsOneWidget);
+      expect(find.text('Осталось слов: 1'), findsOneWidget);
+      expect(find.byKey(const ValueKey('chip-accuracy')), findsNothing);
+      expect(find.byKey(const ValueKey('lesson-results-repeat')), findsOneWidget);
     }, () => _client);
   });
 }

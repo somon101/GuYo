@@ -8,6 +8,7 @@ import '../models/lesson.dart';
 import '../theme/app_colors.dart';
 import 'lesson_create_screen.dart';
 import 'lesson_detail_screen.dart';
+import 'lesson_results_screen.dart' show takeNextLessonRequest;
 import 'lesson_run_screen.dart';
 import '../widgets/duel_card.dart';
 import '../widgets/skeleton.dart';
@@ -98,6 +99,11 @@ class _LessonsScreenState extends State<LessonsScreen> {
   /// chain -- the lesson may have just been completed.
   Future<void> _runLesson(Lesson lesson) async {
     await Navigator.of(context).push(instantRoute((_) => LessonRunScreen.forLesson(lesson)));
+    // «Начать урок N» on the results: straight on to the next lesson.
+    if (takeNextLessonRequest() && mounted) {
+      await _createNextLesson();
+      return;
+    }
     await _load();
   }
 
