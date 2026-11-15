@@ -69,15 +69,35 @@ void main() {
       expect((await api.fetchLessonBuildWordRound(lesson.id)).items, hasLength(3));
       expect((await api.fetchLessonSpeakingWordRound(lesson.id)).items, hasLength(3));
       expect((await api.fetchLessonListenWordRound(lesson.id)).items, hasLength(3));
-      for (var i = 0; i < 3; i++) {
-        final r = await api.submitLessonAnswer(lesson.id, 'true_or_false', wordId: lesson.words.first.wordId, isCorrect: true);
-        if (i == 2) expect(r.isLearned, true);
+      for (final word in lesson.words) {
+        for (var i = 0; i < 3; i++) {
+          final r = await api.submitLessonAnswer(lesson.id, 'true_or_false', wordId: word.wordId, isCorrect: true);
+          if (i == 2) expect(r.isLearned, true);
+        }
       }
       final (done, stats) = await api.finishLessonPass(lesson.id);
-      expect(done.isCompleted, true);
-      expect(stats?.totalAnswers, 3);
-      expect((await api.fetchDailyGoal())?.done, 13);
+      expect(done.isCompleted, true); // every word learned: the lesson is passed
+      expect(stats?.totalAnswers, 9);
+      expect((await api.fetchDailyGoal())?.done, 15);
       expect((await api.fetchActiveLesson(1)), isNull);
+    }, demoClient);
+  });
+
+  test('a lesson with words still short stays open after the pass', () async {
+    await http.runWithClient(() async {
+      final api = ApiClient.instance;
+      final cand = await api.fetchLessonCandidateWords(1);
+      final lesson = await api.createLesson(dictionaryId: 1, wordIds: cand.words.take(2).map((w) => w.id).toList());
+      await api.startLessonPass(lesson.id);
+      // The first word is learned (three right answers), the second one is not.
+      for (var i = 0; i < 3; i++) {
+        await api.submitLessonAnswer(lesson.id, 'true_or_false', wordId: lesson.words.first.wordId, isCorrect: true);
+      }
+      await api.submitLessonAnswer(lesson.id, 'true_or_false', wordId: lesson.words.last.wordId, isCorrect: false);
+      final (open, _) = await api.finishLessonPass(lesson.id);
+      expect(open.isCompleted, false);
+      expect(open.words.where((w) => w.isLearned), hasLength(1));
+      expect(await api.fetchActiveLesson(1), isNotNull);
     }, demoClient);
   });
 

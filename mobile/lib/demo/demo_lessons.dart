@@ -126,7 +126,9 @@ Object? demoDynamic(String method, String path, Map<String, String> q, Map<Strin
       return _lesson(lesson);
     }
     if (rest == '/pass/finish') {
-      lesson.completed = true;
+      // A lesson counts as passed only when all its words are learned (as on the real server); with
+      // words still short it stays open, and the end-of-lesson screen offers to finish those words.
+      lesson.completed = lesson.wordIds.every(s.learned.contains);
       s.save();
       return {..._lesson(lesson), 'pass_stats': _stats(lesson)};
     }
