@@ -46,6 +46,7 @@ const navGroups = [
       { to: "/showcase", icon: "sparkles", label: "Витрина наград" },
       { to: "/premium-name-preview", icon: "sparkles", label: "Предпросмотр ника Premium" },
       { to: "/booster-preview", icon: "sparkles", label: "Предпросмотр удвоителя" },
+      { to: "/lesson-results-preview", icon: "sparkles", label: "Предпросмотр итогов урока" },
       { to: "/duel-preview", icon: "sparkles", label: "Предпросмотр дуэли" },
       { to: "/chest-preview", icon: "sparkles", label: "Предпросмотр сундука" },
       { to: "/achievements", icon: "trophy", label: "Достижения" },
