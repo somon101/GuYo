@@ -515,7 +515,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           children: [
             const GuyoWordmark(),
             const SizedBox(width: 5),
-            if (!isProfileTab)
+            // The language switcher lives only in «Уроки» (the tab that is about one language).
+            if (_selectedTabIndex == 1)
               Expanded(child: Center(child: _buildLanguageSwitcher()))
             else
               const Spacer(),
