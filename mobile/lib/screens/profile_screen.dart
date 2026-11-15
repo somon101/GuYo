@@ -20,7 +20,6 @@ import '../widgets/achievement_icon.dart';
 import '../widgets/in_app_banner.dart';
 import '../widgets/leaderboard_status.dart';
 import '../widgets/position_change.dart';
-import '../widgets/premium_ui.dart';
 import '../widgets/rank_icon.dart';
 import '../widgets/remote_image.dart';
 import '../widgets/cosmetic_art.dart';
@@ -688,13 +687,6 @@ class _ProfileHeader extends StatelessWidget {
                   ),
                 ),
               ),
-              if (profile.isPremium) ...[
-                const SizedBox(height: 6),
-                GestureDetector(
-                  onTap: () => openPremiumScreen(context),
-                  child: const PremiumBadge(),
-                ),
-              ],
             ],
           ),
         ),
