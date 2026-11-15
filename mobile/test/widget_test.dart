@@ -9,15 +9,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:guyo_app/screens/login_screen.dart';
 
 void main() {
-  testWidgets('Login screen shows the expected fields', (WidgetTester tester) async {
+  testWidgets('Login screen: the greeting first, then the two fields', (WidgetTester tester) async {
     await tester.pumpWidget(const MaterialApp(home: LoginScreen()));
 
+    // The greeting has no fields.
     expect(find.text('GuYo'), findsOneWidget);
+    expect(find.byType(TextField), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'Войти'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Создать аккаунт'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Войти'));
+    await tester.pump();
     expect(find.text('Вход'), findsOneWidget);
-    // The field labels sit above the fields, not inside them.
+    // The field names are the fields' own hints.
     expect(find.text('Логин'), findsOneWidget);
     expect(find.text('Пароль'), findsOneWidget);
     expect(find.byType(TextField), findsNWidgets(2));
-    expect(find.widgetWithText(FilledButton, 'Войти'), findsOneWidget);
   });
 }

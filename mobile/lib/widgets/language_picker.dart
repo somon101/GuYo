@@ -33,3 +33,59 @@ class LanguagePicker extends StatelessWidget {
     );
   }
 }
+
+/// The interface language as a small chip for a screen's corner: the language's code in a tinted
+/// badge and a chevron; a tap opens the list of languages. [onSelected] gets the picked code.
+class LanguageChip extends StatelessWidget {
+  const LanguageChip({super.key, required this.selected, required this.onSelected, this.enabled = true});
+
+  final String selected;
+  final ValueChanged<String> onSelected;
+  final bool enabled;
+
+  Widget _badge(String code, {bool on = true}) => Container(
+        width: 26,
+        height: 22,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: on ? AppColors.primary : AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(7)),
+        child: Text(code.toUpperCase(), style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 0.3, color: on ? Colors.white : AppColors.primary)),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final languages = availableUiLanguages;
+    return PopupMenuButton<String>(
+      key: const ValueKey('ui-language-chip'),
+      tooltip: tr('Выбрать язык'),
+      enabled: enabled,
+      onSelected: onSelected,
+      offset: const Offset(0, 40),
+      color: AppColors.surface,
+      surfaceTintColor: Colors.transparent,
+      elevation: 6,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      itemBuilder: (_) => [
+        for (final l in languages)
+          PopupMenuItem<String>(
+            value: l.code,
+            height: 46,
+            child: Row(children: [
+              _badge(l.code, on: l.code == selected),
+              const SizedBox(width: 12),
+              Text(l.label, style: TextStyle(fontSize: 15, fontWeight: l.code == selected ? FontWeight.w700 : FontWeight.w500, color: AppColors.primaryDark)),
+            ]),
+          ),
+      ],
+      child: Container(
+        height: 36,
+        padding: const EdgeInsets.fromLTRB(6, 0, 6, 0),
+        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(18), border: Border.all(color: AppColors.separator)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          _badge(selected),
+          const SizedBox(width: 2),
+          Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: AppColors.secondaryText),
+        ]),
+      ),
+    );
+  }
+}

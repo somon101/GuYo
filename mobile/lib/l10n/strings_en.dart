@@ -986,4 +986,6 @@ const Map<String, String> enStrings = {
   'Новых: {0}': 'New: {0}',
   'Нет новых': 'Nothing new',
   'Билетов нет. Их можно получить в сундуках и наградах.': 'No tickets. You can get them from chests and rewards.',
+  'Продолжить с Google': 'Continue with Google',
+  'Каждый день по чуть-чуть': 'A little every day',
 };

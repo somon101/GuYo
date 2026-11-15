@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
 import '../theme/app_colors.dart';
-import '../widgets/guyo_ui.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
 import '../widgets/skeleton.dart';
@@ -84,105 +83,166 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// false: the greeting with the three ways in; true: the two fields.
+  bool _showForm = false;
+
+  Widget _button(String label, VoidCallback? onTap, {Key? key, bool filled = true}) => SizedBox(
+        height: 52,
+        child: FilledButton(
+          key: key,
+          onPressed: onTap,
+          style: FilledButton.styleFrom(
+            backgroundColor: filled ? AppColors.primary : AppColors.violetSurface,
+            foregroundColor: filled ? Colors.white : AppColors.primaryDark,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          child: Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ),
+      );
+
+  Widget _googleButton() => SizedBox(
+        height: 52,
+        child: OutlinedButton.icon(
+          key: const ValueKey('login-google-button'),
+          onPressed: _isSubmitting ? null : _signInWithGoogle,
+          icon: const GoogleLogo(size: 20),
+          label: Text(tr('Продолжить с Google'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          style: OutlinedButton.styleFrom(
+            backgroundColor: AppColors.surface,
+            foregroundColor: AppColors.primaryDark,
+            side: BorderSide(color: AppColors.cardBorder),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+        ),
+      );
+
+  /// The first screen: no fields, only the brand and the three ways in.
+  Widget _welcome() => Column(children: [
+        const Spacer(),
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(22)),
+          child: const Icon(Icons.auto_stories_rounded, size: 40, color: Colors.white),
+        ),
+        const SizedBox(height: 14),
+        Text('GuYo', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: -1, color: AppColors.primary)),
+        const SizedBox(height: 2),
+        Text(tr('Каждый день по чуть-чуть'), style: TextStyle(fontSize: 15, color: AppColors.secondaryText)),
+        const Spacer(),
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: AppColors.danger, fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+        _button(tr('Войти'), _isSubmitting ? null : () => setState(() {
+              _showForm = true;
+              _error = null;
+            }), key: const ValueKey('login-start')),
+        const SizedBox(height: 12),
+        _button(tr('Создать аккаунт'), _isSubmitting ? null : _openRegister, key: const ValueKey('login-register'), filled: false),
+        if (googleSignInEnabled) ...[
+          const SizedBox(height: 14),
+          Row(children: [
+            Expanded(child: Divider(color: AppColors.cardBorder)),
+            Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text(tr('или'), style: TextStyle(fontSize: 13, color: AppColors.secondaryText))),
+            Expanded(child: Divider(color: AppColors.cardBorder)),
+          ]),
+          const SizedBox(height: 14),
+          _googleButton(),
+        ],
+        const SizedBox(height: 26),
+      ]);
+
+  /// The second step: the login and the password.
+  Widget _form() => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        const SizedBox(height: 14),
+        Text(tr('Вход'), style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.7, color: AppColors.primaryDark)),
+        const SizedBox(height: 18),
+        _LoginField(
+          key: const ValueKey('login-field-login'),
+          label: tr('Логин'),
+          icon: Icons.person_outline_rounded,
+          controller: _loginController,
+          textInputAction: TextInputAction.next,
+          hasError: _error != null,
+        ),
+        const SizedBox(height: 12),
+        _LoginField(
+          key: const ValueKey('login-field-password'),
+          label: tr('Пароль'),
+          icon: Icons.lock_outline_rounded,
+          controller: _passwordController,
+          obscure: true,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => _isSubmitting ? null : _submit(),
+          hasError: _error != null,
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 10),
+          Text(_error!, style: TextStyle(color: AppColors.danger, fontSize: 13, fontWeight: FontWeight.w600)),
+        ],
+        const SizedBox(height: 18),
+        SizedBox(
+          height: 52,
+          child: FilledButton(
+            key: const ValueKey('login-submit'),
+            onPressed: _isSubmitting ? null : _submit,
+            style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+            child: _isSubmitting
+                ? SkeletonPulse(child: Text(tr('Входим…'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)))
+                : Text(tr('Войти'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(alignment: WrapAlignment.center, crossAxisAlignment: WrapCrossAlignment.center, children: [
+          Text(tr('Нет аккаунта?'), style: TextStyle(color: AppColors.secondaryText, fontSize: 14)),
+          TextButton(
+            key: const ValueKey('login-register-link'),
+            onPressed: _isSubmitting ? null : _openRegister,
+            child: Text(tr('Регистрация'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+          ),
+        ]),
+      ]);
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                LanguagePicker(selected: appLanguage.value, enabled: !_isSubmitting, onSelected: setAppLanguage),
-                const SizedBox(height: 20),
-                const RoundIconChip(icon: Icons.auto_stories_rounded, size: 64),
-                const SizedBox(height: 16),
-                Text(
-                  'GuYo',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  tr('Вход'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: AppColors.secondaryText),
-                ),
-                const SizedBox(height: 28),
-                GuyoCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _LoginField(
-                        label: tr('Логин'),
-                        controller: _loginController,
-                        textInputAction: TextInputAction.next,
-                      ),
-                      const SizedBox(height: 14),
-                      _LoginField(
-                        label: tr('Пароль'),
-                        controller: _passwordController,
-                        obscure: true,
-                        textInputAction: TextInputAction.done,
-                        onSubmitted: (_) => _isSubmitting ? null : _submit(),
-                      ),
-                      if (_error != null) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          _error!,
-                          style: TextStyle(color: AppColors.danger, fontSize: 13, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                      const SizedBox(height: 18),
-                      FilledButton(
-                        onPressed: _isSubmitting ? null : _submit,
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppShapes.rowRadius)),
-                        ),
-                        child: _isSubmitting
-                            ? SkeletonPulse(
-                                child: Text(tr('Входим…'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                              )
-                            : Text(tr('Войти'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                      ),
-                    ],
-                  ),
-                ),
-                if (googleSignInEnabled) ...[
-                  const SizedBox(height: 14),
-                  OutlinedButton.icon(
-                    key: const ValueKey('login-google-button'),
-                    onPressed: _isSubmitting ? null : _signInWithGoogle,
-                    icon: const GoogleLogo(size: 20),
-                    label: Text(
-                      tr('Войти через Google'),
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+    return PopScope(
+      // Back from the form returns to the greeting instead of leaving the app.
+      canPop: !_showForm,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() => _showForm = false);
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.canvas,
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, c) => SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 22),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: c.maxHeight),
+                child: IntrinsicHeight(
+                  child: Column(children: [
+                    SizedBox(
+                      height: 52,
+                      child: Row(children: [
+                        if (_showForm)
+                          IconButton(
+                            key: const ValueKey('login-back'),
+                            tooltip: tr('Назад'),
+                            padding: EdgeInsets.zero,
+                            alignment: Alignment.centerLeft,
+                            icon: Icon(Icons.arrow_back_rounded, color: AppColors.primaryDark),
+                            onPressed: _isSubmitting ? null : () => setState(() => _showForm = false),
+                          ),
+                        const Spacer(),
+                        LanguageChip(selected: appLanguage.value, enabled: !_isSubmitting, onSelected: setAppLanguage),
+                      ]),
                     ),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      backgroundColor: AppColors.surface,
-                      foregroundColor: AppColors.primaryDark,
-                      side: BorderSide(color: AppColors.cardBorder),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppShapes.rowRadius)),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(tr('Нет аккаунта?'), style: TextStyle(color: AppColors.secondaryText, fontSize: 13.5)),
-                    TextButton(
-                      onPressed: _isSubmitting ? null : _openRegister,
-                      child: Text(tr('Регистрация'), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
-                    ),
-                  ],
+                    Expanded(child: _showForm ? _form() : _welcome()),
+                  ]),
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -193,15 +253,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
 class _LoginField extends StatefulWidget {
   final String label;
+  final IconData icon;
   final TextEditingController controller;
   final bool obscure;
+  final bool hasError;
   final TextInputAction? textInputAction;
   final ValueChanged<String>? onSubmitted;
 
   const _LoginField({
+    super.key,
     required this.label,
+    required this.icon,
     required this.controller,
     this.obscure = false,
+    this.hasError = false,
     this.textInputAction,
     this.onSubmitted,
   });
@@ -217,43 +282,35 @@ class _LoginFieldState extends State<_LoginField> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          widget.label,
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: widget.controller,
-          obscureText: widget.obscure ? _hidden : false,
-          textInputAction: widget.textInputAction,
-          onSubmitted: widget.onSubmitted,
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: AppColors.violetSurface,
-            isDense: true,
-            contentPadding: EdgeInsets.fromLTRB(14, 13, widget.obscure ? 4 : 14, 13),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-              borderSide: BorderSide.none,
-            ),
-            suffixIcon: widget.obscure
-                ? IconButton(
-                    key: const ValueKey('login-password-visibility'),
-                    tooltip: _hidden ? tr('Показать пароль') : tr('Скрыть пароль'),
-                    icon: Icon(
-                      _hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                      size: 20,
-                      color: AppColors.secondaryText,
-                    ),
-                    onPressed: () => setState(() => _hidden = !_hidden),
-                  )
-                : null,
-          ),
-        ),
-      ],
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide(color: widget.hasError ? AppColors.danger : AppColors.cardBorder, width: widget.hasError ? 1.5 : 1),
+    );
+    return TextField(
+      controller: widget.controller,
+      obscureText: widget.obscure ? _hidden : false,
+      textInputAction: widget.textInputAction,
+      onSubmitted: widget.onSubmitted,
+      style: TextStyle(fontSize: 15.5, color: AppColors.primaryDark),
+      decoration: InputDecoration(
+        hintText: widget.label,
+        hintStyle: TextStyle(color: AppColors.secondaryText),
+        filled: true,
+        fillColor: AppColors.surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 17),
+        prefixIcon: Icon(widget.icon, size: 20, color: AppColors.secondaryText),
+        border: border,
+        enabledBorder: border,
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: widget.hasError ? AppColors.danger : AppColors.primary, width: 1.5)),
+        suffixIcon: widget.obscure
+            ? IconButton(
+                key: const ValueKey('login-password-visibility'),
+                tooltip: _hidden ? tr('Показать пароль') : tr('Скрыть пароль'),
+                icon: Icon(_hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 20, color: AppColors.secondaryText),
+                onPressed: () => setState(() => _hidden = !_hidden),
+              )
+            : null,
+      ),
     );
   }
 }

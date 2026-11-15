@@ -1712,4 +1712,6 @@ const Map<String, (String, String)> uiStrings = {
   'Новых: {0}': ('Нав: {0}', 'Yangi: {0}'),
   'Нет новых': ('Нав нест', 'Yangi yoʻq'),
   'Билетов нет. Их можно получить в сундуках и наградах.': ('Чипта нест. Онҳоро аз сандуқҳо ва мукофотҳо гирифтан мумкин.', 'Chiptalar yoʻq. Ularni sandiqlar va mukofotlardan olish mumkin.'),
+  'Продолжить с Google': ('Идома додан бо Google', 'Google bilan davom etish'),
+  'Каждый день по чуть-чуть': ('Ҳар рӯз каме-каме', 'Har kuni ozdan-ozdan'),
 };
