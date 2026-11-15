@@ -19,10 +19,9 @@ String _formatEarnedDate(DateTime date) {
   return '${local.day} ${_russianMonthsGenitive[local.month - 1]} ${local.year}';
 }
 
-/// The full "Достижения" list, opened from the Profile screen's compact
-/// achievement row: a badge wall, three per row, each badge with its goal
-/// in a small coin on its lower edge. Tapping one opens its details (the
-/// date it was earned, or progress towards it). Renders exactly what the
+/// The full "Достижения" screen, opened from the Profile screen's compact
+/// achievement row: one chain of steps per kind (10 → 100 → 300 ...), a line filling up to what has
+/// been reached. Tapping a step opens its details (the date it was earned, or progress towards it). Renders exactly what the
 /// backend already decided (GET /users/me/achievements) -- it is handed the
 /// same list the Profile screen already loaded and computes nothing itself.
 /// Same order as Admin Web's groups (backend CONDITION_TYPES).
@@ -56,6 +55,7 @@ class AchievementsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final earnedCount = achievements.where((a) => a.earned).length;
+    final groups = groupAchievements(achievements);
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
@@ -75,33 +75,79 @@ class AchievementsScreen extends StatelessWidget {
                 title: tr('Пока нет доступных достижений'),
                 message: tr('Скоро здесь появятся награды за ваши успехи.'),
               )
-            : CustomScrollView(
-                slivers: [
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
-                    sliver: SliverToBoxAdapter(child: _Summary(earned: earnedCount, total: achievements.length)),
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-                    sliver: SliverGrid(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        mainAxisSpacing: 18,
-                        crossAxisSpacing: 8,
-                        mainAxisExtent: 196,
-                      ),
-                      delegate: SliverChildBuilderDelegate(
-                        (context, i) => _Badge(achievement: achievements[i]),
-                        childCount: achievements.length,
-                      ),
-                    ),
-                  ),
+            : ListView(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                children: [
+                  _Summary(earned: earnedCount, total: achievements.length),
+                  for (final g in groups) ...[
+                    const SizedBox(height: 18),
+                    _GroupHeader(group: g),
+                    const SizedBox(height: 8),
+                    _Chain(group: g),
+                  ],
                 ],
               ),
       ),
     );
   }
 }
+
+/// The achievements of one kind (words, lessons, streak ...), climbing by goal. Hidden ones, whose
+/// kind is not shown yet, make the last group.
+class AchievementGroup {
+  final String? type;
+  final List<UserAchievement> items;
+  const AchievementGroup(this.type, this.items);
+
+  /// What the player has reached in this kind: the furthest goal got, or the current value.
+  int get reached {
+    var best = 0;
+    for (final a in items) {
+      final v = a.earned ? (a.conditionValue ?? 0) : (a.currentValue ?? 0);
+      if (v > best) best = v;
+    }
+    return best;
+  }
+
+  int get target => items.fold<int>(0, (m, a) => (a.conditionValue ?? 0) > m ? (a.conditionValue ?? 0) : m);
+}
+
+List<AchievementGroup> groupAchievements(List<UserAchievement> list) {
+  final byType = <String?, List<UserAchievement>>{};
+  for (final a in list) {
+    byType.putIfAbsent(a.isLocked ? null : a.conditionType, () => []).add(a);
+  }
+  int rank(String? t) {
+    if (t == null) return _typeOrder.length + 1;
+    final i = _typeOrder.indexOf(t);
+    return i == -1 ? _typeOrder.length : i;
+  }
+
+  final types = byType.keys.toList()..sort((a, b) => rank(a).compareTo(rank(b)));
+  return [
+    for (final t in types)
+      AchievementGroup(t, [...byType[t]!]..sort((a, b) => (a.conditionValue ?? 0).compareTo(b.conditionValue ?? 0))),
+  ];
+}
+
+String _groupTitle(String? type) => switch (type) {
+      'words_learned' => tr('Слова'),
+      'phrases_opened' => tr('Фразы'),
+      'mini_phrases_done' => tr('Мини-фразы'),
+      'lessons_completed' => tr('Уроки'),
+      'streak_days' => tr('Серия'),
+      null => tr('Скрытые'),
+      _ => tr('Другое'),
+    };
+
+String _unit(String? type) => switch (type) {
+      'words_learned' => tr('слов'),
+      'phrases_opened' => tr('фраз'),
+      'mini_phrases_done' => tr('мини-фраз'),
+      'lessons_completed' => tr('уроков'),
+      'streak_days' => tr('дней'),
+      _ => '',
+    };
 
 class _Summary extends StatelessWidget {
   final int earned;
@@ -111,12 +157,8 @@ class _Summary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppShapes.cardRadius),
-        border: Border.all(color: AppColors.cardBorder),
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(22)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -129,7 +171,7 @@ class _Summary extends StatelessWidget {
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
               value: total == 0 ? 0 : earned / total,
-              minHeight: 8,
+              minHeight: 6,
               backgroundColor: AppColors.progressTrack,
               valueColor: AlwaysStoppedAnimation(AppColors.primary),
             ),
@@ -140,117 +182,150 @@ class _Summary extends StatelessWidget {
   }
 }
 
-/// One badge in the wall: the icon with its goal coin, then the title and
-/// the condition, centered.
-class _Badge extends StatelessWidget {
-  final UserAchievement achievement;
-  const _Badge({required this.achievement});
+class _GroupHeader extends StatelessWidget {
+  final AchievementGroup group;
+  const _GroupHeader({required this.group});
 
   @override
   Widget build(BuildContext context) {
-    final earned = achievement.earned;
-    final locked = achievement.isLocked;
-    final title = locked ? tr('Скрытое') : achievement.title!;
-    final description = locked ? tr('Условие откроется позже') : achievement.description!;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Expanded(
+          child: Text(_groupTitle(group.type), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+        ),
+        if (group.type != null && group.target > 0)
+          Text(
+            tr('{0} из {1}', [group.reached, group.target]),
+            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.secondaryText),
+          ),
+      ],
+    );
+  }
+}
 
-    return InkWell(
-      key: ValueKey('achievement-${achievement.id}'),
-      borderRadius: BorderRadius.circular(AppShapes.rowRadius),
-      onTap: () => _showDetails(context, achievement),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-        child: Column(
-          children: [
-            _BadgeArt(achievement: achievement, size: 84),
-            const SizedBox(height: 10),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.15,
-                fontWeight: FontWeight.w800,
-                color: earned ? AppColors.primaryDark : AppColors.muted,
-              ),
+/// One kind as a chain of steps: the icons on a line that fills up to what has been reached.
+class _Chain extends StatelessWidget {
+  static const double _step = 76;
+  final AchievementGroup group;
+  const _Chain({required this.group});
+
+  /// 0..1 along the line: through the got steps and part of the way to the next one.
+  double get _fill {
+    final items = group.items;
+    final got = items.where((a) => a.earned).length;
+    if (got == 0 || items.length < 2) return 0;
+    if (got >= items.length) return 1;
+    final prev = items[got - 1].conditionValue ?? 0;
+    final next = items[got].conditionValue ?? 0;
+    final part = next > prev ? ((group.reached - prev) / (next - prev)).clamp(0.0, 1.0) : 0.0;
+    return ((got - 1) + part) / (items.length - 1);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = group.items;
+    final width = items.length * _step;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20)),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: SizedBox(
+          width: width,
+          child: Stack(children: [
+            Positioned(
+              left: _step / 2,
+              right: _step / 2,
+              top: 21,
+              child: Stack(children: [
+                Container(height: 3, decoration: BoxDecoration(color: AppColors.progressTrack, borderRadius: BorderRadius.circular(3))),
+                FractionallySizedBox(
+                  widthFactor: _fill,
+                  child: Container(height: 3, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(3))),
+                ),
+              ]),
             ),
-            const SizedBox(height: 4),
-            Text(
-              description,
-              textAlign: TextAlign.center,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11.5, height: 1.25, color: AppColors.secondaryText),
-            ),
-          ],
+            Row(children: [for (final a in items) SizedBox(width: _step, child: _Step(achievement: a, type: group.type))]),
+          ]),
         ),
       ),
     );
   }
 }
 
-/// The icon on a soft circle, with the goal coin overlapping its lower
-/// edge: gold once earned, grey before.
-class _BadgeArt extends StatelessWidget {
+class _Step extends StatelessWidget {
   final UserAchievement achievement;
-  final double size;
-  const _BadgeArt({required this.achievement, required this.size});
+  final String? type;
+  const _Step({required this.achievement, required this.type});
 
   @override
   Widget build(BuildContext context) {
     final earned = achievement.earned;
+    final locked = achievement.isLocked;
     final color = parseHexColor(achievement.color);
-    final goal = achievement.isLocked ? '?' : '${achievement.conditionValue ?? ''}';
-    final coin = size * 0.3;
+    final goal = locked ? '?' : '${achievement.conditionValue ?? ''}';
+    return InkWell(
+      key: ValueKey('achievement-${achievement.id}'),
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => _showDetails(context, achievement),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          _StepIcon(achievement: achievement, size: 44, color: color, earned: earned),
+          const SizedBox(height: 6),
+          Text(
+            goal,
+            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: earned ? AppColors.primaryDark : AppColors.secondaryText),
+          ),
+          if (!locked && _unit(type).isNotEmpty)
+            Text(_unit(type), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: AppColors.secondaryText)),
+        ]),
+      ),
+    );
+  }
+}
 
+/// The step's icon on a round tint; a small tick marks a got one. The tint ring in the card's own
+/// colour keeps the line from showing through.
+class _StepIcon extends StatelessWidget {
+  final UserAchievement achievement;
+  final double size;
+  final Color color;
+  final bool earned;
+  const _StepIcon({required this.achievement, required this.size, required this.color, required this.earned});
+
+  @override
+  Widget build(BuildContext context) {
     return SizedBox(
       width: size,
-      height: size + coin * 0.35,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.topCenter,
-        children: [
-          Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: earned
-                  ? RadialGradient(colors: [color.withValues(alpha: 0.22), color.withValues(alpha: 0.06)])
-                  : null,
-              color: earned ? null : AppColors.progressTrack.withValues(alpha: 0.6),
-            ),
-            alignment: Alignment.center,
-            child: AchievementIcon(achievement: achievement, dimmed: !earned, size: size * 0.78),
+      height: size,
+      child: Stack(clipBehavior: Clip.none, children: [
+        Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: earned ? Color.alphaBlend(color.withValues(alpha: 0.18), AppColors.surface) : Color.alphaBlend(AppColors.progressTrack, AppColors.surface),
+            border: Border.all(color: AppColors.surface, width: 4),
           ),
-          if (goal.isNotEmpty)
-            Positioned(
-              top: size - coin * 0.65,
-              child: Container(
-                constraints: BoxConstraints(minWidth: coin, minHeight: coin),
-                padding: const EdgeInsets.symmetric(horizontal: 5),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: earned ? AppColors.gold : const Color(0xFFE4E7F0),
-                  borderRadius: BorderRadius.circular(coin),
-                  border: Border.all(color: AppColors.surface, width: 2),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 4, offset: const Offset(0, 1)),
-                  ],
-                ),
-                child: Text(
-                  goal,
-                  style: TextStyle(
-                    fontSize: coin * 0.45,
-                    fontWeight: FontWeight.w800,
-                    color: earned ? AppColors.pointsOnSurface : AppColors.secondaryText,
-                  ),
-                ),
-              ),
+          alignment: Alignment.center,
+          child: AchievementIcon(achievement: achievement, dimmed: !earned, size: size * 0.72),
+        ),
+        if (earned)
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(color: AppColors.success, shape: BoxShape.circle, border: Border.all(color: AppColors.surface, width: 2)),
+              child: const Icon(Icons.check_rounded, size: 10, color: Colors.white),
             ),
-        ],
-      ),
+          ),
+      ]),
     );
   }
 }
@@ -262,38 +337,32 @@ void _showDetails(BuildContext context, UserAchievement achievement) {
   showModalBottomSheet<void>(
     context: context,
     backgroundColor: AppColors.surface,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppShapes.bannerRadius))),
+    showDragHandle: true,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
     builder: (context) => SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+        padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _BadgeArt(achievement: achievement, size: 120),
-            const SizedBox(height: 16),
+            _StepIcon(achievement: achievement, size: 76, color: color, earned: earned),
+            const SizedBox(height: 14),
             Text(
               locked ? tr('Скрытое достижение') : achievement.title!,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.3, color: AppColors.primaryDark),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
               locked ? tr('Условие откроется, когда вы получите это достижение') : achievement.description!,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, color: AppColors.secondaryText),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
             if (earned && achievement.earnedAt != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppShapes.pillRadius),
-                ),
-                child: Text(
-                  tr('Получено {0}', [_formatEarnedDate(achievement.earnedAt!)]),
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
-                ),
+              Text(
+                tr('Получено {0}', [_formatEarnedDate(achievement.earnedAt!)]),
+                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.success),
               )
             else if (!earned && !locked) ...[
               ClipRRect(
@@ -302,17 +371,31 @@ void _showDetails(BuildContext context, UserAchievement achievement) {
                   value: (achievement.conditionValue ?? 0) == 0
                       ? 0
                       : ((achievement.currentValue ?? 0) / achievement.conditionValue!).clamp(0.0, 1.0),
-                  minHeight: 8,
+                  minHeight: 6,
                   backgroundColor: AppColors.progressTrack,
                   valueColor: AlwaysStoppedAnimation(AppColors.primary),
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
                 tr('{0} из {1}', [achievement.currentValue ?? 0, achievement.conditionValue]),
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondaryText),
               ),
             ],
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.violetSurface,
+                  foregroundColor: AppColors.primaryDark,
+                  shape: const StadiumBorder(),
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(tr('Закрыть'), style: const TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ),
           ],
         ),
       ),

@@ -24,7 +24,7 @@ void main() {
     _a(1, title: 'Первые слова', description: 'Выучить 5 слов', goal: 5, earned: true),
     _a(2, title: 'Очень длинное название достижения на две строки', description: 'Выучить сто слов в разных темах и не сдаваться никогда', goal: 100, current: 42),
     _a(3), // hidden
-    _a(4, title: 'Серия', description: '7 дней подряд', goal: 7, current: 3),
+    _a(4, title: 'Неделя', description: '7 дней подряд', goal: 7, current: 3, type: 'streak_days'),
   ];
 
   Future<void> pump(WidgetTester tester, Size size) async {
@@ -35,26 +35,27 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('shows a three-per-row badge wall with goals and a summary', (tester) async {
+  testWidgets('shows one chain per kind with goals, units and a summary', (tester) async {
     await pump(tester, const Size(360, 800));
     expect(find.text('Получено 1 из 4'), findsOneWidget);
-    expect(find.text('Первые слова'), findsOneWidget);
-    expect(find.text('Скрытое'), findsOneWidget);
+    expect(find.text('Слова'), findsOneWidget);
+    expect(find.text('Серия'), findsOneWidget);
+    expect(find.text('Скрытые'), findsOneWidget);
     expect(find.text('5'), findsOneWidget);
     expect(find.text('?'), findsOneWidget);
-    // Three per row; the hidden one sorts last, onto the second row.
-    final y1 = tester.getTopLeft(find.byKey(const ValueKey('achievement-1'))).dy;
-    final y2 = tester.getTopLeft(find.byKey(const ValueKey('achievement-2'))).dy;
-    final y3 = tester.getTopLeft(find.byKey(const ValueKey('achievement-3'))).dy;
-    expect(y1, y2);
-    expect(y3, greaterThan(y1));
+    // «Слова»: the 5-word step and the 100-word step sit on one line, the first before the second.
+    final x1 = tester.getTopLeft(find.byKey(const ValueKey('achievement-1'))).dx;
+    final x2 = tester.getTopLeft(find.byKey(const ValueKey('achievement-2'))).dx;
+    expect(x2, greaterThan(x1));
+    expect(find.text('42 из 100'), findsOneWidget);
   });
 
   testWidgets('tapping a badge in progress shows its progress', (tester) async {
     await pump(tester, const Size(360, 800));
     await tester.tap(find.byKey(const ValueKey('achievement-2')));
     await tester.pumpAndSettle();
-    expect(find.text('42 из 100'), findsOneWidget);
+    // The group's line and the opened sheet both say it.
+    expect(find.text('42 из 100'), findsNWidgets(2));
   });
 
   testWidgets('tapping an earned badge shows when it was earned', (tester) async {
@@ -62,6 +63,9 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('achievement-1')));
     await tester.pumpAndSettle();
     expect(find.text('Получено 21 сентября 2026'), findsOneWidget);
+    await tester.tap(find.text('Закрыть'));
+    await tester.pumpAndSettle();
+    expect(find.text('Получено 21 сентября 2026'), findsNothing);
   });
 
   testWidgets('fits a narrow phone without overflow', (tester) async {

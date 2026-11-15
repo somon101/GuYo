@@ -964,4 +964,9 @@ const Map<String, String> enStrings = {
   'Я пишу как': 'I write as',
   'Мужчина': 'Man',
   'Женщина': 'Woman',
+  'фраз': 'phrases',
+  'мини-фраз': 'mini-phrases',
+  'уроков': 'lessons',
+  'Фразы': 'Phrases',
+  'Скрытые': 'Hidden',
 };

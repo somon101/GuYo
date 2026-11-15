@@ -1690,4 +1690,9 @@ const Map<String, (String, String)> uiStrings = {
   'Выполненную цель до завтра сменить нельзя': ('Ҳадафи иҷрошударо то фардо иваз кардан мумкин нест', 'Bajarilgan maqsadni ertagacha almashtirib bo‘lmaydi'),
   'Нажмите, чтобы пропустить': ('Барои гузаштан зер кунед', 'O‘tkazib yuborish uchun bosing'),
   'Удвоитель': ('Дучандкунанда', 'Ikkilantirgich'),
+  'фраз': ('ибора', 'ibora'),
+  'мини-фраз': ('мини-ибора', 'mini-ibora'),
+  'уроков': ('дарс', 'dars'),
+  'Фразы': ('Ибораҳо', 'Iboralar'),
+  'Скрытые': ('Пинҳон', 'Yashirin'),
 };
