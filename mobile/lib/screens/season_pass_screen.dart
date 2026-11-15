@@ -475,7 +475,7 @@ class _PremiumBanner extends StatelessWidget {
 }
 
 /// The rewards as a strip that scrolls sideways: a column per level (the level number, the free
-/// reward, the Premium one); the row names stay on the left. Opens at the level being worked on.
+/// reward, the Premium one); each row's name stands over it. Opens at the level being worked on.
 class _RewardsStrip extends StatefulWidget {
   final SeasonPass pass;
   final Animation<double> pulse;
@@ -523,55 +523,54 @@ class _RewardsStripState extends State<_RewardsStrip> {
     );
   }
 
+  static const double _caption = 22; // the line that names a row, standing above it
+
   @override
   Widget build(BuildContext context) {
     final pass = widget.pass;
     final premium = pass.premiumEnabled;
-    Widget label(Widget child) => SizedBox(height: 104, child: Align(alignment: Alignment.centerLeft, child: child));
-    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      SizedBox(
-        width: 64,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const SizedBox(height: 38),
-          label(Text(tr('Бесплатно'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.secondaryText))),
-          if (premium) ...[
-            const SizedBox(height: 8),
-            label(Row(children: [
-              const PremiumIcon(size: 16),
-              const SizedBox(width: 3),
-              Flexible(child: Text('Premium', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Color(0xFFE09A12)))),
-            ])),
-          ],
-        ]),
-      ),
-      Expanded(
-        child: SingleChildScrollView(
-          key: const ValueKey('pass-strip'),
-          controller: _scroll,
-          scrollDirection: Axis.horizontal,
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            for (final l in pass.levels)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Column(children: [
-                  _node(l),
-                  const SizedBox(height: 8),
-                  if (l.free != null)
-                    PassTile(reward: l.free!, reached: l.level <= pass.level, busy: widget.busy, onClaim: () => widget.onClaim(l.level, 'free', l.free!))
+    // The rows scroll together; the two names stand still over their rows (not in a column of
+    // their own, which took a fifth of the width).
+    const freeTop = 30.0 + 8; // under the level numbers
+    final premiumTop = freeTop + _caption + 104 + 8;
+    Widget caption(double top, Widget child) => Positioned(left: 0, top: top, height: _caption, child: Align(alignment: Alignment.centerLeft, child: child));
+    return Stack(children: [
+      SingleChildScrollView(
+        key: const ValueKey('pass-strip'),
+        controller: _scroll,
+        scrollDirection: Axis.horizontal,
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          for (final l in pass.levels)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Column(children: [
+                _node(l),
+                const SizedBox(height: 8 + _caption),
+                if (l.free != null)
+                  PassTile(reward: l.free!, reached: l.level <= pass.level, busy: widget.busy, onClaim: () => widget.onClaim(l.level, 'free', l.free!))
+                else
+                  const SizedBox(width: 92, height: 104),
+                if (premium) ...[
+                  const SizedBox(height: 8 + _caption),
+                  if (l.premium != null)
+                    PassTile(reward: l.premium!, reached: l.level <= pass.level, busy: widget.busy, onClaim: () => widget.onClaim(l.level, 'premium', l.premium!))
                   else
                     const SizedBox(width: 92, height: 104),
-                  if (premium) ...[
-                    const SizedBox(height: 8),
-                    if (l.premium != null)
-                      PassTile(reward: l.premium!, reached: l.level <= pass.level, busy: widget.busy, onClaim: () => widget.onClaim(l.level, 'premium', l.premium!))
-                    else
-                      const SizedBox(width: 92, height: 104),
-                  ],
-                ]),
-              ),
+                ],
+              ]),
+            ),
+        ]),
+      ),
+      caption(freeTop, Text(tr('Бесплатно'), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondaryText))),
+      if (premium)
+        caption(
+          premiumTop,
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            const PremiumIcon(size: 18),
+            const SizedBox(width: 5),
+            const Text('Premium', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFFE09A12))),
           ]),
         ),
-      ),
     ]);
   }
 }

@@ -109,6 +109,11 @@ void passScreenTests() {
     expect(find.text('Главная награда сезона · Уровень 2'), findsOneWidget);
     expect(find.byKey(const ValueKey('pass-strip')), findsOneWidget);
     expect(find.byType(PassTile), findsNWidgets(4));
+    // The row names stand over their rows, not in a column to the left.
+    final caption = tester.getTopLeft(find.text('Бесплатно'));
+    final firstTile = tester.getTopLeft(find.byType(PassTile).first);
+    expect(caption.dy, lessThan(firstTile.dy));
+    expect(firstTile.dx, lessThanOrEqualTo(caption.dx + 4));
     // Two level rewards and one finished weekly task wait: «Забрать всё» is offered.
     expect(find.byKey(const ValueKey('claim-all')), findsOneWidget);
     expect(find.byIcon(Icons.insights_rounded), findsOneWidget); // the link button, no longer in the top bar
