@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 import 'demo_lessons.dart';
+import 'demo_social.dart';
 import 'demo_state.dart';
 import 'demo_words.dart';
 
@@ -16,7 +17,8 @@ http.Client demoClient() => MockClient((req) async {
       try {
         if (req.body.isNotEmpty) sent = jsonDecode(req.body) as Map<String, dynamic>;
       } catch (_) {}
-      body = demoDynamic(req.method, path, req.url.queryParameters, sent);
+      body = demoTeams(req.method, path, sent) ?? demoDynamic(req.method, path, req.url.queryParameters, sent);
+      if (body is DemoTeamError) return http.Response(jsonEncode({'detail': body.message}), 409, headers: _h);
       if (body == null) {
         if (req.method == 'GET') {
           body = _get(path, req.url.queryParameters);
@@ -226,9 +228,48 @@ Object? _get(String path, Map<String, String> q) {
             ? [for (final w in wordsOf(dict)) wordJson(w)]
             : [for (final p in demoPhrases) if (p.$2 == dict) phraseJson(p)];
       }
-      if (path.startsWith('/season-pass') || path == '/gifts' || path == '/teams/me') return null;
+      if (path.startsWith('/season-pass') || path == '/gifts') return null;
       return null;
   }
+}
+
+/// Teams, from the demo's own people and teams (demo_social.dart). A broken rule comes back as the
+/// error itself, which the client answers with 409 and its words.
+Object? demoTeams(String method, String path, Map<String, dynamic> sent) {
+  if (!path.startsWith('/teams')) return null;
+  final s = DemoSocial.instance;
+  try {
+    if (path == '/teams/me' && method == 'GET') return s.teamStateJson();
+    if (path == '/teams/open') return s.openTeamsJson();
+    if (path == '/teams' && method == 'POST') {
+      s.create(sent['name'] as String? ?? '', isOpen: sent['is_open'] == true);
+      return s.teamStateJson();
+    }
+    if (path == '/teams/me' && method == 'PUT') {
+      s.update(name: sent['name'] as String?, isOpen: sent['is_open'] as bool?);
+      return s.teamStateJson();
+    }
+    if (path == '/teams/me/invite') return s.teamStateJson();
+    if (path == '/teams/me/leave') {
+      s.leave();
+      return s.teamStateJson();
+    }
+    if (path == '/teams/goals/claim') return {'state': s.teamStateJson(), 'xp': 0};
+    final kick = RegExp(r'^/teams/me/members/(\d+)$').firstMatch(path);
+    if (kick != null) {
+      s.kick(int.parse(kick.group(1)!));
+      return s.teamStateJson();
+    }
+    if (RegExp(r'^/teams/invites/\d+/(accept|decline)$').hasMatch(path)) return s.teamStateJson();
+    final join = RegExp(r'^/teams/(\d+)/join$').firstMatch(path);
+    if (join != null) {
+      s.join(int.parse(join.group(1)!));
+      return s.teamStateJson();
+    }
+  } on DemoTeamError catch (e) {
+    return e;
+  }
+  return null;
 }
 
 Map<String, Object?> _rank(int i) {

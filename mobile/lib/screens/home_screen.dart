@@ -1,3 +1,4 @@
+import '../app_hooks.dart';
 import 'dart:async';
 
 import '../l10n/l10n.dart';
@@ -466,7 +467,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // the same IndexedStack purely for consistency with the other
         // tabs; no ValueKey needed since nothing about either depends on
         // `selected`.
-        const RatingScreen(),
+        AppHooks.ratingTab?.page(context, (tab) => setState(() => _selectedTabIndex = tab)) ?? const RatingScreen(),
         // No ValueKey on purpose: the profile is per-user, not
         // per-language, so switching languages must not rebuild it. The
         // dictionary is passed only so its "Мои слова" card opens the
@@ -541,7 +542,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           NavItemData(Icons.grid_view_rounded, tr('Главная')),
           NavItemData(Icons.menu_book_rounded, tr('Уроки')),
           NavItemData(Icons.auto_awesome_rounded, tr('Проверка текста')),
-          NavItemData(Icons.bar_chart_rounded, tr('Рейтинг')),
+          NavItemData(AppHooks.ratingTab?.icon ?? Icons.bar_chart_rounded, AppHooks.ratingTab?.label ?? tr('Рейтинг')),
           NavItemData(Icons.person_rounded, tr('Профиль')),
         ],
       ),

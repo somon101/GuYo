@@ -1,3 +1,4 @@
+import '../app_hooks.dart';
 import '../services/streak_state.dart';
 import '../l10n/l10n.dart';
 
@@ -444,6 +445,7 @@ class ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
         const SizedBox(height: 16),
+        if (AppHooks.profileExtra != null) ...[AppHooks.profileExtra!(context), const SizedBox(height: 16)],
         if (rating != null) _RankCard(rating: rating, onTap: _openRanks),
         const SizedBox(height: 16),
         _AchievementsCard(
