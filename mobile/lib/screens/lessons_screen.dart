@@ -216,7 +216,6 @@ class _LessonsScreenState extends State<LessonsScreen> {
     // 409s otherwise), mirrored here purely for what the list displays.
     final canCreateNext = lessons.isEmpty || lessons.last.isCompleted;
     final nextNumber = lessons.isEmpty ? 1 : lessons.last.number + 1;
-    final completedCount = lessons.where((l) => l.isCompleted).length;
 
     // The backend's own list stays oldest-first (its natural, stable
     // order) -- only the RENDER order is newest-first: the not-yet-created
@@ -226,18 +225,8 @@ class _LessonsScreenState extends State<LessonsScreen> {
     final reversedLessons = lessons.reversed.toList();
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       children: [
-        Text(
-          tr('Уроки'),
-          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          lessons.isEmpty ? tr('Создайте первый урок, чтобы начать') : tr('Пройдено {0} из {1}', [completedCount, lessons.length]),
-          style: TextStyle(color: AppColors.secondaryText, fontSize: 14),
-        ),
-        const SizedBox(height: 18),
         const DuelEntryCard(),
         if (canCreateNext)
           _LessonCard(
