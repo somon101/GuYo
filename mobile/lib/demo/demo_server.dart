@@ -44,7 +44,7 @@ Object? _get(String path, Map<String, String> q) {
     case '/users/me/profile':
       return {
         'id': 1, 'public_id': 123456789, 'login': 'Demo', 'first_name': 'Демо', 'last_name': null, 'email': null,
-        'avatar_url': null, 'current_streak_days': 13, 'streak_active_today': true, 'lessons_completed': 42,
+        'avatar_url': null, 'current_streak_days': DemoState.instance.streak, 'streak_active_today': true, 'lessons_completed': 42,
         'words_learned': 318, 'premium_until': _in(20), 'learning_topics': <String>[], 'ui_language': 'ru',
         'translation_language': 'tg', 'learning_language': 'en', 'language_unavailable': <String>[],
       };
@@ -68,7 +68,7 @@ Object? _get(String path, Map<String, String> q) {
         'history': [
           {'season_id': 0, 'season_name': 'Лето', 'points': 980, 'rank': _rank(1), 'ended_at': _in(-15)},
         ],
-        'points_per_learned_word': 5, 'rank_position': 7, 'position_change': 1,
+        'points_per_learned_word': 5, 'rank_position': DemoState.instance.rankPos, 'position_change': 1,
       };
     case '/rating/ranks':
       return [for (var i = 1; i <= 4; i++) _rank(i)];
@@ -135,7 +135,7 @@ Object? _get(String path, Map<String, String> q) {
         'chests': [
           for (var i = 0; i < 6; i++) {'id': i + 1, 'chest_key': i < 3 ? 'wood' : i < 5 ? 'silver' : 'gold', 'source': 'lesson'},
         ],
-        'daily': {'enabled': true, 'available': true, 'claimed': false, 'chest_key': 'wood', 'conditions': ''},
+        'daily': {'enabled': false, 'available': false, 'claimed': true, 'chest_key': 'wood', 'conditions': ''},
         'double': false, 'inventory_max': 10, 'booster_qty': 2,
       };
     case '/duels':
@@ -160,13 +160,14 @@ Object? _get(String path, Map<String, String> q) {
       };
     case '/users/me/streak':
       return {
-        'current_streak_days': 13, 'today': _day(0), 'active_dates': [for (var i = 0; i < 13; i++) _day(i)],
+        'current_streak_days': DemoState.instance.streak, 'today': _day(0), 'active_dates': [for (var i = 0; i < DemoState.instance.streak; i++) _day(i)],
         'frozen_dates': <String>[], 'freezes': 1, 'merged_days': 0, 'streak_merge_items': 0,
       };
     case '/users/me/streak/history':
       final parts = (q['month'] ?? '').split('-');
       final y = parts.length == 2 ? int.parse(parts[0]) : DateTime.now().year;
       final mo = parts.length == 2 ? int.parse(parts[1]) : DateTime.now().month;
+      final streak = DemoState.instance.streak;
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
       final count = DateTime(y, mo + 1, 0).day;
@@ -180,9 +181,9 @@ Object? _get(String path, Map<String, String> q) {
           st = 'future';
         } else if (ago == 0) {
           st = 'today';
-        } else if (ago < 13) {
+        } else if (ago < streak) {
           st = 'active';
-        } else if (ago == 13) {
+        } else if (ago == streak) {
           st = 'frozen';
         } else {
           st = ago % 5 == 0 ? 'missed' : 'active';
@@ -194,7 +195,7 @@ Object? _get(String path, Map<String, String> q) {
           'words_learned': st == 'active' ? 6 : 0, 'lessons_completed': st == 'active' ? 1 : 0,
         });
       }
-      return {'days': days, 'current_streak_days': 13, 'active_days': activeDays, 'missed_days': missed, 'merged_days': 0};
+      return {'days': days, 'current_streak_days': streak, 'active_days': activeDays, 'missed_days': missed, 'merged_days': 0};
     case '/notifications/unread-count':
       return {'count': 2, 'unread_count': 2};
     case '/notifications':

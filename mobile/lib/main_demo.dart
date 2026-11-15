@@ -4,9 +4,11 @@
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 
+import 'demo/demo_results_flow.dart';
 import 'demo/demo_server.dart';
 import 'demo/demo_state.dart';
 import 'main.dart' as app;
+import 'screens/lesson_results_screen.dart' show lessonResultsBuilder;
 
 Future<void> main() async {
   // Everything -- including binding Flutter to the phone -- runs inside ONE zone that carries
@@ -15,6 +17,8 @@ Future<void> main() async {
   await http.runWithClient(() async {
     WidgetsFlutterBinding.ensureInitialized();
     await DemoState.instance.load(); // progress kept between launches
+    // The end of a lesson shows the path the owner approved (results, streak, chest of the day).
+    lessonResultsBuilder = (lesson, stats) => DemoResultsFlow(lesson: lesson, stats: stats);
     await app.main();
   }, demoClient);
 }

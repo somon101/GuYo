@@ -22,6 +22,12 @@ bool takeNextLessonRequest() {
   return at != null && DateTime.now().difference(at) < const Duration(seconds: 5);
 }
 
+/// How the end of a lesson is built. The app shows [LessonResultsScreen]; a build may put its own
+/// screen here before the app starts (the demo build does), the lesson flow does not care which.
+/// The screen must pop `true` to repeat the lesson and `false` (or nothing) otherwise.
+Widget Function(Lesson lesson, LessonPassStats? stats) lessonResultsBuilder =
+    (lesson, stats) => LessonResultsScreen(lesson: lesson, stats: stats);
+
 /// The end of a lesson (variant C, «дорожка уроков»): not a report but a step forward. The
 /// headline says what happened, three chips give the numbers (words held, accuracy, time), and a
 /// little road shows the lesson just done lighting up and the next one opening, with the next
