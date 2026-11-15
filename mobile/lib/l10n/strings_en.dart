@@ -975,4 +975,9 @@ const Map<String, String> enStrings = {
   'Нейтральное обращение': 'Neutral address',
   'Формы для обращения к мужчине': 'Forms for addressing a man',
   'Формы для обращения к женщине': 'Forms for addressing a woman',
+  'Подарки': 'Gifts',
+  'Вызовите друга на неделю': 'Challenge a friend for the week',
+  'Вызвать': 'Challenge',
+  'Ответить': 'Reply',
+  'Результат': 'Result',
 };

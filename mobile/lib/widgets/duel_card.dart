@@ -506,3 +506,152 @@ class _ResultSide extends StatelessWidget {
         ]),
       );
 }
+
+/// «Дуэль недели» at the top of «Уроки»: one compact card. No duel: a line and «Вызвать»; a
+/// challenge to answer or a result to see: a line and a button; a running duel: the score, the bar
+/// and the days left. A tap opens the full [DuelCard] in a sheet, where everything is done.
+class DuelEntryCard extends StatefulWidget {
+  const DuelEntryCard({super.key});
+
+  @override
+  State<DuelEntryCard> createState() => _DuelEntryCardState();
+}
+
+class _DuelEntryCardState extends State<DuelEntryCard> {
+  DuelState? _state = ApiClient.instance.cachedDuels();
+
+  @override
+  void initState() {
+    super.initState();
+    dailyGoalTick.addListener(_load);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    dailyGoalTick.removeListener(_load);
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    final state = await ApiClient.instance.fetchDuels();
+    if (mounted && state != null) setState(() => _state = state);
+  }
+
+  /// The latest finished duel whose result has not been closed yet (the same rule as DuelCard).
+  Duel? get _result {
+    final s = _state;
+    if (s == null || s.current != null) return null;
+    final seen = int.tryParse(DiskCache.get('duel-result-seen') ?? '') ?? 0;
+    for (final d in s.recent) {
+      if (d.status == 'finished') return d.id > seen ? d : null;
+    }
+    return null;
+  }
+
+  Future<void> _open() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.canvas,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (_) => const SafeArea(child: Padding(padding: EdgeInsets.fromLTRB(16, 16, 16, 24), child: SingleChildScrollView(child: DuelCard()))),
+    );
+    if (mounted) {
+      _load();
+      setState(() {});
+    }
+  }
+
+  Widget _action(String label) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(color: AppColors.violetSurface, borderRadius: BorderRadius.circular(99)),
+        child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final state = _state;
+    if (state == null || !state.enabled) return const SizedBox.shrink();
+    final d = state.current;
+    final Widget child;
+    if (d != null && d.isActive) {
+      final total = d.myXp + d.theirXp;
+      final days = (d.endsAt.difference(DateTime.now()).inDays + 1).clamp(0, 99);
+      child = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(child: Text(tr('Дуэль недели'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark))),
+          Text(tr('Осталось дней: {0}', [days]), style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText)),
+        ]),
+        const SizedBox(height: 6),
+        Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+          Text('${d.myXp}', key: const ValueKey('duel-entry-mine'), style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -0.7, color: AppColors.primaryDark)),
+          Text('  :  ', style: TextStyle(fontSize: 18, color: AppColors.secondaryText)),
+          Text('${d.theirXp}', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -0.7, color: AppColors.primaryDark)),
+        ]),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: SizedBox(
+            height: 6,
+            child: Row(children: [
+              Expanded(flex: total == 0 ? 1 : d.myXp, child: ColoredBox(color: AppColors.primary)),
+              Expanded(flex: total == 0 ? 1 : d.theirXp, child: ColoredBox(color: AppColors.warning)),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(children: [
+          Text(tr('Вы'), style: TextStyle(fontSize: 12, color: AppColors.secondaryText)),
+          const Spacer(),
+          Flexible(child: Text(d.opponentLogin, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: AppColors.secondaryText))),
+        ]),
+      ]);
+    } else {
+      final String sub;
+      final String? button;
+      if (d != null && d.incoming) {
+        sub = tr('{0} вызывает вас на дуэль', [d.opponentLogin]);
+        button = tr('Ответить');
+      } else if (d != null) {
+        sub = tr('Ждём ответа: {0}', [d.opponentLogin]);
+        button = null;
+      } else if (_result != null) {
+        sub = tr('Дуэль окончена');
+        button = tr('Результат');
+      } else {
+        sub = tr('Вызовите друга на неделю');
+        button = tr('Вызвать');
+      }
+      child = Row(children: [
+        Text('VS', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: AppColors.primary)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            Text(tr('Дуэль недели'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+            Text(sub, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText)),
+          ]),
+        ),
+        const SizedBox(width: 8),
+        if (button != null) _action(button) else Icon(Icons.chevron_right_rounded, color: AppColors.secondaryText),
+      ]);
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          key: const ValueKey('duel-entry'),
+          borderRadius: BorderRadius.circular(22),
+          onTap: _open,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(22), border: Border.all(color: AppColors.cardBorder)),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+}

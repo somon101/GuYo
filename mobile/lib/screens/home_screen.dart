@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../l10n/l10n.dart';
+import '../widgets/pass_header_button.dart';
 import '../widgets/game_icons.dart';
 import '../widgets/guyo_ui.dart';
 
@@ -514,7 +515,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         titleSpacing: 16,
         title: Row(
           children: [
-            const GuyoWordmark(),
+            // On Главная the season pass stands where the wordmark is; the other tabs keep the wordmark.
+            if (_selectedTabIndex == 0) const PassHeaderButton(fallback: GuyoWordmark()) else const GuyoWordmark(),
             const SizedBox(width: 5),
             // The language switcher lives only in «Уроки» (the tab that is about one language).
             if (_selectedTabIndex == 1)

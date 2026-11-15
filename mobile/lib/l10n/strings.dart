@@ -1701,4 +1701,9 @@ const Map<String, (String, String)> uiStrings = {
   'Нейтральное обращение': ('Муроҷиати бетараф', 'Neytral murojaat'),
   'Формы для обращения к мужчине': ('Шаклҳо барои муроҷиат ба мард', 'Erkakka murojaat shakllari'),
   'Формы для обращения к женщине': ('Шаклҳо барои муроҷиат ба зан', 'Ayolga murojaat shakllari'),
+  'Подарки': ('Тӯҳфаҳо', 'Sovgʻalar'),
+  'Вызовите друга на неделю': ('Дӯстро ба ҳафта даъват кунед', 'Do‘stingizni haftaga chaqiring'),
+  'Вызвать': ('Даъват', 'Chaqirish'),
+  'Ответить': ('Ҷавоб додан', 'Javob berish'),
+  'Результат': ('Натиҷа', 'Natija'),
 };

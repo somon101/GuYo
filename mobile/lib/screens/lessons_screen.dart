@@ -9,6 +9,7 @@ import '../theme/app_colors.dart';
 import 'lesson_create_screen.dart';
 import 'lesson_detail_screen.dart';
 import 'lesson_run_screen.dart';
+import '../widgets/duel_card.dart';
 import '../widgets/skeleton.dart';
 import '../widgets/instant_route.dart';
 
@@ -236,7 +237,8 @@ class _LessonsScreenState extends State<LessonsScreen> {
           lessons.isEmpty ? tr('Создайте первый урок, чтобы начать') : tr('Пройдено {0} из {1}', [completedCount, lessons.length]),
           style: TextStyle(color: AppColors.secondaryText, fontSize: 14),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 18),
+        const DuelEntryCard(),
         if (canCreateNext)
           _LessonCard(
             state: _LessonCardState.unlocked,
