@@ -154,7 +154,7 @@ class _RatingScreenState extends State<RatingScreen> {
     final color = rank != null ? parseHexColor(rank.color) : AppColors.primary;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
         LeaderboardHeader(
           title: tr('Рейтинг'),
@@ -218,8 +218,8 @@ class _RatingScreenState extends State<RatingScreen> {
   }
 }
 
-/// "Рейтинг" + the one button on this screen. Shared with the global
-/// board so both read the same way.
+/// "Рейтинг" on its own line and under it one switch across the full width:
+/// «Мой ранг» (this screen) | «Друзья» | «Глобальный» (the other two open their boards).
 class LeaderboardHeader extends StatelessWidget {
   final String title;
   final VoidCallback? onOpenGlobal;
@@ -232,84 +232,51 @@ class LeaderboardHeader extends StatelessWidget {
     this.onOpenFriends,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            title,
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
-              color: AppColors.primaryDark,
+  Widget _segment(String key, String label, {bool active = false, VoidCallback? onTap}) => Expanded(
+        child: GestureDetector(
+          key: ValueKey(key),
+          behavior: HitTestBehavior.opaque,
+          onTap: active ? null : onTap,
+          child: Container(
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: active ? AppColors.primary : Colors.transparent,
+              borderRadius: BorderRadius.circular(AppShapes.pillRadius),
+            ),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+                color: active ? Colors.white : AppColors.secondaryText,
+              ),
             ),
           ),
         ),
-        if (onOpenFriends != null) ...[
-          Material(
-            color: AppColors.surface,
-            shape: const CircleBorder(),
-            child: InkWell(
-              key: const ValueKey('rating-friends'),
-              customBorder: const CircleBorder(),
-              onTap: onOpenFriends,
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.cardBorder),
-                  boxShadow: AppShapes.cardShadow,
-                ),
-                child: Tooltip(
-                  message: tr('Друзья'),
-                  child: Icon(
-                    Icons.group_rounded,
-                    size: 20,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
-        if (onOpenGlobal != null)
-          Material(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppShapes.pillRadius),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(AppShapes.pillRadius),
-              onTap: onOpenGlobal,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 9,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppShapes.pillRadius),
-                  border: Border.all(color: AppColors.cardBorder),
-                  boxShadow: AppShapes.cardShadow,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.public, size: 16, color: AppColors.primary),
-                    SizedBox(width: 6),
-                    Text(
-                      tr('Глобальный рейтинг'),
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primaryDark,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: -0.8, color: AppColors.primaryDark),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppShapes.pillRadius)),
+          child: Row(children: [
+            _segment('rating-mine', tr('Мой ранг'), active: true),
+            _segment('rating-friends', tr('Друзья'), onTap: onOpenFriends),
+            _segment('rating-global', tr('Глобальный'), onTap: onOpenGlobal),
+          ]),
+        ),
       ],
     );
   }

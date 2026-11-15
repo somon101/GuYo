@@ -505,7 +505,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final isProfileTab = _selectedTabIndex == 4;
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      appBar: AppBar(
+      // «Рейтинг» has no app bar: its page scrolls as one piece, status bar included.
+      appBar: _selectedTabIndex == 3 ? null : AppBar(
         backgroundColor: AppColors.canvas,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -538,7 +539,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ],
         ),
       ),
-      body: _buildBody(),
+      body: _selectedTabIndex == 3 ? SafeArea(bottom: false, child: _buildBody()) : _buildBody(),
       bottomNavigationBar: FloatingNavBar(
         selectedIndex: _selectedTabIndex,
         onSelected: (index) {
