@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import '../core/mask_edit.dart';
 import '../core/sheet_split.dart';
 import '../state/studio.dart';
+import 'dialogs.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -20,7 +21,7 @@ Future<void> openCutter(BuildContext context, Studio s) => Navigator.of(context)
 Future<R> _run<A, R>(Studio s, R Function(A) f, A a) => s.useIsolate ? compute(f, a) : Future.value(f(a));
 
 class _Item {
-  final Box box;
+  Box box;
   bool on = true;
   MaskEditor? ed;
   bool done = false;
@@ -56,7 +57,12 @@ class _CutterScreenState extends State<CutterScreen> {
   bool _uploading = false;
   _Tool _tool = _Tool.erase;
   double _size = 36, _soft = 0.35, _colorTol = 22;
-  int _bgMode = 0; // 0 шахматка, 1 белый, 2 тёмный, 3 розовый
+  Color? _bg; // null: шахматка
+  Color _customBg = const Color(0xFFFFD0E2);
+  int _active = -1; // рамка с ручками на экране выбора
+  int _dragMode = 0; // 0 новая рамка, иначе биты ручки (1 лево, 2 право, 4 верх, 8 низ, 16 двигать)
+  Box? _dragBox;
+  Offset? _dragFrom;
   double _scale = 1;
   Offset _off = Offset.zero;
   Size _view = Size.zero;
@@ -145,7 +151,7 @@ class _CutterScreenState extends State<CutterScreen> {
   }
 
   Future<void> _openQueue() async {
-    final first = _items.indexWhere((e) => e.on && !e.done);
+    final first = (_active >= 0 && _active < _items.length && _items[_active].on && !_items[_active].done) ? _active : _items.indexWhere((e) => e.on && !e.done);
     if (first < 0) {
       _toast('Отметьте хотя бы одну рамку');
       return;
@@ -510,34 +516,93 @@ class _CutterScreenState extends State<CutterScreen> {
             onTapUp: (d) {
               final p = toSheet(d.localPosition);
               // верхняя из рамок под пальцем: меньшая по площади
-              _Item? hit;
-              for (final it in _items) {
-                final b = it.box;
+              int? hit;
+              for (var i = 0; i < _items.length; i++) {
+                final b = _items[i].box;
                 if (p.dx >= b.x0 && p.dx <= b.x1 && p.dy >= b.y0 && p.dy <= b.y1) {
-                  if (hit == null || b.w * b.h < hit.box.w * hit.box.h) hit = it;
+                  if (hit == null || b.w * b.h < _items[hit].box.w * _items[hit].box.h) hit = i;
                 }
               }
-              if (hit != null) setState(() => hit!.on = !hit.on);
+              setState(() {
+                if (hit != null) {
+                  _items[hit].on = !_items[hit].on;
+                  _active = hit;
+                } else {
+                  _active = -1;
+                }
+              });
             },
-            onPanStart: (d) => setState(() {
-              _dragA = toSheet(d.localPosition);
-              _dragB = _dragA;
-            }),
-            onPanUpdate: (d) => setState(() => _dragB = toSheet(d.localPosition)),
+            onPanStart: (d) {
+              final p = toSheet(d.localPosition);
+              _dragFrom = p;
+              _dragMode = 0;
+              if (_active >= 0 && _active < _items.length) {
+                final b = _items[_active].box;
+                final tol = 22 / k;
+                final inX = p.dx >= b.x0 - tol && p.dx <= b.x1 + tol, inY = p.dy >= b.y0 - tol && p.dy <= b.y1 + tol;
+                if (inX && inY) {
+                  var m = 0;
+                  if ((p.dx - b.x0).abs() <= tol) m |= 1;
+                  if ((p.dx - b.x1).abs() <= tol) m |= 2;
+                  if ((p.dy - b.y0).abs() <= tol) m |= 4;
+                  if ((p.dy - b.y1).abs() <= tol) m |= 8;
+                  if (m == 0 && p.dx > b.x0 && p.dx < b.x1 && p.dy > b.y0 && p.dy < b.y1) m = 16;
+                  if (m != 0) {
+                    _dragMode = m;
+                    _dragBox = b;
+                  }
+                }
+              }
+              setState(() {
+                if (_dragMode == 0) _dragA = _dragB = p;
+              });
+            },
+            onPanUpdate: (d) {
+              final p = toSheet(d.localPosition);
+              setState(() {
+                if (_dragMode == 0) {
+                  _dragB = p;
+                  return;
+                }
+                final it = _items[_active], b0 = _dragBox!;
+                final dx = (p.dx - _dragFrom!.dx).round(), dy = (p.dy - _dragFrom!.dy).round();
+                int x0 = b0.x0, x1 = b0.x1, y0 = b0.y0, y1 = b0.y1;
+                if (_dragMode == 16) {
+                  final mx = dx.clamp(-b0.x0, sh.w - b0.x1), my = dy.clamp(-b0.y0, sh.h - b0.y1);
+                  x0 += mx;
+                  x1 += mx;
+                  y0 += my;
+                  y1 += my;
+                } else {
+                  if (_dragMode & 1 != 0) x0 = (b0.x0 + dx).clamp(0, b0.x1 - 16);
+                  if (_dragMode & 2 != 0) x1 = (b0.x1 + dx).clamp(b0.x0 + 16, sh.w);
+                  if (_dragMode & 4 != 0) y0 = (b0.y0 + dy).clamp(0, b0.y1 - 16);
+                  if (_dragMode & 8 != 0) y1 = (b0.y1 + dy).clamp(b0.y0 + 16, sh.h);
+                }
+                it.box = Box(x0, y0, x1, y1);
+                it.ed = null; // деталь будет вырезана заново по новой рамке
+                it.done = false;
+              });
+            },
             onPanEnd: (_) {
               final a = _dragA, b = _dragB;
               setState(() {
                 _dragA = _dragB = null;
+                _dragMode = 0;
+                _dragBox = null;
                 if (a != null && b != null && (a - b).dx.abs() > 12 && (a - b).dy.abs() > 12) {
                   final x0 = math.max(0, math.min(a.dx, b.dx).round()), x1 = math.min(sh.w, math.max(a.dx, b.dx).round());
                   final y0 = math.max(0, math.min(a.dy, b.dy).round()), y1 = math.min(sh.h, math.max(a.dy, b.dy).round());
-                  if (x1 - x0 > 8 && y1 - y0 > 8) _items.add(_Item(Box(x0, y0, x1, y1)));
+                  if (x1 - x0 > 8 && y1 - y0 > 8) {
+                    _items.add(_Item(Box(x0, y0, x1, y1)));
+                    _active = _items.length - 1;
+                  }
                 }
               });
             },
             child: CustomPaint(
               size: Size(box.maxWidth, box.maxHeight),
-              painter: _SheetPainter(sh, _sheetImg, _items, _dragA, _dragB, c.accent, ox, oy, k),
+              painter: _SheetPainter(sh, _sheetImg, _items, _dragA, _dragB, c.accent, ox, oy, k, _active),
             ),
           );
         }),
@@ -551,6 +616,11 @@ class _CutterScreenState extends State<CutterScreen> {
           _stepper('Столбцы', _cols, (v) => setState(() => _cols = v)),
           _stepper('Строки', _rows, (v) => setState(() => _rows = v)),
           Btn('Сетка', small: true, icon: Icons.grid_on, onTap: _grid),
+          if (_active >= 0 && _active < _items.length)
+            Btn('Удалить рамку ${_active + 1}', small: true, icon: Icons.delete_outline, onTap: () => setState(() {
+                  _items.removeAt(_active);
+                  _active = -1;
+                })),
           Btn('Выбрать все', small: true, onTap: () => setState(() {
                 for (final it in _items) {
                   it.on = true;
@@ -596,7 +666,7 @@ class _CutterScreenState extends State<CutterScreen> {
                 onPointerSignal: _signal,
                 child: CustomPaint(
                   size: Size(box.maxWidth, box.maxHeight),
-                  painter: _EditPainter(_edImg, _scale, _off, _bgMode, cursorOn && (_hover != null || _drawing) ? _hover : null, _size / 2, c.accent),
+                  painter: _EditPainter(_edImg, _scale, _off, _bg, cursorOn && (_hover != null || _drawing) ? _hover : null, _size / 2, c.accent),
                 ),
               ),
             ),
@@ -613,8 +683,67 @@ class _CutterScreenState extends State<CutterScreen> {
         SizedBox(width: 34, child: Text(v.round().toString(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
       ]);
 
+  void _editFrame() {
+    setState(() {
+      _active = _cur;
+      _cur = -1;
+    });
+    _toast('Поправьте рамку (ручки по краям) и нажмите «Править выбранные»');
+  }
+
+  Future<void> _customColor() async {
+    final hex = await pickColor(context);
+    if (hex == null) return;
+    try {
+      final v = int.parse(hex.replaceFirst('#', ''), radix: 16);
+      setState(() => _bg = _customBg = Color(0xFF000000 | v));
+    } catch (_) {}
+  }
+
+  /// Ряд кружков: каким фоном показывать деталь, чтобы увидеть огрехи вырезки.
+  Widget _bgRow(SC c) {
+    Widget dot(Color? col, String tip, {VoidCallback? onTap, Widget? child, bool sel = false}) => Tooltip(
+          message: tip,
+          child: GestureDetector(
+            onTap: onTap ?? () => setState(() => _bg = col),
+            child: Container(
+              width: 30,
+              height: 30,
+              margin: const EdgeInsets.only(right: 8),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: col ?? const Color(0xFFC4C8D8),
+                shape: BoxShape.circle,
+                border: Border.all(color: sel ? c.accent : c.line, width: sel ? 3 : 1.5),
+              ),
+              child: child,
+            ),
+          ),
+        );
+    const colors = [
+      (Color(0xFFFFFFFF), 'Белый'),
+      (Color(0xFF000000), 'Чёрный'),
+      (Color(0xFFE53935), 'Красный'),
+      (Color(0xFF43A047), 'Зелёный'),
+      (Color(0xFF1E88E5), 'Синий'),
+      (Color(0xFF9E9E9E), 'Серый'),
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(children: [
+          Text('Фон просмотра', style: TextStyle(fontSize: 12, color: c.mut)),
+          const SizedBox(width: 10),
+          dot(null, 'Шахматка (прозрачность)', sel: _bg == null, child: const Icon(Icons.grid_4x4, size: 16, color: Colors.white)),
+          for (final cl in colors) dot(cl.$1, cl.$2, sel: _bg == cl.$1),
+          dot(_customBg, 'Свой цвет', sel: _bg == _customBg && !colors.any((x) => x.$1 == _bg), onTap: _customColor, child: const Icon(Icons.palette_outlined, size: 16, color: Colors.black54)),
+        ]),
+      ),
+    );
+  }
+
   Widget _toolbar(SC c) {
-    final bgs = [Icons.grid_4x4, Icons.circle_outlined, Icons.circle, Icons.palette_outlined];
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
       decoration: BoxDecoration(color: c.panel, border: Border(top: BorderSide(color: c.line))),
@@ -626,9 +755,10 @@ class _CutterScreenState extends State<CutterScreen> {
           Btn('Авто фон', small: true, icon: Icons.auto_awesome, onTap: _auto),
           Btn('Сгладить край', small: true, onTap: _smooth),
           Btn('Вернуть всё', small: true, onTap: _restoreAll),
-          Btn('', small: true, icon: bgs[_bgMode], onTap: () => setState(() => _bgMode = (_bgMode + 1) % 4)),
+          Btn('Рамка', small: true, icon: Icons.crop_free, onTap: _editFrame),
           Btn('', small: true, icon: Icons.fit_screen, onTap: () => setState(_fit)),
         ]),
+        _bgRow(c),
         _slider('Размер', _size, 4, 140, (v) => setState(() => _size = v)),
         _slider('Мягкость', _soft * 100, 0, 100, (v) => setState(() => _soft = v / 100)),
         if (_tool == _Tool.pipette) _slider('Допуск цвета', _colorTol, 2, 80, (v) => setState(() => _colorTol = v)),
@@ -656,7 +786,8 @@ class _SheetPainter extends CustomPainter {
   final Offset? da, db;
   final Color accent;
   final double ox, oy, k;
-  _SheetPainter(this.sh, this.im, this.items, this.da, this.db, this.accent, this.ox, this.oy, this.k);
+  final int active;
+  _SheetPainter(this.sh, this.im, this.items, this.da, this.db, this.accent, this.ox, this.oy, this.k, this.active);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -669,7 +800,15 @@ class _SheetPainter extends CustomPainter {
       final rect = r(it.box);
       final col = it.done ? const Color(0xFF1E9E6A) : (it.on ? accent : Colors.grey);
       canvas.drawRect(rect, Paint()..color = col.withValues(alpha: it.on || it.done ? .14 : .05));
-      canvas.drawRect(rect, Paint()..style = PaintingStyle.stroke..strokeWidth = it.on ? 2.5 : 1.2..color = col);
+      canvas.drawRect(rect, Paint()..style = PaintingStyle.stroke..strokeWidth = i == active ? 3.5 : (it.on ? 2.5 : 1.2)..color = col);
+      if (i == active) {
+        // ручки: углы и середины сторон
+        final cx = rect.center.dx, cy = rect.center.dy;
+        for (final pt in [rect.topLeft, rect.topRight, rect.bottomLeft, rect.bottomRight, Offset(cx, rect.top), Offset(cx, rect.bottom), Offset(rect.left, cy), Offset(rect.right, cy)]) {
+          canvas.drawRect(Rect.fromCenter(center: pt, width: 12, height: 12), Paint()..color = Colors.white);
+          canvas.drawRect(Rect.fromCenter(center: pt, width: 12, height: 12), Paint()..style = PaintingStyle.stroke..strokeWidth = 2..color = col);
+        }
+      }
       final tp = TextPainter(text: TextSpan(text: '${i + 1}', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800)), textDirection: TextDirection.ltr)..layout();
       final tag = Rect.fromLTWH(rect.left, rect.top, tp.width + 10, tp.height + 4);
       canvas.drawRRect(RRect.fromRectAndRadius(tag, const Radius.circular(5)), Paint()..color = col);
@@ -689,7 +828,7 @@ class _EditPainter extends CustomPainter {
   final ui.Image? im;
   final double scale;
   final Offset off;
-  final int bg;
+  final Color? bg;
   final Offset? cursor;
   final double radius;
   final Color accent;
@@ -698,22 +837,17 @@ class _EditPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final full = Offset.zero & size;
-    switch (bg) {
-      case 1:
-        canvas.drawRect(full, Paint()..color = Colors.white);
-      case 2:
-        canvas.drawRect(full, Paint()..color = const Color(0xFF15171F));
-      case 3:
-        canvas.drawRect(full, Paint()..color = const Color(0xFFF7B6D2));
-      default:
-        canvas.drawRect(full, Paint()..color = const Color(0xFFFFFFFF));
-        final p = Paint()..color = const Color(0xFFE2E4EE);
-        const cell = 14.0;
-        for (var y = 0; y * cell < size.height; y++) {
-          for (var x = 0; x * cell < size.width; x++) {
-            if ((x + y).isOdd) canvas.drawRect(Rect.fromLTWH(x * cell, y * cell, cell, cell), p);
-          }
+    if (bg != null) {
+      canvas.drawRect(full, Paint()..color = bg!);
+    } else {
+      canvas.drawRect(full, Paint()..color = const Color(0xFFFFFFFF));
+      final p = Paint()..color = const Color(0xFFC4C8D8);
+      const cell = 14.0;
+      for (var y = 0; y * cell < size.height; y++) {
+        for (var x = 0; x * cell < size.width; x++) {
+          if ((x + y).isOdd) canvas.drawRect(Rect.fromLTWH(x * cell, y * cell, cell, cell), p);
         }
+      }
     }
     if (im != null) {
       final dst = Rect.fromLTWH(off.dx, off.dy, im!.width * scale, im!.height * scale);

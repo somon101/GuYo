@@ -75,4 +75,41 @@ void main() {
     expect(t.takeException(), isNull);
     await t.runAsync(s.flush);
   });
+
+  testWidgets('вырезалка: фон просмотра выбирается кружками, рамку можно двигать и вернуться к ней из правки', (t) async {
+    t.view.physicalSize = const Size(1200, 900);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    final files = FakeServices();
+    final s = newStudio(files: files);
+    await t.pumpWidget(MaterialApp(theme: buildTheme(Brightness.light).copyWith(textTheme: buildTheme(Brightness.light).textTheme.apply(fontFamily: 'Roboto')), home: CutterScreen(s)));
+    files.next = [PickedFile('sheet.png', whiteSheet())];
+    await t.tap(find.text('Загрузить фото'));
+    await settle(t);
+
+    // тап по рамке делает её активной (появляется «Удалить рамку»)
+    final area = find.byWidgetPredicate((w) => w is CustomPaint && w.painter.runtimeType.toString() == '_SheetPainter');
+    final sz = t.getSize(area);
+    final k = (sz.width / 600) < (sz.height / 400) ? sz.width / 600 : sz.height / 400;
+    await t.tapAt(t.getCenter(area) + Offset((110 - 300) * k, (100 - 200) * k)); // центр первой детали листа
+    await t.pump();
+    expect(find.textContaining('Удалить рамку'), findsOneWidget);
+
+    await t.tap(find.textContaining('Править выбранные'));
+    await settle(t);
+    expect(find.text('Фон просмотра'), findsOneWidget);
+    for (final name in ['Чёрный', 'Красный', 'Белый']) {
+      await t.tap(find.byTooltip(name));
+      await t.pump();
+    }
+    expect(find.byTooltip('Шахматка (прозрачность)'), findsOneWidget);
+
+    // «Рамка»: назад на лист к этой же рамке
+    await t.tap(find.text('Рамка'));
+    await settle(t);
+    expect(find.textContaining('Править выбранные ('), findsOneWidget);
+    expect(find.textContaining('Удалить рамку'), findsOneWidget);
+    expect(t.takeException(), isNull);
+    await t.runAsync(s.flush);
+  });
 }
