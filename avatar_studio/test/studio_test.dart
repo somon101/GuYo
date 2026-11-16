@@ -87,6 +87,33 @@ void main() {
     });
   });
 
+  testWidgets('поворот: свой у детали и у стандарта слота, откатывается, попадает в картинку', (t) async {
+    await t.runAsync(() async {
+      final s = newStudio();
+      s.p.sel = 'face';
+      await s.addImages([PickedFile('a.jpg', faceOnBlack()), PickedFile('b.jpg', faceOnBlack())], cut: false);
+      final a = s.curSet.parts['face']![0], b = s.curSet.parts['face']![1];
+      s.pickPart('face', b.id);
+      s.setEditTarget('part');
+      s.setGeo(r: 12);
+      expect(b.geo!.r, 12);
+      s.pickPart('face', a.id);
+      expect(s.geoOf('face').r, 0, reason: 'другая деталь не повёрнута');
+      s.setEditTarget('slot');
+      s.setGeo(r: -5);
+      expect(s.geoOf('face').r, -5);
+      s.pickPart('face', b.id);
+      expect(s.geoOf('face').r, 12, reason: 'своя деталь держит свой угол');
+      final w0 = s.boundsFor('face')!.width;
+      expect(w0, greaterThan(s.rectFor('face')!.width), reason: 'описанный прямоугольник шире из-за поворота');
+      s.undo();
+      s.undo();
+      expect((await s.avatarPng())!.length, greaterThan(500));
+      expect(s.curSet.parts['face']![1].geo, isNull, reason: 'откат вернул деталь без своего положения');
+      expect(s.slotGeo('face').r, 0);
+    });
+  });
+
   testWidgets('пол: у персонажа видны детали его пола и «оба»; стандарты слотов раздельные', (t) async {
     await t.runAsync(() async {
       final s = newStudio();

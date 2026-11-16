@@ -47,7 +47,19 @@ void paintLayers(Canvas c, Studio s, ViewSpec v) {
     final part = s.partOf(id, v);
     final r = s.rectFor(id, v);
     final im = s.imageOf(part);
-    if (im != null && r != null) _drawImageIn(c, im, r);
+    if (im == null || r == null) continue;
+    final g = s.geoOf(id, v);
+    if (g.r == 0) {
+      _drawImageIn(c, im, r);
+    } else {
+      // поворот вокруг точки слота (там, где деталь «прикреплена»)
+      c.save();
+      c.translate(g.x, g.y);
+      c.rotate(g.r * math.pi / 180);
+      c.translate(-g.x, -g.y);
+      _drawImageIn(c, im, r);
+      c.restore();
+    }
   }
 }
 

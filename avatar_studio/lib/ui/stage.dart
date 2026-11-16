@@ -1,4 +1,5 @@
 // Сцена: собранный аватар, перетаскивание слота, указание точки и кадр профиля.
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -96,7 +97,7 @@ class _StageViewState extends State<StageView> {
     if (s.frameTool) return 'Кадр профиля · x ${s.p.frame.x.round()} · y ${s.p.frame.y.round()} · ${s.p.frame.size.round()}';
     if (s.p.sel == 'bg') return 'Фон';
     final g = s.editGeoRead;
-    return '${s.slot(s.p.sel).name}${s.editingPart ? ' (деталь)' : ''} · x ${g.x.round()} · y ${g.y.round()} · ширина ${g.w.round()}';
+    return '${s.slot(s.p.sel).name}${s.editingPart ? ' (деталь)' : ''} · x ${g.x.round()} · y ${g.y.round()} · ширина ${g.w.round()}${g.r == 0 ? '' : ' · поворот ${g.r.round()}°'}';
   }
 
   Widget _chip(SC c, String t) => Container(
@@ -163,7 +164,14 @@ class _StagePainter extends CustomPainter {
     } else if (s.p.sel != 'bg') {
       final g = s.editGeoRead;
       final r = s.rectFor(s.p.sel);
-      if (r != null) canvas.drawRRect(RRect.fromRectAndRadius(r, const Radius.circular(8)), Paint()..style = PaintingStyle.stroke..strokeWidth = 4..color = c.accent);
+      if (r != null) {
+        canvas.save();
+        canvas.translate(g.x, g.y);
+        canvas.rotate(g.r * math.pi / 180);
+        canvas.translate(-g.x, -g.y);
+        canvas.drawRRect(RRect.fromRectAndRadius(r, const Radius.circular(8)), Paint()..style = PaintingStyle.stroke..strokeWidth = 4..color = c.accent);
+        canvas.restore();
+      }
       canvas.drawCircle(Offset(g.x, g.y), 18, Paint()..color = c.panel);
       final line = Paint()..style = PaintingStyle.stroke..strokeWidth = 5..strokeCap = StrokeCap.round..color = c.accent;
       canvas.drawCircle(Offset(g.x, g.y), 18, line);

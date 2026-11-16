@@ -176,11 +176,19 @@ class Studio extends ChangeNotifier {
     return rectOf(part.w, part.h, geoOf(slotId, v));
   }
 
+  /// Прямоугольник детали с учётом поворота (для кадра профиля и выходной картинки).
+  Rect? boundsFor(String slotId, [ViewSpec? v]) {
+    final r = rectFor(slotId, v);
+    if (r == null) return null;
+    final g = geoOf(slotId, v);
+    return rotatedBounds(r, g.x, g.y, g.r);
+  }
+
   ViewSpec get view => ViewSpec(p.cur, p.gender, Map.of(curSet.pick), {for (final id in p.order) if (!slotGeo(id).vis) id}, p.frame);
   ViewSpec viewOfLook(Look l) => ViewSpec(l.set, l.gender, l.pick, l.hide.toSet(), l.frame);
   bool get hasAnyPart => p.order.any((id) => partOf(id) != null);
 
-  Map<String, Rect?> visibleRects() => {for (final id in p.order) if (id != 'bg' && slotGeo(id).vis) id: rectFor(id)};
+  Map<String, Rect?> visibleRects() => {for (final id in p.order) if (id != 'bg' && slotGeo(id).vis) id: boundsFor(id)};
   void refreshFrame() {
     if (p.frame.mode == 'custom') return;
     final f = framePreset(p.frame.mode, visibleRects());
@@ -528,18 +536,19 @@ class Studio extends ChangeNotifier {
     } else {
       final b = baseSlot(p.sel);
       final base = b != null ? Geo.fromBase(b) : Geo.generic();
-      slotGeo(p.sel)..x = base.x..y = base.y..w = base.w..s = base.s..pivot = base.pivot;
+      slotGeo(p.sel)..x = base.x..y = base.y..w = base.w..s = base.s..r = base.r..pivot = base.pivot;
     }
     changed();
   }
 
   /// Меняет положение выбранной цели. Непрерывные правки (ползунок, перетаскивание) склеиваются в один шаг истории.
-  void setGeo({double? x, double? y, double? w, double? s, String? pivot}) {
+  void setGeo({double? x, double? y, double? w, double? s, double? r, String? pivot}) {
     final g = _editGeo();
     if (x != null) g.x = x;
     if (y != null) g.y = y;
     if (w != null) g.w = w;
     if (s != null) g.s = s;
+    if (r != null) g.r = r;
     if (pivot != null) g.pivot = pivot;
     changed(burst: 'geo:${p.sel}:${editingPart ? 'part' : 'slot'}');
   }

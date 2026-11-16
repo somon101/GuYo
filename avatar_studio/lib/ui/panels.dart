@@ -363,6 +363,15 @@ class GeoPanel extends StatelessWidget {
         SliderRow(label: 'По X', value: g.x, min: -300, max: 1500, onChanged: (v) => s.setGeo(x: v)),
         SliderRow(label: 'По Y', value: g.y, min: -300, max: 1900, onChanged: (v) => s.setGeo(y: v)),
         SliderRow(label: 'Ширина', value: g.w, min: 20, max: 2400, onChanged: (v) => s.setGeo(w: v)),
+        SliderRow(label: 'Поворот, °', value: g.r, min: -180, max: 180, onChanged: (v) => s.setGeo(r: v)),
+        Padding(
+          padding: const EdgeInsets.only(top: 6, left: 76),
+          child: Wrap(spacing: 8, runSpacing: 6, children: [
+            Btn('−1°', small: true, onTap: () => s.setGeo(r: g.r - 1)),
+            Btn('+1°', small: true, onTap: () => s.setGeo(r: g.r + 1)),
+            Btn('Выровнять', small: true, onTap: () => s.setGeo(r: 0)),
+          ]),
+        ),
         const SizedBox(height: 12),
         Wrap(spacing: 18, runSpacing: 12, crossAxisAlignment: WrapCrossAlignment.center, children: [
           SizedBox(

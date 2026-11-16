@@ -83,6 +83,18 @@ void main() {
     expect(rectOf(null, null, Geo(x: 0, y: 0)), isNull);
   });
 
+  test('поворот: описанный прямоугольник вокруг точки привязки, JSON хранит угол', () {
+    const r = Rect.fromLTWH(0, 0, 200, 100);
+    expect(rotatedBounds(r, 100, 50, 0), r);
+    final b = rotatedBounds(r, 100, 50, 90);
+    expect(b.width, closeTo(100, 1e-6));
+    expect(b.height, closeTo(200, 1e-6));
+    expect(b.center.dx, closeTo(100, 1e-6));
+    final g = Geo.fromJson(Geo(x: 1, y: 2, r: 12.5).toJson());
+    expect(g.r, 12.5);
+    expect(Geo.fromJson({'x': 1, 'y': 2}).r, 0, reason: 'в старых файлах угла нет');
+  });
+
   test('стандартная ширина слота: доля ширины холста, одинаково для любого размера картинки', () {
     expect(baseSlot('face')!.width, closeTo(canvasW * 0.56, 1e-6));
     final g = Geo.fromBase(baseSlot('face')!);
