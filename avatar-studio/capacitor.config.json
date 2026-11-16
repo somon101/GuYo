@@ -1,0 +1,6 @@
+{
+  "appId": "app.avatarstudio.mobile",
+  "appName": "Студия аватаров",
+  "webDir": "www",
+  "android": { "allowMixedContent": false }
+}
