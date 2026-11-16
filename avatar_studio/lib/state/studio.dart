@@ -56,7 +56,9 @@ CutResult cutBackground(Uint8List bytes, int tol) {
 CutResult _cutTask(_CutIn i) => cutBackground(i.bytes, i.tol);
 
 class Studio extends ChangeNotifier {
-  Studio(this.storage, this.files, {this.useIsolate = true});
+  Studio(this.storage, this.files, {this.useIsolate = true}) {
+    _cur = _snap();
+  }
   final StudioStorage storage;
   final FileServices files;
   final bool useIsolate;

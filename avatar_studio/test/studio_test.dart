@@ -106,11 +106,17 @@ void main() {
       expect(s.geoOf('face').r, 12, reason: 'своя деталь держит свой угол');
       final w0 = s.boundsFor('face')!.width;
       expect(w0, greaterThan(s.rectFor('face')!.width), reason: 'описанный прямоугольник шире из-за поворота');
-      s.undo();
-      s.undo();
       expect((await s.avatarPng())!.length, greaterThan(500));
-      expect(s.curSet.parts['face']![1].geo, isNull, reason: 'откат вернул деталь без своего положения');
+      while (s.canUndo) {
+        s.undo();
+      }
+      expect(s.curSet.parts['face'] ?? const [], isEmpty, reason: 'откатили до пустого проекта');
       expect(s.slotGeo('face').r, 0);
+      while (s.canRedo) {
+        s.redo();
+      }
+      expect(s.curSet.parts['face']!.length, 2);
+      expect(s.curSet.parts['face']![1].geo!.r, 12, reason: 'вперёд вернул свой угол детали');
     });
   });
 
