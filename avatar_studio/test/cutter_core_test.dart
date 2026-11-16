@@ -120,4 +120,30 @@ void main() {
     expect(c.w, 50);
     expect(c.h, 40);
   });
+
+  test('заливка по шагу убирает градиент и не заходит в тёмную деталь', () {
+    const w = 80, h = 60;
+    final d = Uint8List(w * h * 4);
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        final i = (y * w + x) * 4;
+        final inside = x >= 25 && x < 55 && y >= 15 && y < 45;
+        // фон: голубой градиент слева направо; деталь: почти чёрная
+        d[i] = inside ? 15 : 30 + x ~/ 2;
+        d[i + 1] = inside ? 15 : 120 + x ~/ 2;
+        d[i + 2] = inside ? 20 : 200 + x ~/ 4;
+        d[i + 3] = 255;
+      }
+    }
+    final ed = MaskEditor(w, h, d);
+    expect(ed.removeColor(30, 120, 200, 10), isTrue);
+    expect(ed.alpha[5 * w + 75], 255, reason: 'далёкий оттенок градиента этим способом не убирается');
+    ed.undo();
+    expect(ed.floodRemove(2, 2, 10), isTrue);
+    expect(ed.alpha[5 * w + 75], 0, reason: 'правый край градиента ушёл');
+    expect(ed.alpha[2 * w + 2], 0);
+    expect(ed.alpha[30 * w + 40], 255, reason: 'деталь цела');
+    ed.undo();
+    expect(ed.alpha[5 * w + 75], 255);
+  });
 }

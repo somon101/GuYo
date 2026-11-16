@@ -57,6 +57,7 @@ class _CutterScreenState extends State<CutterScreen> {
   bool _uploading = false;
   _Tool _tool = _Tool.erase;
   double _size = 36, _soft = 0.35, _colorTol = 22;
+  bool _connected = true; // «Убрать цвет»: связный фон (заливка по градиенту) или везде этот цвет
   Color? _bg; // null: шахматка
   Color _customBg = const Color(0xFFFFD0E2);
   int _active = -1; // рамка с ручками на экране выбора
@@ -241,7 +242,11 @@ class _CutterScreenState extends State<CutterScreen> {
       final p = _toImg(e.localPosition);
       final c = ed.colorAt(p.dx.floor(), p.dy.floor());
       if (c != null) {
-        ed.removeColor(c.$1, c.$2, c.$3, _colorTol);
+        if (_connected) {
+          ed.floodRemove(p.dx.floor(), p.dy.floor(), (4 + _colorTol * 0.6).round());
+        } else {
+          ed.removeColor(c.$1, c.$2, c.$3, _colorTol);
+        }
         _refresh();
       }
       return;
@@ -761,10 +766,16 @@ class _CutterScreenState extends State<CutterScreen> {
         _bgRow(c),
         _slider('Размер', _size, 4, 140, (v) => setState(() => _size = v)),
         _slider('Мягкость', _soft * 100, 0, 100, (v) => setState(() => _soft = v / 100)),
-        if (_tool == _Tool.pipette) _slider('Допуск цвета', _colorTol, 2, 80, (v) => setState(() => _colorTol = v)),
+        if (_tool == _Tool.pipette) ...[
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Seg<bool>(items: const [(true, 'Связный фон'), (false, 'Везде этот цвет')], value: _connected, onChanged: (v) => setState(() => _connected = v)),
+          ),
+          _slider(_connected ? 'Шаг градиента' : 'Допуск цвета', _colorTol, 2, 80, (v) => setState(() => _colorTol = v)),
+        ],
         Text(
           _tool == _Tool.pipette
-              ? 'Нажмите на цвет, который нужно убрать: он исчезнет по всей детали.'
+              ? (_connected ? 'Нажмите на фон: уберётся весь связанный с ним фон, в том числе градиент. Остатки фона видны светлым «ящиком» вокруг детали.' : 'Нажмите на цвет: он исчезнет по всей детали, где бы ни встречался.')
               : 'Один палец рисует, два пальца двигают и приближают (на компьютере: колесо мыши, пробел или средняя кнопка для сдвига).',
           style: TextStyle(fontSize: 11.5, color: c.mut),
         ),

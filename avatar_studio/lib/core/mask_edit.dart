@@ -29,7 +29,79 @@ AutoAlpha autoAlpha(({Uint8List rgba, int w, int h, int tol}) a) {
   for (var i = 0; i < out.length; i++) {
     out[i] = d[i * 4 + 3];
   }
+  if (mode == 'color') {
+    // у цветного фона бывает градиент: добираем остатки заливкой по шагу от краёв, начиная с точек, похожих на фон
+    final w = a.w, h = a.h;
+    final cs = [0, w - 1, (h - 1) * w, w * h - 1];
+    var r = 0, g = 0, b = 0;
+    for (final i in cs) {
+      r += a.rgba[i * 4];
+      g += a.rgba[i * 4 + 1];
+      b += a.rgba[i * 4 + 2];
+    }
+    r ~/= 4;
+    g ~/= 4;
+    b ~/= 4;
+    final seeds = <int>[];
+    void edge(int i) {
+      final dr = a.rgba[i * 4] - r, dg = a.rgba[i * 4 + 1] - g, db = a.rgba[i * 4 + 2] - b;
+      if (dr * dr + dg * dg + db * db < 70 * 70) seeds.add(i);
+    }
+
+    for (var x = 0; x < w; x++) {
+      edge(x);
+      edge((h - 1) * w + x);
+    }
+    for (var y = 0; y < h; y++) {
+      edge(y * w);
+      edge(y * w + w - 1);
+    }
+    final fl = floodByStep(a.rgba, w, h, seeds, 12);
+    for (var i = 0; i < out.length; i++) {
+      if (fl[i] == 1) out[i] = 0;
+    }
+  }
   return AutoAlpha(out, mode);
+}
+
+/// Заливка по шагу: от заданных точек идёт по соседним пикселям, пока цвет меняется плавно
+/// (разница с соседом не больше [step]) и не уходит далеко от цвета начала ([cap]). Так проходится градиент,
+/// а резкий край детали останавливает заливку. Возвращает 1 у достигнутых пикселей.
+Uint8List floodByStep(Uint8List rgba, int w, int h, List<int> seeds, int step, {int cap = 150}) {
+  final seen = Uint8List(w * h);
+  final stack = <int>[];
+  final origin = Int32List(w * h);
+  for (final s in seeds) {
+    if (seen[s] == 0) {
+      seen[s] = 1;
+      origin[s] = s;
+      stack.add(s);
+    }
+  }
+  int d2(int a, int b) {
+    final dr = rgba[a * 4] - rgba[b * 4], dg = rgba[a * 4 + 1] - rgba[b * 4 + 1], db = rgba[a * 4 + 2] - rgba[b * 4 + 2];
+    return dr * dr + dg * dg + db * db;
+  }
+
+  final step2 = step * step, cap2 = cap * cap;
+  void tryAdd(int from, int to) {
+    if (seen[to] == 1) return;
+    if (d2(from, to) > step2) return;
+    if (d2(origin[from], to) > cap2) return;
+    seen[to] = 1;
+    origin[to] = origin[from];
+    stack.add(to);
+  }
+
+  while (stack.isNotEmpty) {
+    final i = stack.removeLast();
+    final x = i % w, y = i ~/ w;
+    if (x > 0) tryAdd(i, i - 1);
+    if (x < w - 1) tryAdd(i, i + 1);
+    if (y > 0) tryAdd(i, i - w);
+    if (y < h - 1) tryAdd(i, i + w);
+  }
+  return seen;
 }
 
 class CutOut {
@@ -220,6 +292,17 @@ class MaskEditor {
       } else if (d < tmax) {
         next[i] = (next[i] * (d - hard) / (tmax - hard)).round();
       }
+    }
+    return apply(next);
+  }
+
+  /// «Волшебная палочка»: убирает фон, связанный с точкой (x, y), проходя плавные переходы цвета (градиент).
+  bool floodRemove(int x, int y, int step) {
+    if (x < 0 || y < 0 || x >= w || y >= h) return false;
+    final fl = floodByStep(rgba, w, h, [y * w + x], step);
+    final next = Uint8List.fromList(alpha);
+    for (var i = 0; i < next.length; i++) {
+      if (fl[i] == 1) next[i] = 0;
     }
     return apply(next);
   }
