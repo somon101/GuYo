@@ -150,4 +150,19 @@ void main() {
     expect(o.geos['female']!['face']!.x, 500);
     expect(o.geos['male']!['face']!.w, closeTo(canvasW * 0.56, 1e-6));
   });
+
+  test('точка холста → пиксель детали, в том числе с поворотом', () {
+    final g = Geo(x: 600, y: 700, w: 400);
+    final r = rectOf(200, 100, g)!; // 400×200, центр (600,700)
+    final c = canvasToPart(const Offset(600, 700), r, g, 200, 100);
+    expect(c.dx, closeTo(100, 1e-6));
+    expect(c.dy, closeTo(50, 1e-6));
+    final tl = canvasToPart(Offset(r.left, r.top), r, g, 200, 100);
+    expect(tl.dx, closeTo(0, 1e-6));
+    // поворот на 90° вокруг центра: правая середина прямоугольника уходит вниз
+    final g2 = Geo(x: 600, y: 700, w: 400, r: 90);
+    final p = canvasToPart(const Offset(600, 700 + 200), rectOf(200, 100, g2)!, g2, 200, 100);
+    expect(p.dx, closeTo(200, 1e-6));
+    expect(p.dy, closeTo(50, 1e-6));
+  });
 }

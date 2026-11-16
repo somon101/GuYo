@@ -281,6 +281,53 @@ void main() {
       expect((await s.profilePng()).length, greaterThan(500));
     });
   });
+
+  testWidgets('кисть на сцене: стирает кусок слоя, «Готово» сохраняет, Назад возвращает', (t) async {
+    await t.runAsync(() async {
+      final s = newStudio();
+      s.p.sel = 'hair';
+      await s.addImages([PickedFile('face.jpg', faceOnBlack())], cut: true);
+      final part = s.partOf('hair')!;
+      final before = part.blobId!;
+      expect(await s.beginPartEdit(), isTrue);
+      final ed = s.partEdit!;
+      final cx = ed.w ~/ 2, cy = ed.h ~/ 2;
+      expect(ed.alpha[cy * ed.w + cx], greaterThan(200));
+      ed.beginStroke();
+      ed.stamp(cx.toDouble(), cy.toDouble(), 20, 0, erase: true);
+      ed.endStroke();
+      s.touchPartEdit();
+      expect(s.canUndo, isTrue, reason: 'пока идёт правка, Назад работает по мазкам');
+      await s.commitPartEdit();
+      expect(s.painting, isFalse);
+      final after = s.partOf('hair')!;
+      expect(after.blobId, isNot(before));
+      expect(after.origId, isNotNull, reason: 'прежняя картинка сохранена для «Вернуть как было»');
+      final d = await (s.images[after.blobId!]!).toByteData(format: ui.ImageByteFormat.rawRgba);
+      expect(d!.getUint8((cy * ed.w + cx) * 4 + 3), 0, reason: 'на месте мазка прозрачно');
+      s.undo();
+      expect(s.partOf('hair')!.blobId, before, reason: 'общая кнопка «Назад» возвращает прежнюю картинку');
+      await t.pump();
+    });
+  });
+
+  testWidgets('кисть на сцене: отмена и смена слоя не портят деталь', (t) async {
+    await t.runAsync(() async {
+      final s = newStudio();
+      s.p.sel = 'hair';
+      await s.addImages([PickedFile('face.jpg', faceOnBlack())], cut: true);
+      final before = s.partOf('hair')!.blobId;
+      await s.beginPartEdit();
+      s.partEdit!.beginStroke();
+      s.partEdit!.stamp(30, 30, 25, 0, erase: true);
+      s.partEdit!.endStroke();
+      s.cancelPartEdit();
+      expect(s.partOf('hair')!.blobId, before);
+      expect(s.painting, isFalse);
+      s.p.sel = 'bg';
+      expect(await s.beginPartEdit(), isFalse, reason: 'у фона кисти нет');
+    });
+  });
 }
 
 List<int> _u(String s) => s.codeUnits;

@@ -65,6 +65,17 @@ Rect? rectOf(double? partW, double? partH, Geo g) {
   return Rect.fromLTWH(g.x - g.w / 2, y, g.w, hh);
 }
 
+/// Точка холста → пиксель картинки детали (обратно к рисованию: поворот вокруг (g.x, g.y), затем прямоугольник детали).
+Offset canvasToPart(Offset p, Rect r, Geo g, int imgW, int imgH) {
+  var q = p;
+  if (g.r != 0) {
+    final a = -g.r * math.pi / 180, c = math.cos(a), s = math.sin(a);
+    final dx = p.dx - g.x, dy = p.dy - g.y;
+    q = Offset(g.x + dx * c - dy * s, g.y + dx * s + dy * c);
+  }
+  return Offset((q.dx - r.left) / r.width * imgW, (q.dy - r.top) / r.height * imgH);
+}
+
 /// Описанный прямоугольник детали после поворота на deg градусов вокруг точки (cx, cy).
 Rect rotatedBounds(Rect r, double cx, double cy, double deg) {
   if (deg == 0) return r;

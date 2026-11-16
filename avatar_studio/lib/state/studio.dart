@@ -2,14 +2,16 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' as ui;
-import 'dart:ui' show Rect;
+import 'dart:ui' show Offset, Rect;
 
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 
 import '../core/bg_removal.dart';
 import '../core/geometry.dart';
+import '../core/mask_edit.dart';
 import '../core/model.dart';
+import '../core/sheet_split.dart';
 import 'render.dart';
 import 'services.dart';
 import 'storage.dart';
@@ -77,8 +79,8 @@ class Studio extends ChangeNotifier {
   String _cur = '';
   String? _lastKey;
   DateTime _lastAt = DateTime.fromMillisecondsSinceEpoch(0);
-  bool get canUndo => _undo.isNotEmpty;
-  bool get canRedo => _redo.isNotEmpty;
+  bool get canUndo => partEdit != null ? partEdit!.canUndo : _undo.isNotEmpty;
+  bool get canRedo => partEdit != null ? partEdit!.canRedo : _redo.isNotEmpty;
   // в историю не входят настройки и выбранный слот
   String _snap() => jsonEncode(p.toJson(withSettings: false, withSel: false));
   void _resetHistory() {
@@ -117,6 +119,12 @@ class Studio extends ChangeNotifier {
   }
 
   void undo() {
+    if (partEdit != null) {
+      partEdit!.undo();
+      _refreshEdit();
+      notifyListeners();
+      return;
+    }
     if (_undo.isEmpty) return;
     _redo.add(_cur);
     _cur = _undo.removeLast();
@@ -125,6 +133,12 @@ class Studio extends ChangeNotifier {
   }
 
   void redo() {
+    if (partEdit != null) {
+      partEdit!.redo();
+      _refreshEdit();
+      notifyListeners();
+      return;
+    }
     if (_redo.isEmpty) return;
     _undo.add(_cur);
     _cur = _redo.removeLast();
@@ -317,6 +331,142 @@ class Studio extends ChangeNotifier {
     }
     busy = false;
     if (failed > 0) message(failed == picked.length ? 'Не удалось открыть картинку' : 'Часть картинок не открылась');
+    changed();
+  }
+
+  // ---------- вид сцены и правка выбранной детали кистью прямо на макете ----------
+  double stageZoom = 1;
+  Offset stagePan = Offset.zero;
+  double brushSize = 40, brushSoft = 0.35;
+  bool brushErase = true;
+  MaskEditor? partEdit;
+  String? editSlot, editPartId;
+  String? _editBlob;
+  ui.Image? _editBackup, _editLive;
+  Uint8List? _editDisp;
+  int _editShown = -1;
+  bool _editUploading = false;
+
+  bool get painting => partEdit != null;
+
+  /// Перерисовать сцену (вид, кисть): без записи в историю и без сохранения.
+  void resetNotify() => notifyListeners();
+
+  void resetStageView() {
+    stageZoom = 1;
+    stagePan = Offset.zero;
+    notifyListeners();
+  }
+
+  /// Включает правку кистью для выбранной детали. false, если править нечего.
+  Future<bool> beginPartEdit() async {
+    if (partEdit != null) return true;
+    final part = partOf(p.sel);
+    if (p.sel == 'bg' || part == null || !part.isImage || part.blobId == null) {
+      message('Выберите слой с картинкой');
+      return false;
+    }
+    final bytes = await storage.readBlob(part.blobId!);
+    if (bytes == null) {
+      message('Не удалось открыть картинку детали');
+      return false;
+    }
+    try {
+      final a = (bytes: bytes, maxSide: 100000);
+      final sh = await (useIsolate ? compute(decodeSheet, a) : Future.value(decodeSheet(a)));
+      partEdit = MaskEditor(sh.w, sh.h, sh.rgba);
+    } catch (_) {
+      message('Не удалось открыть картинку детали');
+      return false;
+    }
+    _editDisp = Uint8List.fromList(partEdit!.rgba);
+    editSlot = p.sel;
+    editPartId = part.id;
+    _editBlob = part.blobId;
+    _editBackup = images[part.blobId];
+    _editShown = partEdit!.version;
+    frameTool = false;
+    placing = false;
+    notifyListeners();
+    return true;
+  }
+
+  /// После мазка: показать правку сразу (картинка обновляется с ограничением частоты).
+  void touchPartEdit() {
+    _refreshEdit();
+    notifyListeners();
+  }
+
+  Future<void> _refreshEdit() async {
+    final ed = partEdit;
+    if (ed == null || _editUploading || ed.version == _editShown) return;
+    _editUploading = true;
+    final v = ed.version;
+    ed.paintAlphaInto(_editDisp!);
+    final c = Completer<ui.Image>();
+    ui.decodeImageFromPixels(Uint8List.fromList(_editDisp!), ed.w, ed.h, ui.PixelFormat.rgba8888, c.complete);
+    final im = await c.future;
+    _editUploading = false;
+    if (partEdit != ed || _editBlob == null) {
+      im.dispose();
+      return;
+    }
+    final old = _editLive;
+    _editLive = im;
+    images[_editBlob!] = im;
+    _editShown = v;
+    notifyListeners();
+    old?.dispose();
+    if (ed.version != v) unawaited(_refreshEdit());
+  }
+
+  void _endEdit() {
+    final blob = _editBlob;
+    if (blob != null && _editBackup != null) images[blob] = _editBackup!;
+    _editLive?.dispose();
+    _editLive = null;
+    _editBackup = null;
+    _editBlob = null;
+    _editDisp = null;
+    partEdit = null;
+    editSlot = null;
+    editPartId = null;
+  }
+
+  /// «Отмена»: картинка детали остаётся как была.
+  void cancelPartEdit() {
+    if (partEdit == null) return;
+    _endEdit();
+    notifyListeners();
+  }
+
+  /// «Готово»: правка записывается в деталь (одним шагом общей истории). Исходник сохраняется для «Вернуть как было».
+  Future<void> commitPartEdit() async {
+    final ed = partEdit;
+    if (ed == null) return;
+    Part? part;
+    for (final x in curSet.parts[editSlot] ?? const <Part>[]) {
+      if (x.id == editPartId) part = x;
+    }
+    if (part == null || !ed.canUndo) {
+      cancelPartEdit();
+      return;
+    }
+    final oldBlob = _editBlob!;
+    ed.paintAlphaInto(_editDisp!);
+    final raw = Uint8List.fromList(_editDisp!);
+    final a = (rgba: raw, w: ed.w, h: ed.h);
+    partEdit = null; // дальше обновления картинки не нужны
+    final png = await (useIsolate ? compute(encodePngRgba, a) : Future.value(encodePngRgba(a)));
+    final newId = await _putBlob(png);
+    if (part.origId == null) {
+      part.origId = oldBlob;
+      part.origW = part.w;
+      part.origH = part.h;
+    }
+    part.blobId = newId;
+    _editBlob = oldBlob;
+    _endEdit();
     changed();
   }
 
@@ -710,6 +860,7 @@ class Studio extends ChangeNotifier {
   Uint8List _b64(String s) => base64Decode(s.contains(',') ? s.split(',').last : s);
 
   Future<void> loadProject(Uint8List bytes) async {
+    cancelPartEdit();
     final raw = jsonDecode(utf8.decode(bytes));
     final st = ProjectState.migrate(raw);
     // картинки из файла: пишем заново и выдаём новые идентификаторы
@@ -741,6 +892,7 @@ class Studio extends ChangeNotifier {
   }
 
   Future<void> wipe() async {
+    cancelPartEdit();
     await storage.clearBlobs();
     for (final im in images.values) {
       im.dispose();

@@ -1,6 +1,7 @@
 import 'package:avatar_studio/state/studio.dart';
 import 'package:avatar_studio/state/services.dart';
 import 'package:avatar_studio/ui/home.dart';
+import 'package:avatar_studio/ui/stage.dart';
 import 'package:avatar_studio/ui/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -132,6 +133,55 @@ void main() {
     await t.tap(find.text('Кадр').first);
     await t.pump();
     expect(find.text('Какую часть показать'), findsOneWidget);
+    expect(t.takeException(), isNull);
+    await t.runAsync(s.flush);
+  });
+
+  testWidgets('сцена: приближение двумя пальцами не двигает слот, кисть стирает и «Готово» сохраняет', (t) async {
+    t.view.physicalSize = const Size(1500, 1000);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    final files = FakeServices();
+    final s = newStudio(files: files);
+    await t.pumpWidget(app(s));
+    s.p.sel = 'hair';
+    await t.runAsync(() => s.addImages([PickedFile('face.jpg', faceOnBlack())], cut: true));
+    await t.pump();
+    final geo0 = s.geoOf('hair').x;
+    final stage = find.byType(StageView);
+    final c = t.getCenter(stage);
+
+    // два пальца: приближение
+    final g1 = await t.startGesture(c + const Offset(-30, 0), pointer: 1);
+    final g2 = await t.startGesture(c + const Offset(30, 0), pointer: 2);
+    await g1.moveBy(const Offset(-60, 0));
+    await g2.moveBy(const Offset(60, 0));
+    await g1.up();
+    await g2.up();
+    await t.pump();
+    expect(s.stageZoom, greaterThan(1.5));
+    expect(s.geoOf('hair').x, geo0, reason: 'слот остался на месте');
+
+    // кисть
+    await t.tap(find.text('Кисть'));
+    await t.runAsync(() => Future.delayed(const Duration(milliseconds: 200)));
+    await t.pump();
+    expect(s.painting, isTrue);
+    expect(find.text('Готово'), findsOneWidget);
+    final before = s.partOf('hair')!.blobId;
+    final g = await t.startGesture(c);
+    await g.moveBy(const Offset(40, 10));
+    await g.up();
+    await t.pump();
+    expect(s.partEdit!.canUndo, isTrue);
+    await t.tap(find.text('Готово'));
+    await t.runAsync(() => Future.delayed(const Duration(milliseconds: 300)));
+    await t.pump();
+    expect(s.painting, isFalse);
+    expect(s.partOf('hair')!.blobId, isNot(before));
+    await t.tap(find.text('Вписать'));
+    await t.pump();
+    expect(s.stageZoom, 1);
     expect(t.takeException(), isNull);
     await t.runAsync(s.flush);
   });

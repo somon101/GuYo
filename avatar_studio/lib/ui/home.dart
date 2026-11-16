@@ -98,6 +98,14 @@ class _HomePageState extends State<HomePage> {
               s.frameTool = false;
               s.changed(save: false);
             }),
+            Btn(MediaQuery.sizeOf(context).width < 1020 ? '' : 'Кисть', icon: Icons.brush, on: s.painting, onTap: () async {
+              if (s.painting) {
+                await s.commitPartEdit();
+              } else {
+                await s.beginPartEdit();
+              }
+            }),
+            Btn(MediaQuery.sizeOf(context).width < 1020 ? '' : 'Вписать', icon: Icons.fit_screen, onTap: s.resetStageView),
             Btn(MediaQuery.sizeOf(context).width < 1020 ? '' : 'Кадр профиля', icon: Icons.crop_free, on: s.frameTool, onTap: () {
               s.frameTool = !s.frameTool;
               s.placing = false;
