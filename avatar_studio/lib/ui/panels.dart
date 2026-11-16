@@ -5,6 +5,7 @@ import '../core/model.dart';
 import '../state/studio.dart';
 import 'dialogs.dart';
 import 'theme.dart';
+import 'cutter.dart';
 import 'widgets.dart';
 
 class SetsPanel extends StatelessWidget {
@@ -218,6 +219,10 @@ class PartsPanel extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         PanelTitle(isBg ? 'Фон профиля' : 'Детали слота «${s.slot(id).name}»'),
         GridView.count(crossAxisCount: 4, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), mainAxisSpacing: 8, crossAxisSpacing: 8, children: tiles),
+        if (!isBg) ...[
+          const SizedBox(height: 10),
+          Btn('Вырезалка: детали из листа', small: true, icon: Icons.content_cut, onTap: () => openCutter(context, s)),
+        ],
         if (isBg) ...[
           const SizedBox(height: 12),
           Row(children: [

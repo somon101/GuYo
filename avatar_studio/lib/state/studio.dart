@@ -320,6 +320,20 @@ class Studio extends ChangeNotifier {
     changed();
   }
 
+  /// Деталь из «Вырезалки»: готовый PNG с прозрачностью и (по желанию) вырезанный кусок листа до правки,
+  /// чтобы «Вернуть как было» работало. Кладётся в выбранный слот для текущего персонажа.
+  Future<void> addCutPart({required String name, required Uint8List png, required int w, required int h, Uint8List? origPng, int? origW, int? origH}) async {
+    final slotId = p.sel;
+    final list = curSet.parts.putIfAbsent(slotId, () => []);
+    final part = Part(id: uid(), name: name, w: w.toDouble(), h: h.toDouble(), origW: origPng == null ? null : origW?.toDouble(), origH: origPng == null ? null : origH?.toDouble());
+    part.blobId = await _putBlob(png);
+    if (origPng != null) part.origId = await _putBlob(origPng);
+    part.gender = slotId == 'bg' ? 'both' : p.gender;
+    list.add(part);
+    curSet.pick[slotId] = part.id;
+    changed();
+  }
+
   static final _packName = RegExp(r'^(\w+)__(male|female|both)__(.+?)(\.[A-Za-z0-9]+)?$');
 
   /// Загрузка набора деталей из многих файлов сразу. Имя файла вида «слот__пол__название.png» само

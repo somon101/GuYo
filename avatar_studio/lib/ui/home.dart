@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../state/studio.dart';
+import 'cutter.dart';
 import 'dialogs.dart';
 import 'panels.dart';
 import 'stage.dart';
@@ -55,6 +56,7 @@ class _HomePageState extends State<HomePage> {
       },
       icon: Icon(dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined, color: c.mut),
     );
+    final cutter = Btn(narrow ? '' : 'Вырезалка', icon: Icons.content_cut, onTap: () => openCutter(context, s));
     final profile = Btn(narrow ? '' : 'В профиле', icon: Icons.account_circle_outlined, onTap: () => showProfileDialog(context, s));
     final export = Btn(narrow ? '' : 'Скачать PNG', icon: Icons.download, primary: true, onTap: _exportAvatar);
     if (narrow) {
@@ -62,7 +64,7 @@ class _HomePageState extends State<HomePage> {
       return Column(children: [
         Row(children: [logo, const SizedBox(width: 10), const Expanded(child: Text('Студия аватаров', overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800))), undo, redo, theme]),
         const SizedBox(height: 4),
-        Row(children: [gender, const Spacer(), profile, const SizedBox(width: 8), export]),
+        Row(children: [gender, const Spacer(), cutter, const SizedBox(width: 8), profile, const SizedBox(width: 8), export]),
       ]);
     }
     return Row(children: [
@@ -77,6 +79,8 @@ class _HomePageState extends State<HomePage> {
       redo,
       theme,
       const SizedBox(width: 4),
+      cutter,
+      const SizedBox(width: 8),
       profile,
       const SizedBox(width: 8),
       export,
