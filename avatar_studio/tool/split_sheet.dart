@@ -61,11 +61,17 @@ void main(List<String> args) {
               crop[di] = data[si];
               crop[di + 1] = data[si + 1];
               crop[di + 2] = data[si + 2];
+              crop[di + 3] = args.contains('--alpha') ? data[si + 3] : 255;
+            } else {
+              crop[di + 3] = args.contains('--alpha') ? 0 : 255;
             }
-            crop[di + 3] = 255;
           }
         }
-        removeBackground(crop, bw, bh, tol: 16, minIsland: 0.06);
+        if (args.contains('--alpha')) {
+          _cleanAlpha(crop, bw, bh, args.contains('--single'));
+        } else {
+          removeBackground(crop, bw, bh, tol: 16, minIsland: 0.06);
+        }
         final t = _trim(crop, bw, bh);
         if (t == null) continue;
         n++;
@@ -82,7 +88,7 @@ void main(List<String> args) {
     final mx = (w / cols * 0.2).round(), my = (h / rows * 0.2).round();
     boxes = [for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) [math.max(0, c * w ~/ cols - mx), math.max(0, r * h ~/ rows - my), math.min(w, (c + 1) * w ~/ cols + mx), math.min(h, (r + 1) * h ~/ rows + my)]];
   } else {
-    boxes = _components(data, w, h, int.parse(opt('thr', '22')), int.parse(opt('gap', '14')));
+    boxes = _components(data, w, h, int.parse(opt('thr', args.contains('--alpha') ? '128' : '22')), int.parse(opt('gap', '14')), args.contains('--alpha'));
   }
   var n = 0;
   for (final b in boxes) {
@@ -93,7 +99,9 @@ void main(List<String> args) {
     for (var y = 0; y < ch; y++) {
       crop.setRange(y * cw * 4, (y + 1) * cw * 4, data, ((y0 + y) * w + x0) * 4);
     }
-    if (mode == 'edges') {
+    if (args.contains('--alpha')) {
+      _cleanAlpha(crop, cw, ch, args.contains('--single'));
+    } else if (mode == 'edges') {
       cutByEdges(crop, cw, ch);
     } else {
       removeBackground(crop, cw, ch, tol: 16);
@@ -119,14 +127,15 @@ void main(List<String> args) {
 }
 
 /// Пятна ярче порога, соединённые в группы (рядом стоящие куски одной детали), по строкам слева направо.
-List<List<int>> _components(Uint8List d, int w, int h, int thr, int gap) {
+List<List<int>> _components(Uint8List d, int w, int h, int thr, int gap, [bool byAlpha = false]) {
   const k = 4;
   final sw = (w + k - 1) ~/ k, sh = (h + k - 1) ~/ k;
   final m = Uint8List(sw * sh);
   for (var y = 0; y < h; y++) {
     for (var x = 0; x < w; x++) {
       final i = (y * w + x) * 4;
-      if (math.max(d[i], math.max(d[i + 1], d[i + 2])) > thr) m[(y ~/ k) * sw + x ~/ k] = 1;
+      final v = byAlpha ? d[i + 3] : math.max(d[i], math.max(d[i + 1], d[i + 2]));
+      if (v > thr) m[(y ~/ k) * sw + x ~/ k] = 1;
     }
   }
   final r = (gap / k).ceil();
@@ -189,6 +198,62 @@ List<List<int>> _components(Uint8List d, int w, int h, int thr, int gap) {
     rows.add([b]);
   }
   return [for (final r in rows) ...(r..sort((a, b) => a[0].compareTo(b[0])))];
+}
+
+/// Для листов, уже вырезанных владельцем: пиксели не меняем, только убираем остаточный «дым» вокруг детали
+/// (почти прозрачные пятна вдали от неё) и куски соседних деталей, зашедшие в ячейку.
+void _cleanAlpha(Uint8List d, int w, int h, [bool single = false]) {
+  final n = w * h;
+  var strong = Uint8List(n);
+  for (var i = 0; i < n; i++) {
+    if (d[i * 4 + 3] > 128) strong[i] = 1;
+  }
+  // оставляем пятна не меньше 5% от самого большого (парные руки остаются вместе)
+  final lab = Int32List(n), sizes = <int>[0];
+  var cnt = 0;
+  for (var s = 0; s < n; s++) {
+    if (strong[s] == 0 || lab[s] != 0) continue;
+    cnt++;
+    var c = 0;
+    final qq = <int>[s];
+    lab[s] = cnt;
+    for (var qi = 0; qi < qq.length; qi++) {
+      final i = qq[qi];
+      c++;
+      final x = i % w, y = i ~/ w;
+      for (final j in [if (x > 0) i - 1, if (x < w - 1) i + 1, if (y > 0) i - w, if (y < h - 1) i + w]) {
+        if (strong[j] == 1 && lab[j] == 0) {
+          lab[j] = cnt;
+          qq.add(j);
+        }
+      }
+    }
+    sizes.add(c);
+  }
+  var big = 0;
+  for (final s in sizes) {
+    if (s > big) big = s;
+  }
+  final keep = Uint8List(n);
+  for (var i = 0; i < n; i++) {
+    if (lab[i] != 0 && (single ? sizes[lab[i]] == big : sizes[lab[i]] >= big * 0.05)) keep[i] = 1;
+  }
+  // разрешённая область: оставленные пятна, расширенные на 6 px (там живёт мягкий край, как нарисован)
+  var allowed = keep;
+  for (var p = 0; p < 6; p++) {
+    final nx = Uint8List.fromList(allowed);
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        final i = y * w + x;
+        if (allowed[i] == 1) continue;
+        if ((x > 0 && allowed[i - 1] == 1) || (x < w - 1 && allowed[i + 1] == 1) || (y > 0 && allowed[i - w] == 1) || (y < h - 1 && allowed[i + w] == 1)) nx[i] = 1;
+      }
+    }
+    allowed = nx;
+  }
+  for (var i = 0; i < n; i++) {
+    if (allowed[i] == 0) d[i * 4 + 3] = 0;
+  }
 }
 
 /// Тёмные «карманы» внутри детали (между пальцами, внутри сердечка): остатки чёрного фона, не связанные с краем.
