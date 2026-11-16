@@ -1,5 +1,6 @@
 // Главный экран: три колонки на компьютере, сцена и вкладки на телефоне.
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../state/studio.dart';
 import 'dialogs.dart';
@@ -42,20 +43,43 @@ class _HomePageState extends State<HomePage> {
   Widget _top(bool narrow) {
     final c = sc(context);
     final dark = Theme.of(context).brightness == Brightness.dark;
-    return Row(children: [
-      Container(width: 30, height: 30, decoration: BoxDecoration(color: c.accent, borderRadius: BorderRadius.circular(9)), child: Icon(Icons.person, size: 18, color: c.onAccent)),
-      const SizedBox(width: 10),
-      Flexible(child: Text('Студия аватаров', overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: narrow ? 16 : 18, fontWeight: FontWeight.w800))),
-      const Spacer(),
-      if (!narrow) Padding(padding: const EdgeInsets.only(right: 14), child: Row(children: [Container(width: 8, height: 8, decoration: BoxDecoration(color: c.ok, shape: BoxShape.circle)), const SizedBox(width: 7), Text(s.savedLabel.isEmpty ? 'Сохранено' : s.savedLabel, style: TextStyle(fontSize: 12.5, color: c.mut))])),
-      IconButton(tooltip: dark ? 'Светлая тема' : 'Тёмная тема', onPressed: () {
+    final logo = Container(width: 30, height: 30, decoration: BoxDecoration(color: c.accent, borderRadius: BorderRadius.circular(9)), child: Icon(Icons.person, size: 18, color: c.onAccent));
+    final gender = Seg<String>(items: const [('male', 'Мужской'), ('female', 'Женский')], value: s.p.gender, onChanged: s.setGender);
+    final undo = IconButton(tooltip: 'Назад (Ctrl+Z)', onPressed: s.canUndo ? s.undo : null, icon: Icon(Icons.undo, color: s.canUndo ? c.accent : c.mut.withValues(alpha: .4)));
+    final redo = IconButton(tooltip: 'Вперёд (Ctrl+Y)', onPressed: s.canRedo ? s.redo : null, icon: Icon(Icons.redo, color: s.canRedo ? c.accent : c.mut.withValues(alpha: .4)));
+    final theme = IconButton(
+      tooltip: dark ? 'Светлая тема' : 'Тёмная тема',
+      onPressed: () {
         s.p.settings.theme = dark ? 'light' : 'dark';
         s.changed();
-      }, icon: Icon(dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined, color: c.mut)),
+      },
+      icon: Icon(dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined, color: c.mut),
+    );
+    final profile = Btn(narrow ? '' : 'В профиле', icon: Icons.account_circle_outlined, onTap: () => showProfileDialog(context, s));
+    final export = Btn(narrow ? '' : 'Скачать PNG', icon: Icons.download, primary: true, onTap: _exportAvatar);
+    if (narrow) {
+      // на телефоне два ряда, чтобы всё помещалось
+      return Column(children: [
+        Row(children: [logo, const SizedBox(width: 10), const Expanded(child: Text('Студия аватаров', overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800))), undo, redo, theme]),
+        const SizedBox(height: 4),
+        Row(children: [gender, const Spacer(), profile, const SizedBox(width: 8), export]),
+      ]);
+    }
+    return Row(children: [
+      logo,
+      const SizedBox(width: 10),
+      const Flexible(child: Text('Студия аватаров', overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800))),
+      const SizedBox(width: 16),
+      gender,
+      const Spacer(),
+      Padding(padding: const EdgeInsets.only(right: 10), child: Row(children: [Container(width: 8, height: 8, decoration: BoxDecoration(color: c.ok, shape: BoxShape.circle)), const SizedBox(width: 7), Text(s.savedLabel.isEmpty ? 'Сохранено' : s.savedLabel, style: TextStyle(fontSize: 12.5, color: c.mut))])),
+      undo,
+      redo,
+      theme,
       const SizedBox(width: 4),
-      Btn(narrow ? '' : 'В профиле', icon: Icons.account_circle_outlined, onTap: () => showProfileDialog(context, s)),
+      profile,
       const SizedBox(width: 8),
-      Btn(narrow ? '' : 'Скачать PNG', icon: Icons.download, primary: true, onTap: _exportAvatar),
+      export,
     ]);
   }
 
@@ -81,7 +105,13 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyZ, control: true): s.undo,
+        const SingleActivator(LogicalKeyboardKey.keyY, control: true): s.redo,
+        const SingleActivator(LogicalKeyboardKey.keyZ, control: true, shift: true): s.redo,
+      },
+      child: Focus(autofocus: true, child: Scaffold(
       body: SafeArea(
         child: ListenableBuilder(
           listenable: s,
@@ -98,7 +128,7 @@ class _HomePageState extends State<HomePage> {
           }),
         ),
       ),
-    );
+    )));
   }
 
   Widget _stage() => Stack(children: [Positioned.fill(child: StageView(s)), _tools()]);
@@ -116,7 +146,7 @@ class _HomePageState extends State<HomePage> {
     const names = ['Слои', 'Детали', 'Положение', 'Кадр', 'Аватарки'];
     final panels = <Widget>[
       Column(children: [SetsPanel(s), SlotsPanel(s, onPicked: () => setState(() => tab = 1)), ProjectPanel(s)]),
-      PartsPanel(s),
+      PartsPanel(s, onEdit: () => setState(() => tab = 2)),
       GeoPanel(s),
       FramePanel(s),
       LooksPanel(s),

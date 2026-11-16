@@ -10,6 +10,7 @@ abstract class StudioStorage {
   Future<void> writeBlob(String id, Uint8List bytes);
   Future<void> deleteBlob(String id);
   Future<void> clearBlobs();
+  Future<List<String>> blobIds();
 }
 
 class FileStorage implements StudioStorage {
@@ -59,6 +60,12 @@ class FileStorage implements StudioStorage {
   Future<void> clearBlobs() async {
     if (await _blobs.exists()) await _blobs.delete(recursive: true);
   }
+
+  @override
+  Future<List<String>> blobIds() async {
+    if (!await _blobs.exists()) return [];
+    return [for (final f in _blobs.listSync()) if (f is File) f.uri.pathSegments.last];
+  }
 }
 
 /// Для тестов: всё в памяти.
@@ -77,4 +84,6 @@ class MemoryStorage implements StudioStorage {
   Future<void> deleteBlob(String id) async => blobs.remove(id);
   @override
   Future<void> clearBlobs() async => blobs.clear();
+  @override
+  Future<List<String>> blobIds() async => blobs.keys.toList();
 }

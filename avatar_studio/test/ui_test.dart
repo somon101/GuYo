@@ -92,6 +92,32 @@ void main() {
     await t.runAsync(s.flush);
   });
 
+  testWidgets('пол персонажа и кнопка «Назад»: детали другого пола скрываются, откат возвращает', (t) async {
+    t.view.physicalSize = const Size(1500, 1000);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    final s = newStudio();
+    await t.pumpWidget(app(s));
+    s.p.sel = 'face';
+    await t.runAsync(() => s.addImages([PickedFile('m.jpg', faceOnBlack())], cut: false));
+    await t.pump();
+    expect(s.partOf('face'), isNotNull);
+    expect(find.textContaining('Показаны детали мужского'), findsOneWidget);
+    await t.tap(find.text('Женский'));
+    await t.pump();
+    expect(s.partOf('face'), isNull);
+    expect(find.textContaining('Для женского персонажа в слоте пока нет деталей'), findsOneWidget);
+    await t.tap(find.byTooltip('Назад (Ctrl+Z)'));
+    await t.pump();
+    expect(s.p.gender, 'male');
+    expect(s.partOf('face'), isNotNull);
+    await t.tap(find.byTooltip('Вперёд (Ctrl+Y)'));
+    await t.pump();
+    expect(s.p.gender, 'female');
+    expect(t.takeException(), isNull);
+    await t.runAsync(s.flush);
+  });
+
   testWidgets('телефон: вкладки переключаются без переполнения', (t) async {
     t.view.physicalSize = const Size(400, 860);
     t.view.devicePixelRatio = 1;

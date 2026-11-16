@@ -60,7 +60,7 @@ class _StageViewState extends State<StageView> {
                   _frameDrag = true;
                   _grab = Offset(s.p.frame.x - p.dx, s.p.frame.y - p.dy);
                 } else if (s.p.sel != 'bg') {
-                  final g = s.geoOf(s.p.sel);
+                  final g = s.editGeoRead;
                   _frameDrag = false;
                   _grab = Offset(g.x - p.dx, g.y - p.dy);
                 }
@@ -95,8 +95,8 @@ class _StageViewState extends State<StageView> {
   String _info(Studio s) {
     if (s.frameTool) return 'Кадр профиля · x ${s.p.frame.x.round()} · y ${s.p.frame.y.round()} · ${s.p.frame.size.round()}';
     if (s.p.sel == 'bg') return 'Фон';
-    final g = s.geoOf(s.p.sel);
-    return '${s.slot(s.p.sel).name} · x ${g.x.round()} · y ${g.y.round()} · ${(g.s * 100).round()}%';
+    final g = s.editGeoRead;
+    return '${s.slot(s.p.sel).name}${s.editingPart ? ' (деталь)' : ''} · x ${g.x.round()} · y ${g.y.round()} · ширина ${g.w.round()}';
   }
 
   Widget _chip(SC c, String t) => Container(
@@ -161,7 +161,7 @@ class _StagePainter extends CustomPainter {
       canvas.drawPath(Path.combine(PathOperation.difference, Path()..addRect(big), hole), Paint()..color = const Color(0x800A0E28));
       canvas.drawPath(hole, Paint()..style = PaintingStyle.stroke..strokeWidth = 6..color = Colors.white);
     } else if (s.p.sel != 'bg') {
-      final g = s.geoOf(s.p.sel);
+      final g = s.editGeoRead;
       final r = s.rectFor(s.p.sel);
       if (r != null) canvas.drawRRect(RRect.fromRectAndRadius(r, const Radius.circular(8)), Paint()..style = PaintingStyle.stroke..strokeWidth = 4..color = c.accent);
       canvas.drawCircle(Offset(g.x, g.y), 18, Paint()..color = c.panel);

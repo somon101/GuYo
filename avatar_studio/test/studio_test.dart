@@ -26,8 +26,7 @@ void main() {
       expect(part.origId, isNotNull);
       expect(part.blobId, isNot(part.origId));
       expect((await corner(s, part.blobId!))!.a, 0, reason: 'левый верхний угол прозрачный');
-      expect(s.geoOf('face').placed, isTrue);
-      expect(part.w * s.geoOf('face').s, closeTo(canvasW * 0.56, 1));
+      expect(s.rectFor('face')!.width, closeTo(canvasW * 0.56, 1), reason: 'новая деталь встаёт по стандартной ширине слота');
       await s.restoreOriginal();
       final back = s.partOf('face')!;
       expect(back.origId, isNull);
@@ -51,21 +50,106 @@ void main() {
     });
   });
 
-  testWidgets('смена детали слота не меняет его положение; наборы делят положение', (t) async {
+  testWidgets('у каждой детали своё положение, у не правленых стандарт слота', (t) async {
     await t.runAsync(() async {
       final s = newStudio();
       s.p.sel = 'face';
       await s.addImages([PickedFile('a.jpg', faceOnBlack()), PickedFile('b.jpg', faceOnBlack(w: 300, h: 260))], cut: false);
-      s.setGeo(x: 500, y: 520);
-      final before = s.geoOf('face').toJson().toString();
-      s.pickPart('face', s.curSet.parts['face']!.first.id);
-      expect(s.geoOf('face').toJson().toString(), before);
-      s.addSet();
-      expect(s.geoOf('face').x, 500, reason: 'положение слота общее для наборов');
-      s.setScopeOwn(true);
-      s.setGeo(x: 100);
-      s.selectSet('s1');
+      final a = s.curSet.parts['face']![0], b = s.curSet.parts['face']![1];
+      // обе встали по стандарту, одной ширины
+      expect(s.rectFor('face')!.width, closeTo(canvasW * 0.56, 1e-6));
+      s.pickPart('face', a.id);
+      expect(s.rectFor('face')!.width, closeTo(canvasW * 0.56, 1e-6));
+      // правим деталь b: сохраняется именно для неё
+      s.pickPart('face', b.id);
+      s.setEditTarget('part');
+      s.setGeo(x: 500, y: 520, w: 700);
+      expect(b.geo, isNotNull);
+      expect(a.geo, isNull);
+      s.pickPart('face', a.id);
+      expect(s.rectFor('face')!.width, closeTo(canvasW * 0.56, 1e-6), reason: 'другая деталь осталась по стандарту');
+      s.pickPart('face', b.id);
+      expect(s.rectFor('face')!.width, closeTo(700, 1e-6), reason: 'вернулись и своё положение на месте');
       expect(s.geoOf('face').x, 500);
+      // стандарт слота меняют: не правленая деталь следует, правленая нет
+      s.setEditTarget('slot');
+      s.setGeo(x: 100);
+      expect(s.geoOf('face').x, 500, reason: 'у детали своё положение');
+      s.pickPart('face', a.id);
+      s.setEditTarget('slot');
+      expect(s.geoOf('face').x, 100, reason: 'деталь по стандарту следует за ним');
+      // сброс у детали убирает своё положение
+      s.pickPart('face', b.id);
+      s.setEditTarget('part');
+      s.resetGeo();
+      expect(b.geo, isNull);
+      expect(s.geoOf('face').x, 100);
+    });
+  });
+
+  testWidgets('пол: у персонажа видны детали его пола и «оба»; стандарты слотов раздельные', (t) async {
+    await t.runAsync(() async {
+      final s = newStudio();
+      s.p.sel = 'hair';
+      await s.addImages([PickedFile('m.jpg', faceOnBlack())], cut: false); // мужской персонаж: деталь мужская
+      final male = s.curSet.parts['hair']!.single;
+      expect(male.gender, 'male');
+      s.setGender('female');
+      expect(s.partOf('hair'), isNull, reason: 'мужская деталь скрыта у женского персонажа');
+      await s.addImages([PickedFile('f.jpg', faceOnBlack())], cut: false);
+      final fem = s.partOf('hair')!;
+      expect(fem.gender, 'female');
+      s.setPartGender(fem.id, 'both');
+      s.setGender('male');
+      expect(s.partsOf('hair').length, 2, reason: '«оба» показывается и мужскому');
+      expect(s.curSet.parts['hair']!.length, 2);
+      // стандарты слотов раздельные
+      s.p.sel = 'face';
+      s.setGeo(x: 777);
+      expect(s.slotGeo('face').x, 777);
+      s.setGender('female');
+      expect(s.slotGeo('face').x, isNot(777));
+    });
+  });
+
+  testWidgets('история: назад и вперёд, быстрые правки склеиваются, удаление детали откатывается', (t) async {
+    await t.runAsync(() async {
+      final s = newStudio();
+      s.p.sel = 'face';
+      await s.addImages([PickedFile('a.jpg', faceOnBlack())], cut: true);
+      final id = s.partOf('face')!.id;
+      expect(s.canUndo, isTrue);
+      // перетаскивание: много мелких правок = один шаг
+      for (var i = 0; i < 20; i++) {
+        s.setGeo(x: 600.0 + i);
+      }
+      expect(s.slotGeo('face').x, 619);
+      s.undo();
+      expect(s.slotGeo('face').x, 600, reason: 'вся правка откатилась одним шагом');
+      s.redo();
+      expect(s.slotGeo('face').x, 619);
+      // удаление детали и откат: картинка и деталь возвращаются
+      await s.deletePart('face', id);
+      expect(s.partOf('face'), isNull);
+      s.undo();
+      final back = s.partOf('face')!;
+      expect(back.id, id);
+      expect(s.imageOf(back), isNotNull);
+      // вырезание фона у выбранной и откат
+      await s.cutSelected();
+      s.undo();
+      s.redo();
+      expect(s.partOf('face'), isNotNull);
+      // новое действие обнуляет «вперёд»
+      s.undo();
+      s.setGeo(x: 1);
+      expect(s.canRedo, isFalse);
+      // настройки и выбор слота в историю не входят
+      final steps = s.canUndo;
+      s.p.settings.theme = 'dark';
+      s.changed();
+      s.select('hair');
+      expect(s.canUndo, steps);
     });
   });
 
@@ -84,7 +168,7 @@ void main() {
       expect(s.geoOf('face').vis, isTrue);
       expect(s.p.frame.size, closeTo(f1, 1e-6));
       s.p.sel = 'face';
-      s.setGeo(s: s.geoOf('face').s * 2);
+      s.setGeo(w: s.geoOf('face').w * 2);
       s.setFrame(mode: 'head');
       expect(s.p.frame.size, greaterThan(f1));
     });
@@ -124,6 +208,32 @@ void main() {
       expect(b.geoOf('hair').x, 321);
       expect(b.partOf('hair'), isNotNull);
       expect(b.imageOf(b.partOf('hair')), isNotNull);
+    });
+  });
+
+  testWidgets('набор деталей: имя файла раскладывает по слотам и полу, рука попадает в оба слота', (t) async {
+    await t.runAsync(() async {
+      final s = newStudio();
+      await s.importPack([
+        PickedFile('hair__female__Косы.png', squareOnChecker()),
+        PickedFile('hand__both__Рука 01.png', squareOnChecker()),
+        PickedFile('face__male__Лицо М.png', faceOnBlack()),
+        PickedFile('без_имени.png', faceOnBlack()),
+      ]);
+      final hair = s.curSet.parts['hair']!.single;
+      expect(hair.name, 'Косы');
+      expect(hair.gender, 'female');
+      expect(s.curSet.parts['handL']!.single.name, 'Рука 01');
+      expect(s.curSet.parts['handR']!.single.gender, 'both');
+      expect(s.curSet.parts['handL']!.single.blobId, s.curSet.parts['handR']!.single.blobId, reason: 'одна картинка на оба слота');
+      expect(s.curSet.parts['face']!.first.gender, 'male');
+      // без «слот__» файл идёт в выбранный слот с полом текущего персонажа
+      expect(s.curSet.parts[s.p.sel]!.any((x) => x.name == 'без_имени' && x.gender == 'male'), isTrue);
+      // мужской персонаж не видит женскую причёску
+      expect(s.partOf('hair'), isNull);
+      s.setGender('female');
+      expect(s.partOf('hair')!.name, 'Косы');
+      expect(s.partOf('handL'), isNotNull);
     });
   });
 

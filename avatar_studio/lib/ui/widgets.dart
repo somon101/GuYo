@@ -241,7 +241,7 @@ class ProfileView extends StatelessWidget {
         listenable: s,
         builder: (_, _) {
           final v0 = spec ?? s.view;
-          final v = shape == null ? v0 : ViewSpec(v0.setId, v0.pick, v0.hide, v0.frame.copy()..shape = shape!);
+          final v = shape == null ? v0 : ViewSpec(v0.setId, v0.gender, v0.pick, v0.hide, v0.frame.copy()..shape = shape!);
           return CustomPaint(size: Size(px, px), painter: _ProfilePainter(s, v, px));
         },
       );

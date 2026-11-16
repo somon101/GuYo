@@ -16,11 +16,11 @@ import 'storage.dart';
 
 /// Взгляд на проект: какой набор, какие детали выбраны, что скрыто и какой кадр. Нужен для миниатюр аватарок.
 class ViewSpec {
-  final String setId;
+  final String setId, gender;
   final Map<String, String> pick;
   final Set<String> hide;
   final FrameState frame;
-  const ViewSpec(this.setId, this.pick, this.hide, this.frame);
+  const ViewSpec(this.setId, this.gender, this.pick, this.hide, this.frame);
 }
 
 const int maxSide = 2400;
@@ -64,28 +64,109 @@ class Studio extends ChangeNotifier {
   ProjectState p = ProjectState.fresh();
   final Map<String, ui.Image> images = {};
   bool busy = false, frameTool = false, placing = false, loaded = false;
+  /// Что правят положение и размер: стандарт слота ('slot') или собственное положение выбранной детали ('part').
+  String editTarget = 'slot';
   String savedLabel = '';
   void Function(String)? onMessage;
   Timer? _timer;
 
-  // ---------- доступ к данным ----------
-  StudioSet get curSet => p.sets.firstWhere((s) => s.id == p.cur, orElse: () => p.sets.first);
-  SlotDef slot(String id) => p.slots.firstWhere((s) => s.id == id);
-  Geo geoOf(String id, [ViewSpec? v]) {
-    final set = v == null ? curSet : p.sets.firstWhere((s) => s.id == v.setId, orElse: () => p.sets.first);
-    return set.geo[id] ?? p.geo[id]!;
+  // ---------- история действий ----------
+  final List<String> _undo = [], _redo = [];
+  String _cur = '';
+  String? _lastKey;
+  DateTime _lastAt = DateTime.fromMillisecondsSinceEpoch(0);
+  bool get canUndo => _undo.isNotEmpty;
+  bool get canRedo => _redo.isNotEmpty;
+  // в историю не входят настройки и выбранный слот
+  String _snap() => jsonEncode(p.toJson(withSettings: false, withSel: false));
+  void _resetHistory() {
+    _undo.clear();
+    _redo.clear();
+    _lastKey = null;
+    _cur = _snap();
   }
 
-  bool visOf(String id, [ViewSpec? v]) => v == null ? geoOf(id).vis : !v.hide.contains(id);
+  void _record(String? burst) {
+    final j = _snap();
+    if (j == _cur) return;
+    final now = DateTime.now();
+    // быстрые правки одного и того же (перетаскивание, ползунок) склеиваются в один шаг
+    final merge = burst != null && burst == _lastKey && now.difference(_lastAt) < const Duration(seconds: 1);
+    if (!merge) {
+      _undo.add(_cur);
+      if (_undo.length > 100) _undo.removeAt(0);
+    }
+    _redo.clear();
+    _cur = j;
+    _lastKey = burst;
+    _lastAt = now;
+  }
+
+  void _restore(String json) {
+    final keepSettings = p.settings, keepSel = p.sel;
+    p = ProjectState.migrate(jsonDecode(json));
+    p.settings = keepSettings;
+    if (p.slots.any((x) => x.id == keepSel)) p.sel = keepSel;
+    frameTool = false;
+    placing = false;
+    refreshFrame();
+    notifyListeners();
+    _scheduleSave();
+  }
+
+  void undo() {
+    if (_undo.isEmpty) return;
+    _redo.add(_cur);
+    _cur = _undo.removeLast();
+    _lastKey = null;
+    _restore(_cur);
+  }
+
+  void redo() {
+    if (_redo.isEmpty) return;
+    _undo.add(_cur);
+    _cur = _redo.removeLast();
+    _lastKey = null;
+    _restore(_cur);
+  }
+
+  // ---------- доступ к данным ----------
+  StudioSet setOf(ViewSpec? v) => v == null ? curSet : p.sets.firstWhere((s) => s.id == v.setId, orElse: () => p.sets.first);
+  StudioSet get curSet => p.sets.firstWhere((s) => s.id == p.cur, orElse: () => p.sets.first);
+  SlotDef slot(String id) => p.slots.firstWhere((s) => s.id == id);
+
+  /// Стандартное положение слота для пола (текущего или из взгляда). Его можно менять.
+  Geo slotGeo(String id, [ViewSpec? v]) => p.geos[v?.gender ?? p.gender]![id]!;
+
+  bool visOf(String id, [ViewSpec? v]) => v == null ? slotGeo(id).vis : !v.hide.contains(id);
+
+  /// Детали слота, подходящие текущему персонажу: его пола и «оба».
+  List<Part> partsOf(String slotId, [ViewSpec? v]) {
+    final g = v?.gender ?? p.gender;
+    return [for (final x in setOf(v).parts[slotId] ?? const <Part>[]) if (x.fits(g)) x];
+  }
+
   Part? partOf(String slotId, [ViewSpec? v]) {
-    final set = v == null ? curSet : p.sets.firstWhere((s) => s.id == v.setId, orElse: () => p.sets.first);
-    final list = set.parts[slotId] ?? const <Part>[];
-    final key = (v?.pick ?? set.pick)[slotId];
+    final list = partsOf(slotId, v);
+    final key = (v?.pick ?? curSet.pick)[slotId];
     for (final x in list) {
       if (x.id == key) return x;
     }
     return list.isEmpty ? null : list.first;
   }
+
+  /// Положение, по которому деталь рисуется: своё положение детали или стандарт слота. Только для чтения.
+  Geo geoOf(String slotId, [ViewSpec? v]) {
+    final base = slotGeo(slotId, v);
+    final part = partOf(slotId, v);
+    if (slotId != 'bg' && part != null && part.isImage && part.geo != null) return part.geo!.copy()..vis = base.vis;
+    return base;
+  }
+
+  bool hasOwnGeo(Part part) => part.geo != null;
+
+  /// Положение, которое сейчас правят (только чтение): деталь или стандарт слота.
+  Geo get editGeoRead => editingPart ? geoOf(p.sel) : slotGeo(p.sel);
 
   ui.Image? imageOf(Part? part) => part?.blobId == null ? null : images[part!.blobId];
   Rect? rectFor(String slotId, [ViewSpec? v]) {
@@ -95,11 +176,11 @@ class Studio extends ChangeNotifier {
     return rectOf(part.w, part.h, geoOf(slotId, v));
   }
 
-  ViewSpec get view => ViewSpec(p.cur, Map.of(curSet.pick), {for (final id in p.order) if (!geoOf(id).vis) id}, p.frame);
-  ViewSpec viewOfLook(Look l) => ViewSpec(l.set, l.pick, l.hide.toSet(), l.frame);
+  ViewSpec get view => ViewSpec(p.cur, p.gender, Map.of(curSet.pick), {for (final id in p.order) if (!slotGeo(id).vis) id}, p.frame);
+  ViewSpec viewOfLook(Look l) => ViewSpec(l.set, l.gender, l.pick, l.hide.toSet(), l.frame);
   bool get hasAnyPart => p.order.any((id) => partOf(id) != null);
 
-  Map<String, Rect?> visibleRects() => {for (final id in p.order) if (id != 'bg' && geoOf(id).vis) id: rectFor(id)};
+  Map<String, Rect?> visibleRects() => {for (final id in p.order) if (id != 'bg' && slotGeo(id).vis) id: rectFor(id)};
   void refreshFrame() {
     if (p.frame.mode == 'custom') return;
     final f = framePreset(p.frame.mode, visibleRects());
@@ -109,14 +190,18 @@ class Studio extends ChangeNotifier {
   void message(String t) => onMessage?.call(t);
 
   // ---------- сохранение ----------
-  /// Что-то изменилось: пересчитать кадр, перерисовать и сохранить с небольшой задержкой.
-  void changed({bool save = true}) {
+  /// Что-то изменилось: пересчитать кадр, записать шаг в историю, перерисовать и сохранить с небольшой задержкой.
+  /// burst: ключ непрерывной правки (перетаскивание, ползунок): подряд идущие с тем же ключом склеиваются.
+  void changed({bool save = true, String? burst}) {
     refreshFrame();
+    if (save) _record(burst);
     notifyListeners();
-    if (save) {
-      _timer?.cancel();
-      _timer = Timer(const Duration(milliseconds: 250), flush);
-    }
+    if (save) _scheduleSave();
+  }
+
+  void _scheduleSave() {
+    _timer?.cancel();
+    _timer = Timer(const Duration(milliseconds: 250), flush);
   }
 
   Future<void> flush() async {
@@ -162,8 +247,16 @@ class Studio extends ChangeNotifier {
         }
       }
     }
+    // файлы, на которые ничего не ссылается (остались от отката), убираем при запуске
+    final used = <String>{for (final set in p.sets) for (final l in set.parts.values) for (final x in l) ...[if (x.blobId != null) x.blobId!, if (x.origId != null) x.origId!]};
+    try {
+      for (final id in await storage.blobIds()) {
+        if (!used.contains(id)) await storage.deleteBlob(id);
+      }
+    } catch (_) {}
     loaded = true;
     refreshFrame();
+    _resetHistory();
     notifyListeners();
   }
 
@@ -205,13 +298,9 @@ class Studio extends ChangeNotifier {
           part = Part(id: uid(), name: name, w: im.width.toDouble(), h: im.height.toDouble());
           part.blobId = await _putBlob(f.bytes, image: im);
         }
+        part.gender = isBg ? 'both' : p.gender;
         list.add(part);
         curSet.pick[slotId] = part.id;
-        final g = geoOf(slotId);
-        if (!isBg && !g.placed) {
-          g.s = fitScale(part.w, slotId);
-          g.placed = true;
-        }
       } catch (_) {
         failed++;
       }
@@ -219,6 +308,41 @@ class Studio extends ChangeNotifier {
     busy = false;
     if (failed > 0) message(failed == picked.length ? 'Не удалось открыть картинку' : 'Часть картинок не открылась');
     changed();
+  }
+
+  static final _packName = RegExp(r'^(\w+)__(male|female|both)__(.+?)(\.[A-Za-z0-9]+)?$');
+
+  /// Загрузка набора деталей из многих файлов сразу. Имя файла вида «слот__пол__название.png» само
+  /// раскладывает деталь по слоту и полу (слот hand кладёт руку в оба слота рук); остальные файлы идут в выбранный слот.
+  /// Файлы набора уже с прозрачным фоном, поэтому фон не вырезается.
+  Future<int> importPack(List<PickedFile> picked) async {
+    busy = true;
+    notifyListeners();
+    var added = 0, failed = 0;
+    for (final f in picked) {
+      try {
+        final m = _packName.firstMatch(f.name);
+        final im = await decode(f.bytes);
+        final blob = await _putBlob(f.bytes, image: im);
+        final name = m != null ? m.group(3)! : f.name.replaceFirst(RegExp(r'\.[^.]+$'), '');
+        final gender = m != null ? m.group(2)! : p.gender;
+        final token = m?.group(1);
+        final targets = token == 'hand'
+            ? ['handL', 'handR']
+            : [token != null && p.slots.any((x) => x.id == token) ? token : p.sel];
+        for (final slotId in targets) {
+          final part = Part(id: uid(), name: name, w: im.width.toDouble(), h: im.height.toDouble(), gender: slotId == 'bg' ? 'both' : gender, blobId: blob);
+          curSet.parts.putIfAbsent(slotId, () => []).add(part);
+          added++;
+        }
+      } catch (_) {
+        failed++;
+      }
+    }
+    busy = false;
+    if (failed > 0) message('Не открылось файлов: $failed');
+    changed();
+    return added;
   }
 
   /// Вырезает фон у выбранной детали (из исходника, если он есть).
@@ -238,8 +362,6 @@ class Studio extends ChangeNotifier {
           part.origId = part.blobId;
           part.origW = part.w;
           part.origH = part.h;
-        } else {
-          await _dropBlob(part.blobId!);
         }
         part.blobId = await _putBlob(r.png);
         part.w = r.w.toDouble();
@@ -255,7 +377,6 @@ class Studio extends ChangeNotifier {
   Future<void> restoreOriginal() async {
     final part = partOf(p.sel);
     if (part == null || part.origId == null) return;
-    await _dropBlob(part.blobId!);
     part.blobId = part.origId;
     part.w = part.origW ?? part.w;
     part.h = part.origH ?? part.h;
@@ -263,26 +384,22 @@ class Studio extends ChangeNotifier {
     changed();
   }
 
-  Future<void> _dropBlob(String id) async {
-    images.remove(id)?.dispose();
-    await storage.deleteBlob(id);
-  }
-
   Future<void> deletePart(String slotId, String partId) async {
     final list = curSet.parts[slotId];
     if (list == null) return;
     final i = list.indexWhere((x) => x.id == partId);
     if (i < 0) return;
-    final part = list.removeAt(i);
-    for (final id in [part.blobId, part.origId]) {
-      if (id != null) await _dropBlob(id);
-    }
+    list.removeAt(i);
+    // файл картинки остаётся, чтобы удаление можно было отменить; лишние файлы чистятся при запуске
     if (curSet.pick[slotId] == partId) curSet.pick.remove(slotId);
     changed();
   }
 
   void pickPart(String slotId, String partId) {
     curSet.pick[slotId] = partId;
+    // деталь со своим положением правится как деталь, иначе правка стандарта не была бы видна
+    final part = partOf(slotId);
+    if (slotId == p.sel && part != null && part.geo != null) editTarget = 'part';
     changed();
   }
 
@@ -315,7 +432,7 @@ class Studio extends ChangeNotifier {
   }
 
   void toggleVis(String id) {
-    final g = geoOf(id);
+    final g = slotGeo(id);
     g.vis = !g.vis;
     changed();
   }
@@ -334,7 +451,9 @@ class Studio extends ChangeNotifier {
     if (n.isEmpty) return;
     final id = 'c${uid()}';
     p.slots.add(SlotDef(id, n, custom: true));
-    p.geo[id] = Geo(x: 600, y: 700);
+    for (final g in genders) {
+      p.geos[g]![id] = Geo.generic();
+    }
     p.order.add(id);
     p.sel = id;
     changed();
@@ -343,7 +462,9 @@ class Studio extends ChangeNotifier {
   void removeSlot(String id) {
     p.slots.removeWhere((s) => s.id == id);
     p.order.remove(id);
-    p.geo.remove(id);
+    for (final g in genders) {
+      p.geos[g]!.remove(id);
+    }
     if (p.sel == id) p.sel = 'face';
     changed();
   }
@@ -377,34 +498,64 @@ class Studio extends ChangeNotifier {
     changed();
   }
 
-  void setScopeOwn(bool own) {
-    if (own) {
-      curSet.geo[p.sel] = p.geo[p.sel]!.copy();
-    } else {
-      curSet.geo.remove(p.sel);
+  /// Положение, которое сейчас правят: своё положение выбранной детали (оно создаётся при первой правке) или стандарт слота.
+  Geo _editGeo() {
+    final id = p.sel;
+    if (editTarget == 'part' && id != 'bg') {
+      final part = partOf(id);
+      if (part != null && part.isImage) return part.geo ??= geoOf(id).copy();
     }
-    changed();
+    return slotGeo(id);
   }
 
-  void resetGeo() {
-    final b = baseSlot(p.sel);
-    final g = geoOf(p.sel);
+  /// Правится ли сейчас именно деталь (а не стандарт слота).
+  bool get editingPart {
+    if (editTarget != 'part' || p.sel == 'bg') return false;
     final part = partOf(p.sel);
-    if (b != null) {
-      g..x = b.x..y = b.y..pivot = b.pivot..s = b.id == 'bg' ? 1 : (part != null && part.w > 0 ? fitScale(part.w, b.id) : 1);
+    return part != null && part.isImage;
+  }
+
+  void setEditTarget(String t) {
+    editTarget = t;
+    changed(save: false);
+  }
+
+  /// Вернуть стандартное: у детали убирается своё положение, у слота возвращаются значения по умолчанию для пола.
+  void resetGeo() {
+    final part = partOf(p.sel);
+    if (editingPart && part != null) {
+      part.geo = null;
     } else {
-      g..x = 600..y = 700..pivot = 'center'..s = part != null && part.w > 0 ? fitScale(part.w, '') : 1;
+      final b = baseSlot(p.sel);
+      final base = b != null ? Geo.fromBase(b) : Geo.generic();
+      slotGeo(p.sel)..x = base.x..y = base.y..w = base.w..s = base.s..pivot = base.pivot;
     }
     changed();
   }
 
-  void setGeo({double? x, double? y, double? s, String? pivot}) {
-    final g = geoOf(p.sel);
+  /// Меняет положение выбранной цели. Непрерывные правки (ползунок, перетаскивание) склеиваются в один шаг истории.
+  void setGeo({double? x, double? y, double? w, double? s, String? pivot}) {
+    final g = _editGeo();
     if (x != null) g.x = x;
     if (y != null) g.y = y;
+    if (w != null) g.w = w;
     if (s != null) g.s = s;
     if (pivot != null) g.pivot = pivot;
-    g.placed = true;
+    changed(burst: 'geo:${p.sel}:${editingPart ? 'part' : 'slot'}');
+  }
+
+  void setGender(String g) {
+    if (!genders.contains(g) || g == p.gender) return;
+    p.gender = g;
+    changed();
+  }
+
+  void setPartGender(String partId, String gender) {
+    for (final list in curSet.parts.values) {
+      for (final x in list) {
+        if (x.id == partId) x.gender = gender;
+      }
+    }
     changed();
   }
 
@@ -417,6 +568,8 @@ class Studio extends ChangeNotifier {
       if (x != null) f.x = x;
       if (y != null) f.y = y;
       if (size != null) f.size = size;
+      changed(burst: 'frame');
+      return;
     }
     changed();
   }
@@ -426,8 +579,9 @@ class Studio extends ChangeNotifier {
         id: id ?? uid(),
         name: name.trim().isEmpty ? 'Аватарка ${p.looks.length + 1}' : name.trim(),
         set: p.cur,
+        gender: p.gender,
         pick: Map.of(curSet.pick),
-        hide: [for (final i in p.order) if (!geoOf(i).vis) i],
+        hide: [for (final i in p.order) if (!slotGeo(i).vis) i],
         frame: p.frame.copy(),
       );
 
@@ -460,10 +614,11 @@ class Studio extends ChangeNotifier {
       message('Набор этой аватарки удалён');
       return;
     }
+    p.gender = l.gender;
     p.cur = l.set;
     curSet.pick = Map.of(l.pick);
     for (final id in p.order) {
-      geoOf(id).vis = !l.hide.contains(id);
+      slotGeo(id).vis = !l.hide.contains(id);
     }
     p.frame = l.frame.copy();
     changed();
@@ -555,7 +710,9 @@ class Studio extends ChangeNotifier {
     }
     p = st;
     frameTool = false;
-    changed();
+    _resetHistory();
+    changed(save: false);
+    _scheduleSave();
   }
 
   Future<void> wipe() async {
@@ -566,7 +723,9 @@ class Studio extends ChangeNotifier {
     images.clear();
     p = ProjectState.fresh();
     frameTool = false;
-    changed();
+    _resetHistory();
+    changed(save: false);
+    _scheduleSave();
   }
 
   @override

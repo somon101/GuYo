@@ -76,14 +76,18 @@ void main() {
   });
 
   test('прямоугольник детали зависит от точки привязки', () {
-    expect(rectOf(200, 100, Geo(x: 100, y: 100, pivot: 'center')), const Rect.fromLTWH(0, 50, 200, 100));
-    expect(rectOf(200, 100, Geo(x: 100, y: 100, pivot: 'top')), const Rect.fromLTWH(0, 100, 200, 100));
-    expect(rectOf(200, 100, Geo(x: 100, y: 100, s: 2, pivot: 'bottom')), const Rect.fromLTWH(-100, -100, 400, 200));
+    expect(rectOf(200, 100, Geo(x: 100, y: 100, w: 200, pivot: 'center')), const Rect.fromLTWH(0, 50, 200, 100));
+    expect(rectOf(200, 100, Geo(x: 100, y: 100, w: 200, pivot: 'top')), const Rect.fromLTWH(0, 100, 200, 100));
+    // ширина задаётся в пикселях холста, высота по пропорциям картинки
+    expect(rectOf(200, 100, Geo(x: 100, y: 100, w: 400, pivot: 'bottom')), const Rect.fromLTWH(-100, -100, 400, 200));
     expect(rectOf(null, null, Geo(x: 0, y: 0)), isNull);
   });
 
-  test('первая деталь вписывается по доле ширины холста', () {
-    expect(2000 * fitScale(2000, 'face'), closeTo(canvasW * 0.56, 1e-6));
+  test('стандартная ширина слота: доля ширины холста, одинаково для любого размера картинки', () {
+    expect(baseSlot('face')!.width, closeTo(canvasW * 0.56, 1e-6));
+    final g = Geo.fromBase(baseSlot('face')!);
+    expect(rectOf(2000, 1000, g)!.width, closeTo(canvasW * 0.56, 1e-6));
+    expect(rectOf(300, 300, g)!.width, closeTo(canvasW * 0.56, 1e-6));
   });
 
   test('кадр «Голова» охватывает лицо и волосы, «Весь» всё', () {
@@ -111,5 +115,27 @@ void main() {
     expect(m.sets.first.parts['face']!.first.blobId, 'b1');
     expect(m.sets.first.pick['face'], 'p1');
     expect(m.geo['hair']!.pivot, 'center');
+  });
+
+  test('проект: у детали свой пол и своё положение, старые файлы читаются', () {
+    final st = ProjectState.fresh();
+    st.sets.first.parts['hair'] = [Part(id: 'h1', name: 'Косы', gender: 'female', w: 100, h: 100, blobId: 'b', geo: Geo(x: 10, y: 20, w: 300))];
+    final m = ProjectState.migrate(st.toJson());
+    final p = m.sets.first.parts['hair']!.first;
+    expect(p.gender, 'female');
+    expect(p.geo!.w, 300);
+    expect(p.fits('female'), isTrue);
+    expect(p.fits('male'), isFalse);
+    expect(Part(id: 'x', name: 'x').fits('male'), isTrue, reason: 'по умолчанию «оба»');
+    // старый формат: одно положение на всех, масштаб вместо ширины
+    final old = {
+      'format': projectFormat,
+      'geo': {'face': {'x': 500, 'y': 400, 's': 0.8, 'pivot': 'center', 'vis': 1}},
+      'sets': [{'id': 's1', 'name': 'Старый', 'parts': {}, 'pick': {}}],
+    };
+    final o = ProjectState.migrate(old);
+    expect(o.geos['male']!['face']!.x, 500);
+    expect(o.geos['female']!['face']!.x, 500);
+    expect(o.geos['male']!['face']!.w, closeTo(canvasW * 0.56, 1e-6));
   });
 }

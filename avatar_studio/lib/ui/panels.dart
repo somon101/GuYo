@@ -26,7 +26,15 @@ class SetsPanel extends StatelessWidget {
           const SizedBox(width: 8),
           TextButton(onPressed: s.deleteSet, child: Text('Удалить', style: TextStyle(color: c.mut, fontWeight: FontWeight.w700))),
         ]),
-        const Note('Набор это комплект деталей: одежда, лица, волосы, очки, фоны. Положение слотов общее, поэтому деталь из другого набора встаёт на то же место.'),
+        const Note('Набор это комплект деталей: одежда, лица, волосы, очки, фоны. Положение слотов по умолчанию общее, поэтому деталь из другого набора встаёт на то же место.'),
+        const SizedBox(height: 10),
+        Btn('Загрузить набор деталей', icon: Icons.folder_open_outlined, onTap: () async {
+          final files = await s.files.pickImages();
+          if (files.isEmpty) return;
+          final n = await s.importPack(files);
+          s.message('Добавлено деталей: $n');
+        }),
+        const Note('Выберите много файлов сразу. Если имя файла вида «слот__пол__название.png», деталь сама встанет в нужный слот и для нужного пола.'),
       ]),
     );
   }
@@ -107,7 +115,7 @@ class _SlotRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = sc(context);
-    final sl = s.slot(id), part = s.partOf(id), g = s.geoOf(id), on = id == s.p.sel;
+    final sl = s.slot(id), part = s.partOf(id), g = s.slotGeo(id), on = id == s.p.sel;
     return InkWell(
       borderRadius: BorderRadius.circular(14),
       onTap: () {
@@ -160,7 +168,9 @@ class _Arrow extends StatelessWidget {
 
 class PartsPanel extends StatelessWidget {
   final Studio s;
-  const PartsPanel(this.s, {super.key});
+  /// Нажали «Править положение детали»: на телефоне переключает на вкладку «Положение».
+  final VoidCallback? onEdit;
+  const PartsPanel(this.s, {super.key, this.onEdit});
 
   Future<void> _upload(BuildContext context) async {
     final files = await s.files.pickImages();
@@ -188,8 +198,10 @@ class PartsPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = sc(context);
     final id = s.p.sel, isBg = id == 'bg';
-    final arr = s.curSet.parts[id] ?? const <Part>[];
+    final arr = s.partsOf(id);
+    final hidden = (s.curSet.parts[id] ?? const <Part>[]).length - arr.length;
     final cur = s.partOf(id);
+    final character = s.p.gender == 'male' ? 'мужского' : 'женского';
     final upload = InkWell(
       borderRadius: BorderRadius.circular(14),
       onTap: () => _upload(context),
@@ -218,8 +230,21 @@ class PartsPanel extends StatelessWidget {
           ]),
           const Note('Фон виден за персонажем и внутри круга профиля. Фото можно приблизить и сдвинуть в блоке «Положение».'),
         ] else ...[
-          Note(arr.isEmpty ? 'В слоте пока нет деталей. Загрузите одну или несколько картинок: они появятся здесь как варианты.' : 'Выбранная деталь встаёт на точку слота. Любая другая деталь этого слота займёт то же место.'),
-          const SizedBox(height: 12),
+          Note(arr.isEmpty
+              ? 'Для $character персонажа в слоте пока нет деталей. Загрузите картинки: они появятся здесь как варианты.'
+              : 'Показаны детали $character персонажа и те, что отмечены «Оба».${hidden > 0 ? ' Скрыто деталей другого пола: $hidden.' : ''}'),
+          if (cur != null && cur.isImage) ...[
+            const SizedBox(height: 12),
+            Text('Деталь «${cur.name}» подходит для', style: TextStyle(fontSize: 12.5, color: c.mut)),
+            const SizedBox(height: 6),
+            Seg<String>(items: const [('male', 'Мужского'), ('female', 'Женского'), ('both', 'Обоих')], value: cur.gender, onChanged: (v) => s.setPartGender(cur.id, v)),
+            const SizedBox(height: 10),
+            Btn(cur.geo != null ? 'Править положение детали (своё)' : 'Править положение детали', icon: Icons.edit_outlined, on: s.editingPart, onTap: () {
+              s.setEditTarget('part');
+              onEdit?.call();
+            }),
+          ],
+          const SizedBox(height: 14),
           Text('Фон картинки при загрузке', style: TextStyle(fontSize: 12.5, color: c.mut)),
           const SizedBox(height: 6),
           Seg<String>(items: const [('ask', 'Спрашивать'), ('cut', 'Вырезать'), ('keep', 'Как есть')], value: s.p.settings.removeMode, onChanged: (v) {
@@ -232,14 +257,18 @@ class PartsPanel extends StatelessWidget {
               Btn('Вырезать фон у выбранной', small: true, onTap: s.cutSelected),
               if (cur.origId != null) Btn('Вернуть как было', small: true, onTap: s.restoreOriginal),
             ]),
-            if (cur.origId != null) Padding(padding: const EdgeInsets.only(top: 8), child: Row(children: [
-              Text('Строгость', style: TextStyle(fontSize: 12.5, color: c.mut)),
-              Expanded(child: Slider(value: s.p.settings.tol.toDouble(), min: 2, max: 40, onChanged: (v) {
-                s.p.settings.tol = v.round();
-                s.changed();
-              })),
-              Text('${s.p.settings.tol}', style: TextStyle(fontSize: 12.5, color: c.mut)),
-            ])),
+            if (cur.origId != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(children: [
+                  Text('Строгость', style: TextStyle(fontSize: 12.5, color: c.mut)),
+                  Expanded(child: Slider(value: s.p.settings.tol.toDouble(), min: 2, max: 40, onChanged: (v) {
+                    s.p.settings.tol = v.round();
+                    s.changed();
+                  })),
+                  Text('${s.p.settings.tol}', style: TextStyle(fontSize: 12.5, color: c.mut)),
+                ]),
+              ),
           ],
         ],
       ]),
@@ -268,6 +297,9 @@ class _PartTile extends StatelessWidget {
             child: PartThumb(s, part, fit: cover ? BoxFit.cover : BoxFit.contain),
           ),
         ),
+        // точка: у детали сохранено своё положение
+        if (part.geo != null) Positioned(left: 6, bottom: 6, child: Container(width: 9, height: 9, decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle, border: Border.all(color: c.panel, width: 1.5)))),
+        if (part.gender != 'both' && !cover) Positioned(left: 4, top: 3, child: Text(part.gender == 'male' ? 'М' : 'Ж', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: c.mut))),
         Positioned(
           right: 3,
           top: 3,
@@ -288,16 +320,10 @@ class GeoPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = sc(context);
     final id = s.p.sel;
-    final g = s.geoOf(id);
-    final own = s.curSet.geo.containsKey(id);
-    final scope = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const SizedBox(height: 14),
-      Text('Положение действует', style: TextStyle(fontSize: 12.5, color: c.mut)),
-      const SizedBox(height: 6),
-      Seg<bool>(items: const [(false, 'Для всех наборов'), (true, 'Только в этом наборе')], value: own, onChanged: s.setScopeOwn),
-    ]);
+    final cur = s.partOf(id);
     if (id == 'bg') {
-      final img = s.partOf('bg')?.kind == 'img';
+      final g = s.slotGeo('bg');
+      final img = cur?.kind == 'img';
       return CardBox(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const PanelTitle('Положение фона'),
@@ -307,23 +333,36 @@ class GeoPanel extends StatelessWidget {
             SliderRow(label: 'Сдвиг по Y', value: g.y, min: -50, max: 50, onChanged: (v) => s.setGeo(y: v)),
           ] else
             Text('Для цвета и градиента положение не нужно. Загрузите фото, чтобы двигать его.', style: TextStyle(fontSize: 12.5, color: c.mut)),
-          scope,
           const SizedBox(height: 12),
           Btn('Вернуть исходное', onTap: s.resetGeo),
         ]),
       );
     }
-    void nudge(double dx, double dy) {
-      s.setGeo(x: g.x + dx, y: g.y + dy);
-    }
-
+    final canPart = cur != null && cur.isImage;
+    final part = s.editingPart;
+    final g = s.editGeoRead;
+    final who = s.p.gender == 'male' ? 'мужского' : 'женского';
+    void nudge(double dx, double dy) => s.setGeo(x: g.x + dx, y: g.y + dy);
     Widget arrow(IconData i, double dx, double dy) => SizedBox(width: 38, height: 38, child: Material(color: c.panel2, borderRadius: BorderRadius.circular(10), child: InkWell(borderRadius: BorderRadius.circular(10), onTap: () => nudge(dx, dy), child: Icon(i, size: 18))));
     return CardBox(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const PanelTitle('Положение слота'),
+        const PanelTitle('Положение'),
+        if (canPart) ...[
+          Seg<String>(items: const [('slot', 'Слот по умолчанию'), ('part', 'Эта деталь')], value: part ? 'part' : 'slot', onChanged: s.setEditTarget),
+          const SizedBox(height: 8),
+        ],
+        Text(
+          part
+              ? (cur!.geo != null ? 'У детали «${cur.name}» своё положение, оно сохранено. Другие детали слота его не меняют.' : 'Деталь «${cur.name}» пока стоит по стандарту слота. Измените что-нибудь, и положение сохранится именно для неё.')
+              : 'Стандарт слота для $who персонажа. По нему встают все детали, у которых нет своего положения.',
+          style: TextStyle(fontSize: 12.5, color: c.mut, height: 1.4),
+        ),
+        if (!part && cur != null && cur.geo != null)
+          Padding(padding: const EdgeInsets.only(top: 6), child: Text('У выбранной детали своё положение: стандарт слота её не двигает.', style: TextStyle(fontSize: 12.5, color: c.warn, height: 1.4))),
+        const SizedBox(height: 8),
         SliderRow(label: 'По X', value: g.x, min: -300, max: 1500, onChanged: (v) => s.setGeo(x: v)),
         SliderRow(label: 'По Y', value: g.y, min: -300, max: 1900, onChanged: (v) => s.setGeo(y: v)),
-        SliderRow(label: 'Размер, %', value: g.s * 100, min: 5, max: 300, onChanged: (v) => s.setGeo(s: v / 100)),
+        SliderRow(label: 'Ширина', value: g.w, min: 20, max: 2400, onChanged: (v) => s.setGeo(w: v)),
         const SizedBox(height: 12),
         Wrap(spacing: 18, runSpacing: 12, crossAxisAlignment: WrapCrossAlignment.center, children: [
           SizedBox(
@@ -342,10 +381,9 @@ class GeoPanel extends StatelessWidget {
             Seg<String>(items: const [('top', 'Верх'), ('center', 'Центр'), ('bottom', 'Низ')], value: g.pivot, onChanged: (v) => s.setGeo(pivot: v)),
           ]),
         ]),
-        scope,
         const Note('Для руки поставьте привязку «Верх»: точка слота будет у запястья. Можно потянуть макет пальцем или мышью, либо нажать «Указать точку».'),
         const SizedBox(height: 12),
-        Btn('Вернуть исходное', onTap: s.resetGeo),
+        Btn(part ? 'Вернуть к стандартному' : 'Вернуть исходное', onTap: s.resetGeo),
       ]),
     );
   }
@@ -469,7 +507,8 @@ class _LookCard extends StatelessWidget {
         InkWell(customBorder: const CircleBorder(), onTap: () => s.applyLook(l), child: ProfileView(s, spec: s.viewOfLook(l), px: 84)),
         const SizedBox(height: 8),
         NameField(key: ValueKey('look-${l.id}'), value: l.name, center: true, onChanged: (v) => s.renameLook(l.id, v)),
-        const SizedBox(height: 8),
+        Padding(padding: const EdgeInsets.only(top: 4), child: Text(l.gender == 'male' ? 'Мужской' : 'Женский', style: TextStyle(fontSize: 11.5, color: c.mut))),
+        const SizedBox(height: 6),
         Wrap(spacing: 4, runSpacing: 4, alignment: WrapAlignment.center, children: [
           act('PNG', () async => s.files.saveFile('${l.name}.png', await s.profilePng(look: l), 'image/png')),
           act('Обновить', () => s.updateLook(l.id)),
