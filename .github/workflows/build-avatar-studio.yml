@@ -1,8 +1,8 @@
 name: Build Avatar Studio
 
-# Отдельная офлайн-программа «Студия аватаров» (папка avatar-studio). Не связана с приложением GuYo.
+# Отдельная офлайн-программа «Студия аватаров» (папка avatar_studio, Flutter). Не связана с приложением GuYo.
 # Запускается только вручную. Результат: Releases -> "Avatar Studio" (тег avatar-studio):
-# AvatarStudio.apk (Android) и Avatar-Studio.exe (Windows, запускается без установки).
+# AvatarStudio.apk (Android) и Avatar-Studio-Windows.zip (Windows: распаковать и запустить avatar_studio.exe).
 on:
   workflow_dispatch:
 
@@ -11,60 +11,65 @@ permissions:
 
 defaults:
   run:
-    working-directory: avatar-studio
+    working-directory: avatar_studio
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: subosito/flutter-action@v2
         with:
-          node-version: "22"
-      - run: node --test test/core.test.js
+          channel: stable
+          flutter-version: "3.47.5"
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
 
   android:
     needs: test
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "21"
-      - run: npm install --no-audit --no-fund
-      - name: Android project
-        run: |
-          npx cap add android
-          npx cap sync android
-      - name: Build APK
-        working-directory: avatar-studio/android
-        run: ./gradlew assembleDebug --no-daemon
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.47.5"
+          cache: true
+      - run: flutter pub get
+      - run: flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
           name: AvatarStudio-apk
-          path: avatar-studio/android/app/build/outputs/apk/debug/app-debug.apk
+          path: avatar_studio/build/app/outputs/flutter-apk/app-release.apk
 
   windows:
     needs: test
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: subosito/flutter-action@v2
         with:
-          node-version: "22"
-      - run: npm install --no-audit --no-fund
-      - run: npx electron-builder --win portable --publish never
+          channel: stable
+          flutter-version: "3.47.5"
+          cache: true
+      - run: flutter pub get
+      - run: flutter build windows --release
+      - name: Zip
+        shell: pwsh
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath Avatar-Studio-Windows.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: AvatarStudio-exe
-          path: avatar-studio/dist/Avatar-Studio.exe
+          name: AvatarStudio-windows
+          path: avatar_studio/Avatar-Studio-Windows.zip
 
   publish:
     needs: [android, windows]
@@ -79,8 +84,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          cp out/AvatarStudio-apk/app-debug.apk AvatarStudio.apk
-          cp out/AvatarStudio-exe/Avatar-Studio.exe Avatar-Studio.exe
+          cp out/AvatarStudio-apk/app-release.apk AvatarStudio.apk
+          cp out/AvatarStudio-windows/Avatar-Studio-Windows.zip Avatar-Studio-Windows.zip
           gh release delete avatar-studio --yes --cleanup-tag 2>/dev/null || true
-          gh release create avatar-studio AvatarStudio.apk Avatar-Studio.exe --title "Avatar Studio" --prerelease \
-            --notes "Студия аватаров: Android (APK) и Windows (exe без установки). Работает офлайн, не зависит от GuYo."
+          gh release create avatar-studio AvatarStudio.apk Avatar-Studio-Windows.zip --title "Avatar Studio" --prerelease \
+            --notes "Студия аватаров на Flutter: Android (APK) и Windows (zip: распаковать и запустить avatar_studio.exe). Работает офлайн, не зависит от GuYo."
