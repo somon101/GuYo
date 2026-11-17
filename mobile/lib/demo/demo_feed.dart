@@ -1087,44 +1087,44 @@ class DemoMyTeamCard extends StatelessWidget {
         // no team yet: the same blue card as inside the season pass («Играйте вместе»), a little smaller
         return Container(
           key: const ValueKey('my-team-card'),
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(20),
             gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: _gradient),
             boxShadow: [BoxShadow(color: _gradient.last.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 7))],
           ),
           child: Column(children: [
-            const Icon(Icons.groups_rounded, size: 44, color: Colors.white),
-            const SizedBox(height: 4),
-            Text(tr('Играйте вместе'), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900, color: Colors.white)),
-            const SizedBox(height: 4),
-            Text(
-              tr('Соберите команду из друзей: общие цели недели и сезона, бонусная энергия и командный значок'),
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12.5, height: 1.3, color: Colors.white.withValues(alpha: 0.9)),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: FilledButton(
-                key: const ValueKey('my-team-create'),
-                onPressed: () => showDemoCreateTeam(context),
-                style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: _gradient.last),
-                child: Text(tr('Создать команду'), style: const TextStyle(fontWeight: FontWeight.w800)),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              const Icon(Icons.groups_rounded, size: 26, color: Colors.white),
+              const SizedBox(width: 8),
+              Text(tr('Играйте вместе'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white)),
+            ]),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(
+                child: SizedBox(
+                  height: 42,
+                  child: FilledButton(
+                    key: const ValueKey('my-team-create'),
+                    onPressed: () => showDemoCreateTeam(context),
+                    style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: _gradient.last, padding: const EdgeInsets.symmetric(horizontal: 8)),
+                    child: FittedBox(fit: BoxFit.scaleDown, child: Text(tr('Создать команду'), style: const TextStyle(fontWeight: FontWeight.w800))),
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: OutlinedButton(
-                key: const ValueKey('my-team-find'),
-                onPressed: () => showDemoTeamsList(context),
-                style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white, width: 1.5)),
-                child: Text(tr('Найти команду'), style: const TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: SizedBox(
+                  height: 42,
+                  child: OutlinedButton(
+                    key: const ValueKey('my-team-find'),
+                    onPressed: () => showDemoTeamsList(context),
+                    style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white, width: 1.5), padding: const EdgeInsets.symmetric(horizontal: 8)),
+                    child: FittedBox(fit: BoxFit.scaleDown, child: Text(tr('Найти команду'), style: const TextStyle(fontWeight: FontWeight.w800))),
+                  ),
+                ),
               ),
-            ),
+            ]),
           ]),
         );
       },
