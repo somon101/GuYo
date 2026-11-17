@@ -324,16 +324,16 @@ class _AvatarEditorScreenState extends State<AvatarEditorScreen> {
           Text(tr('Кто вы?'), style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
           const SizedBox(height: 18),
           Row(children: [
-            Expanded(child: _genderCard('male', tr('Парень'), Icons.face_rounded)),
+            Expanded(child: _genderCard('male', tr('Парень'), 'assets/icons/avatar_boy.png')),
             const SizedBox(width: 12),
-            Expanded(child: _genderCard('female', tr('Девушка'), Icons.face_3_rounded)),
+            Expanded(child: _genderCard('female', tr('Девушка'), 'assets/icons/avatar_girl.png')),
           ]),
         ],
       ),
     );
   }
 
-  Widget _genderCard(String gender, String label, IconData icon) {
+  Widget _genderCard(String gender, String label, String asset) {
     final ok = _catalog?.slotsFor(gender).isNotEmpty ?? false;
     return Opacity(
       opacity: ok ? 1 : 0.4,
@@ -344,7 +344,7 @@ class _AvatarEditorScreenState extends State<AvatarEditorScreen> {
           padding: const EdgeInsets.symmetric(vertical: 28),
           decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.cardBorder, width: 2)),
           child: Column(children: [
-            Icon(icon, size: 56, color: AppColors.primary),
+            Image.asset(asset, height: 104, fit: BoxFit.contain, filterQuality: FilterQuality.medium),
             const SizedBox(height: 10),
             Text(label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
           ]),
