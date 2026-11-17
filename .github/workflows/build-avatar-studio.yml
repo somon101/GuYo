@@ -2,7 +2,8 @@ name: Build Avatar Studio
 
 # Отдельная офлайн-программа «Студия аватаров» (папка avatar_studio, Flutter). Не связана с приложением GuYo.
 # Запускается только вручную. Результат: Releases -> "Avatar Studio" (тег avatar-studio):
-# AvatarStudio.apk (Android) и Avatar-Studio-Windows.zip (Windows: распаковать и запустить avatar_studio.exe).
+# AvatarStudio.apk (Android), Avatar-Studio-Setup.exe (установщик для Windows) и
+# Avatar-Studio-Windows.zip (та же программа без установки: распаковать и запустить avatar_studio.exe).
 on:
   workflow_dispatch:
 
@@ -65,13 +66,29 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build windows --release
+      - name: Библиотеки Visual C++ рядом с программой (чтобы запускалась на любом ПК)
+        shell: pwsh
+        run: |
+          foreach ($d in 'msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll') {
+            Copy-Item "$env:WINDIR\System32\$d" build/windows/x64/runner/Release/ -Force
+          }
       - name: Zip
         shell: pwsh
         run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath Avatar-Studio-Windows.zip
+      - name: Установщик (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress; $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          $ver = ((Select-String -Path pubspec.yaml -Pattern '^version:\s*([0-9.]+)').Matches[0].Groups[1].Value) + ".${{ github.run_number }}"
+          & $iscc "/DAppVersion=$ver" "/DSourceDir=$PWD\build\windows\x64\runner\Release" windows\installer.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         with:
           name: AvatarStudio-windows
-          path: avatar_studio/Avatar-Studio-Windows.zip
+          path: |
+            avatar_studio/Avatar-Studio-Windows.zip
+            avatar_studio/build/installer/Avatar-Studio-Setup.exe
 
   publish:
     needs: [android, windows]
@@ -88,6 +105,8 @@ jobs:
         run: |
           cp out/AvatarStudio-apk/app-release.apk AvatarStudio.apk
           cp out/AvatarStudio-windows/Avatar-Studio-Windows.zip Avatar-Studio-Windows.zip
+          cp "$(find out/AvatarStudio-windows -name Avatar-Studio-Setup.exe)" Avatar-Studio-Setup.exe
           gh release delete avatar-studio --yes --cleanup-tag 2>/dev/null || true
-          gh release create avatar-studio AvatarStudio.apk Avatar-Studio-Windows.zip --title "Avatar Studio" --prerelease \
-            --notes "Студия аватаров на Flutter: Android (APK) и Windows (zip: распаковать и запустить avatar_studio.exe). Работает офлайн, не зависит от GuYo."
+          gh release create avatar-studio AvatarStudio.apk Avatar-Studio-Setup.exe Avatar-Studio-Windows.zip --title "Avatar Studio" --prerelease \
+            --target "${{ github.sha }}" \
+            --notes "Студия аватаров на Flutter: Android (APK) и Windows (Avatar-Studio-Setup.exe: установщик; zip: без установки, распаковать и запустить avatar_studio.exe). Работает офлайн, не зависит от GuYo."
