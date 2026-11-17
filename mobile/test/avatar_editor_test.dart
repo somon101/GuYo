@@ -86,6 +86,21 @@ void main() {
     expect((im.width, im.height), (64, 64));
   });
 
+  test('extras like glasses are optional: random avatars come with and without, the choice can take them off', () {
+    final c = AvatarCatalog.fromJson({
+      'version': 1,
+      'slots': [{'id': 'cloth', 'name': 'Одежда'}, {'id': 'face', 'name': 'Лицо'}, {'id': 'hair', 'name': 'Волосы'}, {'id': 'glasses', 'name': 'Очки'}],
+      'items': [part('c', 'cloth', 'male', 's'), part('f', 'face', 'male', 's'), part('h', 'hair', 'male', 's'), part('g1', 'glasses', 'male', 's'), part('g2', 'glasses', 'male', 's')],
+    });
+    expect(isOptionalSlot('glasses'), isTrue);
+    expect(isOptionalSlot('hair'), isFalse);
+    final withGlasses = [for (var s = 0; s < 40; s++) randomChoice(c, 'male', math.Random(s)).slots.containsKey('glasses')];
+    expect(withGlasses.contains(true) && withGlasses.contains(false), isTrue);
+    final ch = randomChoice(c, 'male', math.Random(1)).withSlot('glasses', 'g1');
+    expect(ch.withoutSlot('glasses').slots.containsKey('glasses'), isFalse);
+    expect(ch.withoutSlot('glasses').slots.keys, containsAll(['cloth', 'face', 'hair']));
+  });
+
   testWidgets('the editor: gender → a random set is already there → grid of parts → change one → dice', (t) async {
     t.view.physicalSize = const Size(1080, 2200);
     t.view.devicePixelRatio = 3;
@@ -143,6 +158,41 @@ void main() {
       expect(png.sublist(0, 4), [0x89, 0x50, 0x4E, 0x47]);
     }
     final choice = randomChoice(c, 'male', math.Random(2));
-    expect(choice.slots.keys.toSet(), c.slotsFor('male').map((s) => s.id).toSet());
+    expect(choice.slots.keys.toSet().containsAll({'cloth', 'face', 'hair'}), isTrue, reason: 'the main parts are always there');
+    expect(c.slotsFor('male').map((s) => s.id), isNot(contains('neck')), reason: 'no neck any more');
+  });
+
+  testWidgets('glasses step: a "none" square first; choosing it leaves the avatar without glasses', (t) async {
+    t.view.physicalSize = const Size(1080, 2200);
+    t.view.devicePixelRatio = 3;
+    addTearDown(t.view.reset);
+    final store = AvatarStore.instance;
+    final c = AvatarCatalog.fromJson({
+      'version': 1,
+      'slots': [{'id': 'hair', 'name': 'Волосы'}, {'id': 'glasses', 'name': 'Очки'}],
+      'items': [part('h', 'hair', 'male', 's'), part('g1', 'glasses', 'male', 's'), part('g2', 'glasses', 'male', 's')],
+    });
+    store.debugCatalog = () async => c;
+    store.debugImage = (url) async => square(0xFF5566AA);
+    addTearDown(() {
+      store.debugCatalog = null;
+      store.debugImage = null;
+      store.images.clear();
+    });
+    final profile = UserProfile(id: 1, publicId: 123456789, login: 'Aisha', firstName: null, lastName: null, email: null, avatarUrl: null, currentStreakDays: 0, lessonsCompleted: 0, wordsLearned: 0);
+    await t.pumpWidget(MaterialApp(home: AvatarEditorScreen(profile: profile, random: math.Random(3))));
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 50));
+    await t.tap(find.text('Парень'));
+    await t.pump();
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await t.pump();
+    await t.tap(find.text('Дальше')); // hair → glasses
+    await t.pump();
+    expect(find.text('Очки · 2'), findsOneWidget);
+    expect(find.byKey(const ValueKey('avatar-none')), findsOneWidget);
+    await t.tap(find.byKey(const ValueKey('avatar-none')));
+    await t.pump();
+    expect(t.takeException(), isNull);
   });
 }

@@ -154,6 +154,8 @@ class AvatarChoice {
   const AvatarChoice({required this.gender, required this.slots, this.bg});
 
   AvatarChoice withSlot(String slot, String id) => AvatarChoice(gender: gender, slots: {...slots, slot: id}, bg: bg);
+  /// Takes the part of a slot off (glasses and other extras are optional).
+  AvatarChoice withoutSlot(String slot) => AvatarChoice(gender: gender, slots: {for (final e in slots.entries) if (e.key != slot) e.key: e.value}, bg: bg);
   AvatarChoice withBg(String? id) => AvatarChoice(gender: gender, slots: slots, bg: id);
 
   Map<String, dynamic> toJson() => {'gender': gender, 'slots': slots, 'bg': bg};

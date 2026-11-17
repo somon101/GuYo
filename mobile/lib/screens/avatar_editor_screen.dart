@@ -367,8 +367,18 @@ class _AvatarEditorScreenState extends State<AvatarEditorScreen> {
     if (_step - 1 >= slots.length) return const SizedBox.shrink();
     final slot = slots[_step - 1];
     final parts = c.partsFor(slot.id, choice.gender);
-    return _grid(parts.length, (i) {
-      final p = parts[i];
+    // an extra (glasses...) can be left off: the first square is "none"
+    final optional = isOptionalSlot(slot.id);
+    final shift = optional ? 1 : 0;
+    return _grid(parts.length + shift, (i) {
+      if (optional && i == 0) {
+        return _tile(
+          selected: !choice.slots.containsKey(slot.id),
+          onTap: () => setState(() => _choice = choice.withoutSlot(slot.id)),
+          child: Center(child: Icon(Icons.block_rounded, key: const ValueKey('avatar-none'), size: 30, color: AppColors.secondaryText)),
+        );
+      }
+      final p = parts[i - shift];
       _want([p.url]);
       return _tile(selected: choice.slots[slot.id] == p.id, onTap: () => setState(() => _choice = choice.withSlot(slot.id, p.id)), child: _thumb(p.url));
     }, title: '${slotTitle(slot)} · ${parts.length}');
