@@ -444,10 +444,10 @@ class _AvatarEditorScreenState extends State<AvatarEditorScreen> {
         width: double.infinity,
         height: 52,
         child: FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: AppColors.action, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+          style: FilledButton.styleFrom(backgroundColor: last ? AppColors.success : AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
           onPressed: _saving ? null : (last ? _save : () => setState(() => _step++)),
           child: _saving
-              ? SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.onAction))
+              ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
               : Text(last ? tr('Готово') : tr('Дальше'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
         ),
       ),

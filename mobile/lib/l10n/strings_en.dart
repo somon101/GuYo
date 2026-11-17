@@ -2,6 +2,11 @@
 /// itself (see l10n.dart). Kept as its own table rather than a third column
 /// of uiStrings, so the Tajik/Uzbek rows stay untouched.
 const Map<String, String> enStrings = {
+  'Команды «{0}» больше нет': 'Team “{0}” is gone',
+  'Создатель закрыл её. Ваши очки и серия остались с вами, можно найти новую команду.': 'Its creator closed it. Your points and streak are still yours, you can find a new team.',
+  'Вы вышли из команды «{0}»': 'You left the team “{0}”',
+  'Ваши очки и серия остались с вами. Можно найти другую команду или создать свою.': 'Your points and streak are still yours. You can find another team or create your own.',
+  'Создать свою': 'Create your own',
   'Создание аватара': 'Creating an avatar',
   'Кто вы?': 'Who are you?',
   'Парень': 'Guy',

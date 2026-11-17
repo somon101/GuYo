@@ -92,8 +92,8 @@ class _LoginScreenState extends State<LoginScreen> {
           key: key,
           onPressed: onTap,
           style: FilledButton.styleFrom(
-            backgroundColor: AppColors.action,
-            foregroundColor: AppColors.onAction,
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
           child: Text(label, style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700)),

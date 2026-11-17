@@ -683,6 +683,28 @@ class _TeamSheet extends StatefulWidget {
 
 class _TeamSheetState extends State<_TeamSheet> {
   String? _error;
+  String _name = '';
+  bool _goneShown = false;
+
+  /// The team sheet closes and a card says the team is gone (closed by its creator) or that the player left it.
+  void _closeWithGone({required bool closed}) {
+    final root = Navigator.of(context, rootNavigator: true).context;
+    final name = _name;
+    Navigator.of(context).pop();
+    showDemoTeamGone(root, name: name, closed: closed);
+  }
+
+  void _leaveTeam() {
+    _goneShown = true; // the team may disappear from under us: the card below is the one message
+    try {
+      _s.leave();
+    } on DemoTeamError catch (e) {
+      _goneShown = false;
+      setState(() => _error = tr(e.message));
+      return;
+    }
+    _closeWithGone(closed: false);
+  }
 
   void _run(void Function() action) {
     try {
@@ -699,7 +721,17 @@ class _TeamSheetState extends State<_TeamSheet> {
       valueListenable: _s.changes,
       builder: (context, _, _) {
         final t = _s.teams[widget.teamId];
-        if (t == null) return Padding(padding: const EdgeInsets.all(24), child: Text(tr('Команды больше нет')));
+        if (t == null) {
+          // the creator closed the team while this sheet was open
+          if (!_goneShown) {
+            _goneShown = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _closeWithGone(closed: true);
+            });
+          }
+          return const SizedBox(height: 120);
+        }
+        _name = t.name;
         final room = _s.roomIn(t);
         final mine = t.members.contains(DemoSocial.me);
         final my = _s.myTeam;
@@ -718,7 +750,7 @@ class _TeamSheetState extends State<_TeamSheet> {
             info(tr('Это ваша команда.')),
             TextButton.icon(
               key: const ValueKey('team-leave'),
-              onPressed: () => _run(_s.leave),
+              onPressed: _leaveTeam,
               icon: const Icon(Icons.logout_rounded, color: _P.red),
               label: Text(tr('Выйти из команды'), style: const TextStyle(color: _P.red, fontWeight: FontWeight.w700)),
             ),
@@ -829,6 +861,56 @@ class _TeamIcon extends StatelessWidget {
         child: Icon(Icons.groups_rounded, color: AppColors.primary),
       );
 }
+
+/// The card in the middle of the screen when a team is gone: closed by its creator, or the player left it.
+Future<void> showDemoTeamGone(BuildContext context, {required String name, required bool closed}) => showDialog<void>(
+      context: context,
+      barrierColor: const Color(0x8C05070E),
+      builder: (ctx) => Dialog(
+        key: const ValueKey('team-gone'),
+        backgroundColor: _P.surface,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26), side: BorderSide(color: _P.line)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 18),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 62,
+              height: 62,
+              decoration: BoxDecoration(color: _P.soft, borderRadius: BorderRadius.circular(20)),
+              child: Icon(Icons.group_off_rounded, size: 32, color: _P.lilac),
+            ),
+            const SizedBox(height: 14),
+            Text(closed ? tr('Команды «{0}» больше нет', [name]) : tr('Вы вышли из команды «{0}»', [name]), textAlign: TextAlign.center, style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: _P.ink)),
+            const SizedBox(height: 8),
+            Text(
+              closed ? tr('Создатель закрыл её. Ваши очки и серия остались с вами, можно найти новую команду.') : tr('Ваши очки и серия остались с вами. Можно найти другую команду или создать свою.'),
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, height: 1.4, color: _P.muted),
+            ),
+            const SizedBox(height: 18),
+            _GreenButton(tr('Найти команду'), key: const ValueKey('team-gone-find'), onTap: () {
+              Navigator.of(ctx).pop();
+              showDemoTeamsList(context);
+            }),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: OutlinedButton(
+                key: const ValueKey('team-gone-create'),
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  showDemoCreateTeam(context);
+                },
+                style: OutlinedButton.styleFrom(foregroundColor: _P.muted, side: BorderSide(color: _P.line, width: 1.5), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                child: Text(tr('Создать свою'), style: const TextStyle(fontWeight: FontWeight.w800)),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
 
 Future<void> showDemoTeamsList(BuildContext context) => showModalBottomSheet<void>(
       context: context,
@@ -1132,7 +1214,7 @@ class _DemoPersonScreenState extends State<DemoPersonScreen> {
                       onPressed: _duelSent ? null : () => setState(() => _duelSent = true),
                       icon: const Icon(Icons.sports_martial_arts_rounded),
                       label: Text(_duelSent ? tr('Вызов отправлен') : tr('Вызвать на дуэль'), style: const TextStyle(fontWeight: FontWeight.w800)),
-                      style: FilledButton.styleFrom(backgroundColor: AppColors.action, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                      style: FilledButton.styleFrom(backgroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
                     ),
                   ),
                   TextButton.icon(

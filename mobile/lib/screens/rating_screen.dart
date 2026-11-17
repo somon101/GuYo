@@ -1027,8 +1027,8 @@ class _GlobalLeaderboardScreenState extends State<GlobalLeaderboardScreen> {
           ? FloatingActionButton.extended(
               key: const ValueKey('add-friend'),
               onPressed: _addFriend,
-              backgroundColor: AppColors.action,
-              foregroundColor: AppColors.onAction,
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
               icon: const Icon(Icons.person_add_alt_1_rounded),
               label: Text(tr('Добавить друга')),
             )

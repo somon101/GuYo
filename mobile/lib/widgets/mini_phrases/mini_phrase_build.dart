@@ -211,10 +211,10 @@ class _MiniPhraseBuildExerciseState extends State<MiniPhraseBuildExercise> {
                     ? () => widget.onDone(false)
                     : (filled && !_locked ? _check : null),
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.action,
-                  foregroundColor: AppColors.onAction,
-                  disabledBackgroundColor: AppColors.action.withValues(alpha: 0.35),
-                  disabledForegroundColor: AppColors.onAction,
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.35),
+                  disabledForegroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
                 child: Text(

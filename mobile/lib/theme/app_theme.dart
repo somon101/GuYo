@@ -72,15 +72,6 @@ ThemeData buildAppTheme() {
       insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
       showCloseIcon: false,
     ),
-    // Main action buttons are the one green everywhere; a button that sets its own colours keeps them.
-    filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(
-        backgroundColor: AppColors.action,
-        foregroundColor: AppColors.onAction,
-        disabledBackgroundColor: AppColors.action.withValues(alpha: 0.35),
-        disabledForegroundColor: AppColors.onAction.withValues(alpha: 0.6),
-      ),
-    ),
     appBarTheme: dark
         ? AppBarTheme(backgroundColor: AppColors.canvas, foregroundColor: AppColors.primaryDark, surfaceTintColor: Colors.transparent)
         : null,

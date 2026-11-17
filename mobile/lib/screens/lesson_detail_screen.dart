@@ -225,7 +225,7 @@ class _LessonDetailScreenState extends State<LessonDetailScreen> {
                 icon: const Icon(Icons.play_arrow_rounded),
                 label: _isRunning ? SkeletonPulse(child: Text(tr('Готовим урок…'))) : Text(tr('Начать урок')),
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.action,
+                  backgroundColor: AppColors.primary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                 ),

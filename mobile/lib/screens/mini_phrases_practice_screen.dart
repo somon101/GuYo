@@ -81,8 +81,8 @@ class _MiniPhrasesPracticeScreenState extends State<MiniPhrasesPracticeScreen> {
                   child: FilledButton.icon(
                     onPressed: () => _practise([...phrases]..shuffle()),
                     style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.action,
-                      foregroundColor: AppColors.onAction,
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
                     icon: const Icon(Icons.replay_rounded),

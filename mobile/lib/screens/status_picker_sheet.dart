@@ -191,7 +191,7 @@ class _StatusPickerSheetState extends State<_StatusPickerSheet> {
                     key: const ValueKey('status-save'),
                     onPressed: _saving ? null : () => _save(),
                     style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.action,
+                      backgroundColor: AppColors.primary,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                     child: _saving

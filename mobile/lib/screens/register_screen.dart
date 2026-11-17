@@ -376,10 +376,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       key: const ValueKey('register-next-button'),
                       onPressed: (_isSubmitting || !_canAdvance) ? null : _goNext,
                       style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.action,
-                        disabledBackgroundColor: AppColors.action.withValues(alpha: 0.35),
-                        foregroundColor: AppColors.onAction,
-                        disabledForegroundColor: AppColors.onAction,
+                        backgroundColor: AppColors.primary,
+                        disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.35),
+                        foregroundColor: Colors.white,
+                        disabledForegroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppShapes.rowRadius),

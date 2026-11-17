@@ -138,6 +138,40 @@ void main() {
     expect(find.text('Вы пока не в команде'), findsOneWidget);
   });
 
+  testWidgets('leaving a team: a card in the middle says so, with the ways on (find, create), not a grey line', (tester) async {
+    await _open(tester, const DemoMyTeamCard());
+    await tester.tap(find.byKey(const ValueKey('my-team-find')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('teams-list-1'))); // «Словарный взвод», open
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('team-join')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('team-leave')));
+    await tester.pumpAndSettle();
+    expect(s.myTeam, isNull);
+    expect(find.byKey(const ValueKey('team-gone')), findsOneWidget);
+    expect(find.text('Вы вышли из команды «Словарный взвод»'), findsOneWidget);
+    expect(find.byKey(const ValueKey('team-gone-create')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('team-gone-find')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('team-gone')), findsNothing, reason: 'the card closes');
+    expect(find.byKey(const ValueKey('teams-list-1')), findsWidgets, reason: 'and the list of teams opens');
+  });
+
+  testWidgets('a team the creator closed while its sheet was open: the same card says it is gone', (tester) async {
+    await _open(tester, const DemoMyTeamCard());
+    await tester.tap(find.byKey(const ValueKey('my-team-find')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('teams-list-2')));
+    await tester.pumpAndSettle();
+    s.teams.remove(2);
+    s.touch();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('team-gone')), findsOneWidget);
+    expect(find.textContaining('больше нет'), findsOneWidget);
+    expect(find.textContaining('Создатель закрыл её'), findsOneWidget);
+  });
+
   test('the fake server answers for teams the way the app reads them', () async {
     await http.runWithClient(() async {
       final api = ApiClient.instance;
