@@ -43,6 +43,7 @@ const navGroups = [
       { to: "/daily-goal-preview", icon: "sparkles", label: "Предпросмотр цели дня" },
       { to: "/pass-preview", icon: "sparkles", label: "Предпросмотр пропуска" },
       { to: "/cosmetics-catalog", icon: "sparkles", label: "Каталог наград" },
+      { to: "/avatar-items", icon: "sparkles", label: "Аватар из Студии (макет)" },
       { to: "/showcase", icon: "sparkles", label: "Витрина наград" },
       { to: "/premium-name-preview", icon: "sparkles", label: "Предпросмотр ника Premium" },
       { to: "/booster-preview", icon: "sparkles", label: "Предпросмотр удвоителя" },
