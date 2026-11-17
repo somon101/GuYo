@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -267,6 +268,35 @@ void main() {
       expect(await st.readBlob(h2.blobId!), hairBytes, reason: 'картинка детали та же');
       expect(await st.readBlob(h2.origId!), origBytes, reason: 'исходник тот же');
       expect(a.curSet.parts['bg']!.length, 6);
+    });
+  });
+
+  testWidgets('выгрузка для GuYo: у каждой детали свой ID и своё положение для каждого пола', (t) async {
+    await t.runAsync(() async {
+      final a = newStudio();
+      a.setGender('female');
+      a.p.sel = 'hair';
+      await a.addImages([PickedFile('h1.jpg', faceOnBlack()), PickedFile('h2.jpg', faceOnBlack())], cut: true);
+      final h = a.curSet.parts['hair']!;
+      a.setPartGender(h[0].id, 'both');
+      a.p.sel = 'hair';
+      a.curSet.pick['hair'] = h[1].id;
+      a.setEditTarget('part');
+      a.setGeo(x: 400, y: 300, w: 450, r: 5); // своё положение только у второй причёски
+      a.setEditTarget('slot');
+      final j = jsonDecode(utf8.decode(await a.guyoBytes())) as Map;
+      expect(j['format'], 'avatar-items/1');
+      final items = (j['items'] as List).cast<Map>();
+      expect(items.length, 2);
+      expect(items[0]['id'], isNot(items[1]['id']));
+      expect(items[0]['id'], h[0].id, reason: 'ID те же, что в Студии');
+      expect(items[0]['ownPlace'], isFalse);
+      expect(items[1]['ownPlace'], isTrue);
+      expect((items[1]['place'] as Map)['female']['x'], 400);
+      expect((items[1]['place'] as Map).containsKey('male'), isFalse, reason: 'вторая причёска только женская');
+      expect((items[0]['place'] as Map).keys.toSet(), {'male', 'female'});
+      expect(items[0]['png'], isA<String>());
+      expect(items[0].containsKey('origData'), isFalse);
     });
   });
 

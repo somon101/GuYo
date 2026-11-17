@@ -858,6 +858,48 @@ class Studio extends ChangeNotifier {
     return Uint8List.fromList(utf8.encode(jsonEncode(j)));
   }
 
+  /// Выгрузка для GuYo (формат avatar-items/1): только готовые детали с уникальными ID и их положением.
+  /// Положение уже посчитано для каждого персонажа (своё у детали или стандарт слота), чтобы в GuYo ничего не считать и не расставлять.
+  Future<Uint8List> guyoBytes() async {
+    Map<String, dynamic> geoJ(Geo g) => {'x': g.x, 'y': g.y, 'w': g.w, 'r': g.r, 'pivot': g.pivot};
+    final items = <Map<String, dynamic>>[];
+    for (final set in p.sets) {
+      for (final slot in p.slots) {
+        if (slot.id == 'bg') continue;
+        for (final part in set.parts[slot.id] ?? const <Part>[]) {
+          if (!part.isImage || part.blobId == null) continue;
+          final bytes = await storage.readBlob(part.blobId!);
+          if (bytes == null) continue;
+          final place = <String, dynamic>{};
+          for (final g in genders) {
+            if (!part.fits(g)) continue;
+            place[g] = geoJ(part.geo ?? p.geos[g]![slot.id]!);
+          }
+          items.add({
+            'id': part.id,
+            'slot': slot.id,
+            'gender': part.gender,
+            'name': part.name,
+            'set': {'id': set.id, 'name': set.name},
+            'ownPlace': part.geo != null,
+            'width': part.w.round(),
+            'height': part.h.round(),
+            'place': place,
+            'png': base64Encode(bytes),
+          });
+        }
+      }
+    }
+    final j = {
+      'format': 'avatar-items/1',
+      'exportedAt': DateTime.now().toIso8601String(),
+      'canvas': {'w': canvasW, 'h': canvasH},
+      'slots': [for (final id in p.order) if (id != 'bg') {'id': id, 'name': slot(id).name}],
+      'items': items,
+    };
+    return Uint8List.fromList(utf8.encode(jsonEncode(j)));
+  }
+
   Uint8List _b64(String s) => base64Decode(s.contains(',') ? s.split(',').last : s);
 
   Future<void> loadProject(Uint8List bytes) async {

@@ -581,6 +581,14 @@ class _ProjectPanelState extends State<ProjectPanel> {
             }
           }),
         ]),
+        const SizedBox(height: 12),
+        Text('Для GuYo: готовые детали с уникальными ID и положением каждой. Загрузите этот файл в админке GuYo, игрок потом просто выбирает деталь, а она сама встаёт на место.', style: TextStyle(fontSize: 12.5, color: sc(context).mut, height: 1.4)),
+        const SizedBox(height: 8),
+        Btn('Выгрузить для GuYo', icon: Icons.ios_share, onTap: () async {
+          final b = await s.guyoBytes();
+          final ok = await s.files.saveFile('guyo-avatar-items.json', b, 'application/json');
+          if (ok) s.message('Файл для GuYo сохранён');
+        }),
         const SizedBox(height: 8),
         Btn(armed ? 'Точно очистить? Нажмите ещё раз' : 'Очистить всё', small: true, onTap: () async {
           if (!armed) {
