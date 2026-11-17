@@ -134,7 +134,7 @@ class ApiLessonRunDriver implements LessonRunDriver {
   @override
   Future<bool?> showResults(BuildContext context, Lesson lesson, LessonPassStats? stats) {
     return Navigator.of(context).push<bool>(
-      instantRoute((_) => LessonResultsScreen(lesson: lesson, stats: stats)),
+      instantRoute((_) => lessonResultsBuilder(lesson, stats)),
     );
   }
 }

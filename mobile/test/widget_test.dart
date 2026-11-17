@@ -16,7 +16,8 @@ void main() {
     expect(find.text('GuYo'), findsOneWidget);
     expect(find.byType(TextField), findsNothing);
     expect(find.widgetWithText(FilledButton, 'Войти'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Создать аккаунт'), findsOneWidget);
+    // «Создать аккаунт» is a link under the buttons, not a button of its own.
+    expect(find.widgetWithText(TextButton, 'Создать аккаунт'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(FilledButton, 'Войти'));
     await tester.pump();

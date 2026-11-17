@@ -22,19 +22,23 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
   }
 
-  testWidgets('the greeting has no fields: «Войти», «Создать аккаунт» and the language chip in the corner', (tester) async {
+  testWidgets('the greeting (variant B): «Войти» and «Создать аккаунт» across the screen, no fields, no language switcher', (tester) async {
     tester.view.physicalSize = const Size(1080, 2200);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(const MaterialApp(home: LoginScreen()));
     expect(find.byKey(const ValueKey('login-start')), findsOneWidget);
     expect(find.byKey(const ValueKey('login-register')), findsOneWidget);
-    expect(find.byKey(const ValueKey('ui-language-chip')), findsOneWidget);
+    // The language is changed in the settings after signing in, not here.
+    expect(find.byKey(const ValueKey('ui-language-chip')), findsNothing);
     expect(find.byKey(const ValueKey('login-field-login')), findsNothing);
     expect(find.byKey(const ValueKey('login-field-password')), findsNothing);
     expect(find.byKey(const ValueKey('login-google-button')).evaluate().length, googleSignInEnabled ? 1 : 0);
-    // The chip sits in the right corner.
-    expect(tester.getCenter(find.byKey(const ValueKey('ui-language-chip'))).dx, greaterThan(300));
+    // «Войти» is a big button across the screen (360 wide here, 24 of margin on each side), 56 high.
+    final start = tester.getSize(find.byKey(const ValueKey('login-start')));
+    expect(start.width, 360 - 48);
+    expect(start.height, 56);
+    expect(tester.getSize(find.byType(Scaffold)).width, 360);
   });
 
   testWidgets('«Войти» opens the two fields; back returns to the greeting', (tester) async {
@@ -47,7 +51,7 @@ void main() {
     expect(find.byKey(const ValueKey('login-field-login')), findsOneWidget);
     expect(find.byKey(const ValueKey('login-field-password')), findsOneWidget);
     expect(find.byKey(const ValueKey('login-submit')), findsOneWidget);
-    expect(find.byKey(const ValueKey('ui-language-chip')), findsOneWidget);
+    expect(find.byKey(const ValueKey('ui-language-chip')), findsNothing);
     await tester.tap(find.byKey(const ValueKey('login-back')));
     await tester.pump();
     expect(find.byKey(const ValueKey('login-field-login')), findsNothing);

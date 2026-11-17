@@ -1,6 +1,5 @@
 import '../services/google_auth.dart';
 import '../widgets/google_logo.dart';
-import '../widgets/language_picker.dart';
 import '../l10n/l10n.dart';
 
 import 'package:flutter/material.dart';
@@ -86,27 +85,28 @@ class _LoginScreenState extends State<LoginScreen> {
   /// false: the greeting with the three ways in; true: the two fields.
   bool _showForm = false;
 
-  Widget _button(String label, VoidCallback? onTap, {Key? key, bool filled = true}) => SizedBox(
-        height: 52,
+  /// A big button across the whole width of its column (the columns here stretch their children).
+  Widget _button(String label, VoidCallback? onTap, {Key? key}) => SizedBox(
+        height: 56,
         child: FilledButton(
           key: key,
           onPressed: onTap,
           style: FilledButton.styleFrom(
-            backgroundColor: filled ? AppColors.primary : AppColors.violetSurface,
-            foregroundColor: filled ? Colors.white : AppColors.primaryDark,
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
-          child: Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          child: Text(label, style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700)),
         ),
       );
 
   Widget _googleButton() => SizedBox(
-        height: 52,
+        height: 56,
         child: OutlinedButton.icon(
           key: const ValueKey('login-google-button'),
           onPressed: _isSubmitting ? null : _signInWithGoogle,
           icon: const GoogleLogo(size: 20),
-          label: Text(tr('Продолжить с Google'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          label: Text(tr('Продолжить с Google'), style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700)),
           style: OutlinedButton.styleFrom(
             backgroundColor: AppColors.surface,
             foregroundColor: AppColors.primaryDark,
@@ -116,43 +116,73 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
 
-  /// The first screen: no fields, only the brand and the three ways in.
-  Widget _welcome() => Column(children: [
-        const Spacer(),
-        Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(22)),
-          child: const Icon(Icons.auto_stories_rounded, size: 40, color: Colors.white),
-        ),
-        const SizedBox(height: 14),
-        Text('GuYo', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: -1, color: AppColors.primary)),
-        const SizedBox(height: 2),
-        Text(tr('Каждый день по чуть-чуть'), style: TextStyle(fontSize: 15, color: AppColors.secondaryText)),
-        const Spacer(),
-        if (_error != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: AppColors.danger, fontSize: 13, fontWeight: FontWeight.w600)),
+  /// The first screen (variant B): the brand in the middle of the space above, and the ways in in a
+  /// panel that reaches the bottom and both sides of the screen. No fields, no language switcher (the
+  /// language is Russian until it is changed in the settings after signing in).
+  Widget _welcome() => LayoutBuilder(
+        builder: (context, c) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: c.maxHeight),
+            child: IntrinsicHeight(
+              child: Column(children: [
+                Expanded(child: _brand()),
+                _panel(),
+              ]),
+            ),
           ),
-        _button(tr('Войти'), _isSubmitting ? null : () => setState(() {
-              _showForm = true;
-              _error = null;
-            }), key: const ValueKey('login-start')),
-        const SizedBox(height: 12),
-        _button(tr('Создать аккаунт'), _isSubmitting ? null : _openRegister, key: const ValueKey('login-register'), filled: false),
-        if (googleSignInEnabled) ...[
-          const SizedBox(height: 14),
-          Row(children: [
-            Expanded(child: Divider(color: AppColors.cardBorder)),
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text(tr('или'), style: TextStyle(fontSize: 13, color: AppColors.secondaryText))),
-            Expanded(child: Divider(color: AppColors.cardBorder)),
+        ),
+      );
+
+  Widget _brand() => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Container(
+            width: 104,
+            height: 104,
+            decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(32)),
+            child: const Icon(Icons.auto_stories_rounded, size: 58, color: Colors.white),
+          ),
+          const SizedBox(height: 16),
+          Text('GuYo', style: TextStyle(fontSize: 44, fontWeight: FontWeight.w800, letterSpacing: -1.3, height: 1, color: AppColors.primary)),
+          const SizedBox(height: 8),
+          Text(tr('Каждый день по чуть-чуть'), style: TextStyle(fontSize: 16, color: AppColors.secondaryText)),
+        ]),
+      );
+
+  /// «Войти» and Google, then «Создать аккаунт» as a link: one main action.
+  Widget _panel() => Container(
+        width: double.infinity,
+        padding: EdgeInsets.fromLTRB(24, 24, 24, 20 + MediaQuery.paddingOf(context).bottom),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: [BoxShadow(color: AppColors.cardBorder, offset: const Offset(0, -1))],
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: AppColors.danger, fontSize: 13, fontWeight: FontWeight.w600)),
+            ),
+          _button(tr('Войти'), _isSubmitting ? null : () => setState(() {
+                _showForm = true;
+                _error = null;
+              }), key: const ValueKey('login-start')),
+          if (googleSignInEnabled) ...[
+            const SizedBox(height: 12),
+            _googleButton(),
+          ],
+          const SizedBox(height: 6),
+          Wrap(alignment: WrapAlignment.center, crossAxisAlignment: WrapCrossAlignment.center, children: [
+            Text(tr('Нет аккаунта?'), style: TextStyle(color: AppColors.secondaryText, fontSize: 14.5)),
+            TextButton(
+              key: const ValueKey('login-register'),
+              onPressed: _isSubmitting ? null : _openRegister,
+              child: Text(tr('Создать аккаунт'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
+            ),
           ]),
-          const SizedBox(height: 14),
-          _googleButton(),
-        ],
-        const SizedBox(height: 26),
-      ]);
+        ]),
+      );
 
   /// The second step: the login and the password.
   Widget _form() => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -184,7 +214,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ],
         const SizedBox(height: 18),
         SizedBox(
-          height: 52,
+          height: 56,
           child: FilledButton(
             key: const ValueKey('login-submit'),
             onPressed: _isSubmitting ? null : _submit,
@@ -205,6 +235,35 @@ class _LoginScreenState extends State<LoginScreen> {
         ]),
       ]);
 
+  /// The second step in its own margins: the way back, then the two fields.
+  Widget _formPage() => LayoutBuilder(
+        builder: (context, c) => SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: c.maxHeight),
+            child: IntrinsicHeight(
+              child: Column(children: [
+                SizedBox(
+                  height: 52,
+                  child: Row(children: [
+                    IconButton(
+                      key: const ValueKey('login-back'),
+                      tooltip: tr('Назад'),
+                      padding: EdgeInsets.zero,
+                      alignment: Alignment.centerLeft,
+                      icon: Icon(Icons.arrow_back_rounded, color: AppColors.primaryDark),
+                      onPressed: _isSubmitting ? null : () => setState(() => _showForm = false),
+                    ),
+                    const Spacer(),
+                  ]),
+                ),
+                Expanded(child: _form()),
+              ]),
+            ),
+          ),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -215,37 +274,8 @@ class _LoginScreenState extends State<LoginScreen> {
       },
       child: Scaffold(
         backgroundColor: AppColors.canvas,
-        body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, c) => SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 22),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: c.maxHeight),
-                child: IntrinsicHeight(
-                  child: Column(children: [
-                    SizedBox(
-                      height: 52,
-                      child: Row(children: [
-                        if (_showForm)
-                          IconButton(
-                            key: const ValueKey('login-back'),
-                            tooltip: tr('Назад'),
-                            padding: EdgeInsets.zero,
-                            alignment: Alignment.centerLeft,
-                            icon: Icon(Icons.arrow_back_rounded, color: AppColors.primaryDark),
-                            onPressed: _isSubmitting ? null : () => setState(() => _showForm = false),
-                          ),
-                        const Spacer(),
-                        LanguageChip(selected: appLanguage.value, enabled: !_isSubmitting, onSelected: setAppLanguage),
-                      ]),
-                    ),
-                    Expanded(child: _showForm ? _form() : _welcome()),
-                  ]),
-                ),
-              ),
-            ),
-          ),
-        ),
+        // The greeting's panel runs under the system bar at the bottom (it pads itself), the form does not.
+        body: SafeArea(bottom: _showForm, child: _showForm ? _formPage() : _welcome()),
       ),
     );
   }

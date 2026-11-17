@@ -49,6 +49,20 @@ class DemoState {
   // Season pass rewards already taken ('level:track').
   final Set<String> passClaimed = {for (var l = 1; l <= 3; l++) ...['$l:free', '$l:premium']};
 
+  // What the end of a lesson shows (see demo_results_flow.dart).
+  int streak = 13; // days in a row
+  String streakDate = ''; // the day the streak last grew ('yyyy-mm-dd')
+  String chestDate = ''; // the day the chest of the day was taken
+  int passLevel = 7; // the season pass: level and energy in it (400 to a level)
+  int passXp = 370;
+  int rankPos = 7; // the place in the rating
+
+  /// Today as 'yyyy-mm-dd', the key the day-based fields above are compared with.
+  static String today([DateTime? now]) {
+    final d = now ?? DateTime.now();
+    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
+
   int scoreOf(int wordId) => learned.contains(wordId) ? 100 : (scores[wordId] ?? 0);
 
   Future<void> load() async {
@@ -72,6 +86,12 @@ class DemoState {
       diamonds = (j['dia'] as int?) ?? diamonds;
       freezes = (j['frz'] as int?) ?? freezes;
       merges = (j['mrg'] as int?) ?? merges;
+      streak = (j['stk'] as int?) ?? streak;
+      streakDate = (j['stkd'] as String?) ?? streakDate;
+      chestDate = (j['chd'] as String?) ?? chestDate;
+      passLevel = (j['pl'] as int?) ?? passLevel;
+      passXp = (j['px'] as int?) ?? passXp;
+      rankPos = (j['rp'] as int?) ?? rankPos;
       if (j['pass'] != null) {
         passClaimed
           ..clear()
@@ -92,6 +112,12 @@ class DemoState {
       'dia': diamonds,
       'frz': freezes,
       'mrg': merges,
+      'stk': streak,
+      'stkd': streakDate,
+      'chd': chestDate,
+      'pl': passLevel,
+      'px': passXp,
+      'rp': rankPos,
       'pass': passClaimed.toList(),
     });
     _storage.write(key: _key, value: j).catchError((_) {});

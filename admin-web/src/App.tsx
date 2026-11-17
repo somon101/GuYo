@@ -48,6 +48,7 @@ import { ChestPreviewPage } from "./pages/ChestPreviewPage";
 import { ChestsPage } from "./pages/ChestsPage";
 import { DuelPreviewPage } from "./pages/DuelPreviewPage";
 import { BoosterPreviewPage } from "./pages/BoosterPreviewPage";
+import { LessonResultsPreviewPage } from "./pages/LessonResultsPreviewPage";
 import { CosmeticsCatalogPage } from "./pages/CosmeticsCatalogPage";
 import { AvatarSetsPage } from "./pages/AvatarSetsPage";
 import { PremiumNamePreviewPage } from "./pages/PremiumNamePreviewPage";
@@ -480,6 +481,7 @@ export default function App() {
           <Route path="/pass-preview" element={<ProtectedRoute><Layout><PassPreviewPage /></Layout></ProtectedRoute>} />
           <Route path="/daily-goal-preview" element={<ProtectedRoute><Layout><DailyGoalPreviewPage /></Layout></ProtectedRoute>} />
           <Route path="/booster-preview" element={<ProtectedRoute><Layout><BoosterPreviewPage /></Layout></ProtectedRoute>} />
+          <Route path="/lesson-results-preview" element={<ProtectedRoute><Layout><LessonResultsPreviewPage /></Layout></ProtectedRoute>} />
           <Route path="/duel-preview" element={<ProtectedRoute><Layout><DuelPreviewPage /></Layout></ProtectedRoute>} />
           <Route path="/chests" element={<ProtectedRoute><Layout><ChestsPage /></Layout></ProtectedRoute>} />
           <Route path="/chest-preview" element={<ProtectedRoute><Layout><ChestPreviewPage /></Layout></ProtectedRoute>} />
