@@ -75,12 +75,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _nativeLanguage = 'tg';
   String? _learningLanguage;
   int _selectedTabIndex = 0;
-  // Lets the app bar's own settings gear (shown only while Профиль is
-  // the active tab) open that screen's settings sheet -- the sheet and
-  // everything in it still belong entirely to ProfileScreen.
-  final GlobalKey<ProfileScreenState> _profileKey =
-      GlobalKey<ProfileScreenState>();
-
   @override
   void initState() {
     super.initState();
@@ -453,32 +447,38 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           // rather than a route -- so the dashboard asks the shell to
           // switch instead of pushing anything.
           onOpenLessons: () => setState(() => _selectedTabIndex = 1),
-          onOpenProfile: () => setState(() => _selectedTabIndex = 4),
-          onOpenRating: () => setState(() => _selectedTabIndex = 3),
+          onOpenProfile: _openProfile,
+          onOpenRating: () => setState(() => _selectedTabIndex = 2),
         ),
         LessonsScreen(
           key: ValueKey('lessons-${selected.id}'),
           dictionary: selected,
         ),
-        // «Проверка текста» is not a tab: its button opens a full screen over the app (see the nav bar).
-        const SizedBox.shrink(),
-        // Neither tab below is dictionary-scoped at all (identity/
-        // achievements/rating are per-user, not per-language) -- kept in
-        // the same IndexedStack purely for consistency with the other
-        // tabs; no ValueKey needed since nothing about either depends on
-        // `selected`.
-        AppHooks.ratingTab?.page(context, (tab) => setState(() => _selectedTabIndex = tab)) ?? const RatingScreen(),
-        // No ValueKey on purpose: the profile is per-user, not
-        // per-language, so switching languages must not rebuild it. The
-        // dictionary is passed only so its "Мои слова" card opens the
-        // right language's words.
-        ProfileScreen(
-          key: _profileKey,
-          dictionary: selected,
-          onOpenLessons: () => setState(() => _selectedTabIndex = 1),
-        ),
+        // Tab 2 «Рейтинг» (its own tab now, in the middle); tab 3 «Лента» only where the build has one.
+        // «Проверка текста» is not a tab: the last button opens a full screen over the app.
+        const RatingScreen(),
+        if (AppHooks.ratingTab != null)
+          AppHooks.ratingTab!.page(context, (tab) => setState(() => _selectedTabIndex = tab)),
       ],
     );
+  }
+
+  /// «Профиль» is not a tab: it opens from Главная (tap on the photo or the name) as its own screen.
+  void _openProfile() {
+    final dictionary = _selectedDictionary;
+    if (dictionary == null) return;
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => Scaffold(
+        backgroundColor: AppColors.canvas,
+        appBar: AppBar(
+          backgroundColor: AppColors.canvas,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          toolbarHeight: 48,
+        ),
+        body: ProfileScreen(dictionary: dictionary, onOpenLessons: () => Navigator.of(context).popUntil((r) => r.isFirst)),
+      ),
+    ));
   }
 
   Widget _buildLanguageSwitcher() {
@@ -503,7 +503,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       // «Рейтинг» and «Профиль» have no app bar: the page scrolls as one piece (the gear is in the profile's own header).
-      appBar: _selectedTabIndex == 3 || _selectedTabIndex == 4 ? null : AppBar(
+      appBar: _selectedTabIndex >= 2 ? null : AppBar(
         backgroundColor: AppColors.canvas,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -519,35 +519,41 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             const Spacer(),
             // The doublers live in «Уроки» only: always there, with the tickets held and a switch-on.
             if (_selectedTabIndex == 1) const BoostersBar(),
-            _EconomyHeaderButton(
-              onOpen: () async {
-                await openEconomy(context);
-              },
-            ),
+            // Главная: the money; «Уроки»: the streak flame instead.
+            if (_selectedTabIndex == 0)
+              _EconomyHeaderButton(
+                onOpen: () async {
+                  await openEconomy(context);
+                },
+              )
+            else
+              const StreakPill(),
           ],
         ),
       ),
-      body: _selectedTabIndex == 3 || _selectedTabIndex == 4 ? SafeArea(bottom: false, child: _buildBody()) : _buildBody(),
+      body: _selectedTabIndex >= 2 ? SafeArea(bottom: false, child: _buildBody()) : _buildBody(),
       bottomNavigationBar: FloatingNavBar(
         selectedIndex: _selectedTabIndex,
         onSelected: (index) {
           // «Проверка текста» opens as a full screen: the bottom bar goes away, the tab stays where it was.
-          if (index == 2) {
+          if (index == _navItems.length - 1) {
             Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TextCheckScreen()));
             return;
           }
           setState(() => _selectedTabIndex = index);
         },
-        items: [
-          NavItemData(Icons.grid_view_rounded, tr('Главная')),
-          NavItemData(Icons.menu_book_rounded, tr('Уроки')),
-          NavItemData(Icons.auto_awesome_rounded, tr('Проверка текста')),
-          NavItemData(AppHooks.ratingTab?.icon ?? Icons.bar_chart_rounded, AppHooks.ratingTab?.label ?? tr('Рейтинг')),
-          NavItemData(Icons.person_rounded, tr('Профиль')),
-        ],
+        items: _navItems,
       ),
     );
   }
+
+  List<NavItemData> get _navItems => [
+        NavItemData(Icons.grid_view_rounded, tr('Главная')),
+        NavItemData(Icons.menu_book_rounded, tr('Уроки')),
+        NavItemData(Icons.bar_chart_rounded, tr('Рейтинг')),
+        if (AppHooks.ratingTab != null) NavItemData(AppHooks.ratingTab!.icon, AppHooks.ratingTab!.label),
+        NavItemData(Icons.auto_awesome_rounded, tr('Проверка текста')),
+      ];
 }
 
 class NavItemData {

@@ -12,7 +12,6 @@ import '../models/user_profile.dart';
 import '../theme/app_colors.dart';
 import '../widgets/review_due_card.dart';
 import '../theme/slogans.dart';
-import '../theme/time_of_day.dart';
 import '../widgets/quest_ui.dart';
 import '../widgets/user_avatar.dart';
 import '../widgets/user_name.dart';
@@ -245,7 +244,11 @@ class _Greeting extends StatelessWidget {
         ),
         const SizedBox(width: 14),
         Expanded(
-          child: Column(
+          child: GestureDetector(
+            key: const ValueKey('home-open-profile-name'),
+            behavior: HitTestBehavior.opaque,
+            onTap: onOpenProfile,
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -263,10 +266,6 @@ class _Greeting extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  // Sunrise, sun, sunset or moon, decided from THIS DEVICE's clock --
-                  // see theme/time_of_day.dart.
-                  const DayPartIcon(size: 22),
                 ],
               ),
               const SizedBox(height: 2),
@@ -278,30 +277,27 @@ class _Greeting extends StatelessWidget {
               ),
             ],
           ),
+          ),
         ),
-        if (profile != null) ...[
-          const SizedBox(width: 8),
-          _StreakPill(profile: profile!),
-        ],
       ],
       ),
     );
   }
 }
 
-/// The streak on Главная: the flame (grey until today is earned) and the
-/// day count; tapping opens the streak sheet.
-class _StreakPill extends StatelessWidget {
-  final UserProfile profile;
-  const _StreakPill({required this.profile});
+/// The streak (now in the top bar of «Уроки»): the flame (grey until today is earned)
+/// and the day count; tapping opens the streak sheet.
+class StreakPill extends StatelessWidget {
+  final UserProfile? profile;
+  const StreakPill({super.key, this.profile});
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool?>(
       valueListenable: streakLitToday,
       builder: (context, litNow, _) {
-        final lit = litNow ?? profile.streakActiveToday;
-        final days = streakDays.value ?? profile.currentStreakDays;
+        final lit = litNow ?? profile?.streakActiveToday ?? false;
+        final days = streakDays.value ?? profile?.currentStreakDays ?? 0;
         return Semantics(
           button: true,
           label: lit ? tr('Серия: {0}', [days]) : tr('Сегодня ещё не занимались'),

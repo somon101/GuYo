@@ -82,10 +82,10 @@ void main() {
     expect(s.friendRequests, isNot(contains(103)));
   });
 
-  testWidgets('the «Рейтинг» switch is at the top of the tab', (tester) async {
+  testWidgets('the feed tab is only the feed: «Рейтинг» is its own tab, no switch', (tester) async {
     await _open(tester, DemoFeedTab(goTo: (_) {}));
     expect(find.byKey(const ValueKey('feed-list')), findsOneWidget);
-    expect(find.byKey(const ValueKey('feed-switch-1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('feed-switch-1')), findsNothing);
   });
 
   testWidgets('a person: no friend → the green add; a friend → the duel and the red remove', (tester) async {

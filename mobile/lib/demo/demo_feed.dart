@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../l10n/l10n.dart';
-import '../screens/rating_screen.dart';
 import '../theme/app_colors.dart';
 import '../widgets/animated_fire.dart';
 import '../widgets/game_icons.dart';
@@ -131,41 +130,9 @@ class DemoFeedTab extends StatefulWidget {
 }
 
 class _DemoFeedTabState extends State<DemoFeedTab> {
-  bool _rating = false;
-
+  // «Рейтинг» is its own tab now: this one is only the feed.
   @override
-  Widget build(BuildContext context) {
-    return Column(children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-        child: Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(color: _P.surface, borderRadius: BorderRadius.circular(99), border: Border.all(color: _P.line)),
-          child: Row(children: [
-            for (final (i, label) in [(0, tr('Лента')), (1, tr('Рейтинг'))])
-              Expanded(
-                child: GestureDetector(
-                  key: ValueKey('feed-switch-$i'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => setState(() => _rating = i == 1),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    height: 40,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: (i == 1) == _rating ? AppColors.primary : Colors.transparent,
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                    child: Text(label, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: (i == 1) == _rating ? Colors.white : _P.muted)),
-                  ),
-                ),
-              ),
-          ]),
-        ),
-      ),
-      Expanded(child: _rating ? const RatingScreen() : _FeedList(goTo: widget.goTo)),
-    ]);
-  }
+  Widget build(BuildContext context) => _FeedList(goTo: widget.goTo);
 }
 
 class _FeedList extends StatelessWidget {
