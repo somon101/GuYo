@@ -29,11 +29,20 @@ android {
         versionName = flutter.versionName
     }
 
+    // Постоянный ключ подписи этой офлайн-программы (лежит в репозитории по решению владельца).
+    // Одна и та же подпись у каждой сборки позволяет ставить новую версию поверх старой без удаления данных.
+    signingConfigs {
+        create("studio") {
+            storeFile = file("studio.jks")
+            storePassword = "avatarstudio"
+            keyAlias = "studio"
+            keyPassword = "avatarstudio"
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("studio")
         }
     }
 }

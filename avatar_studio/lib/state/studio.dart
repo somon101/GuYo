@@ -854,6 +854,7 @@ class Studio extends ChangeNotifier {
         }
       }
     }
+    j['backup'] = {'app': 'avatar-studio', 'savedAt': DateTime.now().toIso8601String()};
     return Uint8List.fromList(utf8.encode(jsonEncode(j)));
   }
 

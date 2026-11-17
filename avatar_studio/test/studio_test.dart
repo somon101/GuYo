@@ -228,6 +228,48 @@ void main() {
     });
   });
 
+  testWidgets('резервная копия: после «стереть всё» и восстановления всё то же до байта', (t) async {
+    await t.runAsync(() async {
+      final st = MemoryStorage();
+      final a = newStudio(storage: st);
+      a.setGender('female');
+      a.p.sel = 'hair';
+      await a.addImages([PickedFile('h.jpg', faceOnBlack())], cut: true);
+      final hair = a.partOf('hair')!;
+      a.setPartGender(hair.id, 'female');
+      a.setEditTarget('part');
+      a.setGeo(x: 321, y: 123, w: 456, r: 7);
+      a.setEditTarget('slot');
+      a.setGeo(x: 111, y: 222);
+      a.p.settings.theme = 'dark';
+      a.p.settings.removeMode = 'keep';
+      a.addPresetBackgrounds();
+      a.saveLook('Образ');
+      final hairBytes = await st.readBlob(hair.blobId!);
+      final origBytes = await st.readBlob(hair.origId!);
+      final backup = await a.projectBytes();
+      final before = a.p.toJson();
+
+      await a.wipe();
+      expect(a.p.looks, isEmpty);
+      expect(a.partOf('hair'), isNull);
+
+      await a.loadProject(backup);
+      final back = a.p.toJson();
+      expect(back['settings'], before['settings'], reason: 'настройки восстановились');
+      expect(back['looks'], before['looks']);
+      expect(back['gender'], before['gender']);
+      expect(back['geos'], before['geos'], reason: 'стандарты слотов у обоих персонажей');
+      final h2 = a.curSet.parts['hair']!.single;
+      expect(h2.name, hair.name);
+      expect(h2.gender, 'female');
+      expect(h2.geo!.toJson(), hair.geo!.toJson(), reason: 'своё положение детали');
+      expect(await st.readBlob(h2.blobId!), hairBytes, reason: 'картинка детали та же');
+      expect(await st.readBlob(h2.origId!), origBytes, reason: 'исходник тот же');
+      expect(a.curSet.parts['bg']!.length, 6);
+    });
+  });
+
   testWidgets('автосохранение и перезапуск: всё на месте', (t) async {
     await t.runAsync(() async {
       final st = MemoryStorage();

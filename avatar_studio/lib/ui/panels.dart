@@ -547,20 +547,35 @@ class _ProjectPanelState extends State<ProjectPanel> {
     final s = widget.s;
     return CardBox(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const PanelTitle('Проект'),
-        Text('Всё хранится на этом устройстве и работает без интернета. Проект можно сохранить в файл и открыть на другом устройстве.', style: TextStyle(fontSize: 12.5, color: sc(context).mut, height: 1.4)),
+        const PanelTitle('Резервная копия'),
+        Text('Всё хранится на этом устройстве и работает без интернета. В резервную копию входит всё: наборы, детали и их исходные картинки, положения, пол деталей, фоны, кадр профиля, аватарки и настройки. Копию можно открыть в любой момент и на другом устройстве.', style: TextStyle(fontSize: 12.5, color: sc(context).mut, height: 1.4)),
         const SizedBox(height: 12),
         Wrap(spacing: 8, runSpacing: 8, children: [
-          Btn('Сохранить проект в файл', onTap: () async {
+          Btn('Сделать резервную копию', icon: Icons.save_alt, primary: true, onTap: () async {
             final b = await s.projectBytes();
-            await s.files.saveFile('avatar-studio-project.json', b, 'application/json');
+            final d = DateTime.now();
+            String two(int v) => v.toString().padLeft(2, '0');
+            final ok = await s.files.saveFile('avatar-studio-backup-${d.year}-${two(d.month)}-${two(d.day)}.json', b, 'application/json');
+            if (ok) s.message('Резервная копия сохранена');
           }),
-          Btn('Открыть проект из файла', onTap: () async {
+          Btn('Восстановить из копии', icon: Icons.restore, onTap: () async {
             final f = await s.files.pickProject();
-            if (f == null) return;
+            if (f == null || !context.mounted) return;
+            final yes = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Восстановить из копии?'),
+                content: Text('Файл «${f.name}» заменит всё, что сейчас в программе (детали, положения, аватарки, настройки). Сначала лучше сделать резервную копию текущего.'),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
+                  FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Восстановить')),
+                ],
+              ),
+            );
+            if (yes != true) return;
             try {
               await s.loadProject(f.bytes);
-              s.message('Проект открыт');
+              s.message('Копия восстановлена');
             } catch (e) {
               s.message('Не получилось открыть файл');
             }

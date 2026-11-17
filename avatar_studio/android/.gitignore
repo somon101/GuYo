@@ -12,3 +12,5 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+# Ключ подписи Студии аватаров лежит в репозитории намеренно (решение владельца): подпись должна быть одной и той же у всех сборок.
+!app/studio.jks
