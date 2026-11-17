@@ -297,6 +297,10 @@ void main() {
       expect((items[0]['place'] as Map).keys.toSet(), {'male', 'female'});
       expect(items[0]['png'], isA<String>());
       expect(items[0].containsKey('origData'), isFalse);
+      a.addPresetBackgrounds();
+      final j2 = jsonDecode(utf8.decode(await a.guyoBytes())) as Map;
+      expect((j2['backgrounds'] as List).length, 6, reason: 'готовые фоны выгружаются');
+      expect((j2['frame'] as Map)['size'], greaterThan(0));
     });
   });
 

@@ -890,8 +890,36 @@ class Studio extends ChangeNotifier {
         }
       }
     }
+    // фоны: цвета, градиенты и картинки (по одному на ID, из всех наборов)
+    final backgrounds = <Map<String, dynamic>>[];
+    final seenBg = <String>{};
+    final bgGeo = p.geos['male']!['bg']!;
+    for (final set in p.sets) {
+      for (final part in set.parts['bg'] ?? const <Part>[]) {
+        if (!seenBg.add(part.id)) continue;
+        final m = <String, dynamic>{'id': part.id, 'name': part.name, 'kind': part.kind};
+        if (part.kind == 'solid' || part.kind == 'grad') {
+          m['c1'] = part.c1;
+          if (part.kind == 'grad') m['c2'] = part.c2;
+        } else if (part.blobId != null) {
+          final bytes = await storage.readBlob(part.blobId!);
+          if (bytes == null) continue;
+          m['width'] = part.w.round();
+          m['height'] = part.h.round();
+          m['place'] = {'x': bgGeo.x, 'y': bgGeo.y, 's': bgGeo.s};
+          m['png'] = base64Encode(bytes);
+        } else {
+          continue;
+        }
+        backgrounds.add(m);
+      }
+    }
+    final fr = p.frame;
     final j = {
       'format': 'avatar-items/1',
+      // кадр аватарки: какую часть холста показывать (квадрат с центром x, y и стороной size) и форма
+      'frame': {'x': fr.x, 'y': fr.y, 'size': fr.size, 'shape': fr.shape},
+      'backgrounds': backgrounds,
       'exportedAt': DateTime.now().toIso8601String(),
       'canvas': {'w': canvasW, 'h': canvasH},
       'slots': [for (final id in p.order) if (id != 'bg') {'id': id, 'name': slot(id).name}],
