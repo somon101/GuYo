@@ -139,9 +139,10 @@ class _TeamScreenState extends State<TeamScreen>
   Future<void> _create() async {
     final result = await showModalBottomSheet<(String, bool)>(
       context: context,
+      showDragHandle: true,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const _CreateSheet(),
+      backgroundColor: AppColors.canvas,
+      builder: (_) => _CreateSheet(capacity: _state?.capacity ?? 5),
     );
     if (result != null)
       _act(() => ApiClient.instance.createTeam(result.$1, isOpen: result.$2));
@@ -150,8 +151,9 @@ class _TeamScreenState extends State<TeamScreen>
   Future<void> _find() async {
     final id = await showModalBottomSheet<int>(
       context: context,
+      showDragHandle: true,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.canvas,
       builder: (_) => const _FindSheet(),
     );
     if (id != null) _act(() => ApiClient.instance.joinTeam(id));
@@ -161,8 +163,9 @@ class _TeamScreenState extends State<TeamScreen>
     final taken = team.members.map((m) => m.userId).toSet();
     final id = await showModalBottomSheet<int>(
       context: context,
+      showDragHandle: true,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.canvas,
       builder: (_) => _InviteSheet(taken: taken),
     );
     if (id != null) {
@@ -976,39 +979,31 @@ class _InviteCard extends StatelessWidget {
 
 // --- Sheets ---------------------------------------------------------------------------
 
+/// The look of every team sheet: the same as the profile's (title, a line under it, soft fields), on the app's
+/// background with the drag handle, not the system-looking white plate.
 class _SheetFrame extends StatelessWidget {
   final String title;
+  final String? subtitle;
   final Widget child;
-  const _SheetFrame({required this.title, required this.child});
+  const _SheetFrame({required this.title, this.subtitle, required this.child});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: Container(
-        margin: const EdgeInsets.all(12),
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(28),
-        ),
-        child: SafeArea(
-          top: false,
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.primaryDark,
-                ),
-              ),
-              const SizedBox(height: 14),
+              Text(title, style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+              if (subtitle != null) ...[
+                const SizedBox(height: 4),
+                Text(subtitle!, style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
+              ],
+              const SizedBox(height: 12),
               child,
             ],
           ),
@@ -1018,8 +1013,33 @@ class _SheetFrame extends StatelessWidget {
   }
 }
 
+/// The big soft-green button of the team sheets (as in the profile).
+class _SheetGreenButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onTap;
+  const _SheetGreenButton(this.label, {this.onTap, super.key});
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 50,
+        width: double.infinity,
+        child: FilledButton(
+          onPressed: onTap,
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.action,
+            foregroundColor: AppColors.onAction,
+            disabledBackgroundColor: AppColors.violetSurface,
+            disabledForegroundColor: AppColors.muted,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          child: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+        ),
+      );
+}
+
 class _CreateSheet extends StatefulWidget {
-  const _CreateSheet();
+  final int capacity;
+  const _CreateSheet({this.capacity = 5});
 
   @override
   State<_CreateSheet> createState() => _CreateSheetState();
@@ -1027,7 +1047,7 @@ class _CreateSheet extends StatefulWidget {
 
 class _CreateSheetState extends State<_CreateSheet> {
   final _name = TextEditingController();
-  bool _open = false;
+  bool _open = true;
 
   @override
   void dispose() {
@@ -1038,35 +1058,43 @@ class _CreateSheetState extends State<_CreateSheet> {
   @override
   Widget build(BuildContext context) {
     final valid = _name.text.trim().length >= 3;
+    final border = OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: AppColors.cardBorder));
     return _SheetFrame(
       title: tr('Новая команда'),
+      subtitle: tr('Название от 3 до 24 символов. До {0} человек.', [widget.capacity]),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           TextField(
+            key: const ValueKey('team-name'),
             controller: _name,
             maxLength: 24,
             autofocus: true,
-            decoration: InputDecoration(labelText: tr('Название команды')),
             onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(hintText: tr('Название команды'), filled: true, fillColor: AppColors.surface, border: border, enabledBorder: border),
           ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(tr('Открыта для вступления')),
-            subtitle: Text(
-              tr('Любой сможет вступить, пока есть места'),
-              style: const TextStyle(fontSize: 12),
+          Material(
+            color: AppColors.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: AppColors.cardBorder)),
+            clipBehavior: Clip.antiAlias,
+            child: SwitchListTile(
+              key: const ValueKey('team-open'),
+              value: _open,
+              onChanged: (v) => setState(() => _open = v),
+              activeThumbColor: Colors.white,
+              activeTrackColor: AppColors.action,
+              title: Text(tr('Открыта для вступления'), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: AppColors.primaryDark)),
+              subtitle: Text(
+                _open ? tr('Любой вступит сразу, пока есть места') : tr('Вступают по запросу, решаете вы'),
+                style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
+              ),
             ),
-            value: _open,
-            onChanged: (v) => setState(() => _open = v),
           ),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: valid
-                  ? () => Navigator.pop(context, (_name.text.trim(), _open))
-                  : null,
-              child: Text(tr('Создать команду')),
-            ),
+          const SizedBox(height: 12),
+          _SheetGreenButton(
+            tr('Создать команду'),
+            key: const ValueKey('team-create'),
+            onTap: valid ? () => Navigator.pop(context, (_name.text.trim(), _open)) : null,
           ),
         ],
       ),
@@ -1118,30 +1146,35 @@ class _FindSheetState extends State<_FindSheet> {
                 shrinkWrap: true,
                 children: [
                   for (final t in teams)
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(colors: _teamGradient),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Material(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: const BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: _teamGradient)),
+                                child: const Icon(Icons.groups_rounded, color: Colors.white),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(t.name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.primaryDark)),
+                                    Text(tr('В команде: {0} из {1}', [t.members, t.capacity]), style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText)),
+                                  ],
+                                ),
+                              ),
+                              FilledButton(onPressed: () => Navigator.pop(context, t.id), child: Text(tr('Вступить'))),
+                            ],
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.groups_rounded,
-                          color: Colors.white,
-                        ),
-                      ),
-                      title: Text(
-                        t.name,
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      subtitle: Text(
-                        tr('В команде: {0} из {1}', [t.members, t.capacity]),
-                      ),
-                      trailing: FilledButton(
-                        onPressed: () => Navigator.pop(context, t.id),
-                        child: Text(tr('Вступить')),
                       ),
                     ),
                 ],

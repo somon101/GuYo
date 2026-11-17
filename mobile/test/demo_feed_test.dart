@@ -100,7 +100,7 @@ void main() {
 
   testWidgets('a closed team takes a request (the owner decides); an open one is joined at once', (tester) async {
     await _open(tester, const DemoMyTeamCard());
-    expect(find.text('Вы пока не в команде'), findsOneWidget);
+    expect(find.text('Играйте вместе'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('my-team-find')));
     await tester.pumpAndSettle();
@@ -135,7 +135,7 @@ void main() {
     expect(find.text('Команда «Мои львы»'), findsOneWidget);
     s.leave();
     await tester.pump();
-    expect(find.text('Вы пока не в команде'), findsOneWidget);
+    expect(find.text('Играйте вместе'), findsOneWidget);
   });
 
   testWidgets('leaving a team: a card in the middle says so, with the ways on (find, create), not a grey line', (tester) async {

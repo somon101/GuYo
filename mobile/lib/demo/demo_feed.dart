@@ -93,12 +93,11 @@ class _GreenButton extends StatelessWidget {
   final String label;
   final IconData? icon;
   final VoidCallback? onTap;
-  final double height;
-  const _GreenButton(this.label, {this.icon, this.onTap, this.height = 50, super.key});
+  const _GreenButton(this.label, {this.icon, this.onTap, super.key});
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        height: height,
+        height: 50,
         width: double.infinity,
         child: FilledButton.icon(
           onPressed: onTap == null
@@ -1056,55 +1055,77 @@ class _CreateTeamState extends State<_CreateTeam> {
 class DemoMyTeamCard extends StatelessWidget {
   const DemoMyTeamCard({super.key});
 
+  static const _gradient = [Color(0xFF14B8A6), Color(0xFF2563EB)];
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<int>(
       valueListenable: _s.changes,
       builder: (context, _, _) {
         final t = _s.myTeam;
+        if (t != null) {
+          return Container(
+            key: const ValueKey('my-team-card'),
+            padding: const EdgeInsets.all(14),
+            decoration: _cardBox(),
+            child: InkWell(
+              onTap: () => showDemoTeamSheet(context, t.id),
+              child: Row(children: [
+                _TeamIcon(),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(tr('Команда «{0}»', [t.name]), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: _P.ink)),
+                    Text('${tr('{0} из {1}', [t.members.length, DemoSocial.capacity])} · ${t.isOpen ? tr('открыта') : tr('по заявке')}', style: TextStyle(fontSize: 12.5, color: _P.muted)),
+                  ]),
+                ),
+                Icon(Icons.chevron_right_rounded, color: _P.muted),
+              ]),
+            ),
+          );
+        }
+        // no team yet: the same blue card as inside the season pass («Играйте вместе»), a little smaller
         return Container(
           key: const ValueKey('my-team-card'),
-          padding: const EdgeInsets.all(14),
-          decoration: _cardBox(),
-          child: t != null
-              ? InkWell(
-                  onTap: () => showDemoTeamSheet(context, t.id),
-                  child: Row(children: [
-                    _TeamIcon(),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(tr('Команда «{0}»', [t.name]), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: _P.ink)),
-                        Text('${tr('{0} из {1}', [t.members.length, DemoSocial.capacity])} · ${t.isOpen ? tr('открыта') : tr('по заявке')}', style: TextStyle(fontSize: 12.5, color: _P.muted)),
-                      ]),
-                    ),
-                    Icon(Icons.chevron_right_rounded, color: _P.muted),
-                  ]),
-                )
-              : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  Row(children: [
-                    _TeamIcon(),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(tr('Вы пока не в команде'), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: _P.ink)),
-                        Text(tr('Вместе проще держать серию и брать награды'), style: TextStyle(fontSize: 12.5, color: _P.muted)),
-                      ]),
-                    ),
-                  ]),
-                  const SizedBox(height: 12),
-                  _GreenButton(tr('Найти команду'), key: const ValueKey('my-team-find'), height: 46, onTap: () => showDemoTeamsList(context)),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 46,
-                    child: OutlinedButton(
-                      key: const ValueKey('my-team-create'),
-                      onPressed: () => showDemoCreateTeam(context),
-                      style: OutlinedButton.styleFrom(foregroundColor: _P.ink, side: BorderSide(color: _P.line), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                      child: Text(tr('Создать команду'), style: const TextStyle(fontWeight: FontWeight.w800)),
-                    ),
-                  ),
-                ]),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: _gradient),
+            boxShadow: [BoxShadow(color: _gradient.last.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 7))],
+          ),
+          child: Column(children: [
+            const Icon(Icons.groups_rounded, size: 44, color: Colors.white),
+            const SizedBox(height: 4),
+            Text(tr('Играйте вместе'), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900, color: Colors.white)),
+            const SizedBox(height: 4),
+            Text(
+              tr('Соберите команду из друзей: общие цели недели и сезона, бонусная энергия и командный значок'),
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12.5, height: 1.3, color: Colors.white.withValues(alpha: 0.9)),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: FilledButton(
+                key: const ValueKey('my-team-create'),
+                onPressed: () => showDemoCreateTeam(context),
+                style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: _gradient.last),
+                child: Text(tr('Создать команду'), style: const TextStyle(fontWeight: FontWeight.w800)),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: OutlinedButton(
+                key: const ValueKey('my-team-find'),
+                onPressed: () => showDemoTeamsList(context),
+                style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white, width: 1.5)),
+                child: Text(tr('Найти команду'), style: const TextStyle(fontWeight: FontWeight.w800)),
+              ),
+            ),
+          ]),
         );
       },
     );
