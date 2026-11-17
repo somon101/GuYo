@@ -105,8 +105,8 @@ class _PracticeRoundCompleteState extends State<PracticeRoundComplete> {
                             icon: const Icon(Icons.refresh_rounded),
                             label: Text(tr('Ещё раунд')),
                             style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
+                              backgroundColor: AppColors.action,
+                              foregroundColor: AppColors.onAction,
                               shape: const StadiumBorder(),
                               textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                             ),

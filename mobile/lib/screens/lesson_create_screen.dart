@@ -401,7 +401,7 @@ class _LessonCreateScreenState extends State<LessonCreateScreen> {
             child: FilledButton(
               onPressed: canSubmit ? _submit : null,
               style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: AppColors.action,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 textStyle: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700),
               ),

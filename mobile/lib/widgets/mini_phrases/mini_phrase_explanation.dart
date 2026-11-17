@@ -153,8 +153,8 @@ class MiniPhraseExplanation extends StatelessWidget {
                 key: const ValueKey('mini-phrase-next'),
                 onPressed: onNext,
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                  backgroundColor: AppColors.action,
+                  foregroundColor: AppColors.onAction,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
                 child: Text(nextLabel, style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700)),

@@ -109,7 +109,7 @@ class _TopicsScreenState extends State<TopicsScreen> {
                 key: const ValueKey('topics-save'),
                 onPressed: _isSaving ? null : () => _save(_selected),
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: AppColors.action,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppShapes.pillRadius)),
                 ),

@@ -109,4 +109,13 @@ void main() {
       await finish(tester);
     }, demoClient);
   });
+
+  test('the ring is green with time to spare, yellow under 10 minutes, red under 5', () {
+    expect(BoostersBar.colorFor(const Duration(minutes: 43)), AppColors.action);
+    expect(BoostersBar.colorFor(const Duration(minutes: 10)), AppColors.action, reason: 'ten minutes exactly is still green');
+    expect(BoostersBar.colorFor(const Duration(minutes: 9, seconds: 59)), AppColors.warning);
+    expect(BoostersBar.colorFor(const Duration(minutes: 5)), AppColors.warning);
+    expect(BoostersBar.colorFor(const Duration(minutes: 4, seconds: 59)), AppColors.danger);
+    expect(BoostersBar.colorFor(Duration.zero), AppColors.danger);
+  });
 }

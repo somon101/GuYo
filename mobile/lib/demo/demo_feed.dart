@@ -1132,7 +1132,7 @@ class _DemoPersonScreenState extends State<DemoPersonScreen> {
                       onPressed: _duelSent ? null : () => setState(() => _duelSent = true),
                       icon: const Icon(Icons.sports_martial_arts_rounded),
                       label: Text(_duelSent ? tr('Вызов отправлен') : tr('Вызвать на дуэль'), style: const TextStyle(fontWeight: FontWeight.w800)),
-                      style: FilledButton.styleFrom(backgroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                      style: FilledButton.styleFrom(backgroundColor: AppColors.action, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
                     ),
                   ),
                   TextButton.icon(

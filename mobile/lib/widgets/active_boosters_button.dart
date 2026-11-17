@@ -14,7 +14,7 @@ import 'reward_claim_effect.dart';
 
 /// The doublers in the top bar of «Уроки»: all three kinds are always there. A kind with tickets
 /// shows its icon and how many; a running one is its icon in a ring that empties with the time,
-/// the time left small under it (under [alarmBelow] ring and time turn red and blink); a kind with
+/// the time left small under it (green with time to spare, yellow under [warnBelow]; under [alarmBelow] ring and time turn red and blink); a kind with
 /// nothing is a pale icon. A tap opens the sheet where a ticket is switched on.
 /// Doublers of different kinds run side by side; one more ticket of the same kind adds its time.
 class BoostersBar extends StatefulWidget {
@@ -23,6 +23,12 @@ class BoostersBar extends StatefulWidget {
   const BoostersBar({super.key, this.initial});
 
   static const Duration alarmBelow = Duration(minutes: 5);
+
+  /// Under this the ring turns yellow (a warning); under [alarmBelow] it is red and blinks; with more time left it is green.
+  static const Duration warnBelow = Duration(minutes: 10);
+
+  /// The colour of a running ticket's ring and bar by how much time is left.
+  static Color colorFor(Duration left) => left < alarmBelow ? AppColors.danger : (left < warnBelow ? AppColors.warning : AppColors.action);
   static const List<String> kinds = ['chest', 'rating', 'xp'];
 
   @override
@@ -231,7 +237,7 @@ class _Slot extends StatelessWidget {
                     if (running)
                       Positioned.fill(
                         child: CustomPaint(
-                          painter: _RingPainter(fraction: fraction, color: (alarm ? AppColors.danger : AppColors.primary).withValues(alpha: fade), track: AppColors.progressTrack),
+                          painter: _RingPainter(fraction: fraction, color: BoostersBar.colorFor(left).withValues(alpha: fade), track: AppColors.progressTrack),
                         ),
                       ),
                     Opacity(opacity: none ? 0.3 : 1, child: BoosterIcon(size: running ? 24 : 30, kind: kind)),
@@ -369,7 +375,7 @@ class _BoosterSheetState extends State<_BoosterSheet> {
                     height: 4,
                     child: Stack(children: [
                       Positioned.fill(child: ColoredBox(color: AppColors.progressTrack)),
-                      FractionallySizedBox(widthFactor: widget.fraction(), child: ColoredBox(color: alarm ? AppColors.danger : AppColors.primary)),
+                      FractionallySizedBox(widthFactor: widget.fraction(), child: ColoredBox(color: BoostersBar.colorFor(widget.left()))),
                     ]),
                   ),
                 ),

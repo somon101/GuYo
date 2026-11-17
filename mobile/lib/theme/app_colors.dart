@@ -22,6 +22,11 @@ class AppColors {
   /// Cards, sheets and tiles: white in the light theme.
   static Color get surface => dark ? const Color(0xFF1C1F2E) : Colors.white;
 
+  /// The green of the main action buttons («Найти команду», «Создать команду», «Готово»...): one colour for them
+  /// everywhere. Text on it is the dark green [onAction].
+  static Color get action => dark ? const Color(0xFF7BDA5E) : const Color(0xFF62C94A);
+  static Color get onAction => dark ? const Color(0xFF10300A) : const Color(0xFF123D0A);
+
   static Color get primary => dark ? const Color(0xFF7C84F0) : const Color(0xFF5862DD);
   static Color get primaryDark => dark ? const Color(0xFFE9EBFA) : const Color(0xFF101B63);
   static Color get secondaryText => dark ? const Color(0xFF9AA3CC) : const Color(0xFF7180B0);
