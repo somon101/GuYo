@@ -232,10 +232,8 @@ class _StageViewState extends State<StageView> {
                         Positioned.fill(child: IgnorePointer(child: CustomPaint(painter: _BrushCursor(_hoverPx!, s.brushSize / 2)))),
                       if (!s.hasAnyPart)
                         Center(child: Padding(padding: const EdgeInsets.all(30), child: Text('Макет пустой\nВыберите слот и загрузите первую деталь.', textAlign: TextAlign.center, style: TextStyle(color: c.mut, fontSize: 15, height: 1.5)))),
-                      if (s.painting)
-                        Positioned(left: 10, right: 10, bottom: 10, child: _BrushPanel(s))
-                      else
-                        Positioned(left: 12, right: 12, bottom: 10, child: IgnorePointer(child: Row(children: [_chip(c, _info(s)), const Spacer(), _chip(c, '${s.stageZoom == 1 ? '' : '×${s.stageZoom.toStringAsFixed(1)}  '}${hover == null ? 'x —  y —' : 'x ${hover!.dx.round()}  y ${hover!.dy.round()}'}')]))),
+                      // настройки кисти не закрывают сцену: они открываются в нижней панели (см. home.dart)
+                      Positioned(left: 12, right: 12, bottom: 10, child: IgnorePointer(child: Row(children: [_chip(c, _info(s)), const Spacer(), _chip(c, '${s.stageZoom == 1 ? '' : '×${s.stageZoom.toStringAsFixed(1)}  '}${hover == null ? 'x —  y —' : 'x ${hover!.dx.round()}  y ${hover!.dy.round()}'}')]))),
                     ]),
                   ),
                 ),
@@ -354,10 +352,10 @@ class _BrushCursor extends CustomPainter {
   bool shouldRepaint(_BrushCursor o) => o.at != at || o.r != r;
 }
 
-/// Панель кисти на сцене: что делаем, размер, мягкость, готово.
-class _BrushPanel extends StatelessWidget {
+/// Настройки кисти: что делаем, размер, мягкость, готово. Открываются в нижней панели вместо вкладок, чтобы сцена оставалась на виду целиком.
+class BrushPanel extends StatelessWidget {
   final Studio s;
-  const _BrushPanel(this.s);
+  const BrushPanel(this.s, {super.key});
 
   Widget _slider(BuildContext context, String label, double v, double min, double max, ValueChanged<double> on) => Row(children: [
         SizedBox(width: 66, child: Text(label, style: TextStyle(fontSize: 12, color: sc(context).mut))),

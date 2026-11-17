@@ -150,7 +150,7 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(width: 14),
         Expanded(child: Padding(padding: const EdgeInsets.only(bottom: 16), child: _stage())),
         const SizedBox(width: 14),
-        SizedBox(width: 340, child: ListView(padding: const EdgeInsets.only(bottom: 16), children: [PartsPanel(s), GeoPanel(s), FramePanel(s), LooksPanel(s)])),
+        SizedBox(width: 340, child: ListView(padding: const EdgeInsets.only(bottom: 16), children: s.painting ? [BrushPanel(s)] : [PartsPanel(s), GeoPanel(s), FramePanel(s), LooksPanel(s)])),
       ]);
 
   Widget _narrow(BoxConstraints box) {
@@ -163,6 +163,14 @@ class _HomePageState extends State<HomePage> {
       FramePanel(s),
       LooksPanel(s),
     ];
+    if (s.painting) {
+      // кисть: вместо вкладок открываются её настройки, сцена остаётся целиком на виду
+      return Column(children: [
+        SizedBox(height: (box.maxHeight * 0.6).clamp(260, 620).toDouble(), child: _stage()),
+        const SizedBox(height: 10),
+        Expanded(child: ListView(padding: const EdgeInsets.only(bottom: 16), children: [BrushPanel(s)])),
+      ]);
+    }
     return Column(children: [
       SizedBox(height: (box.maxHeight * 0.5).clamp(240, 560).toDouble(), child: _stage()),
       const SizedBox(height: 10),
