@@ -20,6 +20,9 @@ http.Client demoClient() => MockClient((req) async {
       if (req.method == 'GET' && path.startsWith('/media/demo-avatar/')) {
         return http.Response.bytes(await demoPartPng(path.split('/').last), 200, headers: const {'content-type': 'image/png'});
       }
+      if (req.method == 'GET' && path == '/avatar/catalog') {
+        return http.Response(await demoAvatarCatalogJson(), 200, headers: _h);
+      }
       if (req.method == 'PUT' && path == '/users/me/avatar-look') {
         // saving an avatar: the demo remembers the choice and gives the picture a new address
         final m = RegExp(r'name="look"\r\n\r\n(.*?)\r\n--', dotAll: true).firstMatch(latin1.decode(req.bodyBytes, allowInvalid: true));
@@ -67,8 +70,6 @@ Object? _get(String path, Map<String, String> q) {
         'words_learned': 318, 'premium_until': _in(20), 'learning_topics': <String>[], 'ui_language': 'ru',
         'translation_language': 'tg', 'learning_language': 'en', 'language_unavailable': <String>[],
       };
-    case '/avatar/catalog':
-      return demoAvatarCatalog();
     case '/slogans/today':
       return {'text': 'Каждый день по чуть-чуть', 'slogan': 'Каждый день по чуть-чуть'};
     case '/users/me/achievements':

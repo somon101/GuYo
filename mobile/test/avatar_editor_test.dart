@@ -2,6 +2,7 @@
 // together a random SET of that gender, the grid shows many parts at once, white squares stand in until
 // pictures arrive.
 
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -12,6 +13,7 @@ import 'package:guyo_app/avatar/avatar_logic.dart';
 import 'package:guyo_app/avatar/avatar_models.dart';
 import 'package:guyo_app/avatar/avatar_painter.dart';
 import 'package:guyo_app/avatar/avatar_store.dart';
+import 'package:guyo_app/demo/demo_avatar.dart';
 import 'package:guyo_app/models/user_profile.dart';
 import 'package:guyo_app/screens/avatar_editor_screen.dart';
 
@@ -127,5 +129,20 @@ void main() {
     await t.pump();
     expect(find.text('Готово'), findsOneWidget);
     expect(t.takeException(), isNull);
+  });
+
+  test('demo: the boys\' set from the Studio is the demo catalog, every part has its picture', () async {
+    final c = AvatarCatalog.fromJson(jsonDecode(await demoAvatarCatalogJson()) as Map<String, dynamic>);
+    expect(c.parts, isNotEmpty);
+    expect(c.parts.every((p) => p.gender == 'male'), isTrue, reason: 'a boys\' set; nothing is made up in code any more');
+    expect(c.backgrounds, isEmpty);
+    expect(c.slotsFor('female'), isEmpty);
+    expect(c.slotsFor('male').map((s) => s.id), containsAll(['cloth', 'face', 'hair']));
+    for (final p in c.parts.take(5)) {
+      final png = await demoPartPng(p.url.split('/').last);
+      expect(png.sublist(0, 4), [0x89, 0x50, 0x4E, 0x47]);
+    }
+    final choice = randomChoice(c, 'male', math.Random(2));
+    expect(choice.slots.keys.toSet(), c.slotsFor('male').map((s) => s.id).toSet());
   });
 }

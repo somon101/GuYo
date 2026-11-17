@@ -99,6 +99,7 @@ flutter:
     - assets/animations/fire.json
     - assets/chests/
     - assets/icons/
+    - assets/demo-avatar/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
