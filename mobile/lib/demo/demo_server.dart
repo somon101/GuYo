@@ -3,14 +3,31 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
+import 'demo_avatar.dart';
 import 'demo_lessons.dart';
 import 'demo_state.dart';
 import 'demo_words.dart';
 
 /// A fake backend for the demo build: answers the main screens with made-up data, so the
 /// app can be looked at with no server. Nothing here is used by the real app.
+String? _demoAvatarUrl;
+Map<String, dynamic>? _demoAvatarLook;
+
 http.Client demoClient() => MockClient((req) async {
       final path = req.url.path;
+      // the demo avatar parts are pictures drawn in code
+      if (req.method == 'GET' && path.startsWith('/media/demo-avatar/')) {
+        return http.Response.bytes(await demoPartPng(path.split('/').last), 200, headers: const {'content-type': 'image/png'});
+      }
+      if (req.method == 'PUT' && path == '/users/me/avatar-look') {
+        // saving an avatar: the demo remembers the choice and gives the picture a new address
+        final m = RegExp(r'name="look"\r\n\r\n(.*?)\r\n--', dotAll: true).firstMatch(latin1.decode(req.bodyBytes, allowInvalid: true));
+        try {
+          _demoAvatarLook = m == null ? null : jsonDecode(m.group(1)!) as Map<String, dynamic>;
+        } catch (_) {}
+        _demoAvatarUrl = '/media/demo-avatar/me-${DateTime.now().millisecondsSinceEpoch}.png';
+        return http.Response(jsonEncode({'avatar_url': _demoAvatarUrl, 'avatar_look': _demoAvatarLook}), 200, headers: _h);
+      }
       Object? body;
       Map<String, dynamic> sent = {};
       try {
@@ -44,13 +61,12 @@ Object? _get(String path, Map<String, String> q) {
     case '/users/me/profile':
       return {
         'id': 1, 'public_id': 123456789, 'login': 'Demo', 'first_name': 'Демо', 'last_name': null, 'email': null,
-        'avatar_url': null, 'current_streak_days': 13, 'streak_active_today': true, 'lessons_completed': 42,
+        'avatar_url': _demoAvatarUrl, 'avatar_look': _demoAvatarLook, 'current_streak_days': 13, 'streak_active_today': true, 'lessons_completed': 42,
         'words_learned': 318, 'premium_until': _in(20), 'learning_topics': <String>[], 'ui_language': 'ru',
         'translation_language': 'tg', 'learning_language': 'en', 'language_unavailable': <String>[],
       };
     case '/avatar/catalog':
-      // the demo has no avatar parts: the editor shows its empty state
-      return {'version': 1, 'canvas': {'w': 1200, 'h': 1600}, 'frame': {'x': 600, 'y': 560, 'size': 760, 'shape': 'circle'}, 'slots': <Object>[], 'sets': <Object>[], 'items': <Object>[], 'backgrounds': <Object>[]};
+      return demoAvatarCatalog();
     case '/slogans/today':
       return {'text': 'Каждый день по чуть-чуть', 'slogan': 'Каждый день по чуть-чуть'};
     case '/users/me/achievements':
