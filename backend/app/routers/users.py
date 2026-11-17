@@ -466,6 +466,7 @@ def delete_my_avatar(db: Session = Depends(get_db), user: User = Depends(get_cur
     here."""
     old_key = user.avatar_key
     user.avatar_key = None
+    user.avatar_look = None
     db.commit()
     delete_by_key(old_key)
     return _profile_out(db, user)

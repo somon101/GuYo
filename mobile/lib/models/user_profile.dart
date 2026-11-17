@@ -22,6 +22,9 @@ class UserProfile {
   final String? email;
 
   final String? avatarUrl;
+
+  /// The choice behind a built avatar (gender, part IDs, background); null until the person builds one.
+  final Map<String, dynamic>? avatarLook;
   final int currentStreakDays;
   /// Today's streak day already earned (lesson, practice round or quest finished).
   final bool streakActiveToday;
@@ -69,6 +72,7 @@ class UserProfile {
     required this.lastName,
     required this.email,
     required this.avatarUrl,
+    this.avatarLook,
     required this.currentStreakDays,
     this.streakActiveToday = false,
     required this.lessonsCompleted,
@@ -94,6 +98,7 @@ class UserProfile {
       lastName: json['last_name'] as String?,
       email: json['email'] as String?,
       avatarUrl: json['avatar_url'] as String?,
+      avatarLook: json['avatar_look'] as Map<String, dynamic>?,
       currentStreakDays: json['current_streak_days'] as int,
       streakActiveToday: json['streak_active_today'] as bool? ?? false,
       lessonsCompleted: json['lessons_completed'] as int,

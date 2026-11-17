@@ -2,12 +2,10 @@ import '../services/streak_state.dart';
 import '../l10n/l10n.dart';
 
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import '../widgets/game_icons.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../api/api_client.dart';
 import '../services/session_cache.dart';
@@ -23,7 +21,9 @@ import '../widgets/position_change.dart';
 import '../widgets/rank_icon.dart';
 import '../widgets/remote_image.dart';
 import '../widgets/cosmetic_art.dart';
+import '../avatar/avatar_store.dart';
 import '../widgets/user_avatar.dart';
+import 'avatar_editor_screen.dart';
 import '../widgets/user_name.dart';
 import 'achievements_screen.dart';
 import 'my_progress_screen.dart';
@@ -179,95 +179,18 @@ class ProfileScreenState extends State<ProfileScreen> {
     } catch (_) {}
   }
 
+  /// The photo upload is gone: the avatar is built from parts in the editor (see AvatarEditorScreen).
+  /// Kept under the old name because the profile header hands this callback around.
   Future<UserProfile?> _pickAndUploadAvatar() async {
-    final picker = ImagePicker();
-    final XFile? picked;
-    try {
-      picked = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1024,
-        imageQuality: 85,
-      );
-    } catch (e) {
-      _showSnack(tr('Не удалось открыть галерею: {0}', [e]));
-      return null;
-    }
-    if (picked == null) {
-      // Distinguishes a real "nothing picked" from every other silent
-      // failure mode below -- some OEM gallery pickers return null here
-      // even after the user visibly picks something (a cancelled/failed
-      // crop step, for instance), which otherwise looks identical to
-      // every other kind of silent no-op.
-      _showSnack(tr('Файл не выбран'));
-      return null;
-    }
-
-    // picker.pickImage() backgrounds this Activity for as long as the
-    // system picker is on screen -- on a low-RAM device Android can reclaim
-    // enough memory meanwhile to tear down and recreate the Activity/engine
-    // entirely, which disposes THIS exact State object before control ever
-    // returns here. Calling setState on that already-disposed State is
-    // undefined in release builds -- confirmed via a real device log as a
-    // framework-internal crash ("Null check operator used on a null value"
-    // inside State.setState) that aborted this whole function silently
-    // before it ever reached readAsBytes(), which is exactly what looked
-    // like "picks a photo, screen goes blank, nothing ever happens".
-    if (!mounted) return null;
-    // Set BEFORE reading any bytes, not after -- readAsBytes() opens the
-    // picked content:// URI through the OS, which on a real device can
-    // take a real, visible moment (or throw, see below), and previously
-    // showed nothing at all -- no spinner, no feedback -- for however long
-    // that took, which is exactly what looked like a frozen white screen.
-    setState(() => _isUpdatingAvatar = true);
-    Uint8List bytes;
-    try {
-      bytes = await picked.readAsBytes();
-    } catch (e) {
-      // This was completely unguarded before: readAsBytes() can genuinely
-      // throw on Android (a revoked URI grant, the Activity having been
-      // recreated under memory pressure while the gallery was open) and
-      // nothing anywhere caught it, so the failure vanished into an
-      // unhandled Future error -- no snackbar, no state change, the exact
-      // "picks a photo, then nothing happens at all" this was chasing.
-      if (mounted) setState(() => _isUpdatingAvatar = false);
-      _showSnack(tr('Не удалось прочитать фото: {0}', [e]));
-      return null;
-    }
-    if (!mounted) return null;
-    // Optimistic preview -- set BEFORE the network call even starts, so
-    // there is no window at all where the screen shows nothing new.
-    setState(() => _pendingAvatarBytes = bytes);
-    try {
-      final profile = await ApiClient.instance.uploadMyAvatar(
-        bytes,
-        picked.name,
-        mimeType: picked.mimeType,
-      );
-      if (!mounted) return null;
-      setState(() {
-        _profile = profile;
-        _pendingAvatarBytes = null;
-      });
-      // Explicit success feedback -- previously silent on success, so a
-      // real upload that landed fine on the backend but whose new photo
-      // failed to actually RENDER (bad network, a stale cached widget)
-      // looked identical to "nothing happened at all".
-      _showSnack(tr('Фото обновлено'));
-      return profile;
-    } on ApiException catch (e) {
-      if (mounted) setState(() => _pendingAvatarBytes = null);
-      _showSnack(e.message);
-    } catch (e) {
-      // Includes the raw exception text (not just a generic message) --
-      // this upload path has silently failed on some real devices before
-      // with no visible cause, so surfacing exactly what threw is worth
-      // more here than a clean but uninformative message.
-      if (mounted) setState(() => _pendingAvatarBytes = null);
-      _showSnack(tr('Не удалось загрузить фото: {0}', [e]));
-    } finally {
-      if (mounted) setState(() => _isUpdatingAvatar = false);
-    }
-    return null;
+    final current = _profile;
+    if (current == null) return null;
+    final result = await Navigator.of(context).push<UserProfile>(
+      MaterialPageRoute(builder: (_) => AvatarEditorScreen(profile: current)),
+    );
+    if (result == null || !mounted) return null;
+    setState(() => _profile = result);
+    _showSnack(tr('Аватар сохранён'));
+    return result;
   }
 
   Future<UserProfile?> _removeAvatar() async {
@@ -276,12 +199,14 @@ class ProfileScreenState extends State<ProfileScreen> {
       _pendingAvatarBytes = null;
     });
     try {
+      final oldUrl = _profile?.avatarUrl;
       final profile = await ApiClient.instance.deleteMyAvatar();
+      await AvatarStore.instance.forgetAvatar(oldUrl);
       if (!mounted) return null;
       setState(() => _profile = profile);
       return profile;
     } catch (_) {
-      _showSnack(tr('Не удалось удалить фото'));
+      _showSnack(tr('Не удалось сбросить аватар'));
     } finally {
       if (mounted) setState(() => _isUpdatingAvatar = false);
     }
@@ -503,6 +428,11 @@ class _ProfileHeader extends StatelessWidget {
 
   Future<void> _openPhotoMenu(BuildContext context) async {
     if (isUpdatingAvatar) return;
+    if (!_hasPhoto) {
+      // nothing to view or remove yet: straight into creating the avatar
+      await onPickPhoto();
+      return;
+    }
     final action = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -633,7 +563,7 @@ class _ProfileHeader extends StatelessWidget {
                       border: Border.all(color: AppColors.surface, width: 2),
                     ),
                     child: const Icon(
-                      Icons.photo_camera_rounded,
+                      Icons.brush_rounded,
                       size: 15,
                       color: Colors.white,
                     ),
@@ -715,6 +645,16 @@ class _ProfileHeader extends StatelessWidget {
                   ),
                 ),
               ]),
+              if (!_hasPhoto) ...[
+                const SizedBox(height: 4),
+                // No avatar yet: the way to make one is right here, not hidden behind the picture.
+                FilledButton.tonalIcon(
+                  key: const ValueKey('profile-create-avatar'),
+                  onPressed: isUpdatingAvatar ? null : onPickPhoto,
+                  icon: const Icon(Icons.face_retouching_natural, size: 18),
+                  label: Text(tr('Создать аватар'), style: const TextStyle(fontWeight: FontWeight.w800)),
+                ),
+              ],
             ],
           ),
         ),
@@ -1305,15 +1245,15 @@ class _PhotoActionSheet extends StatelessWidget {
                   ],
                   row(
                     'change',
-                    Icons.photo_camera_outlined,
-                    tr('Изменить фото'),
+                    Icons.face_retouching_natural,
+                    tr('Изменить аватар'),
                   ),
                   if (hasPhoto) ...[
                     divider,
                     row(
                       'remove',
                       Icons.delete_outline_rounded,
-                      tr('Удалить фото'),
+                      tr('Сбросить аватар'),
                       danger: true,
                     ),
                   ],

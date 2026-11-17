@@ -48,6 +48,9 @@ Object? _get(String path, Map<String, String> q) {
         'words_learned': 318, 'premium_until': _in(20), 'learning_topics': <String>[], 'ui_language': 'ru',
         'translation_language': 'tg', 'learning_language': 'en', 'language_unavailable': <String>[],
       };
+    case '/avatar/catalog':
+      // the demo has no avatar parts: the editor shows its empty state
+      return {'version': 1, 'canvas': {'w': 1200, 'h': 1600}, 'frame': {'x': 600, 'y': 560, 'size': 760, 'shape': 'circle'}, 'slots': <Object>[], 'sets': <Object>[], 'items': <Object>[], 'backgrounds': <Object>[]};
     case '/slogans/today':
       return {'text': 'Каждый день по чуть-чуть', 'slogan': 'Каждый день по чуть-чуть'};
     case '/users/me/achievements':

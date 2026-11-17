@@ -2135,6 +2135,33 @@ class ApiClient {
     );
   }
 
+  /// The avatar parts catalog (see lib/avatar). With `since` = the version the phone already has, an unchanged
+  /// catalog comes back as just {"unchanged": true}.
+  Future<Map<String, dynamic>> fetchAvatarCatalog({int? since}) async {
+    final res = await http
+        .get(_uri('/avatar/catalog${since == null ? '' : '?since=$since'}'), headers: await _authHeaders())
+        .timeout(const Duration(seconds: 20));
+    await _throwIfUnauthorized(res);
+    await _throwWithDetail(res);
+    return jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+  }
+
+  /// Saves the avatar: the finished PNG and the choice behind it. Returns the new `avatar_url`.
+  Future<String> saveMyAvatar(Map<String, dynamic> look, List<int> png) async {
+    final t = await token;
+    final req = http.MultipartRequest('PUT', _uri('/users/me/avatar-look'))
+      ..headers['Authorization'] = 'Bearer $t'
+      ..fields['look'] = jsonEncode(look)
+      ..files.add(http.MultipartFile.fromBytes('image', png, filename: 'avatar.png', contentType: MediaType('image', 'png')));
+    final streamed = await req.send().timeout(
+      const Duration(seconds: 25),
+      onTimeout: () => throw ApiException(tr('Загрузка не удалась: слишком медленное соединение')),
+    );
+    final res = await http.Response.fromStream(streamed).timeout(const Duration(seconds: 25));
+    await _throwWithDetail(res);
+    return (jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>)['avatar_url'] as String;
+  }
+
   /// Clears the avatar -- the caller should fall back to the generated
   /// default avatar the moment `avatarUrl` comes back null.
   Future<UserProfile> deleteMyAvatar() async {
