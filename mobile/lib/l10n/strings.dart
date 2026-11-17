@@ -2,6 +2,8 @@
 // Russian text itself (see l10n.dart). Machine-assisted; review welcome.
 
 const Map<String, (String, String)> uiStrings = {
+  'до награды: {0}': ('то мукофот: {0}', 'mukofotgacha: {0}'),
+  'Получено': ('Гирифта шуд', 'Olindi'),
   'Команды «{0}» больше нет': ('Ҷамоаи «{0}» дигар нест', '«{0}» jamoasi endi yoʻq'),
   'Создатель закрыл её. Ваши очки и серия остались с вами, можно найти новую команду.': ('Созанда онро баст. Холҳо ва силсилаи шумо бо шумо мемонанд, метавонед дастаи нав ёбед.', 'Yaratuvchi uni yopdi. Ballaringiz va seriyangiz oʻzingizda qoladi, yangi jamoa topishingiz mumkin.'),
   'Вы вышли из команды «{0}»': ('Шумо аз дастаи «{0}» баромадед', 'Siz «{0}» jamoasidan chiqdingiz'),

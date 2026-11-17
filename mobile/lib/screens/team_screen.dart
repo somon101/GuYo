@@ -489,6 +489,7 @@ class _TeamScreenState extends State<TeamScreen>
         if (team.seasonGoal != null)
           _SeasonGoalCard(
             goal: team.seasonGoal!,
+            members: team.members,
             pulse: _pulseController,
             busy: _busy,
             onClaim: () => _claim(team.seasonGoal!),
@@ -652,127 +653,179 @@ class _GoalCard extends StatelessWidget {
   }
 }
 
+/// «Цель сезона»: the team walks along a road to the reward. Milestones at a third and two thirds, the reward
+/// (a badge or a chest) at the end, the avatar of this week's most active member where the team is now.
 class _SeasonGoalCard extends StatelessWidget {
   final TeamGoal goal;
+  final List<TeamMember> members;
   final Animation<double> pulse;
   final bool busy;
   final VoidCallback onClaim;
   const _SeasonGoalCard({
     required this.goal,
+    required this.members,
     required this.pulse,
     required this.busy,
     required this.onClaim,
   });
 
+  static const _gold = Color(0xFFF5A623);
+  static const _goldLight = Color(0xFFFFC857);
+
   @override
   Widget build(BuildContext context) {
-    final value = goal.target == 0
-        ? 1.0
-        : (goal.progress / goal.target).clamp(0.0, 1.0);
+    final value = goal.target == 0 ? 1.0 : (goal.progress / goal.target).clamp(0.0, 1.0);
     final reward = goal.reward;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 18),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF3A2A00), Color(0xFF6B4B00)],
-        ),
-        border: Border.all(color: const Color(0xFFFFD54F), width: 1.6),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFFB300).withValues(alpha: 0.28),
-            blurRadius: 18,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              if (reward != null && reward.type == 'badge')
-                BadgeGlyph(badgeKey: reward.key ?? 'shield', size: 48)
-              else
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [Color(0xFFFFE066), Color(0xFFFF9800)],
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.emoji_events_rounded,
-                    color: Color(0xFF5A3B00),
-                    size: 28,
-                  ),
+    final left = (goal.target - goal.progress).clamp(0, goal.target);
+    TeamMember? lead;
+    for (final m in members) {
+      if (lead == null || m.weekXp > lead.weekXp) lead = m;
+    }
+    final Widget prize = reward != null && reward.type == 'badge'
+        ? BadgeGlyph(badgeKey: reward.key ?? 'shield', size: 36)
+        : const ChestImage('gold', size: 38);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _Title(tr('Цель сезона')),
+        AnimatedBuilder(
+          animation: pulse,
+          builder: (_, _) => Container(
+            key: const ValueKey('season-goal'),
+            margin: const EdgeInsets.only(bottom: 18),
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: goal.claimable ? _gold.withValues(alpha: 0.5 + 0.5 * pulse.value) : AppColors.cardBorder,
+                width: goal.claimable ? 2 : 1,
+              ),
+              boxShadow: AppShapes.cardShadow,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _goalText(goal),
+                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
                 ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(height: 8),
+                _Road(value: value, target: goal.target, lead: lead, prize: prize, done: goal.claimed),
+                const SizedBox(height: 4),
+                Row(
                   children: [
                     Text(
-                      tr('Цель сезона'),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFFFFE066),
-                      ),
+                      tr('{0} из {1}', [goal.progress, goal.target]),
+                      key: const ValueKey('season-progress'),
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
                     ),
+                    const Spacer(),
                     Text(
-                      _goalText(goal),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.white.withValues(alpha: 0.9),
-                      ),
+                      goal.claimed ? tr('Получено') : tr('до награды: {0}', [left]),
+                      style: TextStyle(fontSize: 12.5, color: AppColors.secondaryText),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: value,
-              minHeight: 10,
-              backgroundColor: Colors.white24,
-              color: const Color(0xFFFFD54F),
+                const SizedBox(height: 2),
+                IconText(
+                  '+${goal.xp} ⚡${reward != null ? ' · ${rewardSentence(reward)}' : ''}',
+                  style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
+                ),
+                if (goal.claimable) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      key: const ValueKey('season-claim'),
+                      onPressed: busy ? null : onClaim,
+                      style: FilledButton.styleFrom(backgroundColor: _goldLight, foregroundColor: const Color(0xFF5A3B00)),
+                      child: Text(tr('Забрать'), style: const TextStyle(fontWeight: FontWeight.w900)),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Expanded(
-                child: IconText(
-                  '${goal.progress} / ${goal.target} · +${goal.xp} ⚡${reward != null ? ' · ${rewardSentence(reward)}' : ''}',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: Colors.white.withValues(alpha: 0.85),
+        ),
+      ],
+    );
+  }
+}
+
+/// The road itself: a track filled in gold up to [value], milestones at a third and two thirds with their
+/// numbers, the prize at the end and the leading member standing where the team is.
+class _Road extends StatelessWidget {
+  final double value;
+  final int target;
+  final TeamMember? lead;
+  final Widget prize;
+  final bool done;
+  const _Road({required this.value, required this.target, required this.lead, required this.prize, required this.done});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 82,
+      child: LayoutBuilder(
+        builder: (context, box) {
+          const pad = 12.0, prizeW = 44.0, trackY = 40.0, trackH = 8.0, dot = 20.0, avatar = 28.0;
+          final from = pad, to = box.maxWidth - prizeW;
+          final span = to - from;
+          double at(double f) => from + span * f;
+          Widget milestone(double f, String label) {
+            final reached = value >= f - 1e-9;
+            return Positioned(
+              left: at(f) - dot / 2,
+              top: trackY + trackH / 2 - dot / 2,
+              child: Column(
+                children: [
+                  Container(
+                    width: dot,
+                    height: dot,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: reached ? const Color(0xFFFFF1D6) : AppColors.surface,
+                      border: Border.all(color: reached ? _SeasonGoalCard._gold : AppColors.progressTrack, width: 3),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 3),
+                  SizedBox(
+                    width: 40,
+                    child: Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppColors.secondaryText)),
+                  ),
+                ],
               ),
-              if (goal.claimed)
-                const Icon(Icons.check_circle_rounded, color: Color(0xFF5EE0A0))
-              else if (goal.claimable)
-                FilledButton(
-                  onPressed: busy ? null : onClaim,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFD54F),
-                    foregroundColor: const Color(0xFF5A3B00),
-                  ),
-                  child: Text(
-                    tr('Забрать'),
-                    style: const TextStyle(fontWeight: FontWeight.w900),
+            );
+          }
+
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(left: from, width: span, top: trackY, height: trackH, child: DecoratedBox(decoration: BoxDecoration(color: AppColors.progressTrack, borderRadius: BorderRadius.circular(9)))),
+              Positioned(
+                left: from,
+                width: span * value,
+                top: trackY,
+                height: trackH,
+                child: DecoratedBox(decoration: BoxDecoration(borderRadius: BorderRadius.circular(9), gradient: const LinearGradient(colors: [_SeasonGoalCard._goldLight, _SeasonGoalCard._gold]))),
+              ),
+              milestone(0, '0'),
+              milestone(1 / 3, '${(target / 3).round()}'),
+              milestone(2 / 3, '${(target * 2 / 3).round()}'),
+              Positioned(right: 0, top: trackY + trackH / 2 - 22, child: Opacity(opacity: done ? 1 : 0.95, child: SizedBox(width: prizeW, height: 44, child: Center(child: prize)))),
+              if (lead != null)
+                Positioned(
+                  left: (at(value) - avatar / 2).clamp(0.0, box.maxWidth - avatar),
+                  top: 4,
+                  child: Container(
+                    decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: AppColors.surface, width: 2)),
+                    child: UserAvatar(avatarUrl: lead!.avatarUrl, login: lead!.login, size: avatar),
                   ),
                 ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
