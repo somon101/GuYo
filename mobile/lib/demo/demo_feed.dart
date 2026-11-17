@@ -399,11 +399,6 @@ Future<void> _moreSheet(BuildContext context, DemoCard c) => showModalBottomShee
               Navigator.pop(ctx);
             },
           ),
-          ListTile(
-            leading: const Icon(Icons.flag_rounded, color: _P.red),
-            title: Text(tr('Пожаловаться')),
-            onTap: () => Navigator.pop(ctx),
-          ),
           const SizedBox(height: 8),
         ]),
       ),
