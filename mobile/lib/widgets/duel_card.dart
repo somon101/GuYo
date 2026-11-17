@@ -5,6 +5,7 @@ import '../l10n/l10n.dart';
 import '../models/duel.dart';
 import '../models/user_rating.dart';
 import '../models/user_profile.dart';
+import 'game_icons.dart';
 import 'user_avatar.dart';
 import '../services/streak_state.dart';
 import '../theme/app_colors.dart';
@@ -212,7 +213,7 @@ class DuelCardView extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.sports_kabaddi_rounded, color: AppColors.primary),
+              const DuelIcon(size: 26),
               const SizedBox(width: 8),
               Text(
                 tr('Дуэль недели'),

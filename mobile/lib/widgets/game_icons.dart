@@ -14,6 +14,25 @@ class DiamondIcon extends StatelessWidget {
   Widget build(BuildContext context) => _GameIcon('assets/icons/diamond.png', size);
 }
 
+/// The duel: two figures and a lightning bolt. The default picture for a duel
+/// anywhere an icon is needed (not wide: it keeps its own proportions).
+class DuelIcon extends StatelessWidget {
+  final double size;
+  const DuelIcon({super.key, this.size = 24});
+
+  @override
+  Widget build(BuildContext context) => _GameIcon('assets/icons/duel.png', size);
+}
+
+/// «VS» with the trophy: a duel result in the news feed.
+class DuelVsIcon extends StatelessWidget {
+  final double size;
+  const DuelVsIcon({super.key, this.size = 34});
+
+  @override
+  Widget build(BuildContext context) => _GameIcon('assets/icons/duel_vs.png', size);
+}
+
 /// GuYo Premium: the gold «G» in the indigo hexagon (the mark of Premium everywhere).
 class PremiumIcon extends StatelessWidget {
   final double size;

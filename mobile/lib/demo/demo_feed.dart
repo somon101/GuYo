@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../l10n/l10n.dart';
 import '../screens/rating_screen.dart';
 import '../theme/app_colors.dart';
+import '../widgets/animated_fire.dart';
 import '../widgets/game_icons.dart';
 import 'demo_social.dart';
 import 'demo_state.dart';
@@ -22,7 +23,6 @@ class _P {
   static Color get lilac => _d ? const Color(0xFF8E97FF) : const Color(0xFF7B85F4);
   static Color get onLilac => _d ? const Color(0xFF0C0E16) : Colors.white;
   static const Color red = Color(0xFFE0454B);
-  static const Color fire = Color(0xFFF26A1B);
   static const Color gold = Color(0xFFE7B73C);
   static Color get ink => AppColors.primaryDark;
   static Color get muted => AppColors.secondaryText;
@@ -250,8 +250,8 @@ IconData _cardIcon(String kind) => switch (kind) {
 Widget _cardPicture(String kind) => switch (kind) {
       'words' => const PointsIcon(size: 34),
       'gem' => const DiamondIcon(size: 34),
-      'streak' => const Icon(Icons.local_fire_department_rounded, color: _P.fire, size: 34),
-      'duel' => const Icon(Icons.emoji_events_rounded, color: _P.gold, size: 32),
+      'streak' => const AnimatedFire(size: 38),
+      'duel' => const DuelVsIcon(size: 42),
       _ => Icon(_cardIcon(kind), color: AppColors.primary, size: 32),
     };
 
@@ -1233,7 +1233,7 @@ class _DemoPersonScreenState extends State<DemoPersonScreen> {
                     child: FilledButton.icon(
                       key: const ValueKey('person-duel'),
                       onPressed: _duelSent ? null : () => setState(() => _duelSent = true),
-                      icon: const Icon(Icons.sports_martial_arts_rounded),
+                      icon: const DuelIcon(size: 26),
                       label: Text(_duelSent ? tr('Вызов отправлен') : tr('Вызвать на дуэль'), style: const TextStyle(fontWeight: FontWeight.w800)),
                       style: FilledButton.styleFrom(backgroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
                     ),
@@ -1274,11 +1274,11 @@ class _Achievements extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pics = <Widget>[
-      const Icon(Icons.local_fire_department_rounded, color: _P.fire, size: 30),
+      const AnimatedFire(size: 32),
       const DiamondIcon(size: 30),
       const Icon(Icons.star_border_rounded, color: _P.gold, size: 30),
       const PointsIcon(size: 30),
-      const Icon(Icons.emoji_events_rounded, color: _P.gold, size: 30),
+      const DuelVsIcon(size: 34),
       Icon(Icons.menu_book_rounded, color: AppColors.primary, size: 28),
     ];
     final on = earned.clamp(0, 6);

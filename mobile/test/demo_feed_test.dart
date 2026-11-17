@@ -38,6 +38,13 @@ Future<void> _open(WidgetTester tester, Widget child) async {
   await tester.pump();
 }
 
+// The live flame in the feed repeats forever, so pumpAndSettle would never end.
+Future<void> _settle(WidgetTester t) async {
+  for (var i = 0; i < 8; i++) {
+    await t.pump(const Duration(milliseconds: 150));
+  }
+}
+
 void main() {
   setUp(() {
     FlutterSecureStorage.setMockInitialValues({});
@@ -53,9 +60,9 @@ void main() {
     expect(find.text('21'), findsOneWidget); // 20 + yours
 
     await tester.tap(find.byKey(const ValueKey('comment-1')));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     await tester.tap(find.byKey(const ValueKey('phrase-Огонь!')));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(s.cards.first.myComment, 'Огонь!');
     expect(find.textContaining('Огонь!'), findsWidgets);
   });
@@ -63,7 +70,7 @@ void main() {
   testWidgets('who liked: friends marked, the green add sends a request, a second tap takes it back', (tester) async {
     await _open(tester, DemoFeedTab(goTo: (_) {}));
     await tester.tap(find.byKey(const ValueKey('likers-1')));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(find.text('Друг'), findsWidgets); // Madina is a friend
     await tester.tap(find.byKey(const ValueKey('relation-103')));
     await tester.pump();
@@ -103,18 +110,18 @@ void main() {
     expect(find.text('Играйте вместе'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('my-team-find')));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     await tester.tap(find.byKey(const ValueKey('teams-list-2'))); // «Ночные совы», by request
-    await tester.pumpAndSettle();
+    await _settle(tester);
     await tester.tap(find.byKey(const ValueKey('team-request')));
     await tester.pump();
     expect(s.teamRequests, contains(2));
     expect(find.text('Запрос отправлен'), findsOneWidget);
     Navigator.of(tester.element(find.byKey(const ValueKey('team-request')))).pop();
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     await tester.tap(find.byKey(const ValueKey('teams-list-1'))); // «Словарный взвод», open
-    await tester.pumpAndSettle();
+    await _settle(tester);
     await tester.tap(find.byKey(const ValueKey('team-join')));
     await tester.pump();
     expect(s.myTeam?.id, 1);
@@ -124,12 +131,12 @@ void main() {
   testWidgets('a new team from the profile, then leaving it', (tester) async {
     await _open(tester, const DemoMyTeamCard());
     await tester.tap(find.byKey(const ValueKey('my-team-create')));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     await tester.enterText(find.byKey(const ValueKey('team-name')), 'Мои львы');
     await tester.tap(find.byKey(const ValueKey('team-open')));
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('team-create')));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(s.myTeam?.name, 'Мои львы');
     expect(s.myTeam?.isOpen, isFalse);
     expect(find.text('Команда «Мои львы»'), findsOneWidget);
@@ -141,19 +148,19 @@ void main() {
   testWidgets('leaving a team: a card in the middle says so, with the ways on (find, create), not a grey line', (tester) async {
     await _open(tester, const DemoMyTeamCard());
     await tester.tap(find.byKey(const ValueKey('my-team-find')));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     await tester.tap(find.byKey(const ValueKey('teams-list-1'))); // «Словарный взвод», open
-    await tester.pumpAndSettle();
+    await _settle(tester);
     await tester.tap(find.byKey(const ValueKey('team-join')));
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('team-leave')));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(s.myTeam, isNull);
     expect(find.byKey(const ValueKey('team-gone')), findsOneWidget);
     expect(find.text('Вы вышли из команды «Словарный взвод»'), findsOneWidget);
     expect(find.byKey(const ValueKey('team-gone-create')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('team-gone-find')));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(find.byKey(const ValueKey('team-gone')), findsNothing, reason: 'the card closes');
     expect(find.byKey(const ValueKey('teams-list-1')), findsWidgets, reason: 'and the list of teams opens');
   });
@@ -161,12 +168,12 @@ void main() {
   testWidgets('a team the creator closed while its sheet was open: the same card says it is gone', (tester) async {
     await _open(tester, const DemoMyTeamCard());
     await tester.tap(find.byKey(const ValueKey('my-team-find')));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     await tester.tap(find.byKey(const ValueKey('teams-list-2')));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     s.teams.remove(2);
     s.touch();
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(find.byKey(const ValueKey('team-gone')), findsOneWidget);
     expect(find.textContaining('больше нет'), findsOneWidget);
     expect(find.textContaining('Создатель закрыл её'), findsOneWidget);
