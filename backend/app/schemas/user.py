@@ -252,6 +252,8 @@ class UserProfileOut(BaseModel):
     last_name: str | None
     email: str | None
     avatar_url: str | None
+    # The choice behind a built avatar (gender, part IDs, background); null until the person builds one.
+    avatar_look: dict | None = None
     current_streak_days: int
     # False until a lesson, practice round or quest is finished today.
     streak_active_today: bool = False

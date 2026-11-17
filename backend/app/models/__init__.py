@@ -19,6 +19,7 @@ from app.models.rating import (
     UserWordPoints,
 )
 from app.models.user import User
+from app.models.avatar import AvatarBackground, AvatarItem, AvatarMeta
 from app.models.word import Word, WordForm, WordTopic, WordTranslation
 from app.models.word_level import WordLevel
 from app.models.word_progress import WordProgress
@@ -34,6 +35,9 @@ from app.models.promo import PromoActivation, PromoCode, PromoLink
 from app.models.text_check import TextCheckCache, TextCheckRun, TextCheckSettings
 
 __all__ = [
+    "AvatarItem",
+    "AvatarBackground",
+    "AvatarMeta",
     "StatusEmoji",
     "StatusPhrase",
     "Admin",

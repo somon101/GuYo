@@ -100,6 +100,9 @@ class User(Base):
     # first in a random lesson. None = never asked yet, so the app asks
     # once; [] = asked and chose nothing.
     learning_topics: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    # The avatar the person built from parts: {gender, slots: {slot: item id}, bg, catalog_version}. The finished
+    # picture itself is `avatar_key`; this is the choice behind it, so the person can edit it later.
+    avatar_look: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # Interface language: "ru", "tg" or "uz" (app/core/content_language.py).
     ui_language: Mapped[str] = mapped_column(String(8), nullable=False, default="ru", server_default="ru")
     # Which translations a Russian-interface user reads ("tg", "uz" or "en"); a

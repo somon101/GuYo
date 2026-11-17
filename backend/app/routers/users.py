@@ -1,7 +1,7 @@
 import re
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -16,7 +16,7 @@ from app.core.dates import DUSHANBE_TZ, dushanbe_day_start
 from app.core.deps import get_current_admin, get_current_user, require_current_app
 from app.core.public_id import generate_public_id
 from app.core.security import hash_password
-from app.core.storage import delete_by_key, save_bytes, url_for_key
+from app.core.storage import delete_by_key, url_for_key
 from app.database import get_db
 from app.models.achievement import VISIBILITY_HIDDEN, Achievement, UserAchievement, UserActivityDay, UserStreakFreeze
 from app.models.admin import Admin
@@ -41,26 +41,6 @@ from app.schemas.rating import SeasonHistoryOut, SeasonOut, UserRatingOut, rank_
 from app.schemas.user import UserCreate, UserOut, UserProfileOut, UserUpdateIn
 
 router = APIRouter(prefix="/users", tags=["users"])
-
-# Generous enough for a real phone photo, small enough that nobody's
-# profile picture eats meaningful storage -- same "don't let a user upload
-# something absurd" reasoning the ZIP import size checks already use
-# elsewhere in this codebase.
-MAX_AVATAR_BYTES = 5 * 1024 * 1024
-ALLOWED_AVATAR_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
-# Keyed by the SAME validated content_type above -- the extension a stored
-# avatar file gets on disk must come from here, never from the client's own
-# filename. A real Android gallery pick can hand back a content:// name
-# with no extension at all (or the wrong one); storing under that name
-# leaves StaticFiles unable to guess a Content-Type on the way back out,
-# so it serves text/plain for a real photo and the client's Image.network
-# silently fails to render it -- exactly the bug this fixes.
-_AVATAR_EXTENSION_BY_CONTENT_TYPE = {
-    "image/jpeg": ".jpg",
-    "image/png": ".png",
-    "image/webp": ".webp",
-}
-
 
 @router.get("", response_model=list[UserOut])
 def list_users(db: Session = Depends(get_db), _admin: Admin = Depends(get_current_admin)):
@@ -257,6 +237,7 @@ def _profile_out(db: Session, user: User) -> UserProfileOut:
         last_name=user.last_name,
         email=user.email,
         avatar_url=url_for_key(user.avatar_key),
+        avatar_look=user.avatar_look,
         current_streak_days=streak_days_count(db, user),
         streak_active_today=active_today(db, user),
         lessons_completed=lessons_completed_count(db, user),
@@ -472,35 +453,10 @@ def update_my_profile(
 
 
 @router.post("/me/avatar", response_model=UserProfileOut)
-def upload_my_avatar(
-    avatar: UploadFile = File(...),
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    """Replaces this user's avatar. Rejects anything not a real, reasonably
-    sized image up front rather than silently accepting it -- the previous
-    file (if any) is only deleted once the new one has actually been
-    validated and saved, so a rejected upload never leaves the user with
-    no photo at all."""
-    if avatar.content_type not in ALLOWED_AVATAR_CONTENT_TYPES:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Допустимые форматы: JPEG, PNG, WEBP",
-        )
-    data = avatar.file.read()
-    if len(data) > MAX_AVATAR_BYTES:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Файл слишком большой (максимум 5 МБ)")
-    if len(data) == 0:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Пустой файл")
-
-    extension = _AVATAR_EXTENSION_BY_CONTENT_TYPE[avatar.content_type]
-    new_key = save_bytes(data, subdir=f"users/{user.id}/avatar", filename_hint=f"avatar{extension}")
-    old_key = user.avatar_key
-    user.avatar_key = new_key
-    db.commit()
-    delete_by_key(old_key)
-    db.refresh(user)
-    return _profile_out(db, user)
+def upload_my_avatar(user: User = Depends(get_current_user)):
+    """Photo upload is switched off: a person now builds an avatar from the Studio's parts
+    (PUT /users/me/avatar-look). Kept as an endpoint so an old app gets a clear answer."""
+    raise HTTPException(status_code=status.HTTP_410_GONE, detail="Загрузка фото отключена: создайте аватар в приложении")
 
 
 @router.delete("/me/avatar", response_model=UserProfileOut)
