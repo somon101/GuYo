@@ -122,6 +122,7 @@ from app.models.concept import (
 from app.models.language import Language
 from app.models.achievement import UserStreakFreeze  # noqa: F401
 from app.models.team import Team, TeamInvite, TeamMember  # noqa: F401
+from app.models.feed import FeedCard, FeedComment, FeedLike, FeedSeen  # noqa: F401
 from app.models.social import FriendRequest, TeamJoinRequest  # noqa: F401
 from app.models.duel import Duel  # noqa: F401
 from app.models.chest import DailyChest  # noqa: F401

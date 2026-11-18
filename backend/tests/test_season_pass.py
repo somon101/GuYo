@@ -192,6 +192,11 @@ def test_lesson_pass_pays_season_xp_with_accuracy_and_speed(client, db, make_use
     # The statistics asked for again say the same.
     again = client.get(f"/lessons/{lid}/pass/stats", headers=h).json()
     assert again["score_gained"] == total
+    # The learned words reached the feed as one card of the day.
+    from app.models.feed import FeedCard
+
+    card = db.query(FeedCard).filter(FeedCard.user_id == user.id, FeedCard.kind == "words").one()
+    assert card.data["count"] >= 1
 
 
 def test_lesson_points_table():

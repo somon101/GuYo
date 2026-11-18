@@ -13,7 +13,7 @@ from app.core.dates import DUSHANBE_TZ, dushanbe_today
 from app.core.storage import url_for_key
 from app.models.achievement import Achievement, UserAchievement
 from app.models.dictionary import Dictionary
-from app.models.learning import LearnedWord
+from app.models.word_progress import WordProgress
 from app.models.quest import Quest, UserQuestWordDay
 from app.models.rating import UserWordPoints
 from app.models.team import Team, TeamMember
@@ -125,10 +125,10 @@ def public_profile(db: Session, me: User, user_id: int) -> dict | None:
         r[0]
         for r in db.query(Dictionary.name)
         .join(Word, Word.dictionary_id == Dictionary.id)
-        .join(LearnedWord, LearnedWord.word_id == Word.id)
-        .filter(LearnedWord.user_id == user.id)
+        .join(WordProgress, WordProgress.word_id == Word.id)
+        .filter(WordProgress.user_id == user.id, WordProgress.mastered_at.isnot(None))
         .group_by(Dictionary.id, Dictionary.name)
-        .order_by(func.count(LearnedWord.id).desc())
+        .order_by(func.count(WordProgress.id).desc())
         .limit(3)
     ]
     from app.seasonpass.cosmetics import badge_keys, frame_keys

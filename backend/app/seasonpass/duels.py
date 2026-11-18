@@ -263,6 +263,9 @@ def finish_due(db: Session, today: date | None = None) -> int:
             given = rewards.give(db, me, rewards.get_rule(db, outcome), "duel", f"duel:{duel.id}:{outcome}")
             if mine > theirs:
                 _notify(db, me, "won", key, name=_name(other), mine=mine, theirs=theirs, bonus=given["xp"])
+                from app.social import feed
+
+                feed.post_duel_win(db, me, duel.id, mine, theirs, _name(other))
             elif mine < theirs:
                 _notify(db, me, "lost", key, name=_name(other), mine=mine, theirs=theirs)
             else:

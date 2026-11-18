@@ -55,6 +55,13 @@ def check_and_grant_achievements(db: Session, user: User, condition_type: str) -
         newly_granted.append(achievement)
     if newly_granted:
         db.flush()
+        try:
+            from app.social import feed
+
+            for achievement in newly_granted:
+                feed.post_achievement(db, user, achievement.id, achievement.title)
+        except Exception:  # a feed card is a bonus
+            pass
     return newly_granted
 
 

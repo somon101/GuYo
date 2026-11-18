@@ -717,6 +717,20 @@ def _hold_answer_for_pass(db: Session, user: User, lesson: Lesson, exercise_key:
     )
 
 
+def _feed_cards(db: Session, user: User, lit_now: bool, days: int, learned: bool) -> None:
+    """The cards this lesson earns in the feed (a streak milestone, the day's learned words)."""
+    try:
+        from app.social import feed
+
+        if lit_now:
+            feed.post_streak(db, user, days)
+        if learned:
+            feed.post_words_today(db, user)
+        db.commit()
+    except Exception:
+        db.rollback()
+
+
 def _award_lesson_xp(db: Session, user: User, lesson: Lesson) -> None:
     """Season XP for a lesson played to the end: the base plus the accuracy and speed bonuses (paid
     once per lesson). The numbers come from the same statistics the results screen shows."""
@@ -780,6 +794,7 @@ def finish_lesson_pass(
     out = _lesson_to_out(db, lesson)
     out.streak_lit_now = lit_now
     out.streak_days = streak_days_count(db, user)
+    _feed_cards(db, user, lit_now, out.streak_days, bool(newly_learned))
     # The results screen's numbers in the same response: the app shows the
     # results after ONE round trip instead of three.
     out.pass_stats = _pass_stats(db, user, lesson)
