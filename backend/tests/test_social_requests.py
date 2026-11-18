@@ -87,3 +87,19 @@ def test_declined_request_cannot_be_repeated_for_a_day_and_open_teams_need_none(
     # A request taken back leaves nothing waiting.
     client.delete(f"/teams/{tid}/request", headers=ha)
     assert client.get("/teams/me", headers=ho).json()["requests"] == []
+
+
+def test_person_profile_shows_the_showcase_and_the_relation(client, db, make_user, auth, active_season):
+    a, b = make_user(), make_user()
+    ha, hb = auth(a), auth(b)
+    tid = client.post("/teams", headers=hb, json={"name": "Showcase", "is_open": False}).json()["team"]["id"]
+    p = client.get(f"/people/{b.id}", headers=ha).json()
+    assert p["login"] == b.login and p["relation"] == "none"
+    assert p["team"]["id"] == tid and p["team"]["is_open"] is False and p["team"]["is_mine"] is False
+    assert len(p["week_points"]) == 7 and p["habits"]["accuracy"] is None
+    assert "email" not in p and "phone" not in p
+    client.post("/friends/requests", headers=ha, json={"user_id": b.id})
+    assert client.get(f"/people/{b.id}", headers=ha).json()["relation"] == "sent"
+    assert client.get(f"/people/{a.id}", headers=hb).json()["relation"] == "received"
+    assert client.get(f"/people/{a.id}", headers=ha).json()["relation"] == "self"
+    assert client.get("/people/999999", headers=ha).status_code == 404

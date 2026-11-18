@@ -61,6 +61,7 @@ from app.routers import (
 )
 from app.routers import api_keys
 from app.routers import friend_requests
+from app.routers import people
 from app.routers import languages
 from app.routers import status as status_router
 from app.economy import routes as economy_routes
@@ -195,6 +196,7 @@ app.include_router(notifications.admin_router)
 app.include_router(quests.router)
 app.include_router(rating.router)
 app.include_router(friend_requests.router)
+app.include_router(people.router)
 app.include_router(word_levels.router)
 app.include_router(slogans.router)
 app.include_router(status_router.router)
