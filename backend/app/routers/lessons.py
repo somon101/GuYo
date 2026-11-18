@@ -376,18 +376,43 @@ def _pass_stats(db: Session, user: User, lesson: Lesson) -> LessonPassStatsOut:
         last = max((a.created_at for a in attempts), default=None)
         end = last if last is not None else lesson.pass_started_at
         duration = max(0, int((end - lesson.pass_started_at).total_seconds()))
+    accuracy = round(correct * 100 / total) if total else 0
+    points = _lesson_points(db, user, lesson, accuracy, duration)
     return LessonPassStatsOut(
         started_at=lesson.pass_started_at,
         duration_seconds=duration,
         total_answers=total,
         correct_answers=correct,
         wrong_answers=total - correct,
-        accuracy=round(correct * 100 / total) if total else 0,
+        accuracy=accuracy,
         exercises=exercises,
         words=words,
-        score_gained=sum(w.gained for w in words),
+        score_gained=points[0] if points else sum(w.gained for w in words),
         newly_learned=sum(1 for w in words if w.became_learned),
+        points_lesson=points[1] if points else None,
+        points_accuracy=points[2] if points else None,
+        points_speed=points[3] if points else None,
     )
+
+
+def _lesson_points(db: Session, user: User, lesson: Lesson, accuracy: int, duration: int) -> tuple[int, int, int, int] | None:
+    """(total awarded, base, accuracy bonus, speed bonus) for a lesson passed to the end, or None.
+    The total is what the season XP event really paid (a running x2 ticket doubles it)."""
+    if not lesson.completed_by_pass:
+        return None
+    from app.models.season_pass import PassXpEvent
+    from app.seasonpass.service import _active_season, get_pass_settings, lesson_points
+
+    if _active_season(db) is None:
+        return None
+    base, acc, speed = lesson_points(get_pass_settings(db), accuracy, duration)
+    paid = (
+        db.query(PassXpEvent.amount)
+        .filter(PassXpEvent.user_id == user.id, PassXpEvent.dedupe_key == f"lesson:{lesson.id}")
+        .order_by(PassXpEvent.id.desc())
+        .scalar()
+    )
+    return (paid if paid is not None else base + acc + speed), base, acc, speed
 
 
 @router.post("/lessons", response_model=LessonOut, status_code=status.HTTP_201_CREATED)
@@ -692,6 +717,16 @@ def _hold_answer_for_pass(db: Session, user: User, lesson: Lesson, exercise_key:
     )
 
 
+def _award_lesson_xp(db: Session, user: User, lesson: Lesson) -> None:
+    """Season XP for a lesson played to the end: the base plus the accuracy and speed bonuses (paid
+    once per lesson). The numbers come from the same statistics the results screen shows."""
+    from app.seasonpass.service import get_pass_settings, lesson_points
+
+    stats = _pass_stats(db, user, lesson)
+    base, acc, speed = lesson_points(get_pass_settings(db), stats.accuracy, stats.duration_seconds)
+    award_xp(db, user, "lesson", f"lesson:{lesson.id}", amount=base + acc + speed)
+
+
 @router.post("/lessons/{lesson_id}/pass/finish", response_model=LessonOut)
 def finish_lesson_pass(
     lesson_id: int,
@@ -719,7 +754,7 @@ def finish_lesson_pass(
         lesson.completed_by_pass = True
         db.flush()
         check_and_grant_achievements(db, user, "lessons_completed")
-        award_xp(db, user, "lesson", f"lesson:{lesson.id}")
+        _award_lesson_xp(db, user, lesson)
     # Auto lesson/quest are built quietly later (app/priority/background_prep.py).
     mark_for_prep(db, user, lesson.dictionary_id)
     if newly_learned:

@@ -157,3 +157,47 @@ def test_claim_all_takes_everything_waiting_at_once(client, db, make_user, auth,
     assert all(not (lv["free"] and lv["free"]["claimable"]) for lv in body["state"]["levels"])
     again = client.post("/season-pass/claim-all", headers=h).json()
     assert again["rewards"] == []  # nothing is taken twice
+
+
+def test_lesson_pass_pays_season_xp_with_accuracy_and_speed(client, db, make_user, auth, make_dictionary, active_season):
+    """A lesson played to the end pays base + accuracy + speed in season XP, once, and says how it is made up."""
+    from app.models.season_pass import PassXpEvent
+
+    d = make_dictionary(16)
+    user = make_user()
+    h = auth(user)
+    lesson = client.post("/lessons", headers=h, json={"dictionary_id": d.id, "random_count": 4}).json()
+    lid, ex = lesson["id"], lesson["exercise_keys"]
+    words = [w["word_id"] for w in lesson["words"]]
+    client.post(f"/lessons/{lid}/pass", headers=h)
+    for e in ex:
+        for w in words:
+            r = client.post(
+                f"/lessons/{lid}/exercises/{e}/answers",
+                headers=h,
+                json={"word_id": w, "is_correct": True, "duration_ms": 2000, "deferred": True},
+            )
+            assert r.status_code == 200, r.text
+    done = client.post(f"/lessons/{lid}/pass/finish", headers=h).json()
+    assert done["is_completed"] is True
+    stats = done["pass_stats"]
+    base = service.get_pass_settings(db).xp_lesson
+    assert stats["points_lesson"] == base
+    assert stats["points_accuracy"] == 10  # every answer right
+    assert stats["points_speed"] in (8, 5, 2)
+    total = base + 10 + stats["points_speed"]
+    assert stats["score_gained"] == total
+    paid = db.query(PassXpEvent).filter(PassXpEvent.user_id == user.id, PassXpEvent.dedupe_key == f"lesson:{lid}").one()
+    assert paid.amount == total
+    # The statistics asked for again say the same.
+    again = client.get(f"/lessons/{lid}/pass/stats", headers=h).json()
+    assert again["score_gained"] == total
+
+
+def test_lesson_points_table():
+    class S:
+        xp_lesson = 30
+
+    assert service.lesson_points(S, 95, 100) == (30, 10, 8)
+    assert service.lesson_points(S, 75, 200) == (30, 6, 5)
+    assert service.lesson_points(S, 40, 400) == (30, 3, 2)

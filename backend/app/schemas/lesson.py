@@ -99,6 +99,11 @@ class LessonPassStatsOut(BaseModel):
     words: list[PassWordStatOut]
     score_gained: int
     newly_learned: int
+    # What the passed lesson is worth in season XP and how it is made up (None while it is not
+    # passed or there is no live season): the base, the accuracy bonus, the speed bonus.
+    points_lesson: int | None = None
+    points_accuracy: int | None = None
+    points_speed: int | None = None
 
 
 class LessonSummaryOut(BaseModel):

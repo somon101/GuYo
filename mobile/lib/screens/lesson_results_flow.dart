@@ -172,7 +172,8 @@ class ResultsOutcome {
     this.rivalGap,
   });
 
-  bool get hasBreakdown => pLesson != null && pAccuracy != null && pSpeed != null;
+  /// The parts are shown only when they add up to the total (a running x2 ticket doubles the total).
+  bool get hasBreakdown => pLesson != null && pAccuracy != null && pSpeed != null && pLesson! + pAccuracy! + pSpeed! == total;
 }
 
 /// The streak as the streak step shows it.

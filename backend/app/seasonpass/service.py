@@ -265,6 +265,15 @@ def xp_for(settings: PassSettings, source: str) -> int:
     }.get(source, 0)
 
 
+def lesson_points(settings: PassSettings, accuracy: int, seconds: int) -> tuple[int, int, int]:
+    """What a passed lesson is worth in season XP: the base (set in the admin) plus a bonus for
+    accuracy (90% and up 10, 70% and up 6, else 3) and one for speed (up to 150 s 8, up to 240 s 5,
+    else 2). Returns (base, accuracy bonus, speed bonus)."""
+    acc = 10 if accuracy >= 90 else 6 if accuracy >= 70 else 3
+    speed = 8 if seconds <= 150 else 5 if seconds <= 240 else 2
+    return settings.xp_lesson, acc, speed
+
+
 def award_xp(db: Session, user: User, source: str, key: str, amount: int | None = None) -> int:
     """Awards season XP once per (user, season, key). Returns what was
     awarded (0 when there is no live season, nothing is worth XP, or it was
