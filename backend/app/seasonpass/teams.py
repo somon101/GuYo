@@ -5,7 +5,7 @@ A goal's progress is never stored: it is counted from the season's XP ledger
 cannot drift from what people actually did, and a member's share is the same
 count grouped by person."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -15,6 +15,7 @@ from app.core.dates import utc_now
 from app.models.friendship import Friendship
 from app.models.rating import Season
 from app.models.season_pass import PassClaim, PassXpEvent
+from app.models.social import TeamJoinRequest
 from app.models.team import Team, TeamInvite, TeamMember
 from app.models.user import User
 from app.seasonpass.service import (
@@ -30,6 +31,8 @@ from app.seasonpass.service import (
 
 NAME_MIN, NAME_MAX = 3, 24
 PENDING_INVITES_MAX = 10
+PENDING_REQUESTS_MAX = 10  # unanswered join requests one team keeps
+ASK_AGAIN_AFTER = timedelta(days=1)  # after a refusal the same person may ask again
 
 
 class TeamError(PassError):
@@ -158,6 +161,84 @@ def join_open(db: Session, user: User, team_id: int) -> Team:
     return team
 
 
+def request_join(db: Session, user: User, team_id: int) -> TeamJoinRequest:
+    """Anyone may ask a closed team to take them; only its creator answers."""
+    team = db.get(Team, team_id)
+    if team is None:
+        raise TeamError("Команда не найдена")
+    if team.is_open:
+        raise TeamError("Команда открыта: вступите сразу")
+    if membership(db, user) is not None:
+        raise TeamError("Вы уже состоите в команде")
+    if len(members_of(db, team)) >= team_size_cap(db):
+        raise TeamError("В команде нет свободных мест")
+    item = db.query(TeamJoinRequest).filter(TeamJoinRequest.team_id == team.id, TeamJoinRequest.user_id == user.id).first()
+    if item is not None:
+        if item.declined_at is None:
+            return item
+        if utc_now() - item.declined_at < ASK_AGAIN_AFTER:
+            raise TeamError("Повторно попросить можно через сутки после отказа")
+        item.declined_at = None
+        item.created_at = utc_now()
+    else:
+        waiting = (
+            db.query(func.count(TeamJoinRequest.id))
+            .filter(TeamJoinRequest.team_id == team.id, TeamJoinRequest.declined_at.is_(None))
+            .scalar()
+        )
+        if waiting >= PENDING_REQUESTS_MAX:
+            raise TeamError("У команды слишком много неотвеченных запросов")
+        item = TeamJoinRequest(team_id=team.id, user_id=user.id)
+        db.add(item)
+    db.flush()
+    owner = db.get(User, team.owner_id)
+    if owner is not None:
+        _notify(db, owner, "ask", f"team-ask:{team.id}:{user.id}", team=team.name, who=user.login)
+    return item
+
+
+def cancel_request(db: Session, user: User, team_id: int) -> None:
+    db.query(TeamJoinRequest).filter(
+        TeamJoinRequest.team_id == team_id, TeamJoinRequest.user_id == user.id, TeamJoinRequest.declined_at.is_(None)
+    ).delete(synchronize_session=False)
+
+
+def _waiting_request(db: Session, owner: User, team: Team, user_id: int) -> TeamJoinRequest:
+    if team.owner_id != owner.id:
+        raise TeamError("Отвечать на запросы может только создатель команды")
+    item = (
+        db.query(TeamJoinRequest)
+        .filter(TeamJoinRequest.team_id == team.id, TeamJoinRequest.user_id == user_id, TeamJoinRequest.declined_at.is_(None))
+        .first()
+    )
+    if item is None:
+        raise TeamError("Запрос не найден")
+    return item
+
+
+def accept_request(db: Session, owner: User, team: Team, user_id: int) -> None:
+    item = _waiting_request(db, owner, team, user_id)
+    person = db.get(User, user_id)
+    if person is None or person.deleted_at is not None:
+        db.delete(item)
+        raise TeamError("Пользователь не найден")
+    if membership(db, person) is not None:
+        db.delete(item)
+        raise TeamError("Этот человек уже состоит в команде")
+    _add_member(db, team, person)
+    # Joining settles every request the person had out.
+    db.query(TeamJoinRequest).filter(TeamJoinRequest.user_id == user_id).delete(synchronize_session=False)
+    _notify(db, person, "accepted", f"team-accepted:{team.id}:{user_id}", team=team.name)
+
+
+def decline_request(db: Session, owner: User, team: Team, user_id: int) -> None:
+    item = _waiting_request(db, owner, team, user_id)
+    item.declined_at = utc_now()
+    person = db.get(User, user_id)
+    if person is not None:
+        _notify(db, person, "declined", f"team-declined:{team.id}:{user_id}:{item.declined_at.isoformat()}", team=team.name)
+
+
 def _remove(db: Session, team: Team, user_id: int) -> None:
     db.query(TeamMember).filter(TeamMember.team_id == team.id, TeamMember.user_id == user_id).delete(
         synchronize_session=False
@@ -187,19 +268,30 @@ def kick(db: Session, owner: User, team: Team, user_id: int) -> None:
     _remove(db, team, user_id)
 
 
-def open_teams(db: Session, limit: int = 30) -> list[dict]:
+def open_teams(db: Session, limit: int = 30, include_closed: bool = False, user: User | None = None) -> list[dict]:
+    """Teams with room. Closed ones (join by request) come too when asked; `requested` says whether
+    `user` has already asked such a team."""
     cap = team_size_cap(db)
+    query = db.query(Team, func.count(TeamMember.id)).join(TeamMember, TeamMember.team_id == Team.id)
+    if not include_closed:
+        query = query.filter(Team.is_open.is_(True))
     rows = (
-        db.query(Team, func.count(TeamMember.id))
-        .join(TeamMember, TeamMember.team_id == Team.id)
-        .filter(Team.is_open.is_(True))
-        .group_by(Team.id)
+        query.group_by(Team.id)
         .having(func.count(TeamMember.id) < cap)
         .order_by(func.count(TeamMember.id).desc(), Team.id)
         .limit(limit)
         .all()
     )
-    return [{"id": t.id, "name": t.name, "members": n, "capacity": cap} for t, n in rows]
+    asked: set[int] = set()
+    if user is not None:
+        asked = {
+            r[0]
+            for r in db.query(TeamJoinRequest.team_id).filter(TeamJoinRequest.user_id == user.id, TeamJoinRequest.declined_at.is_(None))
+        }
+    return [
+        {"id": t.id, "name": t.name, "members": n, "capacity": cap, "is_open": t.is_open, "requested": t.id in asked}
+        for t, n in rows
+    ]
 
 
 # --- Progress ---------------------------------------------------------------------
@@ -283,6 +375,13 @@ def team_state(db: Session, user: User) -> dict:
         "team": None,
         "invites": [{"team_id": t.id, "team_name": t.name, "from_login": u.login} for _, t, u in invites],
         "capacity": team_size_cap(db),
+        "my_requests": [
+            r[0]
+            for r in db.query(TeamJoinRequest.team_id)
+            .filter(TeamJoinRequest.user_id == user.id, TeamJoinRequest.declined_at.is_(None))
+            .all()
+        ],
+        "requests": [],
     }
     member = membership(db, user)
     if member is None:
@@ -339,6 +438,15 @@ def team_state(db: Session, user: User) -> dict:
         "week": week,
         "season_goal": season_goal,
     }
+    if team.owner_id == user.id:
+        waiting = (
+            db.query(TeamJoinRequest, User)
+            .join(User, User.id == TeamJoinRequest.user_id)
+            .filter(TeamJoinRequest.team_id == team.id, TeamJoinRequest.declined_at.is_(None), User.deleted_at.is_(None))
+            .order_by(TeamJoinRequest.id)
+            .all()
+        )
+        out["requests"] = [{"user_id": u.id, "login": u.login, "avatar_url": url_for_key(u.avatar_key)} for _, u in waiting]
     return out
 
 
@@ -389,6 +497,24 @@ _TEXTS = {
         "tg": ("Даъват ба даста", "{who} шуморо ба дастаи «{team}» даъват мекунад."),
         "uz": ("Jamoaga taklif", "{who} sizni «{team}» jamoasiga taklif qilmoqda."),
         "en": ("Team invitation", "{who} invites you to the team “{team}”."),
+    },
+    "ask": {
+        "ru": ("Запрос в команду", "{who} хочет вступить в команду «{team}»."),
+        "tg": ("Дархост ба даста", "{who} мехоҳад ба дастаи «{team}» дохил шавад."),
+        "uz": ("Jamoaga so‘rov", "{who} «{team}» jamoasiga qo‘shilmoqchi."),
+        "en": ("Team request", "{who} wants to join the team “{team}”."),
+    },
+    "accepted": {
+        "ru": ("Вас приняли в команду", "Вы теперь в команде «{team}»."),
+        "tg": ("Шуморо ба даста қабул карданд", "Шумо акнун дар дастаи «{team}» ҳастед."),
+        "uz": ("Jamoaga qabul qilindingiz", "Endi siz «{team}» jamoasidasiz."),
+        "en": ("You joined the team", "You are now in the team “{team}”."),
+    },
+    "declined": {
+        "ru": ("Запрос отклонён", "Команда «{team}» не приняла ваш запрос."),
+        "tg": ("Дархост рад шуд", "Дастаи «{team}» дархости шуморо қабул накард."),
+        "uz": ("So‘rov rad etildi", "«{team}» jamoasi so‘rovingizni qabul qilmadi."),
+        "en": ("Request declined", "The team “{team}” did not accept your request."),
     },
     "goal": {
         "ru": ("Цель команды выполнена!", "Команда «{team}» выполнила цель. Заберите награду в пропуске сезона."),

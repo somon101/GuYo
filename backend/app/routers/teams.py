@@ -67,10 +67,19 @@ class InviteOut(BaseModel):
     from_login: str
 
 
+class RequestOut(BaseModel):
+    user_id: int
+    login: str
+    avatar_url: str | None
+
+
 class MyTeamOut(BaseModel):
     team: TeamOut | None
     invites: list[InviteOut]
     capacity: int
+    # Teams this person has asked to join (closed ones) and, for a creator, who is asking.
+    my_requests: list[int] = []
+    requests: list[RequestOut] = []
 
 
 class OpenTeamOut(BaseModel):
@@ -78,6 +87,8 @@ class OpenTeamOut(BaseModel):
     name: str
     members: int
     capacity: int
+    is_open: bool = True
+    requested: bool = False
 
 
 class CreateIn(BaseModel):
@@ -131,8 +142,9 @@ def get_my_team(db: Session = Depends(get_db), user: User = Depends(get_current_
 
 
 @router.get("/open", response_model=list[OpenTeamOut])
-def list_open(db: Session = Depends(get_db), _user: User = Depends(get_current_user)):
-    return svc.open_teams(db)
+def list_open(closed: bool = False, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Teams with room; `?closed=true` adds the closed ones (those take a request)."""
+    return svc.open_teams(db, include_closed=closed, user=user)
 
 
 @router.post("", response_model=MyTeamOut, status_code=status.HTTP_201_CREATED)
@@ -163,6 +175,27 @@ def decline(team_id: int, db: Session = Depends(get_db), user: User = Depends(ge
 @router.post("/{team_id}/join", response_model=MyTeamOut)
 def join(team_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return _run(db, user, lambda: svc.join_open(db, user, team_id))
+
+
+@router.post("/{team_id}/request", response_model=MyTeamOut)
+def ask_to_join(team_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Asks a closed team to take you (anyone may ask; only its creator answers)."""
+    return _run(db, user, lambda: svc.request_join(db, user, team_id))
+
+
+@router.delete("/{team_id}/request", response_model=MyTeamOut)
+def take_back_request(team_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _run(db, user, lambda: svc.cancel_request(db, user, team_id))
+
+
+@router.post("/me/requests/{user_id}/accept", response_model=MyTeamOut)
+def accept_request(user_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _run(db, user, lambda: svc.accept_request(db, user, _my_team(db, user), user_id))
+
+
+@router.post("/me/requests/{user_id}/decline", response_model=MyTeamOut)
+def decline_request(user_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _run(db, user, lambda: svc.decline_request(db, user, _my_team(db, user), user_id))
 
 
 @router.post("/me/leave", response_model=MyTeamOut)
