@@ -131,6 +131,21 @@ class _DailyGoalCardState extends State<DailyGoalCard> {
   }
 }
 
+/// The soft colours of this card (the owner's pick, the same as the end of a lesson): the green of
+/// the bar and the button, with a darker edge; a light and a dark value.
+class _G {
+  _G._();
+  static bool get _d => AppColors.dark;
+  static Color get green => _d ? const Color(0xFF7BDA5E) : const Color(0xFF62C94A);
+  static Color get edge => _d ? const Color(0xFF4FA936) : const Color(0xFF47A72F);
+  static Color get onGreen => _d ? const Color(0xFF10300A) : const Color(0xFF123D0A);
+  static Color get text => _d ? const Color(0xFF8EE878) : const Color(0xFF3A8A27);
+  static Color get soft => _d ? const Color(0x297BDA5E) : const Color(0x3362C94A);
+}
+
+/// «Цель дня» on Главная, variant 3 («блок как в итогах урока»): the title and the count on one line,
+/// a green bar, then «Осталось N слов» with «Продолжить». With a reward waiting: «Цель дня выполнена»,
+/// the reward as soft tiles and «Получить». The whole top line opens the choice of 5, 10 or 20 words.
 class DailyGoalCardView extends StatelessWidget {
   final DailyGoal goal;
   final VoidCallback? onTap;
@@ -145,98 +160,123 @@ class DailyGoalCardView extends StatelessWidget {
     final done = goal.completed;
     final ready = goal.rewardReady;
     final rewards = goal.tiers[goal.goal] ?? const [];
-    final big = ready
-        ? tr('Выполнена! Заберите награду')
-        : done
-            ? tr('Награда получена')
-            : tr('{0} из {1} слов', [goal.done, goal.goal]);
-    return Stack(clipBehavior: Clip.none, children: [
-      Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(26)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-          // The switcher pill: «Цель дня ›» opens the choice of 5, 10 or 20 words.
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onTap,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(6, 6, 10, 6),
-              decoration: BoxDecoration(color: AppColors.violetSurface, borderRadius: BorderRadius.circular(99)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: done ? AppColors.success : AppColors.primary),
-                  child: Icon(done ? Icons.check_rounded : Icons.flag_rounded, size: 14, color: Colors.white),
-                ),
-                const SizedBox(width: 8),
-                Text(tr('Цель дня'), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
-                if (onTap != null) Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.secondaryText),
-              ]),
+    final left = (goal.goal - goal.done).clamp(0, goal.goal);
+    final label = TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.secondaryText);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(22), border: Border.all(color: AppColors.cardBorder)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        GestureDetector(
+          key: const ValueKey('goal-top'),
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: Row(children: [
+            Expanded(
+              child: Text(ready ? tr('Цель дня выполнена') : tr('Цель дня'), style: label.copyWith(color: ready ? _G.text : AppColors.secondaryText)),
             ),
-          ),
-          const SizedBox(height: 12),
-          Text(done || ready ? tr('Сегодня') : tr('Выучено слов сегодня'), style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
-          const SizedBox(height: 2),
-          Text(big, style: TextStyle(fontSize: done || ready ? 20 : 34, height: 1.1, fontWeight: FontWeight.w800, letterSpacing: done || ready ? -0.3 : -1.2, color: AppColors.primaryDark)),
-          if (done && !ready) ...[
-            const SizedBox(height: 2),
-            Text(tr('Новую цель выберете завтра'), style: TextStyle(fontSize: 13, color: AppColors.secondaryText)),
-          ],
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: SizedBox(
-              height: 8,
-              child: Stack(children: [
-                Positioned.fill(child: ColoredBox(color: AppColors.progressTrack)),
-                FractionallySizedBox(
-                  widthFactor: value,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(gradient: LinearGradient(colors: done ? [AppColors.success, AppColors.success] : AppColors.brandGradient)),
+            if (!ready && !done)
+              Text(tr('{0} / {1} слов', [goal.done, goal.goal]), style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.6, color: AppColors.primaryDark)),
+            if (ready || done) Icon(Icons.check_circle_rounded, size: 22, color: _G.green),
+            if (onTap != null) Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.secondaryText),
+          ]),
+        ),
+        const SizedBox(height: 10),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: SizedBox(
+            height: 10,
+            child: Stack(children: [
+              Positioned.fill(child: ColoredBox(color: AppColors.progressTrack)),
+              Positioned.fill(
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(end: value),
+                  duration: const Duration(milliseconds: 700),
+                  curve: Curves.easeOutCubic,
+                  builder: (_, v, _) => FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: v,
+                    child: DecoratedBox(decoration: BoxDecoration(color: _G.green, borderRadius: BorderRadius.circular(99))),
                   ),
                 ),
-              ]),
+              ),
+            ]),
+          ),
+        ),
+        if (ready && onClaim != null) ...[
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(child: rewards.isEmpty ? const SizedBox.shrink() : RewardChips(rewards: rewards, size: 24, soft: true)),
+            const SizedBox(width: 10),
+            _GreenButton(key: const ValueKey('goal-claim'), label: tr('Получить'), onTap: onClaim!, width: 130),
+          ]),
+        ] else if (!done && onContinue != null) ...[
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(child: Text(tr('Осталось {0} слов', [left]), style: label)),
+            const SizedBox(width: 10),
+            _GreenButton(key: const ValueKey('goal-continue'), label: tr('Продолжить'), onTap: onContinue!, width: 150),
+          ]),
+        ],
+        if (done && !ready) ...[
+          const SizedBox(height: 10),
+          Text(tr('Награда получена'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+          const SizedBox(height: 2),
+          Text(tr('Новая цель появится завтра'), style: label),
+        ],
+        if (notice != null)
+          Container(
+            key: const ValueKey('goal-notice'),
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(color: const Color(0x33FFB020), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0x80FFB020))),
+            child: Text(notice!, style: const TextStyle(color: Color(0xFFB36A00), fontSize: 12, fontWeight: FontWeight.w700)),
+          ),
+      ]),
+    );
+  }
+}
+
+/// The flat green button of the day's goal: a face on a darker edge that sinks when pressed.
+class _GreenButton extends StatefulWidget {
+  final String label;
+  final VoidCallback onTap;
+  final double width;
+  const _GreenButton({super.key, required this.label, required this.onTap, required this.width});
+
+  @override
+  State<_GreenButton> createState() => _GreenButtonState();
+}
+
+class _GreenButtonState extends State<_GreenButton> {
+  bool _down = false;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => setState(() => _down = true),
+        onTapCancel: () => setState(() => _down = false),
+        onTapUp: (_) => setState(() => _down = false),
+        onTap: widget.onTap,
+        child: SizedBox(
+          width: widget.width,
+          height: 48,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 80),
+              margin: EdgeInsets.only(top: _down ? 4 : 0),
+              height: 44,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: _G.green,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: _down ? null : [BoxShadow(color: _G.edge, offset: const Offset(0, 4))],
+              ),
+              child: Text(widget.label.toUpperCase(), style: TextStyle(color: _G.onGreen, fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: 0.4)),
             ),
           ),
-          if (ready && onClaim != null) ...[
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(child: rewards.isEmpty ? const SizedBox.shrink() : RewardChips(rewards: rewards, size: 22, soft: true)),
-              _ClaimPill(key: const ValueKey('goal-claim'), onTap: onClaim!),
-            ]),
-          ] else if (!done && onContinue != null) ...[
-            const SizedBox(height: 14),
-            GestureDetector(
-              key: const ValueKey('goal-continue'),
-              onTap: onContinue,
-              child: Container(
-                height: 48,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(99)),
-                child: Text(tr('Продолжить'), style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
-              ),
-            ),
-          ],
-          if (done && !ready)
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(color: AppColors.violetSurface, borderRadius: BorderRadius.circular(99)),
-              child: Text(tr('Новая цель появится завтра'), style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.secondaryText)),
-            ),
-          if (notice != null)
-            Container(
-              key: const ValueKey('goal-notice'),
-              margin: const EdgeInsets.only(top: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(color: const Color(0x33FFB020), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0x80FFB020))),
-              child: Text(notice!, style: const TextStyle(color: Color(0xFFB36A00), fontSize: 12, fontWeight: FontWeight.w700)),
-            ),
-        ]),
-      ),
-    ]);
-  }
+        ),
+      );
 }
 
 /// «Получить»: the indigo pill (the same colour as «Продолжить»).

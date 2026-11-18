@@ -16,11 +16,11 @@ void main() {
   testWidgets('shows progress, then the done state', (tester) async {
     Future<void> show(DailyGoal g) => tester.pumpWidget(MaterialApp(home: Scaffold(body: DailyGoalCardView(goal: g, onTap: () {}))));
     await show(const DailyGoal(goal: 10, done: 4, completed: false));
-    expect(find.text('4 из 10 слов'), findsOneWidget);
+    expect(find.text('4 / 10 слов'), findsOneWidget);
     await show(const DailyGoal(goal: 10, done: 12, completed: true));
     expect(find.text('Награда получена'), findsOneWidget);
     expect(find.text('Новая цель появится завтра'), findsOneWidget);
-    expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
   });
 }
 
@@ -79,7 +79,7 @@ void readyTest() {
       ],
     });
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: Padding(padding: const EdgeInsets.all(16), child: DailyGoalCardView(goal: goal, onTap: null, onClaim: () => claims++)))));
-    expect(find.text('Выполнена! Заберите награду'), findsOneWidget);
+    expect(find.text('Цель дня выполнена'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('goal-claim')));
     expect(claims, 1);
   });

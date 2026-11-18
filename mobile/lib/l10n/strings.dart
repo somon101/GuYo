@@ -1770,6 +1770,9 @@ const Map<String, (String, String)> uiStrings = {
   'заморозок серии': ('яхбандиҳои силсила', 'seriya muzlatishlari'),
   'объединителей серии': ('пайвандакҳои силсила', 'seriya birlashtirgichlari'),
   'удвоитель наград': ('дучандкунандаи ҷоизаҳо', 'mukofot ikkilantirgichi'),
+  'Цель дня выполнена': ('Ҳадафи рӯз иҷро шуд', 'Kunlik maqsad bajarildi'),
+  '{0} / {1} слов': ('{0} / {1} калима', '{0} / {1} ta so‘z'),
+  'Осталось {0} слов': ('Мондааст {0} калима', '{0} ta so‘z qoldi'),
   'К урокам': ('Ба дарсҳо', 'Darslarga'),
   // The demo build: «Лента», profiles and teams.
   '100 слов выучено': ('100 калима омӯхта шуд', '100 ta soʻz oʻrganildi'),
