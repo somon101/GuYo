@@ -345,6 +345,13 @@ class LessonPassStats {
   final int scoreGained;
   final int newlyLearned;
 
+  /// How the lesson's points are made up (lesson / accuracy / speed) and what the rest of the words
+  /// still bring; null while the server does not send them.
+  final int? pointsLesson;
+  final int? pointsAccuracy;
+  final int? pointsSpeed;
+  final int? pointsAfter;
+
   LessonPassStats({
     required this.durationSeconds,
     required this.totalAnswers,
@@ -355,6 +362,10 @@ class LessonPassStats {
     required this.words,
     required this.scoreGained,
     required this.newlyLearned,
+    this.pointsLesson,
+    this.pointsAccuracy,
+    this.pointsSpeed,
+    this.pointsAfter,
   });
 
   factory LessonPassStats.fromJson(Map<String, dynamic> json) => LessonPassStats(
@@ -369,6 +380,10 @@ class LessonPassStats {
         words: (json['words'] as List<dynamic>).map((e) => PassWordStat.fromJson(e as Map<String, dynamic>)).toList(),
         scoreGained: json['score_gained'] as int,
         newlyLearned: json['newly_learned'] as int,
+        pointsLesson: json['points_lesson'] as int?,
+        pointsAccuracy: json['points_accuracy'] as int?,
+        pointsSpeed: json['points_speed'] as int?,
+        pointsAfter: json['points_after'] as int?,
       );
 
   PassWordStat? forWord(int wordId) {

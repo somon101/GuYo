@@ -1041,6 +1041,9 @@ const Map<String, String> enStrings = {
   'Он ваш': 'It\'s yours',
   'Забрано': 'Taken',
   'алмазов': 'diamonds',
+  'заморозок серии': 'streak freezes',
+  'объединителей серии': 'streak mergers',
+  'удвоитель наград': 'rewards doubler',
   'К урокам': 'To lessons',
   // The demo build: «Лента», profiles and teams.
   '100 слов выучено': '100 words learned',

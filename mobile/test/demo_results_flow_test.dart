@@ -47,7 +47,7 @@ Future<List<bool?>> _open(WidgetTester tester, {required bool passed}) async {
     home: Builder(
       builder: (context) => TextButton(
         onPressed: () async => popped.add(await Navigator.of(context).push<bool>(
-          MaterialPageRoute(builder: (_) => DemoResultsFlow(lesson: _lesson(passed: passed), stats: _stats)),
+          MaterialPageRoute(builder: (_) => demoResultsFlow(_lesson(passed: passed), _stats)),
         )),
         child: const Text('go'),
       ),

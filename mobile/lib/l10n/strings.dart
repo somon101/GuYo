@@ -1767,6 +1767,9 @@ const Map<String, (String, String)> uiStrings = {
   'Он ваш': ('Он аз они шумост', 'U sizniki'),
   'Забрано': ('Гирифта шуд', 'Olindi'),
   'алмазов': ('алмос', 'olmos'),
+  'заморозок серии': ('яхбандиҳои силсила', 'seriya muzlatishlari'),
+  'объединителей серии': ('пайвандакҳои силсила', 'seriya birlashtirgichlari'),
+  'удвоитель наград': ('дучандкунандаи ҷоизаҳо', 'mukofot ikkilantirgichi'),
   'К урокам': ('Ба дарсҳо', 'Darslarga'),
   // The demo build: «Лента», profiles and teams.
   '100 слов выучено': ('100 калима омӯхта шуд', '100 ta soʻz oʻrganildi'),

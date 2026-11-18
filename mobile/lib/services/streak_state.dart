@@ -20,17 +20,23 @@ void setStreakState({required bool litToday, required int days}) {
   streakDays.value = days;
 }
 
+/// The streak answer of the last finished lesson. The results screen reads it: it shows the streak
+/// step itself, so a lesson finish never plays the ignition dialog on top of it.
+({int days, bool litNow})? lastLessonStreak;
+
 /// From a finish response: `streak_lit_now` is true only for the call that
-/// lit today's day -- that moment plays the flame lighting up.
-void reportStreakResult(Map<String, dynamic> json) {
+/// lit today's day -- that moment plays the flame lighting up. A lesson's finish ([lesson]) leaves
+/// the flame to the results screen (see [lastLessonStreak]).
+void reportStreakResult(Map<String, dynamic> json, {bool lesson = false}) {
   dailyGoalTick.value++;
   final litNow = json['streak_lit_now'] as bool? ?? false;
   final days = json['streak_days'] as int?;
   if (days != null) streakDays.value = days;
   if (json.containsKey('streak_lit_now')) {
+    if (lesson) lastLessonStreak = (days: days ?? streakDays.value ?? 0, litNow: litNow);
     if (litNow) {
       streakLitToday.value = true;
-      _showIgnition(days ?? 1);
+      if (!lesson) _showIgnition(days ?? 1);
     } else if (streakLitToday.value != true && days != null && days > 0) {
       streakLitToday.value = true;
     }

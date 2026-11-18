@@ -1080,7 +1080,7 @@ class ApiClient {
     await _throwWithDetail(res);
     final body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
     try {
-      reportStreakResult(body);
+      reportStreakResult(body, lesson: true);
     } catch (_) {}
     final stats = body['pass_stats'];
     return (

@@ -9,6 +9,8 @@ import '../models/user_profile.dart';
 import '../services/answer_sound.dart';
 import '../theme/app_colors.dart';
 import 'achievement_celebration_screen.dart';
+import 'lesson_results_flow.dart';
+import 'lesson_results_source.dart';
 
 /// Set when «Начать урок N» is pressed on the results: the lessons list, as it gets the screen
 /// back, opens the next lesson at once. Good for a few seconds only, so a results screen closed
@@ -26,7 +28,7 @@ bool takeNextLessonRequest() {
 /// screen here before the app starts (the demo build does), the lesson flow does not care which.
 /// The screen must pop `true` to repeat the lesson and `false` (or nothing) otherwise.
 Widget Function(Lesson lesson, LessonPassStats? stats) lessonResultsBuilder =
-    (lesson, stats) => LessonResultsScreen(lesson: lesson, stats: stats);
+    (lesson, stats) => LessonResultsFlow(lesson: lesson, stats: stats, source: AppResultsSource());
 
 /// The end of a lesson (variant C, «дорожка уроков»): not a report but a step forward. The
 /// headline says what happened, three chips give the numbers (words held, accuracy, time), and a
