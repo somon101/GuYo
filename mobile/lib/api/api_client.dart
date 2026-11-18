@@ -1344,6 +1344,26 @@ class ApiClient {
     }
   }
 
+  // --- The social part: the feed, friends, other people, team requests ------------------
+
+  /// One call of the social part: JSON in, JSON out (null for an empty answer). A refusal comes as an
+  /// [ApiException] with the server's words.
+  Future<dynamic> socialCall(String method, String path, {Object? body}) async {
+    final headers = {...await _authHeaders(), if (body != null) 'Content-Type': 'application/json'};
+    final uri = _uri(path);
+    final encoded = body == null ? null : jsonEncode(body);
+    final res = switch (method) {
+      'GET' => await http.get(uri, headers: headers),
+      'POST' => await http.post(uri, headers: headers, body: encoded),
+      'PUT' => await http.put(uri, headers: headers, body: encoded),
+      'DELETE' => await http.delete(uri, headers: headers),
+      _ => throw ArgumentError(method),
+    };
+    await _throwWithDetail(res);
+    if (res.bodyBytes.isEmpty) return null;
+    return jsonDecode(utf8.decode(res.bodyBytes));
+  }
+
   // --- Teams ---------------------------------------------------------------
 
   Future<TeamState> _teamCall(

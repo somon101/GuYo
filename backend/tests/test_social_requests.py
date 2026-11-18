@@ -103,3 +103,13 @@ def test_person_profile_shows_the_showcase_and_the_relation(client, db, make_use
     assert client.get(f"/people/{a.id}", headers=hb).json()["relation"] == "received"
     assert client.get(f"/people/{a.id}", headers=ha).json()["relation"] == "self"
     assert client.get("/people/999999", headers=ha).status_code == 404
+
+
+def test_a_team_as_anybody_sees_it(client, db, make_user, auth, active_season):
+    owner, other = make_user(), make_user()
+    tid = client.post("/teams", headers=auth(owner), json={"name": "Seen by all", "is_open": True}).json()["team"]["id"]
+    t = client.get(f"/teams/{tid}", headers=auth(other)).json()
+    assert t["name"] == "Seen by all" and t["owner_id"] == owner.id and t["is_mine"] is False and t["requested"] is False
+    assert [m["user_id"] for m in t["members"]] == [owner.id] and 0 <= t["season_percent"] <= 100
+    assert client.get(f"/teams/{tid}", headers=auth(owner)).json()["is_mine"] is True
+    assert client.get("/teams/99999", headers=auth(owner)).status_code == 404

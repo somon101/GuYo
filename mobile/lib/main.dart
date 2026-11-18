@@ -8,6 +8,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'api/api_client.dart';
+import 'app_hooks.dart';
+import 'screens/feed_screen.dart';
+import 'social/server_social.dart';
+import 'social/social_store.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'services/push_service.dart';
@@ -28,6 +32,11 @@ Future<void> main() async {
   await loadAppLanguage();
   await loadAppTheme();
   await DiskCache.load();
+  // «Лента» is a tab of its own, from the server (the demo build puts its own store and tab in before this).
+  if (AppHooks.ratingTab == null) {
+    SocialStore.instance = ServerSocial();
+    AppHooks.ratingTab = (icon: Icons.favorite_rounded, label: tr('Лента'), page: (context, goTo) => FeedTab(goTo: goTo));
+  }
   runApp(const GuyoApp());
 }
 

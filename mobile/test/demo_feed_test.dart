@@ -6,7 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:guyo_app/api/api_client.dart';
-import 'package:guyo_app/demo/demo_feed.dart';
+import 'package:guyo_app/screens/feed_screen.dart';
+import 'package:guyo_app/social/social_store.dart';
 import 'package:guyo_app/demo/demo_server.dart';
 import 'package:guyo_app/demo/demo_social.dart';
 
@@ -25,7 +26,7 @@ void _reset() {
     c.myComment = null;
   }
   for (final t in s.teams.values.toList()) {
-    t.members.remove(DemoSocial.me);
+    t.members.remove(DemoSocial.instance.me);
     if (t.members.isEmpty) s.teams.remove(t.id);
   }
 }
@@ -48,11 +49,12 @@ Future<void> _settle(WidgetTester t) async {
 void main() {
   setUp(() {
     FlutterSecureStorage.setMockInitialValues({});
+    SocialStore.instance = DemoSocial.instance;
     _reset();
   });
 
   testWidgets('a like and a ready-made comment', (tester) async {
-    await _open(tester, DemoFeedTab(goTo: (_) {}));
+    await _open(tester, FeedTab(goTo: (_) {}));
     expect(find.text('ДРУЗЬЯ'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('like-1')));
     await tester.pump();
@@ -68,7 +70,7 @@ void main() {
   });
 
   testWidgets('who liked: friends marked, the green add sends a request, a second tap takes it back', (tester) async {
-    await _open(tester, DemoFeedTab(goTo: (_) {}));
+    await _open(tester, FeedTab(goTo: (_) {}));
     await tester.tap(find.byKey(const ValueKey('likers-1')));
     await _settle(tester);
     expect(find.text('Друг'), findsWidgets); // Madina is a friend
@@ -83,13 +85,13 @@ void main() {
   });
 
   testWidgets('the feed tab is only the feed: «Рейтинг» is its own tab, no switch', (tester) async {
-    await _open(tester, DemoFeedTab(goTo: (_) {}));
+    await _open(tester, FeedTab(goTo: (_) {}));
     expect(find.byKey(const ValueKey('feed-list')), findsOneWidget);
     expect(find.byKey(const ValueKey('feed-switch-1')), findsNothing);
   });
 
   testWidgets('a person: no friend → the green add; a friend → the duel and the red remove', (tester) async {
-    await _open(tester, const DemoPersonScreen(103));
+    await _open(tester, const PersonScreen(103));
     expect(find.text('Rustam'), findsOneWidget);
     expect(find.text('Очки за неделю'), findsOneWidget);
     expect(find.text('Достижения'), findsOneWidget);
@@ -97,7 +99,7 @@ void main() {
     await tester.pump();
     expect(find.text('Запрос отправлен'), findsOneWidget);
 
-    await _open(tester, const DemoPersonScreen(102));
+    await _open(tester, const PersonScreen(102));
     expect(find.byKey(const ValueKey('person-duel')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('person-unfriend')));
     await tester.pump();
@@ -106,7 +108,7 @@ void main() {
   });
 
   testWidgets('a closed team takes a request (the owner decides); an open one is joined at once', (tester) async {
-    await _open(tester, const DemoMyTeamCard());
+    await _open(tester, const MyTeamCard());
     expect(find.text('Играйте вместе'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('my-team-find')));
@@ -129,7 +131,7 @@ void main() {
   });
 
   testWidgets('a new team from the profile, then leaving it', (tester) async {
-    await _open(tester, const DemoMyTeamCard());
+    await _open(tester, const MyTeamCard());
     await tester.tap(find.byKey(const ValueKey('my-team-create')));
     await _settle(tester);
     await tester.enterText(find.byKey(const ValueKey('team-name')), 'Мои львы');
@@ -146,7 +148,7 @@ void main() {
   });
 
   testWidgets('leaving a team: a card in the middle says so, with the ways on (find, create), not a grey line', (tester) async {
-    await _open(tester, const DemoMyTeamCard());
+    await _open(tester, const MyTeamCard());
     await tester.tap(find.byKey(const ValueKey('my-team-find')));
     await _settle(tester);
     await tester.tap(find.byKey(const ValueKey('teams-list-1'))); // «Словарный взвод», open
@@ -166,7 +168,7 @@ void main() {
   });
 
   testWidgets('a team the creator closed while its sheet was open: the same card says it is gone', (tester) async {
-    await _open(tester, const DemoMyTeamCard());
+    await _open(tester, const MyTeamCard());
     await tester.tap(find.byKey(const ValueKey('my-team-find')));
     await _settle(tester);
     await tester.tap(find.byKey(const ValueKey('teams-list-2')));

@@ -1,6 +1,6 @@
-// The demo build's «Лента» tab (it takes the place of «Рейтинг», which opens from a switch at the
-// top), the profile of another person, and the team sheets. Built from the approved mockup
-// (docs/PRODUCT_RULES.md, «Лента»). The real app does not use this file.
+// The «Лента» tab, the profile of another person, and the team sheets. Built from the approved mockup
+// (docs/PRODUCT_RULES.md, «Лента»). The screens work on a [SocialStore]: the app fills it from the
+// server, the demo build from made-up data.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -8,8 +8,8 @@ import '../l10n/l10n.dart';
 import '../theme/app_colors.dart';
 import '../widgets/animated_fire.dart';
 import '../widgets/game_icons.dart';
-import 'demo_social.dart';
-import 'demo_state.dart';
+import '../social/social_store.dart';
+import '../widgets/user_avatar.dart';
 
 /// The soft colours the owner chose (the green of «Лайм», the lilac of «Мята»).
 class _P {
@@ -33,7 +33,11 @@ class _P {
 
 const _avatarColors = [Color(0xFF5862DD), Color(0xFFE7873C), Color(0xFF2CA58D), Color(0xFFC2477F), Color(0xFF3C8FE7), Color(0xFF8B5CF6), Color(0xFFD14B4B)];
 
-DemoSocial get _s => DemoSocial.instance;
+SocialStore get _s => SocialStore.instance;
+
+/// Runs a change that is told to the server in the background: the store already shows it and takes it
+/// back when the server refuses, so nothing more is needed here.
+void _fire(Future<void> change) => change.catchError((Object _) {});
 
 String _fmt(int n) => n >= 1000 ? '${(n / 1000).toStringAsFixed(1).replaceAll('.', ',')}к' : '$n';
 
@@ -45,8 +49,12 @@ class _Av extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = _s.people[id];
-    final color = id == DemoSocial.me ? _avatarColors[6] : _avatarColors[(p?.color ?? 0) % _avatarColors.length];
-    final letter = id == DemoSocial.me ? 'D' : (p?.name ?? '?').substring(0, 1);
+    if (_s.realAvatars) {
+      // The app's own avatar picture (the one built from the parts, or the default one).
+      return UserAvatar(avatarUrl: id == _s.me ? _s.myAvatarUrl : p?.avatarUrl, login: id == _s.me ? _s.myLogin : (p?.name ?? '?'), size: size);
+    }
+    final color = id == _s.me ? _avatarColors[6] : _avatarColors[(p?.color ?? 0) % _avatarColors.length];
+    final letter = id == _s.me ? 'D' : (p?.name ?? '?').substring(0, 1);
     return Container(
       width: size,
       height: size,
@@ -121,18 +129,24 @@ class _GreenButton extends StatelessWidget {
 // =============================================================================================
 // The tab
 
-class DemoFeedTab extends StatefulWidget {
+class FeedTab extends StatefulWidget {
   final void Function(int tab) goTo;
-  const DemoFeedTab({super.key, required this.goTo});
+  const FeedTab({super.key, required this.goTo});
 
   @override
-  State<DemoFeedTab> createState() => _DemoFeedTabState();
+  State<FeedTab> createState() => _FeedTabState();
 }
 
-class _DemoFeedTabState extends State<DemoFeedTab> {
+class _FeedTabState extends State<FeedTab> {
   // «Рейтинг» is its own tab now: this one is only the feed.
   @override
-  Widget build(BuildContext context) => _FeedList(goTo: widget.goTo);
+  void initState() {
+    super.initState();
+    _fire(_s.refresh());
+  }
+
+  @override
+  Widget build(BuildContext context) => RefreshIndicator(onRefresh: () => _s.refresh().catchError((Object _) {}), child: _FeedList(goTo: widget.goTo));
 }
 
 class _FeedList extends StatelessWidget {
@@ -145,24 +159,75 @@ class _FeedList extends StatelessWidget {
       valueListenable: _s.changes,
       builder: (context, _, _) {
         final visible = [for (final c in _s.cards) if (!_s.hiddenCards.contains(c.id)) c];
-        final ofFriends = [for (final c in visible) if (_s.isFriend(c.personId)) c];
-        final others = [for (final c in visible) if (!_s.isFriend(c.personId)) c];
+        bool near(int id) => id == _s.me || _s.isFriend(id);
+        final ofFriends = [for (final c in visible) if (near(c.personId)) c];
+        final others = [for (final c in visible) if (!near(c.personId)) c];
         return ListView(
           key: const ValueKey('feed-list'),
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
           children: [
             const _CountCard(),
+            const _Requests(),
             if (ofFriends.isNotEmpty) _section(tr('Друзья')),
             for (final c in ofFriends) _FeedCard(c),
             const _Suggestions(),
-            _section(tr('Со всего GuYo')),
+            if (others.isNotEmpty) _section(tr('Со всего GuYo')),
             for (final c in others.take(2)) _FeedCard(c),
             _TurnCard(goTo: goTo),
             const _TeamsRow(),
             for (final c in others.skip(2)) _FeedCard(c),
+            if (_s.loading && visible.isEmpty) const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator())),
+            if (!_s.loading && visible.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Text(tr('Пока здесь тихо. Пройдите урок, и ваш успех появится в ленте.'), textAlign: TextAlign.center, style: TextStyle(color: _P.muted, fontSize: 14)),
+              ),
+            if (_s.hasMore)
+              Center(child: TextButton(key: const ValueKey('feed-more'), onPressed: () => _fire(_s.more()), child: Text(tr('Показать ещё')))),
           ],
         );
       },
+    );
+  }
+}
+
+/// Whoever asked the player to be friends, or to join the player's team: answered right here.
+class _Requests extends StatelessWidget {
+  const _Requests();
+
+  @override
+  Widget build(BuildContext context) {
+    final friendsAsk = _s.incomingRequests;
+    final teamAsk = _s.teamAskers;
+    if (friendsAsk.isEmpty && teamAsk.isEmpty) return const SizedBox.shrink();
+    Widget row(int id, String what, {required Key key, required VoidCallback yes, required VoidCallback no}) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: Row(children: [
+            InkWell(onTap: () => openPerson(context, id), child: _Av(id, size: 40)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(_s.nameOf(id), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5, color: _P.ink)),
+                Text(what, style: TextStyle(fontSize: 12.5, color: _P.muted)),
+              ]),
+            ),
+            IconButton(key: Key('${key.toString()}-no'), tooltip: tr('Отклонить'), onPressed: no, icon: Icon(Icons.close_rounded, color: _P.muted)),
+            IconButton(key: Key('${key.toString()}-yes'), tooltip: tr('Принять'), onPressed: yes, icon: Icon(Icons.check_circle_rounded, color: _P.green, size: 30)),
+          ]),
+        );
+    return Container(
+      key: const ValueKey('requests-card'),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+      decoration: _cardBox(),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Text(tr('Запросы'), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5, color: _P.ink)),
+        for (final id in friendsAsk.toList())
+          row(id, tr('хочет добавить вас в друзья'), key: ValueKey('friend-ask-$id'), yes: () => _fire(_s.answerFriendRequest(id, accept: true)), no: () => _fire(_s.answerFriendRequest(id, accept: false))),
+        for (final id in teamAsk.toList())
+          row(id, tr('хочет вступить в вашу команду'), key: ValueKey('team-ask-$id'), yes: () => _fire(_s.answerTeamRequest(id, accept: true)), no: () => _fire(_s.answerTeamRequest(id, accept: false))),
+      ]),
     );
   }
 }
@@ -171,15 +236,20 @@ class _CountCard extends StatelessWidget {
   const _CountCard();
 
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: _P.lilac, borderRadius: BorderRadius.circular(22)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(tr('Сегодня в GuYo выучено'), style: TextStyle(color: _P.onLilac.withValues(alpha: 0.9), fontWeight: FontWeight.w600, fontSize: 13)),
-          Text(tr('{0} слов', ['12 480']), style: TextStyle(color: _P.onLilac, fontWeight: FontWeight.w800, fontSize: 32, letterSpacing: -1)),
-          Text(tr('Ваш вклад: {0} слов', [DemoState.instance.wordsToday]), style: TextStyle(color: _P.onLilac.withValues(alpha: 0.9), fontWeight: FontWeight.w600, fontSize: 13)),
-        ]),
-      );
+  Widget build(BuildContext context) {
+    final all = _s.globalWordsToday;
+    if (all == null) return const SizedBox.shrink(); // only the demo has a made-up number for everybody
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: _P.lilac, borderRadius: BorderRadius.circular(22)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(tr('Сегодня в GuYo выучено'), style: TextStyle(color: _P.onLilac.withValues(alpha: 0.9), fontWeight: FontWeight.w600, fontSize: 13)),
+        Text(tr('{0} слов', [all]), style: TextStyle(color: _P.onLilac, fontWeight: FontWeight.w800, fontSize: 32, letterSpacing: -1)),
+        Text(tr('Ваш вклад: {0} слов', [_s.wordsToday ?? 0]), style: TextStyle(color: _P.onLilac.withValues(alpha: 0.9), fontWeight: FontWeight.w600, fontSize: 13)),
+      ]),
+    );
+  }
 }
 
 class _TurnCard extends StatelessWidget {
@@ -188,15 +258,15 @@ class _TurnCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ds = DemoState.instance;
-    final left = (ds.goal - ds.wordsToday).clamp(0, ds.goal);
+    final goal = _s.dailyGoal ?? 0;
+    final left = (goal - (_s.wordsToday ?? 0)).clamp(0, goal);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(color: _P.soft, borderRadius: BorderRadius.circular(22)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Text(tr('Ваша очередь'), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: _P.ink)),
-        Text(left > 0 ? tr('До цели дня осталось {0} слов', [left]) : tr('Цель дня выполнена. Ещё урок?'), style: TextStyle(color: _P.muted, fontSize: 13)),
+        Text(goal == 0 ? tr('Один урок в день делает привычку') : left > 0 ? tr('До цели дня осталось {0} слов', [left]) : tr('Цель дня выполнена. Ещё урок?'), style: TextStyle(color: _P.muted, fontSize: 13)),
         const SizedBox(height: 10),
         _GreenButton(tr('Начать урок'), key: const ValueKey('feed-start-lesson'), onTap: () => goTo(1)),
       ]),
@@ -223,16 +293,17 @@ Widget _cardPicture(String kind) => switch (kind) {
     };
 
 class _FeedCard extends StatelessWidget {
-  final DemoCard c;
+  final SocialCard c;
   const _FeedCard(this.c);
 
   @override
   Widget build(BuildContext context) {
     final person = _s.people[c.personId]!;
-    final likers = [if (c.liked) DemoSocial.me, ...c.likers];
-    final shown = likers.take(2).map(_s.nameOf).toList();
+    final likers = [if (c.liked) _s.me, ...c.likers];
+    final shown = likers.take(2).map((i) => i == _s.me ? tr('Вы') : _s.nameOf(i)).toList();
     final rest = c.likeCount - shown.length;
-    final last = c.myComment != null ? (tr('Вы'), c.myComment!) : (_s.nameOf(c.lastComment.$1), c.lastComment.$2);
+    final lc = c.lastComment;
+    final last = c.myComment != null ? (tr('Вы'), c.myComment!) : (lc == null ? null : (_s.nameOf(lc.$1), lc.$2));
     return Container(
       key: ValueKey('feed-card-${c.id}'),
       margin: const EdgeInsets.only(bottom: 10),
@@ -243,7 +314,7 @@ class _FeedCard extends StatelessWidget {
           Expanded(
             child: InkWell(
               key: ValueKey('card-person-${c.id}'),
-              onTap: () => openDemoPerson(context, c.personId),
+              onTap: () => openPerson(context, c.personId),
               borderRadius: BorderRadius.circular(12),
               child: Row(children: [
                 _Av(c.personId),
@@ -283,8 +354,7 @@ class _FeedCard extends StatelessWidget {
             text: _fmt(c.likeCount),
             onTap: () {
               HapticFeedback.selectionClick();
-              c.liked = !c.liked;
-              _s.touch();
+              _fire(_s.toggleLike(c));
             },
           ),
           const SizedBox(width: 6),
@@ -316,11 +386,17 @@ class _FeedCard extends StatelessWidget {
             ]),
           ),
         ),
-        const SizedBox(height: 6),
-        Text.rich(TextSpan(children: [
-          TextSpan(text: '${last.$1}: ', style: TextStyle(fontWeight: FontWeight.w700, color: _P.ink)),
-          TextSpan(text: tr(last.$2), style: TextStyle(color: _P.muted)),
-        ]), style: const TextStyle(fontSize: 13.5)),
+        if (last != null) ...[
+          const SizedBox(height: 6),
+          Text.rich(TextSpan(children: [
+            TextSpan(text: '${last.$1}: ', style: TextStyle(fontWeight: FontWeight.w700, color: _P.ink)),
+            TextSpan(text: tr(last.$2), style: TextStyle(color: _P.muted)),
+          ]), style: const TextStyle(fontSize: 13.5)),
+        ],
+        if (c.views != null) ...[
+          const SizedBox(height: 4),
+          Text(tr('Просмотров: {0}', [_fmt(c.views!)]), style: TextStyle(fontSize: 12.5, color: _P.muted)),
+        ],
       ]),
     );
   }
@@ -352,7 +428,7 @@ class _Pill extends StatelessWidget {
       );
 }
 
-Future<void> _moreSheet(BuildContext context, DemoCard c) => showModalBottomSheet<void>(
+Future<void> _moreSheet(BuildContext context, SocialCard c) => showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       builder: (ctx) => SafeArea(
@@ -361,8 +437,7 @@ Future<void> _moreSheet(BuildContext context, DemoCard c) => showModalBottomShee
             leading: Icon(Icons.visibility_off_rounded, color: _P.muted),
             title: Text(tr('Скрыть карточку')),
             onTap: () {
-              _s.hiddenCards.add(c.id);
-              _s.touch();
+              _fire(_s.hide(c));
               Navigator.pop(ctx);
             },
           ),
@@ -371,7 +446,7 @@ Future<void> _moreSheet(BuildContext context, DemoCard c) => showModalBottomShee
       ),
     );
 
-Future<void> _phrasesSheet(BuildContext context, DemoCard c) => showModalBottomSheet<void>(
+Future<void> _phrasesSheet(BuildContext context, SocialCard c) => showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       backgroundColor: AppColors.canvas,
@@ -379,7 +454,7 @@ Future<void> _phrasesSheet(BuildContext context, DemoCard c) => showModalBottomS
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(tr('Комментарий для {0}', [_s.nameOf(c.personId)]), style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: _P.ink)),
+            Text(tr('Комментарий для {0}', [c.personId == _s.me ? tr('себя') : _s.nameOf(c.personId)]), style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: _P.ink)),
             const SizedBox(height: 4),
             Text(tr('Выберите готовую фразу. Каждый увидит её на своём языке.'), style: TextStyle(fontSize: 13, color: _P.muted)),
             const SizedBox(height: 12),
@@ -391,12 +466,11 @@ Future<void> _phrasesSheet(BuildContext context, DemoCard c) => showModalBottomS
               crossAxisSpacing: 8,
               childAspectRatio: 3.4,
               children: [
-                for (final p in DemoSocial.phrases)
+                for (final p in _s.phrases)
                   OutlinedButton(
                     key: ValueKey('phrase-$p'),
                     onPressed: () {
-                      c.myComment = p;
-                      _s.touch();
+                      _fire(_s.setComment(c, p));
                       Navigator.pop(ctx);
                     },
                     style: OutlinedButton.styleFrom(
@@ -414,6 +488,16 @@ Future<void> _phrasesSheet(BuildContext context, DemoCard c) => showModalBottomS
       ),
     );
 
+/// «Друг · Мастер · 1840 очков»: only what is known (the server gives a rank and points with a profile).
+String _likerLine(int id) {
+  final p = _s.people[id];
+  return [
+    if (_s.isFriend(id)) tr('Друг'),
+    if (p != null && p.rank.isNotEmpty) tr(p.rank),
+    if (p != null && p.points > 0) tr('{0} очков', [p.points]),
+  ].join(' · ');
+}
+
 /// What stands at the right of a person in a list: «Друг», a waiting request, or the green add.
 class _Relation extends StatelessWidget {
   final int id;
@@ -421,7 +505,7 @@ class _Relation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (id == DemoSocial.me) return const SizedBox.shrink();
+    if (id == _s.me) return const SizedBox.shrink();
     if (_s.isFriend(id)) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -435,14 +519,19 @@ class _Relation extends StatelessWidget {
       tooltip: waiting ? tr('Запрос отправлен') : tr('Добавить в друзья'),
       onPressed: () {
         HapticFeedback.selectionClick();
-        _s.toggleFriendRequest(id);
+        _fire(_s.toggleFriendRequest(id));
       },
       icon: Icon(waiting ? Icons.schedule_rounded : Icons.person_add_alt_1_rounded, color: waiting ? _P.muted : _P.green, size: waiting ? 24 : 28),
     );
   }
 }
 
-Future<void> _likersSheet(BuildContext context, DemoCard c) => showModalBottomSheet<void>(
+Future<void> _likersSheet(BuildContext context, SocialCard c) {
+  _fire(_s.loadLikers(c));
+  return _likersSheetBody(context, c);
+}
+
+Future<void> _likersSheetBody(BuildContext context, SocialCard c) => showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
@@ -452,7 +541,7 @@ Future<void> _likersSheet(BuildContext context, DemoCard c) => showModalBottomSh
         child: ValueListenableBuilder<int>(
           valueListenable: _s.changes,
           builder: (ctx, _, _) {
-            final list = [if (c.liked) DemoSocial.me, ...c.likers];
+            final list = [if (c.liked) _s.me, ...c.likers];
             final more = c.likeCount - list.length;
             return ListView(
               shrinkWrap: true,
@@ -466,18 +555,15 @@ Future<void> _likersSheet(BuildContext context, DemoCard c) => showModalBottomSh
                     child: Row(children: [
                       Expanded(
                         child: InkWell(
-                          onTap: id == DemoSocial.me ? null : () => openDemoPerson(ctx, id),
+                          onTap: id == _s.me ? null : () => openPerson(ctx, id),
                           child: Row(children: [
                             _Av(id),
                             const SizedBox(width: 10),
                             Flexible(
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Text(_s.nameOf(id), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: _P.ink)),
-                                if (id != DemoSocial.me)
-                                  Text(
-                                    '${_s.isFriend(id) ? '${tr('Друг')} · ' : ''}${tr(_s.people[id]!.rank)} · ${tr('{0} очков', [_s.people[id]!.points])}',
-                                    style: TextStyle(fontSize: 12.5, color: _P.muted),
-                                  ),
+                                if (id != _s.me && _likerLine(id).isNotEmpty)
+                                  Text(_likerLine(id), style: TextStyle(fontSize: 12.5, color: _P.muted)),
                               ]),
                             ),
                           ]),
@@ -521,7 +607,7 @@ class _Suggestions extends StatelessWidget {
               decoration: BoxDecoration(color: _P.surface, borderRadius: BorderRadius.circular(20), border: Border.all(color: _P.line)),
               child: Column(children: [
                 InkWell(
-                  onTap: () => openDemoPerson(context, id),
+                  onTap: () => openPerson(context, id),
                   borderRadius: BorderRadius.circular(12),
                   child: Column(children: [
                     _Av(id, size: 52),
@@ -536,7 +622,7 @@ class _Suggestions extends StatelessWidget {
                   width: double.infinity,
                   child: FilledButton(
                     key: ValueKey('suggest-$id'),
-                    onPressed: () => _s.toggleFriendRequest(id),
+                    onPressed: () => _fire(_s.toggleFriendRequest(id)),
                     style: FilledButton.styleFrom(
                       padding: EdgeInsets.zero,
                       backgroundColor: waiting ? _P.soft : _P.green,
@@ -560,7 +646,7 @@ class _TeamsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final teams = [for (final t in _s.teams.values) if (!t.members.contains(DemoSocial.me)) t];
+    final teams = [for (final t in _s.teams.values) if (!t.members.contains(_s.me)) t];
     if (teams.isEmpty) return const SizedBox.shrink();
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       _section(tr('Команды ищут участников')),
@@ -575,7 +661,7 @@ class _TeamsRow extends StatelessWidget {
             final room = _s.roomIn(t);
             return InkWell(
               key: ValueKey('team-card-${t.id}'),
-              onTap: () => showDemoTeamSheet(context, t.id),
+              onTap: () => showTeamSheet(context, t.id),
               borderRadius: BorderRadius.circular(20),
               child: Container(
                 width: 200,
@@ -623,16 +709,23 @@ class _OpenPill extends StatelessWidget {
 // =============================================================================================
 // Teams: the sheet of one team, the list, a new team
 
-Future<void> showDemoTeamSheet(BuildContext context, int teamId) => showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      backgroundColor: AppColors.canvas,
-      builder: (ctx) => ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * 0.85),
-        child: _TeamSheet(teamId),
-      ),
-    );
+Future<void> showTeamSheet(BuildContext context, int teamId) async {
+  // The members come with the team itself; what is already known is shown when it cannot be loaded.
+  try {
+    await _s.ensureTeam(teamId);
+  } catch (_) {}
+  if (!context.mounted || _s.teams[teamId] == null) return;
+  return showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    backgroundColor: AppColors.canvas,
+    builder: (ctx) => ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * 0.85),
+      child: _TeamSheet(teamId),
+    ),
+  );
+}
 
 class _TeamSheet extends StatefulWidget {
   final int teamId;
@@ -652,27 +745,27 @@ class _TeamSheetState extends State<_TeamSheet> {
     final root = Navigator.of(context, rootNavigator: true).context;
     final name = _name;
     Navigator.of(context).pop();
-    showDemoTeamGone(root, name: name, closed: closed);
+    showTeamGone(root, name: name, closed: closed);
   }
 
-  void _leaveTeam() {
+  Future<void> _leaveTeam() async {
     _goneShown = true; // the team may disappear from under us: the card below is the one message
     try {
-      _s.leave();
-    } on DemoTeamError catch (e) {
+      await _s.leave();
+    } on SocialError catch (e) {
       _goneShown = false;
-      setState(() => _error = tr(e.message));
+      if (mounted) setState(() => _error = tr(e.message));
       return;
     }
-    _closeWithGone(closed: false);
+    if (mounted) _closeWithGone(closed: false);
   }
 
-  void _run(void Function() action) {
+  Future<void> _run(Future<void> Function() action) async {
     try {
-      action();
-      setState(() => _error = null);
-    } on DemoTeamError catch (e) {
-      setState(() => _error = tr(e.message));
+      await action();
+      if (mounted) setState(() => _error = null);
+    } on SocialError catch (e) {
+      if (mounted) setState(() => _error = tr(e.message));
     }
   }
 
@@ -694,7 +787,7 @@ class _TeamSheetState extends State<_TeamSheet> {
         }
         _name = t.name;
         final room = _s.roomIn(t);
-        final mine = t.members.contains(DemoSocial.me);
+        final mine = t.members.contains(_s.me);
         final my = _s.myTeam;
         final owner = _s.nameOf(t.ownerId);
         final requested = _s.teamRequests.contains(t.id);
@@ -780,14 +873,14 @@ class _TeamSheetState extends State<_TeamSheet> {
               Text(tr('Участники'), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5, color: _P.ink)),
               const Spacer(),
               Text(
-                room > 0 ? tr('{0} из {1} · свободно {2}', [t.members.length, DemoSocial.capacity, room]) : tr('{0} из {1}', [t.members.length, DemoSocial.capacity]),
+                room > 0 ? tr('{0} из {1} · свободно {2}', [t.count, _s.capacity, room]) : tr('{0} из {1}', [t.count, _s.capacity]),
                 style: TextStyle(color: _P.muted, fontSize: 12.5),
               ),
             ]),
             const SizedBox(height: 6),
             for (final m in t.members)
               InkWell(
-                onTap: m == DemoSocial.me ? null : () => openDemoPerson(context, m),
+                onTap: m == _s.me ? null : () => openPerson(context, m),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 5),
                   child: Row(children: [
@@ -797,7 +890,7 @@ class _TeamSheetState extends State<_TeamSheet> {
                     if (m == t.ownerId) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.workspace_premium_rounded, size: 16, color: _P.gold)),
                     const Spacer(),
                     Text(
-                      m == t.ownerId ? tr('создатель') : (m == DemoSocial.me ? '' : tr('{0} очков', [_s.people[m]?.points ?? 0])),
+                      m == t.ownerId ? tr('создатель') : (m == _s.me ? '' : tr('{0} очков', [_s.people[m]?.points ?? 0])),
                       style: TextStyle(fontSize: 12.5, color: _P.muted),
                     ),
                   ]),
@@ -824,7 +917,7 @@ class _TeamIcon extends StatelessWidget {
 }
 
 /// The card in the middle of the screen when a team is gone: closed by its creator, or the player left it.
-Future<void> showDemoTeamGone(BuildContext context, {required String name, required bool closed}) => showDialog<void>(
+Future<void> showTeamGone(BuildContext context, {required String name, required bool closed}) => showDialog<void>(
       context: context,
       barrierColor: const Color(0x8C05070E),
       builder: (ctx) => Dialog(
@@ -852,7 +945,7 @@ Future<void> showDemoTeamGone(BuildContext context, {required String name, requi
             const SizedBox(height: 18),
             _GreenButton(tr('Найти команду'), key: const ValueKey('team-gone-find'), onTap: () {
               Navigator.of(ctx).pop();
-              showDemoTeamsList(context);
+              showTeamsList(context);
             }),
             const SizedBox(height: 8),
             SizedBox(
@@ -862,7 +955,7 @@ Future<void> showDemoTeamGone(BuildContext context, {required String name, requi
                 key: const ValueKey('team-gone-create'),
                 onPressed: () {
                   Navigator.of(ctx).pop();
-                  showDemoCreateTeam(context);
+                  showCreateTeam(context);
                 },
                 style: OutlinedButton.styleFrom(foregroundColor: _P.muted, side: BorderSide(color: _P.line, width: 1.5), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
                 child: Text(tr('Создать свою'), style: const TextStyle(fontWeight: FontWeight.w800)),
@@ -873,7 +966,7 @@ Future<void> showDemoTeamGone(BuildContext context, {required String name, requi
       ),
     );
 
-Future<void> showDemoTeamsList(BuildContext context) => showModalBottomSheet<void>(
+Future<void> showTeamsList(BuildContext context) => showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
@@ -891,7 +984,7 @@ Future<void> showDemoTeamsList(BuildContext context) => showModalBottomSheet<voi
               Text(tr('Открытые принимают сразу, в остальные отправляется запрос создателю.'), style: TextStyle(fontSize: 13, color: _P.muted)),
               const SizedBox(height: 10),
               for (final t in _s.teams.values)
-                if (!t.members.contains(DemoSocial.me))
+                if (!t.members.contains(_s.me))
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Material(
@@ -900,7 +993,7 @@ Future<void> showDemoTeamsList(BuildContext context) => showModalBottomSheet<voi
                       child: InkWell(
                         key: ValueKey('teams-list-${t.id}'),
                         borderRadius: BorderRadius.circular(16),
-                        onTap: () => showDemoTeamSheet(ctx, t.id),
+                        onTap: () => showTeamSheet(ctx, t.id),
                         child: Padding(
                           padding: const EdgeInsets.all(12),
                           child: Row(children: [
@@ -927,7 +1020,7 @@ Future<void> showDemoTeamsList(BuildContext context) => showModalBottomSheet<voi
       ),
     );
 
-Future<void> showDemoCreateTeam(BuildContext context) => showModalBottomSheet<void>(
+Future<void> showCreateTeam(BuildContext context) => showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
@@ -962,7 +1055,7 @@ class _CreateTeamState extends State<_CreateTeam> {
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Text(tr('Новая команда'), style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: _P.ink)),
           const SizedBox(height: 4),
-          Text(tr('Название от 3 до 24 символов. До {0} человек.', [DemoSocial.capacity]), style: TextStyle(fontSize: 13, color: _P.muted)),
+          Text(tr('Название от 3 до 24 символов. До {0} человек.', [_s.capacity]), style: TextStyle(fontSize: 13, color: _P.muted)),
           const SizedBox(height: 12),
           TextField(
             key: const ValueKey('team-name'),
@@ -997,12 +1090,12 @@ class _CreateTeamState extends State<_CreateTeam> {
             key: const ValueKey('team-create'),
             onTap: !valid
                 ? null
-                : () {
+                : () async {
                     try {
-                      _s.create(_name.text, isOpen: _open);
-                      Navigator.pop(context);
-                    } on DemoTeamError catch (e) {
-                      setState(() => _error = tr(e.message));
+                      await _s.create(_name.text, isOpen: _open);
+                      if (context.mounted) Navigator.pop(context);
+                    } on SocialError catch (e) {
+                      if (mounted) setState(() => _error = tr(e.message));
                     }
                   },
           ),
@@ -1014,8 +1107,8 @@ class _CreateTeamState extends State<_CreateTeam> {
 }
 
 /// The player's own profile: their team, or how to find or make one.
-class DemoMyTeamCard extends StatelessWidget {
-  const DemoMyTeamCard({super.key});
+class MyTeamCard extends StatelessWidget {
+  const MyTeamCard({super.key});
 
   static const _gradient = [Color(0xFF14B8A6), Color(0xFF2563EB)];
 
@@ -1031,14 +1124,14 @@ class DemoMyTeamCard extends StatelessWidget {
             padding: const EdgeInsets.all(14),
             decoration: _cardBox(),
             child: InkWell(
-              onTap: () => showDemoTeamSheet(context, t.id),
+              onTap: () => showTeamSheet(context, t.id),
               child: Row(children: [
                 _TeamIcon(),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(tr('Команда «{0}»', [t.name]), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: _P.ink)),
-                    Text('${tr('{0} из {1}', [t.members.length, DemoSocial.capacity])} · ${t.isOpen ? tr('открыта') : tr('по заявке')}', style: TextStyle(fontSize: 12.5, color: _P.muted)),
+                    Text('${tr('{0} из {1}', [t.count, _s.capacity])} · ${t.isOpen ? tr('открыта') : tr('по заявке')}', style: TextStyle(fontSize: 12.5, color: _P.muted)),
                   ]),
                 ),
                 Icon(Icons.chevron_right_rounded, color: _P.muted),
@@ -1068,7 +1161,7 @@ class DemoMyTeamCard extends StatelessWidget {
                   height: 42,
                   child: FilledButton(
                     key: const ValueKey('my-team-create'),
-                    onPressed: () => showDemoCreateTeam(context),
+                    onPressed: () => showCreateTeam(context),
                     style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: _gradient.last, padding: const EdgeInsets.symmetric(horizontal: 8)),
                     child: FittedBox(fit: BoxFit.scaleDown, child: Text(tr('Создать команду'), style: const TextStyle(fontWeight: FontWeight.w800))),
                   ),
@@ -1080,7 +1173,7 @@ class DemoMyTeamCard extends StatelessWidget {
                   height: 42,
                   child: OutlinedButton(
                     key: const ValueKey('my-team-find'),
-                    onPressed: () => showDemoTeamsList(context),
+                    onPressed: () => showTeamsList(context),
                     style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white, width: 1.5), padding: const EdgeInsets.symmetric(horizontal: 8)),
                     child: FittedBox(fit: BoxFit.scaleDown, child: Text(tr('Найти команду'), style: const TextStyle(fontWeight: FontWeight.w800))),
                   ),
@@ -1097,20 +1190,24 @@ class DemoMyTeamCard extends StatelessWidget {
 // =============================================================================================
 // Another person's profile (variant C of the mockup, without the number tiles, the title and the status)
 
-Future<void> openDemoPerson(BuildContext context, int id) {
-  if (id == DemoSocial.me) return Future.value();
-  return Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => DemoPersonScreen(id)));
+Future<void> openPerson(BuildContext context, int id) async {
+  if (id == _s.me) return;
+  try {
+    await _s.ensurePerson(id);
+  } catch (_) {}
+  if (!context.mounted || _s.people[id] == null) return;
+  await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PersonScreen(id)));
 }
 
-class DemoPersonScreen extends StatefulWidget {
+class PersonScreen extends StatefulWidget {
   final int id;
-  const DemoPersonScreen(this.id, {super.key});
+  const PersonScreen(this.id, {super.key});
 
   @override
-  State<DemoPersonScreen> createState() => _DemoPersonScreenState();
+  State<PersonScreen> createState() => _PersonScreenState();
 }
 
-class _DemoPersonScreenState extends State<DemoPersonScreen> {
+class _PersonScreenState extends State<PersonScreen> {
   bool _duelSent = false;
 
   @override
@@ -1146,12 +1243,12 @@ class _DemoPersonScreenState extends State<DemoPersonScreen> {
                   Row(mainAxisSize: MainAxisSize.min, children: [
                     Text(p.name, style: TextStyle(fontSize: 23, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: _P.onLilac)),
                     const SizedBox(width: 6),
-                    const PremiumIcon(size: 20),
+                    if (p.premium) const PremiumIcon(size: 20),
                   ]),
                 ]),
               ),
               const SizedBox(height: 12),
-              _Achievements(p.achievements),
+              _Achievements(p.achievements, p.achievementsTotal),
               if (team != null) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -1159,7 +1256,7 @@ class _DemoPersonScreenState extends State<DemoPersonScreen> {
                   child: InkWell(
                     key: const ValueKey('person-team'),
                     borderRadius: BorderRadius.circular(22),
-                    onTap: () => showDemoTeamSheet(context, team.id),
+                    onTap: () => showTeamSheet(context, team.id),
                     child: Padding(
                       padding: const EdgeInsets.all(14),
                       child: Row(children: [
@@ -1168,7 +1265,7 @@ class _DemoPersonScreenState extends State<DemoPersonScreen> {
                         Expanded(
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Text(tr('Команда «{0}»', [team.name]), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: _P.ink)),
-                            Text('${tr('{0} из {1}', [team.members.length, DemoSocial.capacity])} · ${team.isOpen ? tr('открыта') : tr('по заявке')}', style: TextStyle(fontSize: 12.5, color: _P.muted)),
+                            Text('${tr('{0} из {1}', [team.count, _s.capacity])} · ${team.isOpen ? tr('открыта') : tr('по заявке')}', style: TextStyle(fontSize: 12.5, color: _P.muted)),
                           ]),
                         ),
                         Icon(Icons.chevron_right_rounded, color: _P.muted),
@@ -1202,7 +1299,7 @@ class _DemoPersonScreenState extends State<DemoPersonScreen> {
                   ),
                   TextButton.icon(
                     key: const ValueKey('person-unfriend'),
-                    onPressed: () => _s.removeFriend(p.id),
+                    onPressed: () => _fire(_s.removeFriend(p.id)),
                     icon: const Icon(Icons.person_remove_rounded, color: _P.red),
                     label: Text(tr('Удалить из друзей'), style: const TextStyle(color: _P.red, fontWeight: FontWeight.w700)),
                   ),
@@ -1212,14 +1309,14 @@ class _DemoPersonScreenState extends State<DemoPersonScreen> {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       key: const ValueKey('person-add'),
-                      onPressed: () => _s.toggleFriendRequest(p.id),
+                      onPressed: () => _fire(_s.toggleFriendRequest(p.id)),
                       icon: const Icon(Icons.schedule_rounded),
                       label: Text(tr('Запрос отправлен'), style: const TextStyle(fontWeight: FontWeight.w800)),
                       style: OutlinedButton.styleFrom(foregroundColor: _P.ink, side: BorderSide(color: _P.line), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
                     ),
                   )
                 else
-                  _GreenButton(tr('Добавить в друзья'), key: const ValueKey('person-add'), icon: Icons.person_add_alt_1_rounded, onTap: () => _s.toggleFriendRequest(p.id)),
+                  _GreenButton(tr('Добавить в друзья'), key: const ValueKey('person-add'), icon: Icons.person_add_alt_1_rounded, onTap: () => _fire(_s.toggleFriendRequest(p.id))),
               ]),
             ),
           ),
@@ -1231,7 +1328,8 @@ class _DemoPersonScreenState extends State<DemoPersonScreen> {
 
 class _Achievements extends StatelessWidget {
   final int earned;
-  const _Achievements(this.earned);
+  final int total;
+  const _Achievements(this.earned, this.total);
 
   @override
   Widget build(BuildContext context) {
@@ -1251,7 +1349,7 @@ class _Achievements extends StatelessWidget {
         Row(children: [
           Text(tr('Достижения'), style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5, color: _P.ink)),
           const Spacer(),
-          Text(tr('{0} из {1}', [earned, 20]), style: TextStyle(fontSize: 12.5, color: _P.muted)),
+          Text(tr('{0} из {1}', [earned, total]), style: TextStyle(fontSize: 12.5, color: _P.muted)),
         ]),
         const SizedBox(height: 10),
         GridView.count(
@@ -1324,7 +1422,7 @@ class _WeekPoints extends StatelessWidget {
 }
 
 class _Habits extends StatelessWidget {
-  final DemoPerson p;
+  final SocialPerson p;
   const _Habits(this.p);
 
   @override
@@ -1342,17 +1440,22 @@ class _Habits extends StatelessWidget {
             ),
           ]),
         );
+    final rows = <Widget>[];
+    void add(Widget w) {
+      if (rows.isNotEmpty) rows.add(Divider(height: 1, color: _P.line));
+      rows.add(w);
+    }
+
+    if (p.hours.isNotEmpty) add(row(Icons.schedule_rounded, tr('Обычно занимается'), p.hours));
+    if (p.bestDay.isNotEmpty) add(row(Icons.calendar_today_rounded, tr('Лучший день'), tr(p.bestDay)));
+    if (p.accuracy > 0) add(row(Icons.track_changes_rounded, tr('Точность {0}%', [p.accuracy]), p.avgAnswer.isEmpty ? '' : tr('в среднем {0} с на ответ', [p.avgAnswer])));
+    if (p.studying.isNotEmpty) add(row(Icons.menu_book_rounded, tr('Изучает: {0}', [p.studying]), ''));
+    if (rows.isEmpty) return const SizedBox.shrink();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: _cardBox(),
       child: Column(children: [
-        row(Icons.schedule_rounded, tr('Обычно занимается'), p.hours),
-        Divider(height: 1, color: _P.line),
-        row(Icons.calendar_today_rounded, tr('Лучший день'), tr(p.bestDay)),
-        Divider(height: 1, color: _P.line),
-        row(Icons.track_changes_rounded, tr('Точность {0}%', [p.accuracy]), tr('в среднем {0} с на ответ', [p.avgAnswer])),
-        Divider(height: 1, color: _P.line),
-        row(Icons.menu_book_rounded, tr('Изучает: {0}', [tr('Английский')]), tr('темы: {0}', [tr('Еда, Путешествия')])),
+        ...rows,
       ]),
     );
   }

@@ -11,8 +11,7 @@ class _Fake extends ResultsSource {
   final bool withStreak;
   final bool chest;
   final bool pass;
-  final String prizeKind;
-  _Fake({this.withStreak = false, this.chest = true, this.pass = false, this.prizeKind = 'freeze'});
+  _Fake({this.withStreak = false, this.chest = true, this.pass = false});
 
   @override
   Future<ResultsOutcome> outcome(Lesson lesson, LessonPassStats? stats) async => ResultsOutcome(
@@ -41,7 +40,7 @@ class _Fake extends ResultsSource {
   StreakView streak() => const StreakView(before: 4, grew: true);
 
   @override
-  Future<DailyPrize?> openDailyChest() async => DailyPrize(prizeKind, 2);
+  Future<DailyPrize?> openDailyChest() async => DailyPrize('freeze', 2);
 }
 
 Lesson _lesson() => Lesson.fromJson({

@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import 'app_hooks.dart';
-import 'demo/demo_feed.dart';
+import 'demo/demo_social.dart';
+import 'screens/feed_screen.dart';
+import 'social/social_store.dart';
 
 import 'l10n/l10n.dart';
 import 'demo/demo_server.dart';
@@ -22,10 +24,11 @@ Future<void> main() async {
     WidgetsFlutterBinding.ensureInitialized();
     await DemoState.instance.load(); // progress kept between launches
     // The end of a lesson shows the path the owner approved (results, streak, chest of the day).
+    SocialStore.instance = DemoSocial.instance;
     lessonResultsBuilder = demoResultsFlow;
     // «Лента» takes the place of «Рейтинг» (the rating opens from its switch), and the profile shows the team.
-    AppHooks.ratingTab = (icon: Icons.favorite_rounded, label: tr('Лента'), page: (context, goTo) => DemoFeedTab(goTo: goTo));
-    AppHooks.profileExtra = (context) => const DemoMyTeamCard();
+    AppHooks.ratingTab = (icon: Icons.favorite_rounded, label: tr('Лента'), page: (context, goTo) => FeedTab(goTo: goTo));
+    AppHooks.profileExtra = (context) => const MyTeamCard();
     await app.main();
   }, demoClient);
 }

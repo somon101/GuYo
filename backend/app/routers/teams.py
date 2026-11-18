@@ -177,6 +177,15 @@ def join(team_id: int, db: Session = Depends(get_db), user: User = Depends(get_c
     return _run(db, user, lambda: svc.join_open(db, user, team_id))
 
 
+@router.get("/{team_id}")
+def get_team(team_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """A team as anybody sees it (see public_team)."""
+    data = svc.public_team(db, user, team_id)
+    if data is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Команда не найдена")
+    return data
+
+
 @router.post("/{team_id}/request", response_model=MyTeamOut)
 def ask_to_join(team_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """Asks a closed team to take you (anyone may ask; only its creator answers)."""

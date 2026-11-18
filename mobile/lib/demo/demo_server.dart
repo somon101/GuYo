@@ -5,6 +5,7 @@ import 'package:http/testing.dart';
 
 import 'demo_avatar.dart';
 import 'demo_lessons.dart';
+import '../social/social_store.dart';
 import 'demo_social.dart';
 import 'demo_state.dart';
 import 'demo_words.dart';
@@ -38,7 +39,7 @@ http.Client demoClient() => MockClient((req) async {
         if (req.body.isNotEmpty) sent = jsonDecode(req.body) as Map<String, dynamic>;
       } catch (_) {}
       body = demoTeams(req.method, path, sent) ?? demoDynamic(req.method, path, req.url.queryParameters, sent);
-      if (body is DemoTeamError) return http.Response(jsonEncode({'detail': body.message}), 409, headers: _h);
+      if (body is SocialError) return http.Response(jsonEncode({'detail': body.message}), 409, headers: _h);
       if (body == null) {
         if (req.method == 'GET') {
           body = _get(path, req.url.queryParameters);
@@ -262,31 +263,31 @@ Object? demoTeams(String method, String path, Map<String, dynamic> sent) {
     if (path == '/teams/me' && method == 'GET') return s.teamStateJson();
     if (path == '/teams/open') return s.openTeamsJson();
     if (path == '/teams' && method == 'POST') {
-      s.create(sent['name'] as String? ?? '', isOpen: sent['is_open'] == true);
+      s.createNow(sent['name'] as String? ?? '', isOpen: sent['is_open'] == true);
       return s.teamStateJson();
     }
     if (path == '/teams/me' && method == 'PUT') {
-      s.update(name: sent['name'] as String?, isOpen: sent['is_open'] as bool?);
+      s.updateNow(name: sent['name'] as String?, isOpen: sent['is_open'] as bool?);
       return s.teamStateJson();
     }
     if (path == '/teams/me/invite') return s.teamStateJson();
     if (path == '/teams/me/leave') {
-      s.leave();
+      s.leaveNow();
       return s.teamStateJson();
     }
     if (path == '/teams/goals/claim') return {'state': s.teamStateJson(), 'xp': 0};
     final kick = RegExp(r'^/teams/me/members/(\d+)$').firstMatch(path);
     if (kick != null) {
-      s.kick(int.parse(kick.group(1)!));
+      s.kickNow(int.parse(kick.group(1)!));
       return s.teamStateJson();
     }
     if (RegExp(r'^/teams/invites/\d+/(accept|decline)$').hasMatch(path)) return s.teamStateJson();
     final join = RegExp(r'^/teams/(\d+)/join$').firstMatch(path);
     if (join != null) {
-      s.join(int.parse(join.group(1)!));
+      s.joinNow(int.parse(join.group(1)!));
       return s.teamStateJson();
     }
-  } on DemoTeamError catch (e) {
+  } on SocialError catch (e) {
     return e;
   }
   return null;

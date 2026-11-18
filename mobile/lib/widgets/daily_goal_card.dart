@@ -140,7 +140,6 @@ class _G {
   static Color get edge => _d ? const Color(0xFF4FA936) : const Color(0xFF47A72F);
   static Color get onGreen => _d ? const Color(0xFF10300A) : const Color(0xFF123D0A);
   static Color get text => _d ? const Color(0xFF8EE878) : const Color(0xFF3A8A27);
-  static Color get soft => _d ? const Color(0x297BDA5E) : const Color(0x3362C94A);
 }
 
 /// «Цель дня» on Главная, variant 3 («блок как в итогах урока»): the title and the count on one line,

@@ -357,6 +357,47 @@ def _goal_state(db: Session, team: Team, season: Season, goal: dict, scope: str,
     }
 
 
+def public_team(db: Session, me: User, team_id: int) -> dict | None:
+    """A team as anybody sees it (from a profile or the search): who is in it, the creator, how far
+    the season goal is, and whether this person is in it or has asked."""
+    from app.core.storage import url_for_key
+
+    team = db.get(Team, team_id)
+    if team is None:
+        return None
+    members = members_of(db, team)
+    users = {u.id: u for u in db.query(User).filter(User.id.in_([m.user_id for m in members]))}
+    season = db.query(Season).filter(Season.status == "active").first()
+    percent = 0
+    if season is not None:
+        sg = season_pass(db, season).definition.get("team_season_goal")
+        if sg:
+            state = _goal_state(db, team, season, sg, "season", season.starts_at, season.ends_at, f"season:{sg['id']}", set(), len(members), me.ui_language)
+            percent = round(state["progress"] * 100 / state["target"]) if state["target"] else 0
+    mine = membership(db, me)
+    asked = (
+        db.query(TeamJoinRequest.id)
+        .filter(TeamJoinRequest.team_id == team.id, TeamJoinRequest.user_id == me.id, TeamJoinRequest.declined_at.is_(None))
+        .first()
+        is not None
+    )
+    return {
+        "id": team.id,
+        "name": team.name,
+        "is_open": team.is_open,
+        "owner_id": team.owner_id,
+        "members": [
+            {"user_id": m.user_id, "login": users[m.user_id].login, "avatar_url": url_for_key(users[m.user_id].avatar_key)}
+            for m in members
+            if m.user_id in users
+        ],
+        "capacity": team_size_cap(db),
+        "season_percent": percent,
+        "is_mine": mine is not None and mine.team_id == team.id,
+        "requested": asked,
+    }
+
+
 def team_state(db: Session, user: User) -> dict:
     """Everything the team screen shows: the person's team (if any) with
     members, contributions and goals, and their pending invitations."""
