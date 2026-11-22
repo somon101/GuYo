@@ -1,0 +1,9 @@
+# HTTPS for the backend: the certificate is fetched and renewed by itself (the domain must point at this server).
+{$API_DOMAIN} {
+	encode gzip
+	# Uploads (avatar parts, images) go through here too.
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy backend:8000
+}

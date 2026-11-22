@@ -1,0 +1,73 @@
+# GuYo on one server: PostgreSQL, the backend and Caddy (HTTPS, certificates by themselves).
+# Start:  docker compose up -d --build     (see docs/DEPLOY.md; deploy/setup-server.sh does it all)
+name: guyo
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: guyo
+      POSTGRES_DB: guyo
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is not set in deploy/.env}
+    # Sized for a 1 GB server; raise these when the server grows (see docs/DEPLOY.md).
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c effective_cache_size=384MB
+      -c work_mem=4MB
+      -c maintenance_work_mem=64MB
+      -c max_connections=40
+      -c wal_compression=on
+      -c checkpoint_completion_target=0.9
+      -c log_min_duration_statement=1000
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U guyo -d guyo"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: &logs
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+  backend:
+    build: ../backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://guyo:${DB_PASSWORD}@db:5432/guyo
+      MEDIA_ROOT: /app/storage
+    volumes:
+      - ./data/storage:/app/storage
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+      interval: 30s
+      timeout: 6s
+      retries: 3
+      start_period: 120s
+    logging: *logs
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?API_DOMAIN is not set in deploy/.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    logging: *logs
+
+volumes:
+  caddy_data:
+  caddy_config:
