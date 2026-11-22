@@ -31,7 +31,16 @@ echo "== 2/7 Packages =="
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get install -y ca-certificates curl ufw unattended-upgrades gzip cron openssl
-if ! command -v docker >/dev/null 2>&1; then curl -fsSL https://get.docker.com | sh; fi
+. /etc/os-release
+case "${VERSION_ID:-}" in
+  20.04|18.04|16.04) echo "!! This system (Ubuntu $VERSION_ID) no longer gets security updates. Upgrade it soon: see docs/DEPLOY.md, «Старая система»." ;;
+esac
+if ! command -v docker >/dev/null 2>&1; then curl -fsSL https://get.docker.com | sh || true; fi
+if ! docker compose version >/dev/null 2>&1; then
+  # An old system: Docker's own script may not have the compose plugin; take it from the system packages.
+  apt-get install -y docker-compose-plugin || apt-get install -y docker-compose-v2 || apt-get install -y docker.io docker-compose
+fi
+docker compose version >/dev/null 2>&1 || { echo "Docker with the compose plugin could not be installed. Send the lines above to the developer."; exit 1; }
 systemctl enable --now docker
 
 echo "== 3/7 Firewall =="
