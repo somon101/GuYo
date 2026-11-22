@@ -19,7 +19,6 @@ import 'season_quests_screen.dart';
 import '../widgets/daily_goal_card.dart';
 import '../widgets/season_card.dart';
 import '../widgets/weekly_pass_tasks.dart';
-import '../widgets/home_tiles.dart';
 import '../widgets/skeleton.dart';
 
 /// The app's own slogan fetch, as a plain function so the default
@@ -194,10 +193,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             onOpenHeader: _openSeasonQuests,
           ),
         if (overview != null) HomeSeasonTasks(onOpen: _openSeasonQuests),
-        const SizedBox(height: 18),
-        _SectionTitle(tr('Мои награды')),
-        const SizedBox(height: 10),
-        const HomeTilesRow(),
         const SizedBox(height: 18),
         _SectionTitle(tr('Сегодня')),
         const SizedBox(height: 10),

@@ -7,7 +7,9 @@ import '../widgets/pass_header_button.dart';
 import '../widgets/game_icons.dart';
 import '../widgets/guyo_ui.dart';
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
+import 'gifts_screen.dart';
 import '../services/streak_state.dart';
 
 import '../api/api_client.dart';
@@ -459,6 +461,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         const RatingScreen(),
         if (AppHooks.ratingTab != null)
           AppHooks.ratingTab!.page(context, (tab) => setState(() => _selectedTabIndex = tab)),
+        // «Подарки»: the chests and what waits to be taken (it left the Главная).
+        const GiftsScreen(),
       ],
     );
   }
@@ -552,6 +556,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         NavItemData(Icons.menu_book_rounded, tr('Уроки')),
         NavItemData(Icons.bar_chart_rounded, tr('Рейтинг')),
         if (AppHooks.ratingTab != null) NavItemData(AppHooks.ratingTab!.icon, AppHooks.ratingTab!.label),
+        NavItemData(Icons.card_giftcard_rounded, tr('Подарки'), badge: giftsWaiting),
         NavItemData(Icons.auto_awesome_rounded, tr('Проверка текста')),
       ];
 }
@@ -559,7 +564,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 class NavItemData {
   final IconData icon;
   final String label;
-  const NavItemData(this.icon, this.label);
+
+  /// A red number on the button (how many things wait); nothing shows at zero.
+  final ValueListenable<int>? badge;
+  const NavItemData(this.icon, this.label, {this.badge});
 }
 
 /// The bottom bar: a compact pill that floats above the canvas. Icons only,
@@ -658,10 +666,35 @@ class NavButton extends StatelessWidget {
                     ]
                   : null,
             ),
-            child: Icon(
-              data.icon,
-              size: selected ? 22 : 24,
-              color: selected ? Colors.white : AppColors.muted,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                Icon(
+                  data.icon,
+                  size: selected ? 22 : 24,
+                  color: selected ? Colors.white : AppColors.muted,
+                ),
+                if (data.badge != null)
+                  Positioned(
+                    top: -4,
+                    right: -6,
+                    child: ValueListenableBuilder<int>(
+                      valueListenable: data.badge!,
+                      builder: (_, n, _) => n <= 0
+                          ? const SizedBox.shrink()
+                          : Container(
+                              key: const ValueKey('nav-badge'),
+                              constraints: const BoxConstraints(minWidth: 18),
+                              height: 18,
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(color: AppColors.danger, borderRadius: BorderRadius.circular(99), border: Border.all(color: AppColors.surface, width: 2)),
+                              child: Text(n > 9 ? '9+' : '$n', style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w800, height: 1)),
+                            ),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
