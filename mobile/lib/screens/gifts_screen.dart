@@ -10,7 +10,7 @@ import '../models/reward_spec.dart';
 import '../services/chest_queue.dart';
 import '../services/streak_state.dart';
 import '../theme/app_colors.dart';
-import '../widgets/counted_chest.dart';
+import '../widgets/flat_green_button.dart';
 import '../widgets/game_icons.dart';
 import '../widgets/gift_badge.dart';
 import '../widgets/reward_chips.dart';
@@ -309,11 +309,11 @@ class _GiftsScreenState extends State<GiftsScreen> {
           if (options.length > 1) const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
-            child: GreenButton(
+            child: FlatGreenButton(
               key: ValueKey('gift-open-$key'),
               label: m > 1 ? '${tr('Открыть')} ×$m' : tr('Открыть'),
               onTap: _busy ? null : () => _open(key),
-              padding: const EdgeInsets.symmetric(vertical: 13),
+              compact: false,
             ),
           ),
         ],
@@ -345,7 +345,7 @@ class _GiftsScreenState extends State<GiftsScreen> {
         leading: ChestImage(daily.chestKey, size: 40),
         title: tr('Сундук дня'),
         sub: daily.conditions,
-        action: GreenButton(label: tr('Забрать'), compact: true, onTap: _claimDaily),
+        action: FlatGreenButton(label: tr('Забрать'), onTap: _claimDaily, width: 110),
       );
 
   Widget _giftCard(AppNotification n) {
@@ -356,7 +356,7 @@ class _GiftsScreenState extends State<GiftsScreen> {
       title: n.title ?? (isGift ? tr('Подарок') : tr('Цель дня выполнена!')),
       sub: n.body,
       rewards: n.payload,
-      action: GreenButton(label: tr('Забрать'), compact: true, onTap: () => _take(n)),
+      action: FlatGreenButton(label: tr('Забрать'), onTap: () => _take(n), width: 110),
     );
   }
 }

@@ -7,6 +7,7 @@ import '../l10n/l10n.dart';
 import '../models/daily_goal.dart';
 import '../services/streak_state.dart';
 import '../theme/app_colors.dart';
+import 'flat_green_button.dart';
 import 'reward_chips.dart';
 import 'reward_claim_effect.dart';
 
@@ -137,8 +138,6 @@ class _G {
   _G._();
   static bool get _d => AppColors.dark;
   static Color get green => _d ? const Color(0xFF7BDA5E) : const Color(0xFF62C94A);
-  static Color get edge => _d ? const Color(0xFF4FA936) : const Color(0xFF47A72F);
-  static Color get onGreen => _d ? const Color(0xFF10300A) : const Color(0xFF123D0A);
   static Color get text => _d ? const Color(0xFF8EE878) : const Color(0xFF3A8A27);
 }
 
@@ -206,14 +205,14 @@ class DailyGoalCardView extends StatelessWidget {
           Row(children: [
             Expanded(child: rewards.isEmpty ? const SizedBox.shrink() : RewardChips(rewards: rewards, size: 24, soft: true)),
             const SizedBox(width: 10),
-            _GreenButton(key: const ValueKey('goal-claim'), label: tr('Получить'), onTap: onClaim!, width: 130),
+            FlatGreenButton(key: const ValueKey('goal-claim'), label: tr('Получить'), onTap: onClaim!, width: 130),
           ]),
         ] else if (!done && onContinue != null) ...[
           const SizedBox(height: 12),
           Row(children: [
             Expanded(child: Text(tr('Осталось {0} слов', [left]), style: label)),
             const SizedBox(width: 10),
-            _GreenButton(key: const ValueKey('goal-continue'), label: tr('Продолжить'), onTap: onContinue!, width: 150),
+            FlatGreenButton(key: const ValueKey('goal-continue'), label: tr('Продолжить'), onTap: onContinue!, width: 150),
           ]),
         ],
         if (done && !ready) ...[
@@ -233,49 +232,6 @@ class DailyGoalCardView extends StatelessWidget {
       ]),
     );
   }
-}
-
-/// The flat green button of the day's goal: a face on a darker edge that sinks when pressed.
-class _GreenButton extends StatefulWidget {
-  final String label;
-  final VoidCallback onTap;
-  final double width;
-  const _GreenButton({super.key, required this.label, required this.onTap, required this.width});
-
-  @override
-  State<_GreenButton> createState() => _GreenButtonState();
-}
-
-class _GreenButtonState extends State<_GreenButton> {
-  bool _down = false;
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: (_) => setState(() => _down = true),
-        onTapCancel: () => setState(() => _down = false),
-        onTapUp: (_) => setState(() => _down = false),
-        onTap: widget.onTap,
-        child: SizedBox(
-          width: widget.width,
-          height: 48,
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 80),
-              margin: EdgeInsets.only(top: _down ? 4 : 0),
-              height: 44,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: _G.green,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: _down ? null : [BoxShadow(color: _G.edge, offset: const Offset(0, 4))],
-              ),
-              child: Text(widget.label.toUpperCase(), style: TextStyle(color: _G.onGreen, fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: 0.4)),
-            ),
-          ),
-        ),
-      );
 }
 
 /// «Получить»: the indigo pill (the same colour as «Продолжить»).

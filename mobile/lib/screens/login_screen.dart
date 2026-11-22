@@ -218,10 +218,15 @@ class _LoginScreenState extends State<LoginScreen> {
           child: FilledButton(
             key: const ValueKey('login-submit'),
             onPressed: _isSubmitting ? null : _submit,
-            style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+            // The same colour and lettering as «Войти» on the first screen.
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
             child: _isSubmitting
-                ? SkeletonPulse(child: Text(tr('Входим…'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)))
-                : Text(tr('Войти'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                ? SkeletonPulse(child: Text(tr('Входим…'), style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700)))
+                : Text(tr('Войти'), style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700)),
           ),
         ),
         const SizedBox(height: 12),
